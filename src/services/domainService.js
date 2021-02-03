@@ -1,9 +1,17 @@
+const { default: axios } = require('axios');
 const config = require('config');
 const log = require('../lib/log');
 const serviceHelper = require('./serviceHelper');
 
 let db = null;
 const recordsCollection = config.database.mainDomain.collections.records;
+
+const cloudFlareAxiosConfig = {
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${config.cloudflare.apiKey}`,
+  },
+};
 
 async function getAllRecordsDB(req, res) {
   try {
@@ -38,7 +46,22 @@ async function start() {
     }, 5 * 30 * 1000);
   }
 }
+
+async function listDNSRecords(req, res) {
+  try {
+    const url = `${config.cloudflare.endpoint}zones/${config.cloudflare.zone}/dns_records`;
+    const records = await axios.get(url, cloudFlareAxiosConfig);
+    const resMessage = serviceHelper.createDataMessage(records.data);
+    res.json(resMessage);
+  } catch (error) {
+    log.error(error);
+    const errMessage = serviceHelper.createErrorMessage(error.message, error.name, error.code);
+    res.json(errMessage);
+  }
+}
+
 module.exports = {
   start,
   getAllRecordsDB,
+  listDNSRecords,
 };

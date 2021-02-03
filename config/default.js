@@ -1,3 +1,5 @@
+const cloudflareConfig = require('./cloudflareConfig');
+
 module.exports = {
   server: {
     port: 9988,
@@ -13,5 +15,11 @@ module.exports = {
         records: 'records',
       },
     },
+  },
+  cloudflare: {
+    endpoint: 'https://api.cloudflare.com/client/v4/',
+    apiKey: cloudflareConfig.apiKey,
+    zone: cloudflareConfig.zoneID,
+    domain: cloudflareConfig.domain,
   },
 };

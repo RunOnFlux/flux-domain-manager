@@ -6,9 +6,9 @@ const cache = apicache.middleware;
 module.exports = (app) => {
   // GET methods
   app.get('/listrecordsdb', cache('5 minutes'), (req, res) => {
-    domainService.getAllRecordsDB(req, res);
+    domainService.getAllRecordsDBAPI(req, res);
   });
   app.get('/listrecords', cache('5 minutes'), (req, res) => {
-    domainService.listDNSRecords(req, res);
+    domainService.listDNSRecordsAPI(req, res);
   });
 };

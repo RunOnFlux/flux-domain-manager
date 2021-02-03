@@ -1,5 +1,4 @@
 config/cloudflareConfig.js
-
 .DS_Store
 node_modules/
 /dist/
@@ -15,13 +14,11 @@ yarn-error.log*
 *.njsproj
 *.sln
 
-.DS_Store
 dist/electron/*
 dist/web/*
 build/*
 !build/icons
 !dist/electron/splash.html
-.package-lock.json
 node_modules/
 npm-debug.log
 package-lock.json
@@ -353,4 +350,3 @@ ASALocalRun/
 
 # NVidia Nsight GPU debugger configuration file
 *.nvuser
-

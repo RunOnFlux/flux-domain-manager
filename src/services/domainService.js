@@ -3,6 +3,7 @@ const qs = require('qs');
 const config = require('config');
 const log = require('../lib/log');
 const serviceHelper = require('./serviceHelper');
+const ipService = require('./ipService');
 
 let db = null;
 const recordsCollection = config.database.mainDomain.collections.records;
@@ -59,25 +60,6 @@ async function createDNSRecord(name, content, type = 'A', ttl = 1) {
   return response.data;
 }
 
-async function start() {
-  try {
-    db = await serviceHelper.connectMongoDb().catch((error) => {
-      log.error(error);
-      throw error;
-    });
-    const database = db.db(config.database.mainDomain.database);
-    database.collection(recordsCollection).createIndex({ ip: 1 }, { name: 'query for getting list of Flux node data associated to IP address' });
-    database.collection(recordsCollection).createIndex({ domain: 1 }, { name: 'query for getting list of Flux node data associated to Domain' });
-    log.info('Initiating FDM API services...');
-  } catch (e) {
-    // restart service after 5 mins
-    log.error(e);
-    setTimeout(() => {
-      start();
-    }, 5 * 30 * 1000);
-  }
-}
-
 async function getAllRecordsDBAPI(req, res) {
   try {
     const database = db.db(config.database.mainDomain.database);
@@ -102,6 +84,88 @@ async function listDNSRecordsAPI(req, res) {
     log.error(error);
     const errMessage = serviceHelper.createErrorMessage(error.message, error.name, error.code);
     res.json(errMessage);
+  }
+}
+
+// this is run on CUSTOM domain. By other FDMs for application to have custom domain
+async function startApplicationDomainService() {
+  console.log('CUSTOM DOMAIN SERVICE UNAVAILABLE');
+}
+
+// only runs main FDM. Registeres and handles X.ui.runonflux.io and X.api.runonflux.io
+async function startMainFluxDomainService() {
+  // 1. check that my IP has A record for main UI, if not create
+  const ui = `ui.${config.mainDomain}`;
+  const api = `api.${config.mainDomain}`;
+  const mainUIRecords = await listDNSRecords(ui);
+  const mainAPIRecords = await listDNSRecords(api);
+  console.log(mainUIRecords);
+  console.log(mainAPIRecords);
+  // 2. check that my IP has A record for main API, if not create
+  // 3. check that my IP is the only one with main UI, if not delete others
+  // 4. check that my IP is the only one with main API, if not delete others
+
+  // 5. get list of current nodes on Flux network
+  // 6. get list of current X.api and X.api on main domain
+  // 7. if flux node does not have a domain, assign it
+  // 8. adjust haproxy load balancing for new domains
+  // 8. if domain exists on IP and IP is not in list, remove it from haproxy load balancing. Add such a domain to blacklist
+  // 9. blacklisted domains are removed from DNS records after 24 hours of being in the list
+}
+
+// only runs on main FDM handles X.MYAPP.runonflux.io
+async function startApplicationFluxDomainService() {
+  console.log('Application SERVICE UNAVAILABLE');
+}
+
+// services run every 6 mins
+async function initializeServices() {
+  const myIP = await ipService.localIP();
+  console.log(myIP);
+  if (myIP) {
+    if (config.mainDomain === config.cloudflare.domain) {
+      startMainFluxDomainService();
+      setInterval(() => {
+        startMainFluxDomainService();
+      }, 6 * 60 * 1000);
+      log.info('Flux Main Node Domain Service initiated.');
+      // wait 3 mins so it runs separately
+      setTimeout(() => {
+        startApplicationFluxDomainService();
+        setInterval(() => {
+          startApplicationFluxDomainService();
+        }, 6 * 60 * 1000);
+      }, 3 * 60 * 1000);
+      log.info('Flux Main Application Domain Service initiated.');
+    } else {
+      startApplicationDomainService();
+      setInterval(() => {
+        startApplicationDomainService();
+      }, 6 * 60 * 1000);
+      log.info('Flux Custom Application Domain Service initiated.');
+    }
+  } else {
+    log.warn('Awaiting FDM IP address...');
+    setTimeout(() => {
+      initializeServices();
+    }, 5 * 1000);
+  }
+}
+
+async function start() {
+  try {
+    db = await serviceHelper.connectMongoDb();
+    const database = db.db(config.database.mainDomain.database);
+    database.collection(recordsCollection).createIndex({ ip: 1 }, { name: 'query for getting list of Flux node data associated to IP address' });
+    database.collection(recordsCollection).createIndex({ domain: 1 }, { name: 'query for getting list of Flux node data associated to Domain' });
+    log.info('Initiating FDM API services...');
+    initializeServices();
+  } catch (e) {
+    // restart service after 5 mins
+    log.error(e);
+    setTimeout(() => {
+      start();
+    }, 5 * 30 * 1000);
   }
 }
 

@@ -23,11 +23,18 @@ async function getFluxList(fallback) {
   }
 }
 
-async function getFluxIPs(zelnodeList) {
+async function getFluxIPs() {
   try {
-    const zelnodes = zelnodeList || await getFluxList();
+    const zelnodes = await getFluxList();
     const ips = zelnodes.map((zelnode) => zelnode.ip);
-    return ips;
+    const correctIps = [];
+    const ipvTest = new RegExp('^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(.(?!$)|$)){4}$');
+    ips.forEach((ip) => {
+      if (ipvTest.test(ip)) {
+        correctIps.push(ip);
+      }
+    });
+    return correctIps;
   } catch (e) {
     log.error(e);
     return [];
@@ -72,5 +79,6 @@ async function getApplicationLocation(application) {
 }
 
 module.exports = {
+  getFluxIPs,
   getApplicationLocation,
 };

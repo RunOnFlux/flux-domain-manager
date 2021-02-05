@@ -104,7 +104,7 @@ async function startMainFluxDomainService() {
   // check that my IP has A record for main API, if not create
   // check that my IP is the only one with main UI, if not delete others
   // check that my IP is the only one with main API, if not delete others
-  const ui = `ui.${config.mainDomain}`;
+  const ui = `home.${config.mainDomain}`;
   const api = `api.${config.mainDomain}`;
   const mainUIRecords = await listDNSRecords(ui);
   const mainAPIRecords = await listDNSRecords(api);
@@ -227,7 +227,7 @@ async function startMainFluxDomainService() {
           UiIpString = `${UiIpString}00${a[i]}`;
         }
       }
-      // ui record is long ip address (with trailing 0s) without dots followed by ui.my.domain
+      // ui record is long ip address (with trailing 0s) without dots followed by home.my.domain
       const expectedUIRecord = `${UiIpString}.${ui}`;
       if (record.name === expectedUIRecord && record.proxied === false) {
         // ALL OK. Remove Flux IP from fluxIpsForUI (so we have smaller array to use later on)
@@ -427,7 +427,7 @@ async function startApplicationFluxDomainService() {
   console.log('Application SERVICE UNAVAILABLE');
 }
 
-// services run every 6 mins
+// services run every 30 mins
 async function initializeServices() {
   const myIP = await ipService.localIP();
   console.log(myIP);
@@ -436,21 +436,21 @@ async function initializeServices() {
       startMainFluxDomainService();
       setInterval(() => {
         startMainFluxDomainService();
-      }, 6 * 60 * 1000);
+      }, 30 * 60 * 1000);
       log.info('Flux Main Node Domain Service initiated.');
       // wait 3 mins so it runs separately
       setTimeout(() => {
         startApplicationFluxDomainService();
         setInterval(() => {
           startApplicationFluxDomainService();
-        }, 6 * 60 * 1000);
-      }, 3 * 60 * 1000);
+        }, 30 * 60 * 1000);
+      }, 15 * 60 * 1000);
       log.info('Flux Main Application Domain Service initiated.');
     } else {
       startApplicationDomainService();
       setInterval(() => {
         startApplicationDomainService();
-      }, 6 * 60 * 1000);
+      }, 30 * 60 * 1000);
       log.info('Flux Custom Application Domain Service initiated.');
     }
   } else {

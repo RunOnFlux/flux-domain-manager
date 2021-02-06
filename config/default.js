@@ -17,7 +17,7 @@ module.exports = {
       },
     },
   },
-  mainDomain: 'fluxos.network',
+  mainDomain: 'runonflux.io',
   cloudflare: {
     endpoint: 'https://api.cloudflare.com/client/v4/',
     apiKey: cloudflareConfig.apiKey,

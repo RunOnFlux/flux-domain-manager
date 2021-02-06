@@ -2,10 +2,16 @@
 const axios = require('axios');
 const qs = require('qs');
 const config = require('config');
+const nodecmd = require('node-cmd');
+const util = require('util');
+const fs = require('fs').promises;
 const log = require('../lib/log');
 const serviceHelper = require('./serviceHelper');
 const ipService = require('./ipService');
 const fluxService = require('./fluxService');
+const haproxyTemplate = require('./haproxyTemplate');
+
+const cmdAsync = util.promisify(nodecmd.get);
 
 let db = null;
 const recordsCollection = config.database.mainDomain.collections.records;
@@ -17,8 +23,8 @@ const cloudFlareAxiosConfig = {
   },
 };
 
-const uiBlackList = [];
-const apiBlackList = [];
+// const uiBlackList = [];
+// const apiBlackList = [];
 
 async function listDNSRecords(name, content, type = 'A', page = 1, per_page = 100, records = []) {
   // https://api.cloudflare.com/#dns-records-for-a-zone-list-dns-records
@@ -92,6 +98,32 @@ async function listDNSRecordsAPI(req, res) {
   }
 }
 
+async function generateAndReplaceMainHaproxyConfig() {
+  try {
+    const ui = `home.${config.mainDomain}`;
+    const api = `api.${config.mainDomain}`;
+    const fluxIPs = await fluxService.getFluxIPs();
+    const hc = await haproxyTemplate.createMainHaproxyConfig(ui, api, fluxIPs);
+    console.log(hc);
+    const dataToWrite = hc;
+    // test haproxy config
+    const haproxyPathTemp = '/tmp/haproxytemp.cfg';
+    await fs.writeFile(haproxyPathTemp, dataToWrite);
+    const response = await cmdAsync(`sudo haproxy -f ${haproxyPathTemp} -c`);
+    if (response.includes('Configuration file is valid')) {
+    // write and reload
+      const haproxyPath = '/etc/haproxy/haproxy.cfg';
+      await fs.writeFile(haproxyPath, dataToWrite);
+      const execHAreload = 'sudo service haproxy reload';
+      await cmdAsync(execHAreload);
+    } else {
+      throw new Error('Invalid HAPROXY config file!');
+    }
+  } catch (error) {
+    log.error(error);
+  }
+}
+
 // this is run on CUSTOM domain. By other FDMs for application to have custom domain
 async function startApplicationDomainService() {
   console.log('CUSTOM DOMAIN SERVICE UNAVAILABLE');
@@ -99,6 +131,8 @@ async function startApplicationDomainService() {
 
 // only runs main FDM. Registeres and handles X.ui.runonflux.io and X.api.runonflux.io
 async function startMainFluxDomainService() {
+  /*
+  // todo load balancing of main domain
   const myIP = await ipService.localIP();
   // check that my IP has A record for main UI, if not create
   // check that my IP has A record for main API, if not create
@@ -198,8 +232,10 @@ async function startMainFluxDomainService() {
   // if flux node does not have a domain, assign it
   // adjust haproxy load balancing for new domains
   // if domain exists on IP and IP is not in list, remove it from haproxy load balancing. Add such a domain to blacklist
-
+  */
   // ---- Flux nodes domain adjustments begin ----
+  // COMMENTED OUT AS OF NOT MAXIMUM DOMAINS IN DNS LIMIT
+  /*
   const fluxIPs = await fluxService.getFluxIPs();
   const fluxIPsForUI = JSON.parse(JSON.stringify(fluxIPs));
   const fluxIPsForAPI = JSON.parse(JSON.stringify(fluxIPs));
@@ -416,10 +452,13 @@ async function startMainFluxDomainService() {
       ipsForHaproxy.push(ip);
     }
   }
+  console.log(ipsForHaproxy);
+  */
 
   // TODO adjust haproxy load balancing, certs
   // Note we are not checking if node is actually responding correctly on that domain. We are using haproxy health check for that
-  console.log(ipsForHaproxy);
+  // haproxy IPS for load balancing are equal to Flux IPs
+  generateAndReplaceMainHaproxyConfig();
 }
 
 // only runs on main FDM handles X.MYAPP.runonflux.io
@@ -427,7 +466,7 @@ async function startApplicationFluxDomainService() {
   console.log('Application SERVICE UNAVAILABLE');
 }
 
-// services run every 30 mins
+// services run every 6 mins
 async function initializeServices() {
   const myIP = await ipService.localIP();
   console.log(myIP);
@@ -436,21 +475,21 @@ async function initializeServices() {
       startMainFluxDomainService();
       setInterval(() => {
         startMainFluxDomainService();
-      }, 30 * 60 * 1000);
+      }, 6 * 60 * 1000);
       log.info('Flux Main Node Domain Service initiated.');
       // wait 3 mins so it runs separately
       setTimeout(() => {
         startApplicationFluxDomainService();
         setInterval(() => {
           startApplicationFluxDomainService();
-        }, 30 * 60 * 1000);
-      }, 15 * 60 * 1000);
+        }, 6 * 60 * 1000);
+      }, 3 * 60 * 1000);
       log.info('Flux Main Application Domain Service initiated.');
     } else {
       startApplicationDomainService();
       setInterval(() => {
         startApplicationDomainService();
-      }, 30 * 60 * 1000);
+      }, 6 * 60 * 1000);
       log.info('Flux Custom Application Domain Service initiated.');
     }
   } else {

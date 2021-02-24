@@ -513,7 +513,7 @@ async function start() {
     log.error(e);
     setTimeout(() => {
       start();
-    }, 5 * 30 * 1000);
+    }, 5 * 60 * 1000);
   }
 }
 

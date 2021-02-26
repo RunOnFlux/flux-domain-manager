@@ -1,5 +1,6 @@
 /* eslint-disable no-restricted-syntax */
 const axios = require('axios');
+const https = require('https');
 const qs = require('qs');
 const config = require('config');
 const nodecmd = require('node-cmd');
@@ -21,6 +22,10 @@ const cloudFlareAxiosConfig = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${config.cloudflare.apiKey}`,
   },
+};
+
+const axiosConfig = {
+  timeout: 3456,
 };
 
 // const uiBlackList = [];
@@ -103,6 +108,9 @@ async function generateAndReplaceMainHaproxyConfig() {
     const ui = `home.${config.mainDomain}`;
     const api = `api.${config.mainDomain}`;
     const fluxIPs = await fluxService.getFluxIPs();
+    if (fluxIPs.length < 10) {
+      throw new Error('Invalid Flux List');
+    }
     const hc = await haproxyTemplate.createMainHaproxyConfig(ui, api, fluxIPs);
     console.log(hc);
     const dataToWrite = hc;
@@ -111,7 +119,114 @@ async function generateAndReplaceMainHaproxyConfig() {
     await fs.writeFile(haproxyPathTemp, dataToWrite);
     const response = await cmdAsync(`sudo haproxy -f ${haproxyPathTemp} -c`);
     if (response.includes('Configuration file is valid')) {
-    // write and reload
+      // write and reload
+      const haproxyPath = '/etc/haproxy/haproxy.cfg';
+      await fs.writeFile(haproxyPath, dataToWrite);
+      const execHAreload = 'sudo service haproxy reload';
+      await cmdAsync(execHAreload);
+    } else {
+      throw new Error('Invalid HAPROXY config file!');
+    }
+  } catch (error) {
+    log.error(error);
+  }
+}
+
+async function getKadenaLocation(ip) {
+  try {
+    const zelnodeList = await axios.get(`http://${ip}:16127/apps/location/KadenaChainWebNode`, axiosConfig);
+    if (zelnodeList.data.status === 'success') {
+      return zelnodeList.data.data || [];
+    }
+    return [];
+  } catch (e) {
+    log.error(e);
+    return [];
+  }
+}
+
+async function getKadenaHeight(ip) {
+  try {
+    const agent = new https.Agent({
+      rejectUnauthorized: false,
+    });
+    const kadenaData = await axios.get(`https://${ip}:30004/chainweb/0.0/mainnet01/cut`, { httpsAgent: agent, timeout: 3456 });
+    return kadenaData.data.height;
+  } catch (e) {
+    // log.error(e);
+    return -1;
+  }
+}
+
+function checkheightOK(height) {
+  const currentTime = new Date().getTime();
+  const baseTime = 1611710552000;
+  const baseHeight = 26212040;
+  const timeDifference = currentTime - baseTime;
+  const blocksPassedInDifference = (timeDifference / 30000) * 20; // 20 chains with blocktime 30 seconds
+  const currentBlockEstimation = baseHeight + blocksPassedInDifference;
+  const minimumAcceptedBlockHeight = currentBlockEstimation - 100000; // allow being off sync for 200000 blocks;
+  if (height > minimumAcceptedBlockHeight) {
+    return true;
+  }
+  return false;
+}
+
+async function generateAndReplaceMainApplicationHaproxyConfig() {
+  try {
+    const domainA = `a.kadenachainwebnode.app.${config.mainDomain}`;
+    const domainB = `b.kadenachainwebnode.app.${config.mainDomain}`;
+    const portA = 30004;
+    const portB = 30005;
+    const fluxIPs = await fluxService.getFluxIPs();
+    if (fluxIPs.length < 10) {
+      throw new Error('Invalid Flux List');
+    }
+    // TODO get 10 random ips, get global and local available applications /apps/availableapps /apps/globalappsspecifications
+    // get locations of the applications
+    // check if they run properly there (aka health status check todo do it in flux)
+    // ports, create stuff
+
+    // choose 10 random nodes and get chainwebnode locations from them
+    const stringOfTenChars = 'qwertyuiop';
+    const chainwebnodelocations = [];
+    // eslint-disable-next-line no-restricted-syntax, no-unused-vars
+    for (const index of stringOfTenChars) { // async inside
+      const randomNumber = Math.floor((Math.random() * fluxIPs.length));
+      // eslint-disable-next-line no-await-in-loop
+      const kdaNodes = await getKadenaLocation(fluxIPs[randomNumber]);
+      const kdaNodesValid = kdaNodes.filter((node) => (node.hash === 'localSpecificationsVersion6'));
+      kdaNodesValid.forEach((node) => {
+        chainwebnodelocations.push(node.ip);
+      });
+    }
+    // create a set of it so we dont have duplicates
+    const kadenaOK = [...new Set(chainwebnodelocations)]; // continue running checks
+
+    const syncedKDAnodes = [];
+    // eslint-disable-next-line no-restricted-syntax
+    for (const kdaNode of kadenaOK) {
+      // eslint-disable-next-line no-await-in-loop
+      const height = await getKadenaHeight(kdaNode);
+      if (checkheightOK(height)) {
+        console.log(kdaNode);
+        syncedKDAnodes.push(kdaNode);
+      }
+    }
+
+    if (syncedKDAnodes.length < 5) {
+      return;
+    }
+
+    const hc = await haproxyTemplate.createMainAppHaproxyConfig(domainA, domainB, syncedKDAnodes, portA, portB);
+    console.log(hc);
+    const dataToWrite = hc;
+    // test haproxy config
+    const haproxyPathTemp = '/tmp/haproxytemp.cfg';
+    await fs.writeFile(haproxyPathTemp, dataToWrite);
+    const response = await cmdAsync(`sudo haproxy -f ${haproxyPathTemp} -c`);
+    if (response.includes('Configuration file is valid')) {
+      // write and reload
       const haproxyPath = '/etc/haproxy/haproxy.cfg';
       await fs.writeFile(haproxyPath, dataToWrite);
       const execHAreload = 'sudo service haproxy reload';
@@ -237,6 +352,9 @@ async function startMainFluxDomainService() {
   // COMMENTED OUT AS OF NOT MAXIMUM DOMAINS IN DNS LIMIT
   /*
   const fluxIPs = await fluxService.getFluxIPs();
+  if (fluxIPs.length < 10) {
+    throw new Error('Invalid Flux List');
+  }
   const fluxIPsForUI = JSON.parse(JSON.stringify(fluxIPs));
   const fluxIPsForAPI = JSON.parse(JSON.stringify(fluxIPs));
   if (fluxIPsForUI.length < 10) {
@@ -463,7 +581,7 @@ async function startMainFluxDomainService() {
 
 // only runs on main FDM handles X.MYAPP.runonflux.io
 async function startApplicationFluxDomainService() {
-  console.log('Application SERVICE UNAVAILABLE');
+  generateAndReplaceMainApplicationHaproxyConfig();
 }
 
 // services run every 6 mins
@@ -471,19 +589,17 @@ async function initializeServices() {
   const myIP = await ipService.localIP();
   console.log(myIP);
   if (myIP) {
-    if (config.mainDomain === config.cloudflare.domain) {
+    if (config.mainDomain === config.cloudflare.domain && !config.cloudflare.manageapp) {
       startMainFluxDomainService();
       setInterval(() => {
         startMainFluxDomainService();
       }, 6 * 60 * 1000);
       log.info('Flux Main Node Domain Service initiated.');
-      // wait 3 mins so it runs separately
-      setTimeout(() => {
+    } else if (config.mainDomain === config.cloudflare.domain && config.cloudflare.manageapp) {
+      startApplicationFluxDomainService();
+      setInterval(() => {
         startApplicationFluxDomainService();
-        setInterval(() => {
-          startApplicationFluxDomainService();
-        }, 6 * 60 * 1000);
-      }, 3 * 60 * 1000);
+      }, 30 * 60 * 1000);
       log.info('Flux Main Application Domain Service initiated.');
     } else {
       startApplicationDomainService();

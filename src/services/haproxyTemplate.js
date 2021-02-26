@@ -109,7 +109,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
     }
     uiBackend += `\n  server ${IpString} ${ip}:${uiPort} check`;
   }
-  console.log(uiBackend);
+  // console.log(uiBackend);
 
   const apiB = api.split('.').join('');
   const apiPort = 16127;
@@ -135,7 +135,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
     }
     apiBackend += `\n  server ${IpString} ${ip}:${apiPort} check`;
   }
-  console.log(apiBackend);
+  // console.log(apiBackend);
 
   const redirects = '  http-request redirect code 301 location https://home.runonflux.io if { hdr(host) -i dashboard.zel.network }\n\n';
   const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;
@@ -152,6 +152,73 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
 }
 
+function createMainAppHaproxyConfig(domainA, domainB, fluxIPs, portA, portB) {
+  const domainAused = domainA.split('.').join('');
+  let domainAbackend = `backend ${domainAused}backend
+  mode http
+  balance source
+  hash-type consistent
+  stick-table type ip size 1m expire 1h
+  stick on src`;
+  for (const ip of fluxIPs) {
+    const a = ip.split('.');
+    let IpString = '';
+    for (let i = 0; i < 4; i += 1) {
+      if (a[i].length === 3) {
+        IpString += a[i];
+      }
+      if (a[i].length === 2) {
+        IpString = `${IpString}0${a[i]}`;
+      }
+      if (a[i].length === 1) {
+        IpString = `${IpString}00${a[i]}`;
+      }
+    }
+    domainAbackend += `\n  server ${IpString} ${ip}:${portA} check`;
+  }
+  // console.log(domainAbackend);
+
+  const domainBused = domainB.split('.').join('');
+  let apiBackend = `backend ${domainBused}backend
+  mode http
+  balance source
+  hash-type consistent
+  stick-table type ip size 1m expire 1h
+  stick on src`;
+  for (const ip of fluxIPs) {
+    const a = ip.split('.');
+    let IpString = '';
+    for (let i = 0; i < 4; i += 1) {
+      if (a[i].length === 3) {
+        IpString += a[i];
+      }
+      if (a[i].length === 2) {
+        IpString = `${IpString}0${a[i]}`;
+      }
+      if (a[i].length === 1) {
+        IpString = `${IpString}00${a[i]}`;
+      }
+    }
+    apiBackend += `\n  server ${IpString} ${ip}:${portB} check`;
+  }
+  // console.log(apiBackend);
+
+  const redirects = '';
+  const domainAAcl = `  acl ${domainAused} hdr(host) ${domainA}\n`;
+  const domainBAcl = `  acl ${domainBused} hdr(host) ${domainB}\n`;
+  const domainABackendUse = `  use_backend ${domainAused}backend if ${domainAused}\n`;
+  const domainBBackendUse = `  use_backend ${domainBused}backend if ${domainBused}\n`;
+
+  const acls = domainAAcl + domainBAcl;
+  const usebackends = domainABackendUse + domainBBackendUse;
+
+  const backends = `${domainAbackend}\n\n${apiBackend}`;
+  const urls = [domainA, domainB];
+
+  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
+}
+
 module.exports = {
   createMainHaproxyConfig,
+  createMainAppHaproxyConfig,
 };

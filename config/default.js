@@ -23,5 +23,6 @@ module.exports = {
     apiKey: cloudflareConfig.apiKey,
     zone: cloudflareConfig.zoneID,
     domain: cloudflareConfig.domain,
+    manageapp: true,
   },
 };

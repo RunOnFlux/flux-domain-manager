@@ -195,7 +195,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       const randomNumber = Math.floor((Math.random() * fluxIPs.length));
       // eslint-disable-next-line no-await-in-loop
       const kdaNodes = await getKadenaLocation(fluxIPs[randomNumber]);
-      const kdaNodesValid = kdaNodes.filter((node) => (node.hash === 'localSpecificationsVersion6'));
+      const kdaNodesValid = kdaNodes.filter((node) => (node.hash === 'localSpecificationsVersion7'));
       kdaNodesValid.forEach((node) => {
         chainwebnodelocations.push(node.ip);
       });

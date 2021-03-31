@@ -160,12 +160,12 @@ async function getKadenaHeight(ip) {
 
 function checkheightOK(height) {
   const currentTime = new Date().getTime();
-  const baseTime = 1611710552000;
-  const baseHeight = 26212040;
+  const baseTime = 1617186669000;
+  const baseHeight = 29859210;
   const timeDifference = currentTime - baseTime;
   const blocksPassedInDifference = (timeDifference / 30000) * 20; // 20 chains with blocktime 30 seconds
   const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - 100000; // allow being off sync for 200000 blocks;
+  const minimumAcceptedBlockHeight = currentBlockEstimation - (120 * 20); // allow being off sync for 2400 blocks; 1 hour
   if (height > minimumAcceptedBlockHeight) {
     return true;
   }

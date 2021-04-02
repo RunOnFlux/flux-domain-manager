@@ -188,7 +188,11 @@ function checkheightOK(height) {
 function checkPeersOK(peers) {
   try {
     const goodPeers = peers.filter((peer) => peer.address.hostname.includes('chainweb')); // has outside of flux too
-    if (goodPeers.length > 0) {
+    if (goodPeers.length > 1) { // at least 2 chainweb peers
+      return true;
+    }
+    const goodPeersPort = peers.filter((peer) => peer.address.port !== 30004); // has outside of flux too
+    if (goodPeersPort.length > 4) { // at least 5 different than flux peers
       return true;
     }
     return false;

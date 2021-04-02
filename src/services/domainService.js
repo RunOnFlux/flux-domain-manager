@@ -178,7 +178,7 @@ function checkheightOK(height) {
   const timeDifference = currentTime - baseTime;
   const blocksPassedInDifference = (timeDifference / 30000) * 20; // 20 chains with blocktime 30 seconds
   const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - (60 * 20); // allow being off sync for 1200 blocks; 30 mins
+  const minimumAcceptedBlockHeight = currentBlockEstimation - (30 * 20); // allow being off sync for 600 blocks; 15 mins
   if (height > minimumAcceptedBlockHeight) {
     return true;
   }
@@ -187,12 +187,13 @@ function checkheightOK(height) {
 
 function checkPeersOK(peers) {
   try {
-    const goodPeer = peers.find((peer) => peer.address.hostname.includes('chainweb')); // has outside of flux too
-    if (goodPeer) {
+    const goodPeers = peers.filter((peer) => peer.address.hostname.includes('chainweb')); // has outside of flux too
+    if (goodPeers.length > 0) {
       return true;
     }
     return false;
   } catch (error) {
+    log.error(error);
     return true;
   }
 }

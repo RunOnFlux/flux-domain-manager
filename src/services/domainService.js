@@ -164,10 +164,10 @@ async function getKadenaConnections(ip) {
       rejectUnauthorized: false,
     });
     const kadenaData = await axios.get(`https://${ip}:30004/chainweb/0.0/mainnet01/cut/peer`, { httpsAgent: agent, timeout: 3456 });
-    return kadenaData.data.items.length;
+    return kadenaData.data.items;
   } catch (e) {
     // log.error(e);
-    return -1;
+    return [];
   }
 }
 
@@ -183,6 +183,18 @@ function checkheightOK(height) {
     return true;
   }
   return false;
+}
+
+function checkPeersOK(peers) {
+  try {
+    const goodPeer = peers.find((peer) => peer.address.port !== 30004); // has outside of flux too
+    if (goodPeer) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return true;
+  }
 }
 
 async function generateAndReplaceMainApplicationHaproxyConfig() {
@@ -224,7 +236,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       if (checkheightOK(height)) {
         // eslint-disable-next-line no-await-in-loop
         const peers = await getKadenaConnections(kdaNode);
-        if (peers > 42) {
+        if (checkPeersOK(peers)) {
           console.log(kdaNode);
           syncedKDAnodes.push(kdaNode);
         }

@@ -178,7 +178,7 @@ function checkheightOK(height) {
   const timeDifference = currentTime - baseTime;
   const blocksPassedInDifference = (timeDifference / 30000) * 20; // 20 chains with blocktime 30 seconds
   const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - (120 * 20); // allow being off sync for 2400 blocks; 1 hour
+  const minimumAcceptedBlockHeight = currentBlockEstimation - (60 * 20); // allow being off sync for 1200 blocks; 30 mins
   if (height > minimumAcceptedBlockHeight) {
     return true;
   }

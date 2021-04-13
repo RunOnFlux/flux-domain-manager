@@ -149,7 +149,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
   const usebackends = uiBackendUse + apiBackendUse;
 
   const backends = `${uiBackend}\n\n${apiBackend}`;
-  const urls = [ui, api];
+  const urls = [ui, api, 'runonflux.io', 'dashboard.zel.network'];
 
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
 }

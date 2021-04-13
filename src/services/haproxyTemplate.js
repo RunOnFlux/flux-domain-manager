@@ -80,7 +80,7 @@ function createCertificatesPaths(urls) {
 }
 
 function generateHaproxyConfig(acls, usebackends, urls, backends, redirects) {
-  const config = `${haproxyPrefix}\n${redirects}${acls}\n${usebackends}${httpsPrefix}${certificatePrefix}${createCertificatesPaths(urls)}${certificatesSuffix}\n\n${redirects}${acls}\n${usebackends}\n${backends}\n${letsEncryptBackend}`;
+  const config = `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(urls)}${certificatesSuffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}`;
   return config;
 }
 
@@ -137,7 +137,8 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
   }
   // console.log(apiBackend);
 
-  const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard if { hdr(host) -i dashboard.zel.network }\n\n';
+  const redirects = `  http-request redirect code 301 location https://home.runonflux.io/dashboard if { hdr(host) -i dashboard.zel.network }\n
+  http-request redirect code 307 location https://zel.network%[capture.req.uri] if { hdr(host) -i runonflux.io }\n\n`;
   const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;
   const apiAcl = `  acl ${apiB} hdr(host) ${api}\n`;
   const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;

@@ -278,7 +278,7 @@ function createMainAppKadenaHaproxyConfig(domainA, domainB, fluxIPs, portA, port
   const defaultBackend = `  default_backend ${domainBused}backend\n`;
   const domainABackendUse = `  use_backend ${domainAused}backend if ${domainAused}\n`;
   const domainBBackendUse = `  use_backend ${domainBused}backend if ${domainBused}\n`;
-  const chainwebBackendUse = `  use_backend ${domainAused}backend if ${chainwebAcl}\n`;
+  const chainwebBackendUse = `  use_backend ${domainAused}backend if chainweb\n`;
 
   const acls = domainAAcl + domainBAcl + chainwebAcl;
   const usebackends = defaultBackend + domainABackendUse + domainBBackendUse + chainwebBackendUse;

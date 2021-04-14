@@ -220,7 +220,77 @@ function createMainAppHaproxyConfig(domainA, domainB, fluxIPs, portA, portB) {
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
 }
 
+function createMainAppKadenaHaproxyConfig(domainA, domainB, fluxIPs, portA, portB) {
+  const domainAused = domainA.split('.').join('');
+  let domainAbackend = `backend ${domainAused}backend
+  mode http
+  balance source
+  hash-type consistent
+  stick-table type ip size 1m expire 1h
+  stick on src`;
+  for (const ip of fluxIPs) {
+    const a = ip.split('.');
+    let IpString = '';
+    for (let i = 0; i < 4; i += 1) {
+      if (a[i].length === 3) {
+        IpString += a[i];
+      }
+      if (a[i].length === 2) {
+        IpString = `${IpString}0${a[i]}`;
+      }
+      if (a[i].length === 1) {
+        IpString = `${IpString}00${a[i]}`;
+      }
+    }
+    domainAbackend += `\n  server ${IpString} ${ip}:${portA} check ssl verify none`;
+  }
+  // console.log(domainAbackend);
+
+  const domainBused = domainB.split('.').join('');
+  let apiBackend = `backend ${domainBused}backend
+  mode http
+  balance source
+  hash-type consistent
+  stick-table type ip size 1m expire 1h
+  stick on src`;
+  for (const ip of fluxIPs) {
+    const a = ip.split('.');
+    let IpString = '';
+    for (let i = 0; i < 4; i += 1) {
+      if (a[i].length === 3) {
+        IpString += a[i];
+      }
+      if (a[i].length === 2) {
+        IpString = `${IpString}0${a[i]}`;
+      }
+      if (a[i].length === 1) {
+        IpString = `${IpString}00${a[i]}`;
+      }
+    }
+    apiBackend += `\n  server ${IpString} ${ip}:${portB} check`;
+  }
+  // console.log(apiBackend);
+
+  const redirects = '';
+  const domainAAcl = `  acl ${domainAused} hdr(host) ${domainA}\n`;
+  const domainBAcl = `  acl ${domainBused} hdr(host) ${domainB}\n`;
+  const chainwebAcl = '  acl chainweb path_beg /chainweb/0.0/mainnet01/cut\n';
+  const defaultBackend = `  default_backend ${domainBused}backend\n`;
+  const domainABackendUse = `  use_backend ${domainAused}backend if ${domainAused}\n`;
+  const domainBBackendUse = `  use_backend ${domainBused}backend if ${domainBused}\n`;
+  const chainwebBackendUse = `  use_backend ${domainAused}backend if ${chainwebAcl}\n`;
+
+  const acls = domainAAcl + domainBAcl + chainwebAcl;
+  const usebackends = defaultBackend + domainABackendUse + domainBBackendUse + chainwebBackendUse;
+
+  const backends = `${domainAbackend}\n\n${apiBackend}`;
+  const urls = [domainA, domainB, 'kadena.app.runonflux.io', 'kadenachainwebnode.app.runonflux.io'];
+
+  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
+}
+
 module.exports = {
   createMainHaproxyConfig,
   createMainAppHaproxyConfig,
+  createMainAppKadenaHaproxyConfig,
 };

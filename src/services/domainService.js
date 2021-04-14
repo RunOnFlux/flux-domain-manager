@@ -246,13 +246,17 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           syncedKDAnodes.push(kdaNode);
         }
       }
+      // REMOVE
+      if (syncedKDAnodes.length > 10) {
+        break;
+      }
     }
 
     if (syncedKDAnodes.length < 5) {
       return;
     }
 
-    const hc = await haproxyTemplate.createMainAppHaproxyConfig(domainA, domainB, syncedKDAnodes, portA, portB);
+    const hc = await haproxyTemplate.createMainAppKadenaHaproxyConfig(domainA, domainB, syncedKDAnodes, portA, portB);
     console.log(hc);
     const dataToWrite = hc;
     // test haproxy config

@@ -246,10 +246,6 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           syncedKDAnodes.push(kdaNode);
         }
       }
-      // REMOVE
-      if (syncedKDAnodes.length > 10) {
-        break;
-      }
     }
 
     if (syncedKDAnodes.length < 5) {

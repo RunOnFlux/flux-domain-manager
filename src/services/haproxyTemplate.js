@@ -80,60 +80,53 @@ function createCertificatesPaths(urls) {
 }
 
 function generateHaproxyConfig(acls, usebackends, urls, backends, redirects) {
-  const config = `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(urls)}${certificatesSuffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}`;
-  return config;
+  return `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(urls)}${certificatesSuffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}`;
+}
+
+function removeDots( str ) {
+	return str.replace( /\./g, '' );
+}
+
+function normalizeIP( sparseIP ){
+	const leadingZeros = (str) => {
+		while ( str.length < 3 ) str = '0' + str;
+		return str;
+	};
+
+	if ( !sparseIP ){
+		console.error( 'normalizeIP: invalid or missing ip!');
+		return sparseIP;
+	}
+
+	const fields = sparseIP.split('.');
+	return fields.map( (field) => leadingZeros(field) ).join('');	// CHECK: shouldn't this be joined with a '.'?
+}
+
+function createBackendString( backend, time = '1h' ){
+	return `backend ${backend}backend
+	mode http
+	balance source
+	hash-type consistent
+	stick-table type ip size 1m expire ${time}
+	stick on src`;
 }
 
 function createMainHaproxyConfig(ui, api, fluxIPs) {
-  const uiB = ui.split('.').join('');
+  const uiB = removeDots( ui );
   const uiPort = 16126;
-  let uiBackend = `backend ${uiB}backend
-  mode http
-  balance source
-  hash-type consistent
-  stick-table type ip size 1m expire 8h
-  stick on src`;
+  let uiBackend = createBackendString( uiB, '8h' );
   for (const ip of fluxIPs) {
-    const a = ip.split('.');
-    let IpString = '';
-    for (let i = 0; i < 4; i += 1) {
-      if (a[i].length === 3) {
-        IpString += a[i];
-      }
-      if (a[i].length === 2) {
-        IpString = `${IpString}0${a[i]}`;
-      }
-      if (a[i].length === 1) {
-        IpString = `${IpString}00${a[i]}`;
-      }
-    }
-    uiBackend += `\n  server ${IpString} ${ip}:${uiPort} check`;
+	  const normalizedIP = normalizeIP( ip );
+	  uiBackend += `\n  server ${normalizedIP} ${ip}:${uiPort} check`;
   }
-  // console.log(uiBackend);
 
-  const apiB = api.split('.').join('');
+  // console.log(uiBackend);
+  const apiB = removeDots( api );
   const apiPort = 16127;
-  let apiBackend = `backend ${apiB}backend
-  mode http
-  balance source
-  hash-type consistent
-  stick-table type ip size 1m expire 8h
-  stick on src`;
+  let apiBackend = createBackendString( apiB, '8h' );
   for (const ip of fluxIPs) {
-    const a = ip.split('.');
-    let IpString = '';
-    for (let i = 0; i < 4; i += 1) {
-      if (a[i].length === 3) {
-        IpString += a[i];
-      }
-      if (a[i].length === 2) {
-        IpString = `${IpString}0${a[i]}`;
-      }
-      if (a[i].length === 1) {
-        IpString = `${IpString}00${a[i]}`;
-      }
-    }
-    apiBackend += `\n  server ${IpString} ${ip}:${apiPort} check`;
+	  const normalizedIP = normalizeIP( ip );
+	  apiBackend += `\n  server ${normalizedIP} ${ip}:${apiPort} check`;
   }
   // console.log(apiBackend);
 
@@ -155,53 +148,19 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
 }
 
 function createMainAppHaproxyConfig(domainA, domainB, fluxIPs, portA, portB) {
-  const domainAused = domainA.split('.').join('');
-  let domainAbackend = `backend ${domainAused}backend
-  mode http
-  balance source
-  hash-type consistent
-  stick-table type ip size 1m expire 1h
-  stick on src`;
+  const domainAused = removeDots( domainA );
+  let domainAbackend = createBackendString( domainAused, '1h' );
   for (const ip of fluxIPs) {
-    const a = ip.split('.');
-    let IpString = '';
-    for (let i = 0; i < 4; i += 1) {
-      if (a[i].length === 3) {
-        IpString += a[i];
-      }
-      if (a[i].length === 2) {
-        IpString = `${IpString}0${a[i]}`;
-      }
-      if (a[i].length === 1) {
-        IpString = `${IpString}00${a[i]}`;
-      }
-    }
-    domainAbackend += `\n  server ${IpString} ${ip}:${portA} check`;
+	  const normalizedIP = normalizeIP( ip );
+	  domainAbackend += `\n  server ${normalizedIP} ${ip}:${portA} check`;
   }
   // console.log(domainAbackend);
 
-  const domainBused = domainB.split('.').join('');
-  let apiBackend = `backend ${domainBused}backend
-  mode http
-  balance source
-  hash-type consistent
-  stick-table type ip size 1m expire 1h
-  stick on src`;
+  const domainBused = removeDots( domainB );
+  let apiBackend = createBackendString( domainBused, '1h' );
   for (const ip of fluxIPs) {
-    const a = ip.split('.');
-    let IpString = '';
-    for (let i = 0; i < 4; i += 1) {
-      if (a[i].length === 3) {
-        IpString += a[i];
-      }
-      if (a[i].length === 2) {
-        IpString = `${IpString}0${a[i]}`;
-      }
-      if (a[i].length === 1) {
-        IpString = `${IpString}00${a[i]}`;
-      }
-    }
-    apiBackend += `\n  server ${IpString} ${ip}:${portB} check`;
+	  const normalizedIP = normalizeIP( ip );
+	  apiBackend += `\n  server ${normalizedIP} ${ip}:${portB} check`;
   }
   // console.log(apiBackend);
 
@@ -221,53 +180,19 @@ function createMainAppHaproxyConfig(domainA, domainB, fluxIPs, portA, portB) {
 }
 
 function createMainAppKadenaHaproxyConfig(domainA, domainB, fluxIPs, portA, portB) {
-  const domainAused = domainA.split('.').join('');
-  let domainAbackend = `backend ${domainAused}backend
-  mode http
-  balance source
-  hash-type consistent
-  stick-table type ip size 1m expire 1h
-  stick on src`;
+  const domainAused = removeDots( domainA );
+  let domainAbackend = createBackendString( domainAused, '1h' );
   for (const ip of fluxIPs) {
-    const a = ip.split('.');
-    let IpString = '';
-    for (let i = 0; i < 4; i += 1) {
-      if (a[i].length === 3) {
-        IpString += a[i];
-      }
-      if (a[i].length === 2) {
-        IpString = `${IpString}0${a[i]}`;
-      }
-      if (a[i].length === 1) {
-        IpString = `${IpString}00${a[i]}`;
-      }
-    }
-    domainAbackend += `\n  server ${IpString} ${ip}:${portA} check ssl verify none`;
+	const normalizedIP = normalizeIP( ip );
+   domainAbackend += `\n  server ${normalizedIP} ${ip}:${portA} check ssl verify none`;
   }
   // console.log(domainAbackend);
 
-  const domainBused = domainB.split('.').join('');
-  let apiBackend = `backend ${domainBused}backend
-  mode http
-  balance source
-  hash-type consistent
-  stick-table type ip size 1m expire 1h
-  stick on src`;
+  const domainBused = removeDots( domainB );
+  let apiBackend = createBackendString( domainBused, '1h' );
   for (const ip of fluxIPs) {
-    const a = ip.split('.');
-    let IpString = '';
-    for (let i = 0; i < 4; i += 1) {
-      if (a[i].length === 3) {
-        IpString += a[i];
-      }
-      if (a[i].length === 2) {
-        IpString = `${IpString}0${a[i]}`;
-      }
-      if (a[i].length === 1) {
-        IpString = `${IpString}00${a[i]}`;
-      }
-    }
-    apiBackend += `\n  server ${IpString} ${ip}:${portB} check`;
+	  const normalizedIP = normalizeIP( ip );
+	  apiBackend += `\n  server ${normalizedIP} ${ip}:${portB} check`;
   }
   // console.log(apiBackend);
 

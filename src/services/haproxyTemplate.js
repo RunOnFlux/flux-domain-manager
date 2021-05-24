@@ -242,7 +242,7 @@ function createMainAppRosettaHaproxyConfig(domainA, domainB, fluxIPs, portA, por
         IpString = `${IpString}00${a[i]}`;
       }
     }
-    domainAbackend += `\n  server ${IpString} ${ip}:${portA} check ssl verify none`;
+    domainAbackend += `\n  server ${IpString} ${ip}:${portA} check`;
   }
   // console.log(domainAbackend);
 

@@ -130,7 +130,7 @@ async function checkRosettaSynced(ip, height) {
         index: height - 30,
       },
     };
-    const rosettaData = await axios.post(`https://${ip}:38080/block`, data, { httpsAgent: agent, timeout: 3456 });
+    const rosettaData = await axios.post(`http://${ip}:38080/block`, data, { httpsAgent: agent, timeout: 3456 });
     return rosettaData.data.block.block_identifier.index;
   } catch (e) {
     // log.error(e);
@@ -149,7 +149,7 @@ async function getRosettaHeight(ip) {
         network: 'mainnet',
       },
     };
-    const rosettaData = await axios.post(`https://${ip}:38080/network/status`, data, { httpsAgent: agent, timeout: 3456 });
+    const rosettaData = await axios.post(`http://${ip}:38080/network/status`, data, { httpsAgent: agent, timeout: 3456 });
     return rosettaData.data.current_block_identifier.index;
   } catch (e) {
     // log.error(e);

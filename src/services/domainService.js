@@ -116,6 +116,28 @@ async function getApplicationLocation(ip) {
   }
 }
 
+async function checkRosettaSynced(ip, height) {
+  try {
+    const agent = new https.Agent({
+      rejectUnauthorized: false,
+    });
+    const data = {
+      network_identifier: {
+        blockchain: 'flux',
+        network: 'mainnet',
+      },
+      block_identifier: {
+        index: height - 30,
+      },
+    };
+    const rosettaData = await axios.post(`https://${ip}:38080/block`, data, { httpsAgent: agent, timeout: 3456 });
+    return rosettaData.data.block.block_identifier.index;
+  } catch (e) {
+    // log.error(e);
+    return false;
+  }
+}
+
 async function getRosettaHeight(ip) {
   try {
     const agent = new https.Agent({
@@ -186,7 +208,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       // eslint-disable-next-line no-await-in-loop
       const height = await getRosettaHeight(rosettaNode);
       if (checkheightOK(height)) {
-        syncedrosettaNodes.push(rosettaNode);
+        // eslint-disable-next-line no-await-in-loop
+        const synced = await checkRosettaSynced(rosettaNode, height);
+        if (synced) {
+          syncedrosettaNodes.push(rosettaNode);
+        }
       }
     }
 

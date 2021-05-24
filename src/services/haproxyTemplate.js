@@ -220,7 +220,7 @@ function createMainAppHaproxyConfig(domainA, domainB, fluxIPs, portA, portB) {
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
 }
 
-function createMainAppKadenaHaproxyConfig(domainA, domainB, fluxIPs, portA, portB) {
+function createMainAppRosettaHaproxyConfig(domainA, domainB, fluxIPs, portA, portB) {
   const domainAused = domainA.split('.').join('');
   let domainAbackend = `backend ${domainAused}backend
   mode http
@@ -274,17 +274,15 @@ function createMainAppKadenaHaproxyConfig(domainA, domainB, fluxIPs, portA, port
   const redirects = '';
   const domainAAcl = `  acl ${domainAused} hdr(host) ${domainA}\n`;
   const domainBAcl = `  acl ${domainBused} hdr(host) ${domainB}\n`;
-  const chainwebAcl = '  acl chainweb path_beg /chainweb/0.0/mainnet01/cut\n';
-  const defaultBackend = `  default_backend ${domainBused}backend\n`;
+  const defaultBackend = `  default_backend ${domainAused}backend\n`;
   const domainABackendUse = `  use_backend ${domainAused}backend if ${domainAused}\n`;
   const domainBBackendUse = `  use_backend ${domainBused}backend if ${domainBused}\n`;
-  const chainwebBackendUse = `  use_backend ${domainAused}backend if chainweb\n`;
 
-  const acls = domainAAcl + domainBAcl + chainwebAcl;
-  const usebackends = defaultBackend + domainABackendUse + domainBBackendUse + chainwebBackendUse;
+  const acls = domainAAcl + domainBAcl;
+  const usebackends = defaultBackend + domainABackendUse + domainBBackendUse;
 
   const backends = `${domainAbackend}\n\n${apiBackend}`;
-  const urls = [domainA, domainB, 'kadena.app.runonflux.io', 'kadenachainwebnode.app.runonflux.io'];
+  const urls = [domainA, domainB, 'rosetta.runonflux.io'];
 
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
 }
@@ -292,5 +290,5 @@ function createMainAppKadenaHaproxyConfig(domainA, domainB, fluxIPs, portA, port
 module.exports = {
   createMainHaproxyConfig,
   createMainAppHaproxyConfig,
-  createMainAppKadenaHaproxyConfig,
+  createMainAppRosettaHaproxyConfig,
 };

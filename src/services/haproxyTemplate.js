@@ -71,16 +71,16 @@ backend letsencrypt-backend
   server letsencrypt 127.0.0.1:8787
 `;
 
-function createCertificatesPaths(urls) {
+function createCertificatesPaths(domains) {
   let path = '';
-  urls.forEach((url) => {
+  domains.forEach((url) => {
     path += `crt /etc/ssl/${url}/${url}.pem `;
   });
   return path;
 }
 
-function generateHaproxyConfig(acls, usebackends, urls, backends, redirects) {
-  const config = `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(urls)}${certificatesSuffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}`;
+function generateHaproxyConfig(acls, usebackends, domains, backends, redirects) {
+  const config = `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}`;
   return config;
 }
 
@@ -154,141 +154,47 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
 }
 
-function createMainAppHaproxyConfig(domainA, domainB, fluxIPs, portA, portB) {
-  const domainAused = domainA.split('.').join('');
-  let domainAbackend = `backend ${domainAused}backend
+// appConfig is an array of object of domain, port, ips
+function createAppsHaproxyConfig(appConfig) {
+  let backends = '';
+  let acls = '';
+  let usebackends = '';
+  const domains = [];
+  appConfig.forEach((app) => {
+    const domainUsed = app.domain.split('.').join('');
+    let domainBackend = `backend ${domainUsed}backend
   mode http
   balance source
   hash-type consistent
   stick-table type ip size 1m expire 1h
   stick on src`;
-  for (const ip of fluxIPs) {
-    const a = ip.split('.');
-    let IpString = '';
-    for (let i = 0; i < 4; i += 1) {
-      if (a[i].length === 3) {
-        IpString += a[i];
+    for (const ip of app.ips) {
+      const a = ip.split('.');
+      let IpString = '';
+      for (let i = 0; i < 4; i += 1) {
+        if (a[i].length === 3) {
+          IpString += a[i];
+        }
+        if (a[i].length === 2) {
+          IpString = `${IpString}0${a[i]}`;
+        }
+        if (a[i].length === 1) {
+          IpString = `${IpString}00${a[i]}`;
+        }
       }
-      if (a[i].length === 2) {
-        IpString = `${IpString}0${a[i]}`;
-      }
-      if (a[i].length === 1) {
-        IpString = `${IpString}00${a[i]}`;
-      }
+      domainBackend += `\n  server ${IpString} ${ip}:${app.port} check`;
     }
-    domainAbackend += `\n  server ${IpString} ${ip}:${portA} check`;
-  }
-  // console.log(domainAbackend);
-
-  const domainBused = domainB.split('.').join('');
-  let apiBackend = `backend ${domainBused}backend
-  mode http
-  balance source
-  hash-type consistent
-  stick-table type ip size 1m expire 1h
-  stick on src`;
-  for (const ip of fluxIPs) {
-    const a = ip.split('.');
-    let IpString = '';
-    for (let i = 0; i < 4; i += 1) {
-      if (a[i].length === 3) {
-        IpString += a[i];
-      }
-      if (a[i].length === 2) {
-        IpString = `${IpString}0${a[i]}`;
-      }
-      if (a[i].length === 1) {
-        IpString = `${IpString}00${a[i]}`;
-      }
-    }
-    apiBackend += `\n  server ${IpString} ${ip}:${portB} check`;
-  }
-  // console.log(apiBackend);
-
+    backends = `${backends + domainBackend}\n\n`;
+    domains.push(app.domain);
+    acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
+    usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
+  });
   const redirects = '';
-  const domainAAcl = `  acl ${domainAused} hdr(host) ${domainA}\n`;
-  const domainBAcl = `  acl ${domainBused} hdr(host) ${domainB}\n`;
-  const domainABackendUse = `  use_backend ${domainAused}backend if ${domainAused}\n`;
-  const domainBBackendUse = `  use_backend ${domainBused}backend if ${domainBused}\n`;
 
-  const acls = domainAAcl + domainBAcl;
-  const usebackends = domainABackendUse + domainBBackendUse;
-
-  const backends = `${domainAbackend}\n\n${apiBackend}`;
-  const urls = [domainA, domainB];
-
-  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
-}
-
-function createMainAppRosettaHaproxyConfig(domainA, domainB, fluxIPs, portA, portB) {
-  const domainAused = domainA.split('.').join('');
-  let domainAbackend = `backend ${domainAused}backend
-  mode http
-  balance source
-  hash-type consistent
-  stick-table type ip size 1m expire 1h
-  stick on src`;
-  for (const ip of fluxIPs) {
-    const a = ip.split('.');
-    let IpString = '';
-    for (let i = 0; i < 4; i += 1) {
-      if (a[i].length === 3) {
-        IpString += a[i];
-      }
-      if (a[i].length === 2) {
-        IpString = `${IpString}0${a[i]}`;
-      }
-      if (a[i].length === 1) {
-        IpString = `${IpString}00${a[i]}`;
-      }
-    }
-    domainAbackend += `\n  server ${IpString} ${ip}:${portA} check`;
-  }
-  // console.log(domainAbackend);
-
-  const domainBused = domainB.split('.').join('');
-  let apiBackend = `backend ${domainBused}backend
-  mode http
-  balance source
-  hash-type consistent
-  stick-table type ip size 1m expire 1h
-  stick on src`;
-  for (const ip of fluxIPs) {
-    const a = ip.split('.');
-    let IpString = '';
-    for (let i = 0; i < 4; i += 1) {
-      if (a[i].length === 3) {
-        IpString += a[i];
-      }
-      if (a[i].length === 2) {
-        IpString = `${IpString}0${a[i]}`;
-      }
-      if (a[i].length === 1) {
-        IpString = `${IpString}00${a[i]}`;
-      }
-    }
-    apiBackend += `\n  server ${IpString} ${ip}:${portB} check`;
-  }
-  // console.log(apiBackend);
-
-  const redirects = '';
-  const domainAAcl = `  acl ${domainAused} hdr(host) ${domainA}\n`;
-  const domainBAcl = `  acl ${domainBused} hdr(host) ${domainB}\n`;
-  const defaultBackend = `  default_backend ${domainAused}backend\n`;
-  const domainABackendUse = `  use_backend ${domainAused}backend if ${domainAused}\n`;
-  const domainBBackendUse = `  use_backend ${domainBused}backend if ${domainBused}\n`;
-
-  const acls = domainAAcl + domainBAcl;
-  const usebackends = defaultBackend + domainABackendUse + domainBBackendUse;
-
-  const backends = `${domainAbackend}\n\n${apiBackend}`;
-  const urls = [domainA, domainB, 'rosetta.runonflux.io'];
-
-  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
+  return generateHaproxyConfig(acls, usebackends, domains, backends, redirects);
 }
 
 module.exports = {
   createMainHaproxyConfig,
-  createMainAppHaproxyConfig,
-  createMainAppRosettaHaproxyConfig,
+  createAppsHaproxyConfig,
 };

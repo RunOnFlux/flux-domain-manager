@@ -103,9 +103,9 @@ async function listDNSRecordsAPI(req, res) {
   }
 }
 
-async function getApplicationLocation(ip) {
+async function getApplicationLocation(ip, application) {
   try {
-    const fluxnodeList = await axios.get(`http://${ip}:16127/apps/location/FluxRosettaServer`, axiosConfig);
+    const fluxnodeList = await axios.get(`http://${ip}:16127/apps/location/${application}`, axiosConfig);
     if (fluxnodeList.data.status === 'success') {
       return fluxnodeList.data.data || [];
     }
@@ -116,67 +116,78 @@ async function getApplicationLocation(ip) {
   }
 }
 
-async function checkRosettaSynced(ip, height) {
-  try {
-    const agent = new https.Agent({
-      rejectUnauthorized: false,
-    });
-    const data = {
-      network_identifier: {
-        blockchain: 'flux',
-        network: 'mainnet',
-      },
-      block_identifier: {
-        index: height - 30,
-      },
-    };
-    const rosettaData = await axios.post(`http://${ip}:38080/block`, data, { httpsAgent: agent, timeout: 3456 });
-    return rosettaData.data.block.block_identifier.index;
-  } catch (e) {
-    // log.error(e);
-    return false;
-  }
-}
-
-async function getRosettaHeight(ip) {
-  try {
-    const agent = new https.Agent({
-      rejectUnauthorized: false,
-    });
-    const data = {
-      network_identifier: {
-        blockchain: 'flux',
-        network: 'mainnet',
-      },
-    };
-    const rosettaData = await axios.post(`http://${ip}:38080/network/status`, data, { httpsAgent: agent, timeout: 3456 });
-    return rosettaData.data.current_block_identifier.index;
-  } catch (e) {
-    // log.error(e);
-    return -1;
-  }
-}
-
-function checkheightOK(height) {
+function checkheightOKksm(height) {
   const currentTime = new Date().getTime();
-  const baseTime = 1621822807000;
-  const baseHeight = 866312;
+  const baseTime = 1622640282000;
+  const baseHeight = 7739485;
   const timeDifference = currentTime - baseTime;
-  const blocksPassedInDifference = (timeDifference / 120000); // 120 secs
+  const blocksPassedInDifference = (timeDifference / 6000); // 6 secs
   const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - 30; // allow being off sync for 30 blocks; 1 hour
+  const minimumAcceptedBlockHeight = currentBlockEstimation - 600; // allow being off sync for 600 blocks; 1 hour
+  console.log(minimumAcceptedBlockHeight);
   if (height > minimumAcceptedBlockHeight) {
     return true;
   }
   return false;
 }
 
+function checkheightOKdot(height) {
+  const currentTime = new Date().getTime();
+  const baseTime = 1622640408000;
+  const baseHeight = 5331005;
+  const timeDifference = currentTime - baseTime;
+  const blocksPassedInDifference = (timeDifference / 6000); // 6 secs
+  const currentBlockEstimation = baseHeight + blocksPassedInDifference;
+  const minimumAcceptedBlockHeight = currentBlockEstimation - 600; // allow being off sync for 600 blocks; 1 hour
+  console.log(minimumAcceptedBlockHeight);
+  if (height > minimumAcceptedBlockHeight) {
+    return true;
+  }
+  return false;
+}
+
+async function getPolkaNetworkHeight(ip, port) {
+  try {
+    const max = 1000000;
+    const min = 1;
+
+    const data = {
+      jsonrpc: '2.0',
+      method: 'system_syncState',
+      params: [],
+      id: Math.floor(Math.random() * (max - min + 1)) + min,
+    };
+    const AConfig = {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 3456,
+    };
+    const rosettaData = await axios.post(`http://${ip}:${port}/network/status`, data, AConfig);
+    console.log(rosettaData.data.result);
+    return rosettaData.data.result.currentBlock;
+  } catch (e) {
+    // log.error(e);
+    return -1;
+  }
+}
+
 async function generateAndReplaceMainApplicationHaproxyConfig() {
   try {
-    const domainA = `online.rosetta.${config.mainDomain}`;
-    const domainB = `offline.rosetta.${config.mainDomain}`;
-    const portA = 38080;
-    const portB = 38081;
+    const dotApplication = 'PolkadotNode';
+    const dotDomain = `dot.${config.mainDomain}`;
+    const rpcDotDomain = `rpc.dot.${config.mainDomain}`;
+    const wsDotDomain = `ws.dot.${config.mainDomain}`;
+    const rpcDotPort = 31115;
+    const wsDotPort = 31114;
+
+    const ksmApplication = 'KusamaNode';
+    const ksmDomain = `ksm.${config.mainDomain}`;
+    const rpcKsmDomain = `rpc.ksm.${config.mainDomain}`;
+    const wsKsmDomain = `ws.ksm.${config.mainDomain}`;
+    const rpcKsmPort = 31112;
+    const wsKsmPort = 31111;
+
     const fluxIPs = await fluxService.getFluxIPs();
     if (fluxIPs.length < 10) {
       throw new Error('Invalid Flux List');
@@ -188,39 +199,100 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
     // choose 10 random nodes and get chainwebnode locations from them
     const stringOfTenChars = 'qwertyuiop';
-    const rosettaNodesLocations = [];
+    const dotNodesLocation = [];
+    const ksmNodesLocation = [];
     // eslint-disable-next-line no-restricted-syntax, no-unused-vars
     for (const index of stringOfTenChars) { // async inside
       const randomNumber = Math.floor((Math.random() * fluxIPs.length));
       // eslint-disable-next-line no-await-in-loop
-      const rosettaNodes = await getApplicationLocation(fluxIPs[randomNumber]);
-      const rosettaNodesValid = rosettaNodes.filter((node) => (node.hash === '9de3965ebe3a4fac4d8edae9d3634756ae19cff59cdfdf8de96bced0dade9e37'));
-      rosettaNodesValid.forEach((node) => {
-        rosettaNodesLocations.push(node.ip);
+      const dotNodes = await getApplicationLocation(fluxIPs[randomNumber], dotApplication);
+      const dotNodesValid = dotNodes.filter((node) => (node.hash === '90531ca8889897703e231180b46278386d4b418ccf793269b462bb5ace6692bf'));
+      dotNodesValid.forEach((node) => {
+        dotNodesLocation.push(node.ip);
       });
     }
-    // create a set of it so we dont have duplicates
-    const rosettaOK = [...new Set(rosettaNodesLocations)]; // continue running checks
 
-    const syncedrosettaNodes = [];
-    // eslint-disable-next-line no-restricted-syntax
-    for (const rosettaNode of rosettaOK) {
+    // eslint-disable-next-line no-unused-vars
+    for (const index of stringOfTenChars) { // async inside
+      const randomNumber = Math.floor((Math.random() * fluxIPs.length));
       // eslint-disable-next-line no-await-in-loop
-      const height = await getRosettaHeight(rosettaNode);
-      if (checkheightOK(height)) {
-        // eslint-disable-next-line no-await-in-loop
-        const synced = await checkRosettaSynced(rosettaNode, height);
-        if (synced) {
-          syncedrosettaNodes.push(rosettaNode);
-        }
+      const ksmNodes = await getApplicationLocation(fluxIPs[randomNumber], ksmApplication);
+      const ksmNodesValid = ksmNodes.filter((node) => (node.hash === '66eb2f5c087764a3d4af7ea9dccbd10ae7142addf607ebb2221c0996e77fbc89'));
+      ksmNodesValid.forEach((node) => {
+        ksmNodesLocation.push(node.ip);
+      });
+    }
+
+    // create a set of it so we dont have duplicates
+    const dotOK = [...new Set(dotNodesLocation)]; // continue running checks
+    const ksmOK = [...new Set(ksmNodesLocation)]; // continue running checks
+
+    const syncedDOTNodes = [];
+    const syncedKSMNodes = [];
+    // eslint-disable-next-line no-restricted-syntax
+    for (const node of dotOK) {
+      // eslint-disable-next-line no-await-in-loop
+      const height = await getPolkaNetworkHeight(node, rpcDotPort);
+      if (checkheightOKdot(height)) {
+        syncedDOTNodes.push(node);
       }
     }
 
-    if (syncedrosettaNodes.length < 3) {
+    for (const node of ksmOK) {
+      // eslint-disable-next-line no-await-in-loop
+      const height = await getPolkaNetworkHeight(node, rpcKsmPort);
+      if (checkheightOKksm(height)) {
+        syncedKSMNodes.push(node);
+      }
+    }
+
+    if (syncedDOTNodes.length < 3) {
       return;
     }
 
-    const hc = await haproxyTemplate.createMainAppRosettaHaproxyConfig(domainA, domainB, syncedrosettaNodes, portA, portB);
+    if (syncedKSMNodes.length < 3) {
+      return;
+    }
+
+    const dotConfigA = {
+      domain: rpcDotDomain,
+      port: rpcDotPort,
+      ips: syncedDOTNodes,
+    };
+
+    const dotConfigB = {
+      domain: wsDotDomain,
+      port: wsDotPort,
+      ips: syncedDOTNodes,
+    };
+
+    const dotConfigC = {
+      domain: dotDomain,
+      port: rpcDotPort,
+      ips: syncedDOTNodes,
+    };
+
+    const ksmConfigA = {
+      domain: rpcKsmDomain,
+      port: rpcKsmPort,
+      ips: syncedKSMNodes,
+    };
+
+    const ksmConfigB = {
+      domain: wsKsmDomain,
+      port: wsKsmPort,
+      ips: syncedKSMNodes,
+    };
+
+    const ksmConfigC = {
+      domain: ksmDomain,
+      port: rpcKsmPort,
+      ips: syncedKSMNodes,
+    };
+
+    const domainsToDo = [dotConfigA, dotConfigB, dotConfigC, ksmConfigA, ksmConfigB, ksmConfigC];
+
+    const hc = await haproxyTemplate.createAppsHaproxyConfig(domainsToDo);
     console.log(hc);
     const dataToWrite = hc;
     // test haproxy config

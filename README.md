@@ -43,8 +43,6 @@ Application will run on port 16130
 ```
 sudo apt update
 apt-get install software-properties-common certbot haproxy curl git wget screen -y
-nano /etc/haproxy/haproxy.cfg
-sudo service haproxy reload
 wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm

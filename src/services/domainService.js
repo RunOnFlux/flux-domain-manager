@@ -159,12 +159,12 @@ async function getRosettaHeight(ip) {
 
 function checkheightOK(height) {
   const currentTime = new Date().getTime();
-  const baseTime = 1621822807000;
-  const baseHeight = 866312;
+  const baseTime = 1623245290000;
+  const baseHeight = 878090;
   const timeDifference = currentTime - baseTime;
   const blocksPassedInDifference = (timeDifference / 120000); // 120 secs
   const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - 30; // allow being off sync for 30 blocks; 1 hour
+  const minimumAcceptedBlockHeight = currentBlockEstimation - 720; // allow being off sync for 720 blocks; 1 day
   if (height > minimumAcceptedBlockHeight) {
     return true;
   }

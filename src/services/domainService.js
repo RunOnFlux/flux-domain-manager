@@ -173,8 +173,8 @@ async function getKadenaConnections(ip) {
 
 function checkheightOK(height) {
   const currentTime = new Date().getTime();
-  const baseTime = 1617186669000;
-  const baseHeight = 29859210;
+  const baseTime = 1623418840000;
+  const baseHeight = 34012893;
   const timeDifference = currentTime - baseTime;
   const blocksPassedInDifference = (timeDifference / 30000) * 20; // 20 chains with blocktime 30 seconds
   const currentBlockEstimation = baseHeight + blocksPassedInDifference;

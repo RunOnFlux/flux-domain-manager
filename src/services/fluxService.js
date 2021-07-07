@@ -8,12 +8,12 @@ const axiosConfig = {
 
 async function getFluxList(fallback) {
   try {
-    let url = `${config.explorer}/api/zelnode/listzelnodes`;
+    let url = `${config.explorer}/api/fluxnode/listfluxnodes`;
     if (fallback) {
-      url = `${config.fallbackexplorer}/api/zelnode/listzelnodes`;
+      url = `${config.fallbackexplorer}/api/fluxnode/listfluxnodes`;
     }
-    const zelnodeList = await axios.get(url, axiosConfig);
-    return zelnodeList.data.result || [];
+    const fluxnodeList = await axios.get(url, axiosConfig);
+    return fluxnodeList.data.result || [];
   } catch (e) {
     if (!fallback) {
       return getFluxList(true);
@@ -25,8 +25,8 @@ async function getFluxList(fallback) {
 
 async function getFluxIPs() {
   try {
-    const zelnodes = await getFluxList();
-    const ips = zelnodes.map((zelnode) => zelnode.ip);
+    const fluxnodes = await getFluxList();
+    const ips = fluxnodes.map((fluxnode) => fluxnode.ip);
     const correctIps = [];
     const ipvTest = new RegExp('^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(.(?!$)|$)){4}$');
     ips.forEach((ip) => {
@@ -43,9 +43,9 @@ async function getFluxIPs() {
 
 async function getSingleNodeAppLocation(ip, application) {
   try {
-    const zelnodeList = await axios.get(`http://${ip}:16127/zelapps/location/${application}`, axiosConfig);
-    if (zelnodeList.data.status === 'success') {
-      return zelnodeList.data.data || [];
+    const fluxnodeList = await axios.get(`http://${ip}:16127/zelapps/location/${application}`, axiosConfig);
+    if (fluxnodeList.data.status === 'success') {
+      return fluxnodeList.data.data || [];
     }
     return [];
   } catch (e) {
@@ -57,8 +57,8 @@ async function getSingleNodeAppLocation(ip, application) {
 // check where an application is running
 // let it throw
 async function getApplicationLocation(application) {
-  const zelnodelist = await getFluxIPs();
-  if (zelnodelist.length < 10) {
+  const fluxnodeList = await getFluxIPs();
+  if (fluxnodeList.length < 10) {
     throw new Error('Invalid Flux List');
   }
   // choose 10 random nodes and get chainwebnode locations from them
@@ -66,9 +66,9 @@ async function getApplicationLocation(application) {
   const applocations = [];
   // eslint-disable-next-line no-restricted-syntax, no-unused-vars
   for (const index of stringOfTenChars) { // async inside
-    const randomNumber = Math.floor((Math.random() * zelnodelist.length));
+    const randomNumber = Math.floor((Math.random() * fluxnodeList.length));
     // eslint-disable-next-line no-await-in-loop
-    const al = await getSingleNodeAppLocation(zelnodelist[randomNumber], application);
+    const al = await getSingleNodeAppLocation(fluxnodeList[randomNumber], application);
     al.forEach((node) => {
       applocations.push(node.ip);
     });

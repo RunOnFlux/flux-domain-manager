@@ -199,9 +199,9 @@ async function generateAndReplaceMainHaproxyConfig() {
 
 async function getKadenaLocation(ip) {
   try {
-    const zelnodeList = await axios.get(`http://${ip}:16127/apps/location/KadenaChainWebNode`, axiosConfig);
-    if (zelnodeList.data.status === 'success') {
-      return zelnodeList.data.data || [];
+    const fluxnodeList = await axios.get(`http://${ip}:16127/apps/location/KadenaChainWebNode`, axiosConfig);
+    if (fluxnodeList.data.status === 'success') {
+      return fluxnodeList.data.data || [];
     }
     return [];
   } catch (e) {

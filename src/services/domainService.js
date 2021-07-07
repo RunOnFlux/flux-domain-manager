@@ -173,6 +173,9 @@ async function generateAndReplaceMainHaproxyConfig() {
         break;
       }
     }
+    if (fluxIPsForBalancing.length < 10) {
+      throw new Error('Not enough ok nodes, probably error');
+    }
     const hc = await haproxyTemplate.createMainHaproxyConfig(ui, api, fluxIPsForBalancing);
     console.log(hc);
     const dataToWrite = hc;
@@ -692,19 +695,19 @@ async function initializeServices() {
       startMainFluxDomainService();
       setInterval(() => {
         startMainFluxDomainService();
-      }, 6 * 60 * 1000);
+      }, 10 * 60 * 1000);
       log.info('Flux Main Node Domain Service initiated.');
     } else if (config.mainDomain === config.cloudflare.domain && config.cloudflare.manageapp) {
       startApplicationFluxDomainService();
       setInterval(() => {
         startApplicationFluxDomainService();
-      }, 30 * 60 * 1000);
+      }, 10 * 60 * 1000);
       log.info('Flux Main Application Domain Service initiated.');
     } else {
       startApplicationDomainService();
       setInterval(() => {
         startApplicationDomainService();
-      }, 6 * 60 * 1000);
+      }, 10 * 60 * 1000);
       log.info('Flux Custom Application Domain Service initiated.');
     }
   } else {

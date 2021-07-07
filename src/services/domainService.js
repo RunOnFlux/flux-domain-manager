@@ -166,6 +166,7 @@ async function generateAndReplaceMainHaproxyConfig() {
           const uiOK = await isHomeOK(ip);
           if (uiOK) {
             fluxIPsForBalancing.push(ip);
+            console.log(`adding ${ip} as backend`);
           }
         }
       }

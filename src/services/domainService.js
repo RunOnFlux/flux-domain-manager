@@ -103,6 +103,45 @@ async function listDNSRecordsAPI(req, res) {
   }
 }
 
+async function checkLoginPhrase(ip) {
+  try {
+    const url = `http://${ip}:16127/id/loginphrase`;
+    const response = await axios.get(url, axiosConfig);
+    if (response.data.status === 'success') {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function isCommunicationOK(ip) {
+  try {
+    const url = `http://${ip}:16127/flux/checkcommunication`;
+    const response = await axios.get(url, axiosConfig);
+    if (response.data.status === 'success') {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function isHomeOK(ip) {
+  try {
+    const url = `http://${ip}:16126`;
+    const response = await axios.get(url, axiosConfig);
+    if (response.data.startsWith('<!DOCTYPE html><html')) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `home.${config.mainDomain}`;
@@ -111,7 +150,30 @@ async function generateAndReplaceMainHaproxyConfig() {
     if (fluxIPs.length < 10) {
       throw new Error('Invalid Flux List');
     }
-    const hc = await haproxyTemplate.createMainHaproxyConfig(ui, api, fluxIPs);
+    const fluxIPsForBalancing = [];
+    // we want to do some checks on UI and API to verify functionality
+    // 1st check is loginphrase
+    // 2nd check is communication
+    // 3rd is ui
+    for (const ip of fluxIPs) {
+      // eslint-disable-next-line no-await-in-loop
+      const loginPhraseOK = await checkLoginPhrase(ip);
+      if (loginPhraseOK) {
+        // eslint-disable-next-line no-await-in-loop
+        const communicationOK = await isCommunicationOK(ip);
+        if (communicationOK) {
+          // eslint-disable-next-line no-await-in-loop
+          const uiOK = await isHomeOK(ip);
+          if (uiOK) {
+            fluxIPsForBalancing.push(ip);
+          }
+        }
+      }
+      if (fluxIPsForBalancing.length > 150) { // maximum of 150 for load balancing
+        break;
+      }
+    }
+    const hc = await haproxyTemplate.createMainHaproxyConfig(ui, api, fluxIPsForBalancing);
     console.log(hc);
     const dataToWrite = hc;
     // test haproxy config

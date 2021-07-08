@@ -73,16 +73,16 @@ backend letsencrypt-backend
   server letsencrypt 127.0.0.1:8787
 `;
 
-function createCertificatesPaths(urls) {
+function createCertificatesPaths(domains) {
   let path = '';
-  urls.forEach((url) => {
+  domains.forEach((url) => {
     path += `crt /etc/ssl/${url}/${url}.pem `;
   });
   return path;
 }
 
-function generateHaproxyConfig(acls, usebackends, urls, backends, redirects) {
-  const config = `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(urls)}${certificatesSuffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}`;
+function generateHaproxyConfig(acls, usebackends, domains, backends, redirects) {
+  const config = `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}`;
   return config;
 }
 
@@ -222,6 +222,46 @@ function createMainAppHaproxyConfig(domainA, domainB, fluxIPs, portA, portB) {
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
 }
 
+// appConfig is an array of object of domain, port, ips
+function createAppsHaproxyConfig(appConfig) {
+  let backends = '';
+  let acls = '';
+  let usebackends = '';
+  const domains = [];
+  appConfig.forEach((app) => {
+    const domainUsed = app.domain.split('.').join('');
+    let domainBackend = `backend ${domainUsed}backend
+  mode http
+  balance source
+  hash-type consistent
+  stick-table type ip size 1m expire 1h
+  stick on src`;
+    for (const ip of app.ips) {
+      const a = ip.split('.');
+      let IpString = '';
+      for (let i = 0; i < 4; i += 1) {
+        if (a[i].length === 3) {
+          IpString += a[i];
+        }
+        if (a[i].length === 2) {
+          IpString = `${IpString}0${a[i]}`;
+        }
+        if (a[i].length === 1) {
+          IpString = `${IpString}00${a[i]}`;
+        }
+      }
+      domainBackend += `\n  server ${IpString} ${ip}:${app.port} check`;
+    }
+    backends = `${backends + domainBackend}\n\n`;
+    domains.push(app.domain);
+    acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
+    usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
+  });
+  const redirects = '';
+
+  return generateHaproxyConfig(acls, usebackends, domains, backends, redirects);
+}
+
 function createMainAppKadenaHaproxyConfig(domainA, domainB, fluxIPs, portA, portB) {
   const domainAused = domainA.split('.').join('');
   let domainAbackend = `backend ${domainAused}backend
@@ -295,4 +335,5 @@ module.exports = {
   createMainHaproxyConfig,
   createMainAppHaproxyConfig,
   createMainAppKadenaHaproxyConfig,
+  createAppsHaproxyConfig,
 };

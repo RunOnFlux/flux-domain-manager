@@ -1,6 +1,6 @@
 {
   "name": "flux-domain-manager",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Flux Domain Manager (FDM) manages particular domain of Flux network and applications running on Flux.",
   "repository": {
     "type": "git",

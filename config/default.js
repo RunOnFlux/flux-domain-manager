@@ -18,6 +18,8 @@ module.exports = {
     },
   },
   mainDomain: 'runonflux.io',
+  emailDomain: 'tessjonesie@gmail.com',
+  certFolder: 'fluxapps',
   cloudflare: {
     endpoint: 'https://api.cloudflare.com/client/v4/',
     apiKey: cloudflareConfig.apiKey,

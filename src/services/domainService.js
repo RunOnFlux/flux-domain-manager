@@ -376,7 +376,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       log.info(`Configuring ${app.name}`);
       // eslint-disable-next-line no-await-in-loop
       const appLocations = await getApplicationLocation(app.name);
-      if (appLocations > 0) {
+      if (appLocations.length > 0) {
         const appIps = [];
         appLocations.forEach((location) => {
           appIps.push(location.ip);
@@ -420,12 +420,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     }
     setTimeout(() => {
       generateAndReplaceMainApplicationHaproxyConfig();
-    }, 5 * 1000);
+    }, 4 * 60 * 1000);
   } catch (error) {
     log.error(error);
     setTimeout(() => {
       generateAndReplaceMainApplicationHaproxyConfig();
-    }, 5 * 1000);
+    }, 4 * 60 * 1000);
   }
 }
 

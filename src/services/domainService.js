@@ -350,7 +350,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     // if all ok, add for creation of domain
     const appsOK = [];
     await createSSLDirectory();
+    log.info('SSL directory checked');
     for (const appSpecs of applicationSpecifications) {
+      log.info(`Adjusting domains and ssl for ${appSpecs.name}`);
       const domains = getUnifiedDomainsForApp(appSpecs);
       const { ports } = appSpecs;
       if (domains.length === ports.length + 1) {
@@ -368,6 +370,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     // continue with appsOK
     const configuredApps = []; // object of domain, port, ips for backend
     for (const app of appsOK) {
+      log.info(`Configuring ${app.name}`);
       // eslint-disable-next-line no-await-in-loop
       const appLocations = await getApplicationLocation(app.name);
       if (appLocations > 0) {

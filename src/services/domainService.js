@@ -361,7 +361,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         // eslint-disable-next-line no-await-in-loop
         const domainOperationsSuccessful = await doDomainCertOperations(domains);
         if (domainOperationsSuccessful) {
-          log.info(`Application ${appSpecs.name} will is ready for FDM`);
+          log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
           appsOK.push(appSpecs);
         } else {
           log.error(`Domain/ssl issues for ${appSpecs.name}`);

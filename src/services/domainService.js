@@ -377,19 +377,23 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       // eslint-disable-next-line no-await-in-loop
       const appLocations = await getApplicationLocation(app.name);
       if (appLocations > 0) {
+        const appIps = [];
+        appLocations.forEach((location) => {
+          appIps.push(location.ip);
+        });
         const domains = getUnifiedDomainsForApp(app);
         for (let i = 0; i < app.ports.length; i += 1) {
           const configuredApp = {
             domain: domains[i],
             port: app.ports[i],
-            ips: appLocations,
+            ips: appIps,
           };
           configuredApps.push(configuredApp);
         }
         const mainApp = {
           domain: domains[domains.length - 1],
           port: app.ports[0],
-          ips: appLocations,
+          ips: appIps,
         };
         configuredApps.push(mainApp);
         log.info(`Application ${app.name} is OK. Proceeding to FDM`);

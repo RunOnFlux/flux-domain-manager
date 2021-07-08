@@ -262,7 +262,7 @@ async function adjustAutoRenewalScriptForDomain(domain) { // let it throw
   try {
     await fs.readFile(path);
     const autoRenewScript = await fs.readFile(path, { encoding: 'utf-8' });
-    const cert = `bash -c cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > /etc/ssl/${config.certFolder}/${domain}.pem`;
+    const cert = `bash -c "cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > /etc/ssl/${config.certFolder}/${domain}.pem"`;
     if (autoRenewScript.includes(cert)) {
       return;
     }
@@ -285,7 +285,7 @@ certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
     const ending = `
 # Reload  HAProxy
 service haproxy reload`;
-    const cert = `bash -c cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > /etc/ssl/${config.certFolder}/${domain}.pem\n`;
+    const cert = `bash -c "cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > /etc/ssl/${config.certFolder}/${domain}.pem"\n`;
     const file = beginning + cert + ending;
     await fs.writeFile(path, file, {
       mode: 0o755,
@@ -308,14 +308,16 @@ async function doDomainCertOperations(domains) {
       // eslint-disable-next-line no-await-in-loop
       const wasDomainAdjusted = await checkAndAdjustDNSrecordForDomain(appDomain);
       if (wasDomainAdjusted) {
+        log.info(`Domain ${appDomain} was adjusted on DNS`);
         // eslint-disable-next-line no-await-in-loop
-        await serviceHelper.timeout(60 * 1000);
+        await serviceHelper.timeout(45 * 1000);
       }
       // check if we have certificate
       // eslint-disable-next-line no-await-in-loop
       const isCertificatePresent = await checkCertificatePresetForDomain(appDomain);
       if (!isCertificatePresent) {
         // if we dont have certificate, obtain it
+        log.info(`Obtaning certificate for ${appDomain}`);
         // eslint-disable-next-line no-await-in-loop
         await obtainDomainCertificate(appDomain);
       }
@@ -359,6 +361,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         // eslint-disable-next-line no-await-in-loop
         const domainOperationsSuccessful = await doDomainCertOperations(domains);
         if (domainOperationsSuccessful) {
+          log.info(`Application ${appSpecs.name} will is ready for FDM`);
           appsOK.push(appSpecs);
         } else {
           log.error(`Domain/ssl issues for ${appSpecs.name}`);
@@ -389,6 +392,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           ips: appLocations,
         };
         configuredApps.push(mainApp);
+        log.info(`Application ${app.name} is OK. Proceeding to FDM`);
+      } else {
+        log.warn(`Application ${app.name} is excluded. Not running properly?`);
       }
     }
 
@@ -408,8 +414,14 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     } else {
       throw new Error('Invalid HAPROXY config file!');
     }
+    setTimeout(() => {
+      generateAndReplaceMainApplicationHaproxyConfig();
+    }, 5 * 1000);
   } catch (error) {
     log.error(error);
+    setTimeout(() => {
+      generateAndReplaceMainApplicationHaproxyConfig();
+    }, 5 * 1000);
   }
 }
 
@@ -753,11 +765,6 @@ async function startMainFluxDomainService() {
   generateAndReplaceMainHaproxyConfig();
 }
 
-// only runs on main FDM handles X.MYAPP.runonflux.io
-async function startApplicationFluxDomainService() {
-  generateAndReplaceMainApplicationHaproxyConfig();
-}
-
 // services run every 6 mins
 async function initializeServices() {
   myIP = await ipService.localIP();
@@ -770,10 +777,8 @@ async function initializeServices() {
       }, 10 * 60 * 1000);
       log.info('Flux Main Node Domain Service initiated.');
     } else if (config.mainDomain === config.cloudflare.domain && config.cloudflare.manageapp) {
-      startApplicationFluxDomainService();
-      setInterval(() => {
-        startApplicationFluxDomainService();
-      }, 10 * 60 * 1000);
+      // only runs on main FDM handles X.APP.runonflux.io
+      generateAndReplaceMainApplicationHaproxyConfig();
       log.info('Flux Main Application Domain Service initiated.');
     } else {
       startApplicationDomainService();

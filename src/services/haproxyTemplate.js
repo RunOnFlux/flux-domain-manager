@@ -1,5 +1,7 @@
 /* eslint-disable no-useless-escape */
 /* eslint-disable no-restricted-syntax */
+const configGlobal = require('config');
+
 const haproxyPrefix = `
 global
   maxconn 50000
@@ -68,15 +70,14 @@ const certificatePrefix = '  bind *:443 ssl ';
 
 const certificatesSuffix = 'ciphers kEECDH+aRSA+AES:kRSA+AES:+AES256:RC4-SHA:!kEDH:!LOW:!EXP:!MD5:!aNULL:!eNULL no-sslv3';
 
-const letsEncryptBackend = `
-backend letsencrypt-backend
+const letsEncryptBackend = `backend letsencrypt-backend
   server letsencrypt 127.0.0.1:8787
 `;
 
 function createCertificatesPaths(domains) {
   let path = '';
   domains.forEach((url) => {
-    path += `crt /etc/ssl/${url}/${url}.pem `;
+    path += `crt /etc/ssl/${configGlobal.certFolder}/${url}.pem `;
   });
   return path;
 }

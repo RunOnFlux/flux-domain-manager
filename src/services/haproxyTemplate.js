@@ -75,10 +75,13 @@ const letsEncryptBackend = `backend letsencrypt-backend
 `;
 
 function createCertificatesPaths(domains) {
-  let path = '';
-  domains.forEach((url) => {
-    path += `crt /etc/ssl/${configGlobal.certFolder}/${url}.pem `;
-  });
+  // let path = '';
+  // domains.forEach((url) => {
+  //   path += `crt /etc/ssl/${configGlobal.certFolder}/${url}.pem `;
+  // });
+  // return path;
+  // ise directory
+  const path = `crt /etc/ssl/${configGlobal.certFolder}/ `;
   return path;
 }
 

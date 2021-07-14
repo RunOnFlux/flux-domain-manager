@@ -144,10 +144,12 @@ function createAppsHaproxyConfig(appConfig) {
   acls += coinsAcl;
   acls += statsAcl;
 
+  const defaultBackend = '  default_backend bkadenachainwebnodeapprunonfluxiobackend\n';
   const chainwebBackendUse = '  use_backend akadenachainwebnodeapprunonfluxiobackend if chainweb\n';
   const chainwebDataBackendUse = '  use_backend akadenachainwebdataapprunonfluxiobackend if chainwebdata\n';
   usebackends += chainwebBackendUse;
   usebackends += chainwebDataBackendUse;
+  usebackends += defaultBackend;
 
   const redirects = '';
 

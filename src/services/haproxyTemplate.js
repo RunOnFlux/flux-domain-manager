@@ -91,77 +91,6 @@ function generateHaproxyConfig(acls, usebackends, domains, backends, redirects) 
   return config;
 }
 
-function createMainHaproxyConfig(ui, api, fluxIPs) {
-  const uiB = ui.split('.').join('');
-  const uiPort = 16126;
-  let uiBackend = `backend ${uiB}backend
-  mode http
-  balance source
-  hash-type consistent
-  stick-table type ip size 1m expire 8h
-  stick on src`;
-  for (const ip of fluxIPs) {
-    const a = ip.split('.');
-    let IpString = '';
-    for (let i = 0; i < 4; i += 1) {
-      if (a[i].length === 3) {
-        IpString += a[i];
-      }
-      if (a[i].length === 2) {
-        IpString = `${IpString}0${a[i]}`;
-      }
-      if (a[i].length === 1) {
-        IpString = `${IpString}00${a[i]}`;
-      }
-    }
-    uiBackend += `\n  server ${IpString} ${ip}:${uiPort} check`;
-  }
-  // console.log(uiBackend);
-
-  const apiB = api.split('.').join('');
-  const apiPort = 16127;
-  let apiBackend = `backend ${apiB}backend
-  mode http
-  balance source
-  hash-type consistent
-  stick-table type ip size 1m expire 8h
-  stick on src`;
-  for (const ip of fluxIPs) {
-    const a = ip.split('.');
-    let IpString = '';
-    for (let i = 0; i < 4; i += 1) {
-      if (a[i].length === 3) {
-        IpString += a[i];
-      }
-      if (a[i].length === 2) {
-        IpString = `${IpString}0${a[i]}`;
-      }
-      if (a[i].length === 1) {
-        IpString = `${IpString}00${a[i]}`;
-      }
-    }
-    apiBackend += `\n  server ${IpString} ${ip}:${apiPort} check`;
-  }
-  // console.log(apiBackend);
-
-  const redirects = `  http-request redirect code 301 location https://home.runonflux.io/dashboard if { hdr(host) -i dashboard.zel.network }\n\n
-  http-request redirect code 307 location https://home.runonflux.io if { hdr(host) -i zel.network }\n\n
-  http-request redirect code 307 location https://home.runonflux.io if { hdr(host) -i runonflux.io }\n\n`;
-  const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;
-  const apiAcl = `  acl ${apiB} hdr(host) ${api}\n`;
-  const mainAcl = '  acl mainAcl hdr(host) runonflux.io\n  acl mainAcl hdr(host) zel.network\n';
-  const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n  use_backend ${uiB}backend if mainAcl\n`;
-  const apiBackendUse = `  use_backend ${apiB}backend if ${apiB}\n`;
-
-  const acls = uiAcl + apiAcl + mainAcl;
-  const usebackends = uiBackendUse + apiBackendUse;
-
-  const backends = `${uiBackend}\n\n${apiBackend}`;
-  const urls = [ui, api, 'runonflux.io', 'dashboard.zel.network', 'zel.network'];
-
-  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
-}
-
 // appConfig is an array of object of domain, port, ips
 function createAppsHaproxyConfig(appConfig) {
   let backends = '';
@@ -177,6 +106,8 @@ function createAppsHaproxyConfig(appConfig) {
   stick-table type ip size 1m expire 1h
   stick on src`;
     for (const ip of app.ips) {
+      console.log(app);
+      console.log(app.ip);
       const a = ip.split('.');
       let IpString = '';
       for (let i = 0; i < 4; i += 1) {
@@ -190,19 +121,39 @@ function createAppsHaproxyConfig(appConfig) {
           IpString = `${IpString}00${a[i]}`;
         }
       }
-      domainBackend += `\n  server ${IpString} ${ip}:${app.port} check`;
+      if (app.port === 30004) {
+        domainBackend += `\n  server ${IpString} ${ip}:${app.port} check ssl verify none`;
+      } else {
+        domainBackend += `\n  server ${IpString} ${ip}:${app.port} check`;
+      }
     }
     backends = `${backends + domainBackend}\n\n`;
     domains.push(app.domain);
     acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
     usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
   });
+
+  domains.push('kadena.app.runonflux.io');
+
+  const chainwebAcl = '  acl chainweb path_beg /chainweb/0.0/mainnet01/cut\n';
+  const txsAcl = '  acl chainwebdata path_beg /txs\n';
+  const coinsAcl = '  acl chainwebdata path_beg /coins\n';
+  const statsAcl = '  acl chainwebdata path_beg /stats\n';
+  acls += chainwebAcl;
+  acls += txsAcl;
+  acls += coinsAcl;
+  acls += statsAcl;
+
+  const chainwebBackendUse = '  use_backend akadenachainwebnodeapprunonfluxiobackend if chainweb\n';
+  const chainwebDataBackendUse = '  use_backend akadenachainwebdataapprunonfluxiobackend if chainwebdata\n';
+  usebackends += chainwebBackendUse;
+  usebackends += chainwebDataBackendUse;
+
   const redirects = '';
 
   return generateHaproxyConfig(acls, usebackends, domains, backends, redirects);
 }
 
 module.exports = {
-  createMainHaproxyConfig,
   createAppsHaproxyConfig,
 };

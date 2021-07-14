@@ -5,11 +5,9 @@ const config = require('config');
 const nodecmd = require('node-cmd');
 const util = require('util');
 const fs = require('fs').promises;
-const fsSync = require('fs');
 const log = require('../lib/log');
 const serviceHelper = require('./serviceHelper');
 const ipService = require('./ipService');
-const fluxService = require('./fluxService');
 const haproxyTemplate = require('./haproxyTemplate');
 const applicationChecks = require('./applicationChecks');
 
@@ -106,73 +104,6 @@ async function listDNSRecordsAPI(req, res) {
   }
 }
 
-async function generateAndReplaceMainHaproxyConfig() {
-  try {
-    const ui = `home.${config.mainDomain}`;
-    const api = `api.${config.mainDomain}`;
-    const fluxIPs = await fluxService.getFluxIPs();
-    if (fluxIPs.length < 10) {
-      throw new Error('Invalid Flux List');
-    }
-    const fluxIPsForBalancing = [];
-    // we want to do some checks on UI and API to verify functionality
-    // 1st check is loginphrase
-    // 2nd check is communication
-    // 3rd is ui
-    for (const ip of fluxIPs) {
-      // eslint-disable-next-line no-await-in-loop
-      const isOK = await applicationChecks.checkMainFlux(ip);
-      if (isOK) {
-        fluxIPsForBalancing.push(ip);
-        console.log(`adding ${ip} as backend`);
-      }
-      if (fluxIPsForBalancing.length > 150) { // maximum of 150 for load balancing
-        break;
-      }
-    }
-    if (fluxIPsForBalancing.length < 10) {
-      throw new Error('Not enough ok nodes, probably error');
-    }
-    const hc = await haproxyTemplate.createMainHaproxyConfig(ui, api, fluxIPsForBalancing);
-    console.log(hc);
-    const dataToWrite = hc;
-    // test haproxy config
-    const haproxyPathTemp = '/tmp/haproxytemp.cfg';
-    await fs.writeFile(haproxyPathTemp, dataToWrite);
-    const response = await cmdAsync(`sudo haproxy -f ${haproxyPathTemp} -c`);
-    if (response.includes('Configuration file is valid')) {
-      // write and reload
-      const haproxyPath = '/etc/haproxy/haproxy.cfg';
-      await fs.writeFile(haproxyPath, dataToWrite);
-      const execHAreload = 'sudo service haproxy reload';
-      await cmdAsync(execHAreload);
-    } else {
-      throw new Error('Invalid HAPROXY config file!');
-    }
-    setTimeout(() => {
-      generateAndReplaceMainHaproxyConfig();
-    }, 4 * 60 * 1000);
-  } catch (error) {
-    log.error(error);
-    setTimeout(() => {
-      generateAndReplaceMainHaproxyConfig();
-    }, 4 * 60 * 1000);
-  }
-}
-
-async function getAppSpecifications() {
-  try {
-    const fluxnodeList = await axios.get('https://api.runonflux.io/apps/globalappsspecifications', axiosConfig);
-    if (fluxnodeList.data.status === 'success') {
-      return fluxnodeList.data.data || [];
-    }
-    return [];
-  } catch (e) {
-    log.error(e);
-    return [];
-  }
-}
-
 async function getApplicationLocation(appName) {
   try {
     const fluxnodeList = await axios.get(`https://api.runonflux.io/apps/location/${appName}`, axiosConfig);
@@ -201,192 +132,87 @@ function getUnifiedDomainsForApp(specifications) {
   return domains;
 }
 
-// return true if some domain operation was done
-// return false if no domain operation was done
-async function checkAndAdjustDNSrecordForDomain(domain) {
+async function generateAndReplaceKadenaApplicationHaproxyConfig() {
   try {
-    const dnsRecords = await listDNSRecords(domain);
-    // delete bad
-    for (const record of dnsRecords) { // async inside
-      if (myIP && typeof myIP === 'string' && (record.content !== myIP || record.proxied === true)) {
-        // delete the record
-        // eslint-disable-next-line no-await-in-loop
-        await deleteDNSRecord(record.id); // may throw
-        log.info(`Record ${record.id} on ${record.content} deleted`);
-      }
-    }
-    const correctRecords = dnsRecords.filter((record) => (record.content === myIP && record.proxied === false));
-    if (correctRecords.length === 0) {
-      await createDNSRecord(domain, myIP);
-      return true;
-    }
-    if (correctRecords.length > 1) {
-      // delete all except the first one
-      correctRecords.shift(); // remove first record from records to delete
-      for (const record of correctRecords) { // async inside
-        // delete the record
-        // eslint-disable-next-line no-await-in-loop
-        await deleteDNSRecord(record.id); // may throw
-        log.info(`Duplicate Record ${record.id} on ${record.content} deleted`);
-      }
-      return true;
-    }
-    // only one record exists and is correct
-    log.info(`Record for domain ${domain} is set correctly`);
-    return false;
-  } catch (error) {
-    log.error(error);
-    return true;
-  }
-}
+    // kadena apps on network
+    const applicationSpecifications = [
+      {
+        version: 2,
+        name: 'KadenaChainWebNode', // corresponds to docker name and this name is stored in apps mongo database
+        description: 'Kadena is a fast, secure, and scalable blockchain using the Chainweb consensus protocol. '
+          + 'Chainweb is a braided, parallelized Proof Of Work consensus mechanism that improves throughput and scalability in executing transactions on the blockchain while maintaining the security and integrity found in Bitcoin. '
+          + 'The healthy information tells you if your node is running and synced. If you just installed the docker it can say unhealthy for long time because on first run a bootstrap is downloaded and extracted to make your node sync faster before the node is started. '
+          + 'Do not stop or restart the docker in the first hour after installation. You can also check if your kadena node is synced, by going to running apps and press visit button on kadena and compare your node height with Kadena explorer. Thank you.',
+        repotag: 'runonflux/kadena-chainweb-node:2.8',
+        owner: '1hjy4bCYBJr4mny4zCE85J94RXa8W6q37',
+        ports: [30004, 30005],
+        containerPorts: [30004, 30005],
+        domains: ['', ''],
+        tiered: false,
+        cpu: 2, // true resource registered for app. If not tiered only this is available
+        ram: 4000, // true resource registered for app
+        hdd: 60, // true resource registered for app
+        enviromentParameters: ['CHAINWEB_P2P_PORT=30004', 'CHAINWEB_SERVICE_PORT=30005', 'LOGLEVEL=warn'],
+        commands: ['/bin/bash', '-c', '(test -d /data/chainweb-db/0 && ./run-chainweb-node.sh) || (/chainweb/initialize-db.sh && ./run-chainweb-node.sh)'],
+        containerData: '/data', // cannot be root todo in verification
+        hash: 'localSpecificationsVersion9', // hash of app message
+        height: 680000, // height of tx on which it was
+      },
+      {
+        version: 2,
+        name: 'KadenaChainWebData', // corresponds to docker name and this name is stored in apps mongo database
+        description: 'Kadena Chainweb Data is extension to Chainweb Node offering additional data about Kadena blockchain. Chainweb Data offers statistics, coins circulation and mainly transaction history and custom searching through transactions',
+        repotag: 'runonflux/kadena-chainweb-data:v1.0.0',
+        owner: '1hjy4bCYBJr4mny4zCE85J94RXa8W6q37',
+        ports: [30006],
+        containerPorts: [8888],
+        domains: [''],
+        tiered: false,
+        cpu: 1.5, // true resource registered for app. If not tiered only this is available
+        ram: 3000, // true resource registered for app
+        hdd: 60, // true resource registered for app
+        enviromentParameters: [],
+        commands: [],
+        containerData: '/var/lib/postgresql/data', // cannot be root todo in verification
+        hash: 'chainwebDataLocalSpecificationsVersion1', // hash of app message
+        height: 900000, // height of tx on which it was
+      },
+    ];
 
-async function checkCertificatePresetForDomain(domain) {
-  try {
-    const path = `/etc/ssl/fluxapps/${domain}.pem`;
-    await fs.access(path); // only check if file exists. Does not check permissions
-    const fileSize = fsSync.statSync(path).size;
-    if (fileSize > 128) { // it can be an empty file.
-      return true;
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function obtainDomainCertificate(domain) { // let it throw
-  const cmdToExec = `sudo certbot certonly --standalone -d ${domain} --non-interactive --agree-tos --email ${config.emailDomain} --http-01-port=8787`;
-  const cmdToExecContinue = `sudo cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem | sudo tee /etc/ssl/${config.certFolder}/${domain}.pem`;
-  const response = await cmdAsync(cmdToExec);
-  if (response.includes('Congratulations')) {
-    await cmdAsync(cmdToExecContinue);
-  }
-}
-
-async function adjustAutoRenewalScriptForDomain(domain) { // let it throw
-  const path = '/opt/update-certs.sh';
-  try {
-    await fs.readFile(path);
-    const autoRenewScript = await fs.readFile(path, { encoding: 'utf-8' });
-    const cert = `bash -c "cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > /etc/ssl/${config.certFolder}/${domain}.pem"`;
-    if (autoRenewScript.includes(cert)) {
-      return;
-    }
-    // split the contents by new line
-    const lines = autoRenewScript.split(/\r?\n/);
-    lines.splice(6, 0, cert); // push cert to top behind #Concatenate...
-    const file = lines.join('\n');
-    await fs.writeFile(path, file, {
-      mode: 0o755,
-      flag: 'w',
-      encoding: 'utf-8',
-    });
-  } catch (error) {
-    // probably does not exist
-    const beginning = `#!/usr/bin/env bash
-# Renew the certificate
-certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
-
-# Concatenate new cert files, with less output (avoiding the use tee and its output to stdout)\n`;
-    const ending = `
-# Reload  HAProxy
-service haproxy reload`;
-    const cert = `bash -c "cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > /etc/ssl/${config.certFolder}/${domain}.pem"\n`;
-    const file = beginning + cert + ending;
-    await fs.writeFile(path, file, {
-      mode: 0o755,
-      flag: 'w',
-      encoding: 'utf-8',
-    });
-  }
-}
-
-async function createSSLDirectory() {
-  const dir = `/etc/ssl/${config.certFolder}`;
-  await fs.mkdir(dir, { recursive: true });
-}
-
-async function doDomainCertOperations(domains) {
-  try {
-    for (const appDomain of domains) {
-      // check DNS
-      // if DNS was adjusted for this domain, wait a minute
-      // eslint-disable-next-line no-await-in-loop
-      const wasDomainAdjusted = await checkAndAdjustDNSrecordForDomain(appDomain);
-      if (wasDomainAdjusted) {
-        log.info(`Domain ${appDomain} was adjusted on DNS`);
-        // eslint-disable-next-line no-await-in-loop
-        await serviceHelper.timeout(45 * 1000);
-      }
-      // check if we have certificate
-      // eslint-disable-next-line no-await-in-loop
-      const isCertificatePresent = await checkCertificatePresetForDomain(appDomain);
-      if (!isCertificatePresent) {
-        // if we dont have certificate, obtain it
-        log.info(`Obtaning certificate for ${appDomain}`);
-        // eslint-disable-next-line no-await-in-loop
-        await obtainDomainCertificate(appDomain);
-      }
-      // eslint-disable-next-line no-await-in-loop
-      const isCertificatePresentB = await checkCertificatePresetForDomain(appDomain);
-      if (isCertificatePresentB) {
-        // check if domain has autorenewal, if not, adjust it
-        // eslint-disable-next-line no-await-in-loop
-        await adjustAutoRenewalScriptForDomain(appDomain);
-      } else {
-        throw new Error(`Certificate not present for ${appDomain}`);
-      }
-    }
-    return true;
-  } catch (error) {
-    log.error(error);
-    return false;
-  }
-}
-
-async function generateAndReplaceMainApplicationHaproxyConfig() {
-  try {
-    // get applications on the network
-    const applicationSpecifications = await getAppSpecifications();
-    // for every application do following
-    // get name, ports
-    // main application domain is name.app.domain, for every port we have domainstrin[i].name.app.domain
-    // check and adjust dns record for missing domains
-    // obtain certificate
-    // add to renewal script
-    // check if certificate exist
-    // if all ok, add for creation of domain
-    const appsOK = [];
-    await createSSLDirectory();
-    log.info('SSL directory checked');
-    for (const appSpecs of applicationSpecifications) {
-      log.info(`Adjusting domains and ssl for ${appSpecs.name}`);
-      const domains = getUnifiedDomainsForApp(appSpecs);
-      const { ports } = appSpecs;
-      if (domains.length === ports.length + 1) {
-        // eslint-disable-next-line no-await-in-loop
-        const domainOperationsSuccessful = await doDomainCertOperations(domains);
-        if (domainOperationsSuccessful) {
-          log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
-          appsOK.push(appSpecs);
-        } else {
-          log.error(`Domain/ssl issues for ${appSpecs.name}`);
-        }
-      } else {
-        log.error(`Application ${appSpecs.name} has wierd domain, settings. This is a bug.`);
-      }
-    }
     // continue with appsOK
     const configuredApps = []; // object of domain, port, ips for backend
-    for (const app of appsOK) {
+    for (const app of applicationSpecifications) {
       log.info(`Configuring ${app.name}`);
       // eslint-disable-next-line no-await-in-loop
       const appLocations = await getApplicationLocation(app.name);
       if (appLocations.length > 0) {
         const appIps = [];
-        appLocations.forEach((location) => {
-          appIps.push(location.ip);
-        });
+        // eslint-disable-next-line no-restricted-syntax
+        if (app.name === 'KadenaChainWebNode') {
+          for (const kdaNode of appLocations) {
+            // eslint-disable-next-line no-await-in-loop
+            const appOK = await applicationChecks.checkKadenaApplication(kdaNode.ip);
+            if (appOK) {
+              console.log(kdaNode);
+              appIps.push(kdaNode.ip);
+            }
+            if (appIps.length > 20) {
+              break;
+            }
+          }
+        } else if (app.name === 'KadenaChainWebData') {
+          for (const kdaNode of appLocations) {
+            // eslint-disable-next-line no-await-in-loop
+            const appOK = await applicationChecks.checkKadenaDataApplication(kdaNode.ip);
+            if (appOK) {
+              console.log(kdaNode);
+              appIps.push(kdaNode.ip);
+            }
+            if (appIps.length > 150) {
+              break;
+            }
+          }
+        }
         const domains = getUnifiedDomainsForApp(app);
         for (let i = 0; i < app.ports.length; i += 1) {
           const configuredApp = {
@@ -401,8 +227,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           port: app.ports[0],
           ips: appIps,
         };
-        configuredApps.push(mainApp);
-        log.info(`Application ${app.name} is OK. Proceeding to FDM`);
+        if (appIps.length > 2) {
+          configuredApps.push(mainApp);
+          log.info(`Application ${app.name} is OK. Proceeding to FDM`);
+        } else {
+          log.warn(`Application ${app.name} is excluded. Not enough IPs`);
+        }
       } else {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);
       }
@@ -425,12 +255,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       throw new Error('Invalid HAPROXY config file!');
     }
     setTimeout(() => {
-      generateAndReplaceMainApplicationHaproxyConfig();
+      generateAndReplaceKadenaApplicationHaproxyConfig();
     }, 4 * 60 * 1000);
   } catch (error) {
     log.error(error);
     setTimeout(() => {
-      generateAndReplaceMainApplicationHaproxyConfig();
+      generateAndReplaceKadenaApplicationHaproxyConfig();
     }, 4 * 60 * 1000);
   }
 }
@@ -440,16 +270,8 @@ async function initializeServices() {
   myIP = await ipService.localIP();
   console.log(myIP);
   if (myIP) {
-    if (config.mainDomain === config.cloudflare.domain && !config.cloudflare.manageapp) {
-      generateAndReplaceMainHaproxyConfig();
-      log.info('Flux Main Node Domain Service initiated.');
-    } else if (config.mainDomain === config.cloudflare.domain && config.cloudflare.manageapp) {
-      // only runs on main FDM handles X.APP.runonflux.io
-      generateAndReplaceMainApplicationHaproxyConfig();
-      log.info('Flux Main Application Domain Service initiated.');
-    } else {
-      log.info('CUSTOM DOMAIN SERVICE UNAVAILABLE');
-    }
+    generateAndReplaceKadenaApplicationHaproxyConfig();
+    log.info('Flux Kadena Application Domain Service initiated.');
   } else {
     log.warn('Awaiting FDM IP address...');
     setTimeout(() => {

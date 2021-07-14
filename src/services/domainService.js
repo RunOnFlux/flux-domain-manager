@@ -196,7 +196,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
               console.log(kdaNode);
               appIps.push(kdaNode.ip);
             }
-            if (appIps.length > 20) {
+            if (appIps.length > 150) {
               break;
             }
           }

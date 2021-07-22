@@ -136,10 +136,12 @@ function createAppsHaproxyConfig(appConfig) {
   domains.push('kadena.app.runonflux.io');
 
   const chainwebAcl = '  acl chainweb path_beg /chainweb/0.0/mainnet01/cut\n';
+  const chainwebAclB = '  acl chainweb path_beg /chainweb/0.0/mainnet01/chain\n';
   const txsAcl = '  acl chainwebdata path_beg /txs\n';
   const coinsAcl = '  acl chainwebdata path_beg /coins\n';
   const statsAcl = '  acl chainwebdata path_beg /stats\n';
   acls += chainwebAcl;
+  acls += chainwebAclB;
   acls += txsAcl;
   acls += coinsAcl;
   acls += statsAcl;

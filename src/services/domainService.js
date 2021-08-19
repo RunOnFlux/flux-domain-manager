@@ -155,7 +155,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
         enviromentParameters: ['CHAINWEB_P2P_PORT=30004', 'CHAINWEB_SERVICE_PORT=30005', 'LOGLEVEL=warn'],
         commands: ['/bin/bash', '-c', '(test -d /data/chainweb-db/0 && ./run-chainweb-node.sh) || (/chainweb/initialize-db.sh && ./run-chainweb-node.sh)'],
         containerData: '/data', // cannot be root todo in verification
-        hash: 'localSpecificationsVersion9', // hash of app message
+        hash: 'localSpecificationsVersion10', // hash of app message
         height: 680000, // height of tx on which it was
       },
       {

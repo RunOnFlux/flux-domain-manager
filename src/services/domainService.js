@@ -232,9 +232,15 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
           log.info(`Application ${app.name} is OK. Proceeding to FDM`);
         } else {
           log.warn(`Application ${app.name} is excluded. Not enough IPs`);
+          if (app.name === 'KadenaChainWebNode') {
+            throw new Error('Not enought IPs on KDA app. PANIC');
+          }
         }
       } else {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);
+        if (app.name === 'KadenaChainWebNode') {
+          throw new Error('Not enought IPs on KDA app. PANIC 2');
+        }
       }
     }
 

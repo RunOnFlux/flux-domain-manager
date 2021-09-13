@@ -144,7 +144,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
   }
   // console.log(apiBackend);
 
-  const redirects = `  http-request redirect code 301 location https://home.runonflux.io/dashboard if { hdr(host) -i dashboard.zel.network }\n\n
+  const redirects = `  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n
   http-request redirect code 307 location https://home.runonflux.io if { hdr(host) -i zel.network }\n\n
   http-request redirect code 307 location https://home.runonflux.io if { hdr(host) -i runonflux.io }\n\n`;
   const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;

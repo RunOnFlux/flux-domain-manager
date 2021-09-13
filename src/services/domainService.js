@@ -126,7 +126,7 @@ async function generateAndReplaceMainHaproxyConfig() {
         fluxIPsForBalancing.push(ip);
         console.log(`adding ${ip} as backend`);
       }
-      if (fluxIPsForBalancing.length > 150) { // maximum of 150 for load balancing
+      if (fluxIPsForBalancing.length > 100) { // maximum of 100 for load balancing
         break;
       }
     }

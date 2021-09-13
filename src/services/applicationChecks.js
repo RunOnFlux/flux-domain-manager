@@ -46,18 +46,69 @@ async function isHomeOK(ip) {
   }
 }
 
+async function isVersionOK(ip) {
+  try {
+    const url = `http://${ip}:16127/flux/version`;
+    const response = await axios.get(url, axiosConfig);
+    const version = response.data.data.replace(/\./g, '');
+    if (version > 210) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function isSyncedOK(ip) {
+  try {
+    const url = `http://${ip}:16127/explorer/scannedheight`;
+    const response = await axios.get(url, axiosConfig);
+    const version = response.data.data.generalScannedHeight;
+    if (version > 946933) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function hasManyApps(ip) {
+  try {
+    const url = `http://${ip}:16127/apps/globalappsspecifications`;
+    const response = await axios.get(url, axiosConfig);
+    const appsAmount = response.data.data.length;
+    if (appsAmount > 30) { // we surely have at least 30 apps on network
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkMainFlux(ip) {
   try {
-    // eslint-disable-next-line no-await-in-loop
-    const loginPhraseOK = await checkLoginPhrase(ip);
-    if (loginPhraseOK) {
+    const versionOK = await isVersionOK(ip);
+    if (versionOK) {
       // eslint-disable-next-line no-await-in-loop
-      const communicationOK = await isCommunicationOK(ip);
-      if (communicationOK) {
+      const loginPhraseOK = await checkLoginPhrase(ip);
+      if (loginPhraseOK) {
         // eslint-disable-next-line no-await-in-loop
-        const uiOK = await isHomeOK(ip);
-        if (uiOK) {
-          return true;
+        const communicationOK = await isCommunicationOK(ip);
+        if (communicationOK) {
+          const isSynced = await isSyncedOK(ip);
+          if (isSynced) {
+            const hasApps = await hasManyApps(ip);
+            if (hasApps) {
+              // eslint-disable-next-line no-await-in-loop
+              const uiOK = await isHomeOK(ip);
+              if (uiOK) {
+                return true;
+              }
+            }
+          }
         }
       }
     }

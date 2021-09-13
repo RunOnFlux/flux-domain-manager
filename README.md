@@ -1,6 +1,6 @@
 # Flux Domain Manager
 
-![Flux.png](ZelFront/src/assets/img/flux_banner.png)
+![Flux.png](https://raw.githubusercontent.com/RunOnFlux/flux/master/flux_banner.png)
 
 Flux Domain Manager (FDM) manages domains, certificates and load balancing for entire Flux network as well as for applications running on Flux network. FDM in its basics is HAProxy configurator connected to Flux network.
 

@@ -144,20 +144,17 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
   }
   // console.log(apiBackend);
 
-  const redirects = `  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n
-  http-request redirect code 307 location https://home.runonflux.io if { hdr(host) -i zel.network }\n\n
-  http-request redirect code 307 location https://home.runonflux.io if { hdr(host) -i runonflux.io }\n\n`;
+  const redirects = '';
   const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;
   const apiAcl = `  acl ${apiB} hdr(host) ${api}\n`;
-  const mainAcl = '  acl mainAcl hdr(host) runonflux.io\n  acl mainAcl hdr(host) zel.network\n';
-  const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n  use_backend ${uiB}backend if mainAcl\n`;
+  const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;
   const apiBackendUse = `  use_backend ${apiB}backend if ${apiB}\n`;
 
-  const acls = uiAcl + apiAcl + mainAcl;
+  const acls = uiAcl + apiAcl;
   const usebackends = uiBackendUse + apiBackendUse;
 
   const backends = `${uiBackend}\n\n${apiBackend}`;
-  const urls = [ui, api, 'runonflux.io', 'dashboard.zel.network', 'zel.network'];
+  const urls = [ui, api];
 
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
 }

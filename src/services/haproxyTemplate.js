@@ -144,7 +144,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
   }
   // console.log(apiBackend);
 
-  const redirects = '';
+  const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n';
   const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;
   const apiAcl = `  acl ${apiB} hdr(host) ${api}\n`;
   const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;
@@ -154,7 +154,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
   const usebackends = uiBackendUse + apiBackendUse;
 
   const backends = `${uiBackend}\n\n${apiBackend}`;
-  const urls = [ui, api];
+  const urls = [ui, api, 'dashboard.zel.network'];
 
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
 }

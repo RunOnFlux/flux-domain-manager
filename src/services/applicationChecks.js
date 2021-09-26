@@ -80,7 +80,10 @@ async function hasManyApps(ip) {
     const response = await axios.get(url, axiosConfig);
     const appsAmount = response.data.data.length;
     if (appsAmount > 30) { // we surely have at least 30 apps on network
-      return true;
+      const fluxWhitePaper = response.data.data.find((app) => app.name === 'FluxWhitepaper'); // hopefully its on network right
+      if (fluxWhitePaper.height >= 950469) {
+        return true;
+      }
     }
     return false;
   } catch (error) {

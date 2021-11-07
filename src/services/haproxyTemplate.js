@@ -133,7 +133,7 @@ function createAppsHaproxyConfig(appConfig) {
     usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
   });
 
-  domains.push('kadena.app.runonflux.io');
+  domains.push('kadena2.app.runonflux.io');
 
   const chainwebAcl1 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/0/pact\n';
   const chainwebAcl2 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/1/pact\n';
@@ -188,10 +188,10 @@ function createAppsHaproxyConfig(appConfig) {
   acls += coinsAcl;
   acls += statsAcl;
 
-  const defaultBackend = '  default_backend bkadenachainwebnodeapprunonfluxiobackend\n';
-  const chainwebABackendUse = '  use_backend bkadenachainwebnodeapprunonfluxiobackend if chainwebB\n';
-  const chainwebBackendUse = '  use_backend akadenachainwebnodeapprunonfluxiobackend if chainweb\n';
-  const chainwebDataBackendUse = '  use_backend akadenachainwebdataapprunonfluxiobackend if chainwebdata\n';
+  const defaultBackend = '  default_backend bkadenachainwebnode2apprunonfluxiobackend\n';
+  const chainwebABackendUse = '  use_backend bkadenachainwebnode2apprunonfluxiobackend if chainwebB\n';
+  const chainwebBackendUse = '  use_backend akadenachainwebnode2apprunonfluxiobackend if chainweb\n';
+  const chainwebDataBackendUse = '  use_backend akadenachainwebdata2apprunonfluxiobackend if chainwebdata\n';
   usebackends += chainwebABackendUse;
   usebackends += chainwebBackendUse;
   usebackends += chainwebDataBackendUse;

@@ -269,6 +269,19 @@ async function kadenaRecentTxs(ip) {
   }
 }
 
+async function kadenaSearchTxs(ip) {
+  try {
+    const agent = new https.Agent({
+      rejectUnauthorized: false,
+    });
+    const kadenaData = await axios.get(`http://${ip}:30006/txs/search?search=3a2e6166907d0c2fb28a16cd6966a705de129e8358b9872d9cefe694e910d5b2&offset=0&limit=100`, { httpsAgent: agent, timeout: 12000 });
+    return kadenaData.data;
+  } catch (e) {
+    // log.error(e);
+    return [];
+  }
+}
+
 async function checkKadenaDataApplication(ip) {
   try {
     const recentTxs = await kadenaRecentTxs(ip);
@@ -278,7 +291,14 @@ async function checkKadenaDataApplication(ip) {
     // 2 hours difference
     const twoH = 2 * 60 * 60 * 1000;
     if (currentTime - twoH < lastTime) {
-      return true;
+      const searchTxs = await kadenaSearchTxs(ip);
+      const lastTx = new Date(searchTxs[0].creationTime);
+      const lastTimeTx = lastTx.getTime();
+      // 2 hours difference
+      const diffTen = 10 * 24 * 60 * 60 * 1000;
+      if (currentTime - diffTen < lastTimeTx) {
+        return true;
+      }
     }
     return false;
   } catch (error) {

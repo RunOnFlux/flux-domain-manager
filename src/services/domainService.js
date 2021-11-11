@@ -155,7 +155,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
         enviromentParameters: ['CHAINWEB_P2P_PORT=30004', 'CHAINWEB_SERVICE_PORT=30005', 'LOGLEVEL=warn'],
         commands: ['/bin/bash', '-c', '(test -d /data/chainweb-db/0 && ./run-chainweb-node.sh) || (/chainweb/initialize-db.sh && ./run-chainweb-node.sh)'],
         containerData: '/data', // cannot be root todo in verification
-        hash: 'localSpecificationsVersion12', // hash of app message
+        hash: 'localSpecificationsVersion13', // hash of app message
         height: 680000, // height of tx on which it was
       },
       {
@@ -174,7 +174,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
         enviromentParameters: [],
         commands: [],
         containerData: '/var/lib/postgresql/data', // cannot be root todo in verification
-        hash: 'chainwebDataLocalSpecificationsVersion1', // hash of app message
+        hash: 'chainwebDataLocalSpecificationsVersion3', // hash of app message
         height: 900000, // height of tx on which it was
       },
     ];
@@ -190,26 +190,30 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
         // eslint-disable-next-line no-restricted-syntax
         if (app.name === 'KadenaChainWebNode') {
           for (const kdaNode of appLocations) {
-            // eslint-disable-next-line no-await-in-loop
-            const appOK = await applicationChecks.checkKadenaApplication(kdaNode.ip);
-            if (appOK) {
-              console.log(kdaNode);
-              appIps.push(kdaNode.ip);
-            }
-            if (appIps.length > 150) {
-              break;
+            if (kdaNode.hash === app.hash) {
+              // eslint-disable-next-line no-await-in-loop
+              const appOK = await applicationChecks.checkKadenaApplication(kdaNode.ip);
+              if (appOK) {
+                console.log(kdaNode);
+                appIps.push(kdaNode.ip);
+              }
+              if (appIps.length > 100) {
+                break;
+              }
             }
           }
         } else if (app.name === 'KadenaChainWebData') {
           for (const kdaNode of appLocations) {
-            // eslint-disable-next-line no-await-in-loop
-            const appOK = await applicationChecks.checkKadenaDataApplication(kdaNode.ip);
-            if (appOK) {
-              console.log(kdaNode);
-              appIps.push(kdaNode.ip);
-            }
-            if (appIps.length > 150) {
-              break;
+            if (kdaNode.hash === app.hash) {
+              // eslint-disable-next-line no-await-in-loop
+              const appOK = await applicationChecks.checkKadenaDataApplication(kdaNode.ip);
+              if (appOK) {
+                console.log(kdaNode);
+                appIps.push(kdaNode.ip);
+              }
+              if (appIps.length > 100) {
+                break;
+              }
             }
           }
         }

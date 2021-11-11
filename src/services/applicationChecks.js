@@ -284,21 +284,14 @@ async function kadenaSearchTxs(ip) {
 
 async function checkKadenaDataApplication(ip) {
   try {
-    const recentTxs = await kadenaRecentTxs(ip);
-    const last = new Date(recentTxs[0].creationTime);
-    const lastTime = last.getTime();
     const currentTime = new Date().getTime();
+    const searchTxs = await kadenaSearchTxs(ip);
+    const lastTx = new Date(searchTxs[0].creationTime);
+    const lastTimeTx = lastTx.getTime();
     // 2 hours difference
-    const twoH = 2 * 60 * 60 * 1000;
-    if (currentTime - twoH < lastTime) {
-      const searchTxs = await kadenaSearchTxs(ip);
-      const lastTx = new Date(searchTxs[0].creationTime);
-      const lastTimeTx = lastTx.getTime();
-      // 2 hours difference
-      const diffTen = 10 * 24 * 60 * 60 * 1000;
-      if (currentTime - diffTen < lastTimeTx) {
-        return true;
-      }
+    const diffTen = 10 * 24 * 60 * 60 * 1000;
+    if (currentTime - diffTen < lastTimeTx) {
+      return true;
     }
     return false;
   } catch (error) {

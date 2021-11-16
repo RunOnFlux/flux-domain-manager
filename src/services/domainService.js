@@ -395,6 +395,46 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             ips: appIps,
           };
           configuredApps.push(configuredApp);
+          if (app.domains[i]) {
+            if (!app.domains[i].includes('app.runonflux')) { // prevent double backend
+              const domainExists = configuredApps.find((a) => a.domain === app.domains[i]);
+              if (domainExists) {
+                const configuredAppCustom = {
+                  domain: app.domains[i],
+                  port: app.ports[i],
+                  ips: appIps,
+                };
+                configuredApps.push(configuredAppCustom);
+              }
+              if (app.domains[i].includes('www.')) { // add domain without the www. prefix
+                const adjustedDomain = app.domains[i].split('www.')[1];
+                if (adjustedDomain) {
+                  const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
+                  if (domainExistsB) {
+                    const configuredAppCustom = {
+                      domain: adjustedDomain,
+                      port: app.ports[i],
+                      ips: appIps,
+                    };
+                    configuredApps.push(configuredAppCustom);
+                  }
+                }
+              } else { // does not have www, add with www
+                const adjustedDomain = `www.${app.domains[i]}`;
+                if (adjustedDomain) {
+                  const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
+                  if (domainExistsB) {
+                    const configuredAppCustom = {
+                      domain: adjustedDomain,
+                      port: app.ports[i],
+                      ips: appIps,
+                    };
+                    configuredApps.push(configuredAppCustom);
+                  }
+                }
+              }
+            }
+          }
         }
         const mainApp = {
           domain: domains[domains.length - 1],

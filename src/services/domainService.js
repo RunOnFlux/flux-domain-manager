@@ -398,7 +398,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           if (app.domains[i]) {
             if (!app.domains[i].includes('app.runonflux')) { // prevent double backend
               const domainExists = configuredApps.find((a) => a.domain === app.domains[i]);
-              if (domainExists) {
+              if (!domainExists) {
                 const configuredAppCustom = {
                   domain: app.domains[i],
                   port: app.ports[i],
@@ -410,7 +410,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                 const adjustedDomain = app.domains[i].split('www.')[1];
                 if (adjustedDomain) {
                   const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
-                  if (domainExistsB) {
+                  if (!domainExistsB) {
                     const configuredAppCustom = {
                       domain: adjustedDomain,
                       port: app.ports[i],
@@ -423,7 +423,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                 const adjustedDomain = `www.${app.domains[i]}`;
                 if (adjustedDomain) {
                   const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
-                  if (domainExistsB) {
+                  if (!domainExistsB) {
                     const configuredAppCustom = {
                       domain: adjustedDomain,
                       port: app.ports[i],

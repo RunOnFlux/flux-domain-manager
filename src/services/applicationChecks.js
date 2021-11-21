@@ -309,7 +309,20 @@ async function checkKadenaApplication(ip) {
   }
 }
 
+async function checkRunOnFluxWebsite(ip) {
+  try {
+    const websiteResponse = await axios.get(`http://${ip}:33444`, { timeout: 8888 });
+    if (websiteResponse.data.includes('<title>Flux')) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 module.exports = {
   checkMainFlux,
   checkKadenaApplication,
+  checkRunOnFluxWebsite,
 };

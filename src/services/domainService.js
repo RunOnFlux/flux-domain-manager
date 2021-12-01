@@ -210,6 +210,8 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
               if (appOK) {
                 console.log(kdaNode);
                 appIps.push(kdaNode.ip);
+              } else {
+                console.log(`Node ${kdaNode.ip} not ok`);
               }
               if (appIps.length > 100) {
                 break;

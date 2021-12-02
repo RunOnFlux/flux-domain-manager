@@ -190,10 +190,25 @@ function getUnifiedDomainsForApp(specifications) {
   const domainString = 'abcdefghijklmno'; // enough
   const lowerCaseName = specifications.name.toLowerCase();
   const domains = [];
-  // flux specs dont allow more than 10 ports so domainString is enough
-  for (let i = 0; i < specifications.ports.length; i += 1) {
-    const portDomain = `${domainString[i]}.${lowerCaseName}.app.${config.mainDomain}`;
-    domains.push(portDomain);
+  if (specifications.version <= 3) {
+    // flux specs dont allow more than 10 ports so domainString is enough
+    for (let i = 0; i < specifications.ports.length; i += 1) {
+      const portDomain = `${domainString[i]}.${lowerCaseName}.app.${config.mainDomain}`;
+      domains.push(portDomain);
+    }
+  } else {
+    // composed app
+    for (const component of specifications.compose) {
+      const lowerCaseComponent = component.name.toLowerCase();
+      // flux specs dont allow more than 10 ports so domainString is enough
+      for (let i = 0; i < component.ports.length; i += 1) {
+        const portDomain = `${domainString[i]}.${lowerCaseComponent}.${lowerCaseName}.app.${config.mainDomain}`;
+        domains.push(portDomain);
+      }
+      // push component itself
+      const mainDomainComponent = `${lowerCaseComponent}.${lowerCaseName}.app.${config.mainDomain}`;
+      domains.push(mainDomainComponent);
+    }
   }
   // finally push general name which is alias to first port
   const mainDomain = `${lowerCaseName}.app.${config.mainDomain}`;
@@ -362,18 +377,39 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     for (const appSpecs of applicationSpecifications) {
       log.info(`Adjusting domains and ssl for ${appSpecs.name}`);
       const domains = getUnifiedDomainsForApp(appSpecs);
-      const { ports } = appSpecs;
-      if (domains.length === ports.length + 1) {
-        // eslint-disable-next-line no-await-in-loop
-        const domainOperationsSuccessful = await doDomainCertOperations(domains);
-        if (domainOperationsSuccessful) {
-          log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
-          appsOK.push(appSpecs);
+      if (appSpecs.version <= 3) {
+        const { ports } = appSpecs;
+        if (domains.length === ports.length + 1) {
+          // eslint-disable-next-line no-await-in-loop
+          const domainOperationsSuccessful = await doDomainCertOperations(domains);
+          if (domainOperationsSuccessful) {
+            log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
+            appsOK.push(appSpecs);
+          } else {
+            log.error(`Domain/ssl issues for ${appSpecs.name}`);
+          }
         } else {
-          log.error(`Domain/ssl issues for ${appSpecs.name}`);
+          log.error(`Application ${appSpecs.name} has wierd domain, settings. This is a bug.`);
         }
       } else {
-        log.error(`Application ${appSpecs.name} has wierd domain, settings. This is a bug.`);
+        // composed app
+        let ports = 0;
+        appSpecs.compose.forEach((component) => {
+          ports += 1; // component name itself
+          ports += component.ports.length;
+        });
+        if (domains.length === ports + 1) { // + 1 for app name
+          // eslint-disable-next-line no-await-in-loop
+          const domainOperationsSuccessful = await doDomainCertOperations(domains);
+          if (domainOperationsSuccessful) {
+            log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
+            appsOK.push(appSpecs);
+          } else {
+            log.error(`Domain/ssl issues for ${appSpecs.name}`);
+          }
+        } else {
+          log.error(`Application ${appSpecs.name} has wierd domain, settings. This is a bug.`);
+        }
       }
     }
     // continue with appsOK
@@ -388,60 +424,167 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           appIps.push(location.ip);
         });
         const domains = getUnifiedDomainsForApp(app);
-        for (let i = 0; i < app.ports.length; i += 1) {
-          const configuredApp = {
-            domain: domains[i],
-            port: app.ports[i],
-            ips: appIps,
-          };
-          configuredApps.push(configuredApp);
-          if (app.domains[i]) {
-            if (!app.domains[i].includes('app.runonflux')) { // prevent double backend
-              const domainExists = configuredApps.find((a) => a.domain === app.domains[i]);
-              if (!domainExists) {
-                const configuredAppCustom = {
-                  domain: app.domains[i],
-                  port: app.ports[i],
-                  ips: appIps,
-                };
-                configuredApps.push(configuredAppCustom);
-              }
-              if (app.domains[i].includes('www.')) { // add domain without the www. prefix
-                const adjustedDomain = app.domains[i].split('www.')[1];
-                if (adjustedDomain) {
-                  const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
-                  if (!domainExistsB) {
-                    const configuredAppCustom = {
-                      domain: adjustedDomain,
-                      port: app.ports[i],
-                      ips: appIps,
-                    };
-                    configuredApps.push(configuredAppCustom);
-                  }
+        if (app.version <= 3) {
+          for (let i = 0; i < app.ports.length; i += 1) {
+            const configuredApp = {
+              domain: domains[i],
+              port: app.ports[i],
+              ips: appIps,
+            };
+            configuredApps.push(configuredApp);
+            if (app.domains[i]) {
+              if (!app.domains[i].includes('app.runonflux')) { // prevent double backend
+                const domainExists = configuredApps.find((a) => a.domain === app.domains[i]);
+                if (!domainExists) {
+                  const configuredAppCustom = {
+                    domain: app.domains[i],
+                    port: app.ports[i],
+                    ips: appIps,
+                  };
+                  configuredApps.push(configuredAppCustom);
                 }
-              } else { // does not have www, add with www
-                const adjustedDomain = `www.${app.domains[i]}`;
-                if (adjustedDomain) {
-                  const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
-                  if (!domainExistsB) {
-                    const configuredAppCustom = {
-                      domain: adjustedDomain,
-                      port: app.ports[i],
-                      ips: appIps,
-                    };
-                    configuredApps.push(configuredAppCustom);
+                if (app.domains[i].includes('www.')) { // add domain without the www. prefix
+                  const adjustedDomain = app.domains[i].split('www.')[1];
+                  if (adjustedDomain) {
+                    const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
+                    if (!domainExistsB) {
+                      const configuredAppCustom = {
+                        domain: adjustedDomain,
+                        port: app.ports[i],
+                        ips: appIps,
+                      };
+                      configuredApps.push(configuredAppCustom);
+                    }
+                  }
+                } else { // does not have www, add with www
+                  const adjustedDomain = `www.${app.domains[i]}`;
+                  if (adjustedDomain) {
+                    const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
+                    if (!domainExistsB) {
+                      const configuredAppCustom = {
+                        domain: adjustedDomain,
+                        port: app.ports[i],
+                        ips: appIps,
+                      };
+                      configuredApps.push(configuredAppCustom);
+                    }
                   }
                 }
               }
             }
           }
+          const mainApp = {
+            domain: domains[domains.length - 1],
+            port: app.ports[0],
+            ips: appIps,
+          };
+          configuredApps.push(mainApp);
+        } else {
+          const domainString = 'abcdefghijklmno'; // enough
+          const lowerCaseName = app.name.toLowerCase();
+          for (const component of app.compose) {
+            const lowerCaseComponent = component.name.toLowerCase();
+            // flux specs dont allow more than 10 ports so domainString is enough
+            for (let i = 0; i < component.ports.length; i += 1) {
+              const portDomain = `${domainString[i]}.${lowerCaseComponent}.${lowerCaseName}.app.${config.mainDomain}`;
+              const configuredApp = {
+                domain: portDomain,
+                port: component.ports[i],
+                ips: appIps,
+              };
+              configuredApps.push(configuredApp);
+
+              if (component.domains[i]) {
+                if (!component.domains[i].includes('app.runonflux')) { // prevent double backend
+                  const domainExists = configuredApps.find((a) => a.domain === component.domains[i]);
+                  if (!domainExists) {
+                    const configuredAppCustom = {
+                      domain: component.domains[i],
+                      port: component.ports[i],
+                      ips: appIps,
+                    };
+                    configuredApps.push(configuredAppCustom);
+                  }
+                  if (component.domains[i].includes('www.')) { // add domain without the www. prefix
+                    const adjustedDomain = component.domains[i].split('www.')[1];
+                    if (adjustedDomain) {
+                      const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
+                      if (!domainExistsB) {
+                        const configuredAppCustom = {
+                          domain: adjustedDomain,
+                          port: component.ports[i],
+                          ips: appIps,
+                        };
+                        configuredApps.push(configuredAppCustom);
+                      }
+                    }
+                  } else { // does not have www, add with www
+                    const adjustedDomain = `www.${component.domains[i]}`;
+                    if (adjustedDomain) {
+                      const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
+                      if (!domainExistsB) {
+                        const configuredAppCustom = {
+                          domain: adjustedDomain,
+                          port: component.ports[i],
+                          ips: appIps,
+                        };
+                        configuredApps.push(configuredAppCustom);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            // push component itself
+            const mainDomainComponent = `${lowerCaseComponent}.${lowerCaseName}.app.${config.mainDomain}`;
+            if (component.ports[0]) {
+              // push component domain
+              const configuredApp = {
+                domain: mainDomainComponent,
+                port: component.ports[0],
+                ips: appIps,
+              };
+              configuredApps.push(configuredApp);
+            }
+          }
+          // push main domain
+          if (app.compose[0].ports[0]) {
+            const mainApp = {
+              domain: domains[domains.length - 1],
+              port: app.compose[0].ports[0],
+              ips: appIps,
+            };
+            configuredApps.push(mainApp);
+          } else if (app.compose[1] && app.compose[1].ports[0]) {
+            const mainApp = {
+              domain: domains[domains.length - 1],
+              port: app.compose[1].ports[0],
+              ips: appIps,
+            };
+            configuredApps.push(mainApp);
+          } else if (app.compose[2] && app.compose[2].ports[0]) {
+            const mainApp = {
+              domain: domains[domains.length - 1],
+              port: app.compose[2].ports[0],
+              ips: appIps,
+            };
+            configuredApps.push(mainApp);
+          } else if (app.compose[3] && app.compose[3].ports[0]) {
+            const mainApp = {
+              domain: domains[domains.length - 1],
+              port: app.compose[3].ports[0],
+              ips: appIps,
+            };
+            configuredApps.push(mainApp);
+          } else if (app.compose[4] && app.compose[4].ports[0]) {
+            const mainApp = {
+              domain: domains[domains.length - 1],
+              port: app.compose[4].ports[0],
+              ips: appIps,
+            };
+            configuredApps.push(mainApp);
+          }
         }
-        const mainApp = {
-          domain: domains[domains.length - 1],
-          port: app.ports[0],
-          ips: appIps,
-        };
-        configuredApps.push(mainApp);
         log.info(`Application ${app.name} is OK. Proceeding to FDM`);
       } else {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);

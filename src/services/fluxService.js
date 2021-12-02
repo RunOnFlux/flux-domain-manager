@@ -43,7 +43,7 @@ async function getFluxIPs() {
 
 async function getSingleNodeAppLocation(ip, application) {
   try {
-    const fluxnodeList = await axios.get(`http://${ip}:16127/zelapps/location/${application}`, axiosConfig);
+    const fluxnodeList = await axios.get(`http://${ip}:16127/apps/location/${application}`, axiosConfig);
     if (fluxnodeList.data.status === 'success') {
       return fluxnodeList.data.data || [];
     }

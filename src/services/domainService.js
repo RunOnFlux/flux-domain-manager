@@ -375,6 +375,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     await createSSLDirectory();
     log.info('SSL directory checked');
     for (const appSpecs of applicationSpecifications) {
+      if (appSpecs.name === 'firefox' || appSpecs.name === 'firefoxtest' || appSpecs.name === 'firefox2') {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       log.info(`Adjusting domains and ssl for ${appSpecs.name}`);
       const domains = getUnifiedDomainsForApp(appSpecs);
       if (appSpecs.version <= 3) {

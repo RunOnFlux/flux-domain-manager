@@ -336,6 +336,10 @@ async function doDomainCertOperations(domains) {
       // check if we have certificate
       // eslint-disable-next-line no-await-in-loop
       const isCertificatePresent = await checkCertificatePresetForDomain(appDomain);
+      if (appDomain.length > 64) {
+        log.warn(`Domain ${appDomain} is too long. Certificate not issued`);
+        return true;
+      }
       if (!isCertificatePresent) {
         // if we dont have certificate, obtain it
         log.info(`Obtaning certificate for ${appDomain}`);

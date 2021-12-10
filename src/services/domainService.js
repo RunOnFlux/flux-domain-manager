@@ -359,7 +359,7 @@ async function doDomainCertOperations(domains) {
     return true;
   } catch (error) {
     log.error(error);
-    return false;
+    return true;
   }
 }
 

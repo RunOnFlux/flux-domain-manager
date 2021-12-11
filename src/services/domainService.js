@@ -333,33 +333,37 @@ async function doDomainCertOperations(domains) {
         // eslint-disable-next-line no-await-in-loop
         await serviceHelper.timeout(45 * 1000);
       }
-      // check if we have certificate
-      // eslint-disable-next-line no-await-in-loop
-      const isCertificatePresent = await checkCertificatePresetForDomain(appDomain);
-      if (appDomain.length > 64) {
-        log.warn(`Domain ${appDomain} is too long. Certificate not issued`);
-        return true;
-      }
-      if (!isCertificatePresent) {
-        // if we dont have certificate, obtain it
-        log.info(`Obtaning certificate for ${appDomain}`);
+      try {
+        // check if we have certificate
         // eslint-disable-next-line no-await-in-loop
-        await obtainDomainCertificate(appDomain);
-      }
-      // eslint-disable-next-line no-await-in-loop
-      const isCertificatePresentB = await checkCertificatePresetForDomain(appDomain);
-      if (isCertificatePresentB) {
-        // check if domain has autorenewal, if not, adjust it
+        const isCertificatePresent = await checkCertificatePresetForDomain(appDomain);
+        if (appDomain.length > 64) {
+          log.warn(`Domain ${appDomain} is too long. Certificate not issued`);
+          return true;
+        }
+        if (!isCertificatePresent) {
+          // if we dont have certificate, obtain it
+          log.info(`Obtaning certificate for ${appDomain}`);
+          // eslint-disable-next-line no-await-in-loop
+          await obtainDomainCertificate(appDomain);
+        }
         // eslint-disable-next-line no-await-in-loop
-        await adjustAutoRenewalScriptForDomain(appDomain);
-      } else {
-        throw new Error(`Certificate not present for ${appDomain}`);
+        const isCertificatePresentB = await checkCertificatePresetForDomain(appDomain);
+        if (isCertificatePresentB) {
+          // check if domain has autorenewal, if not, adjust it
+          // eslint-disable-next-line no-await-in-loop
+          await adjustAutoRenewalScriptForDomain(appDomain);
+        } else {
+          throw new Error(`Certificate not present for ${appDomain}`);
+        }
+      } catch (error) {
+        log.error(error);
       }
     }
     return true;
   } catch (error) {
     log.error(error);
-    return true;
+    return false;
   }
 }
 

@@ -51,7 +51,7 @@ async function isVersionOK(ip) {
     const url = `http://${ip}:16127/flux/version`;
     const response = await axios.get(url, axiosConfig);
     const version = response.data.data.replace(/\./g, '');
-    if (version > 210) {
+    if (version >= 320) {
       return true;
     }
     return false;
@@ -79,9 +79,9 @@ async function hasManyApps(ip) {
     const url = `http://${ip}:16127/apps/globalappsspecifications`;
     const response = await axios.get(url, axiosConfig);
     const appsAmount = response.data.data.length;
-    if (appsAmount > 30) { // we surely have at least 30 apps on network
+    if (appsAmount > 100) { // we surely have at least 177 apps on network
       const fluxWhitePaper = response.data.data.find((app) => app.name === 'FluxWhitepaper'); // hopefully its on network right
-      if (fluxWhitePaper.height >= 950469) {
+      if (fluxWhitePaper.height >= 1009502) {
         return true;
       }
     }

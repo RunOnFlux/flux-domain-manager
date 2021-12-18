@@ -65,7 +65,7 @@ async function isSyncedOK(ip) {
     const url = `http://${ip}:16127/explorer/scannedheight`;
     const response = await axios.get(url, axiosConfig);
     const version = response.data.data.generalScannedHeight;
-    if (version > 946933) {
+    if (version > 1015637) {
       return true;
     }
     return false;

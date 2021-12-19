@@ -51,7 +51,7 @@ async function isVersionOK(ip) {
     const url = `http://${ip}:16127/flux/version`;
     const response = await axios.get(url, axiosConfig);
     const version = response.data.data.replace(/\./g, '');
-    if (version >= 320) {
+    if (version >= 321) {
       return true;
     }
     return false;

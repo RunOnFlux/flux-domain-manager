@@ -22,10 +22,15 @@ async function checkLoginPhrase(ip) {
 
 async function isCommunicationOK(ip) {
   try {
-    const url = `http://${ip}:16127/flux/checkcommunication`;
-    const response = await axios.get(url, axiosConfig);
-    if (response.data.status === 'success') {
-      return true;
+    // const url = `http://${ip}:16127/flux/checkcommunication`;
+    const urlA = `http://${ip}:16127/flux/connectedpeersinfo`;
+    const urlB = `http://${ip}:16127/flux/incomingconnectionsinfo`;
+    const responseA = await axios.get(urlA, axiosConfig);
+    if (responseA.data.data.length > 8) {
+      const responseB = await axios.get(urlB, axiosConfig);
+      if (responseB.data.data.length > 4) {
+        return true;
+      }
     }
     return false;
   } catch (error) {

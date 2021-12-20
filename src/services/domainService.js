@@ -383,7 +383,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     await createSSLDirectory();
     log.info('SSL directory checked');
     for (const appSpecs of applicationSpecifications) {
-      if (appSpecs.name === 'firefox' || appSpecs.name === 'firefoxtest' || appSpecs.name === 'firefox2') {
+      if (appSpecs.name === 'firefox' || appSpecs.name === 'firefoxtest' || appSpecs.name === 'firefox2' || appSpecs.name === 'apponflux' || appSpecs.name === 'appononflux'
+        || appSpecs.name === 'testapponflux' || appSpecs.name === 'mysqlonflux' || appSpecs.name === 'mysqlfluxmysql' || appSpecs.name === 'application'
+        || appSpecs.name === 'applicationapplication'
+        || appSpecs.name.includes('PresearchNode') || appSpecs.name.includes('FiroNode')) {
         // eslint-disable-next-line no-continue
         continue;
       }

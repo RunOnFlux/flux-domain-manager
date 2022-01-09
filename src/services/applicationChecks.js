@@ -184,6 +184,7 @@ function checkRosettaheightOK(height) {
 
 // KADENA
 function kadenaCheckHeight(height) {
+  console.log(height);
   const currentTime = new Date().getTime();
   const baseTime = 1641697090000;
   const baseHeight = 46192960;

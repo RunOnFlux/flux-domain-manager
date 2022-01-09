@@ -192,7 +192,7 @@ function kadenaCheckHeight(height) {
   const blocksPassedInDifference = (timeDifference / 30000) * 20; // 20 chains with blocktime 30 seconds
   const currentBlockEstimation = baseHeight + blocksPassedInDifference;
   const minimumAcceptedBlockHeight = currentBlockEstimation - (60 * 40); // allow being off sync for this amount of blocks
-  if (height > minimumAcceptedBlockHeight) {
+  if (height > baseHeight) {
     return true;
   }
   return false;

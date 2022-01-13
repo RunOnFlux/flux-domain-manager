@@ -262,7 +262,7 @@ function getUnifiedDomainsForApp(specifications) {
   //if (specifications.version <= 3) {
     // adding names for each port with new scheme {appname}_{portnumber}.app2.runonflux.io
     for (let i = 0; i < specifications.ports.length; i += 1) {
-      const portDomain = `${lowerCaseName}_${specifications.ports[i]}.app2.${config.mainDomain}`;
+      const portDomain = `${lowerCaseName}-${specifications.ports[i]}.app2.${config.mainDomain}`;
       domains.push(portDomain);
     }
   /*} else {

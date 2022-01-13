@@ -1,4 +1,5 @@
 const cloudflareConfig = require('./cloudflareConfig');
+const pDNSConfig = require('./pDNSConfig');
 
 module.exports = {
   server: {
@@ -25,6 +26,15 @@ module.exports = {
     apiKey: cloudflareConfig.apiKey,
     zone: cloudflareConfig.zoneID,
     domain: cloudflareConfig.domain,
+    manageapp: false,
+    enabled: false
+  },
+  pDNS: {
+    endpoint: pDNSConfig.apiEndpoint,
+    apiKey: pDNSConfig.apiKey,
+    zone: pDNSConfig.zoneID,
+    domain: pDNSConfig.domain,
     manageapp: true,
+    enabled: true
   },
 };

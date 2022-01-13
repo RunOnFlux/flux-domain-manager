@@ -31,27 +31,53 @@ const cloudFlareAxiosConfig = {
   },
 };
 
+const pDNSAxiosConfig = {
+  headers: {
+    'X-API-Key': config.pDNS.apiKey
+  },
+};
+
 // const uiBlackList = [];
 // const apiBlackList = [];
+const appBlackList = ['firefox', 'firefoxtest', 'firefox2', 'apponflux', 'appononflux', 'testapponflux', 'mysqlonflux', 'mysqlfluxmysql', 'application', 'applicationapplication', 'PresearchNode*','FiroNode*'];
+
+
+
 
 async function listDNSRecords(name, content, type = 'A', page = 1, per_page = 100, records = []) {
   // https://api.cloudflare.com/#dns-records-for-a-zone-list-dns-records
-  const query = {
-    name,
-    content,
-    type,
-    page,
-    per_page,
-  };
-  const queryString = qs.stringify(query);
-  const url = `${config.cloudflare.endpoint}zones/${config.cloudflare.zone}/dns_records?${queryString}`;
-  const response = await axios.get(url, cloudFlareAxiosConfig);
-  if (response.data.result_info.total_pages > page) {
-    const recs = records.concat(response.data.result);
-    return listDNSRecords(name, content, type, page + 1, per_page, recs);
+  if (config.cloudflare.enabled) {
+    const query = {
+      name,
+      content,
+      type,
+      page,
+      per_page,
+    };
+    const queryString = qs.stringify(query);
+    const url = `${config.cloudflare.endpoint}zones/${config.cloudflare.zone}/dns_records?${queryString}`;
+    const response = await axios.get(url, cloudFlareAxiosConfig);
+    if (response.data.result_info.total_pages > page) {
+      const recs = records.concat(response.data.result);
+      return listDNSRecords(name, content, type, page + 1, per_page, recs);
+    }
+    const r = records.concat(response.data.result);
+    return r;
+  } else if (config.pDNS.enabled) {
+      if (name === undefined || name === "") name = "*";
+      const url = `${config.pDNS.endpoint}search-data?q=${name}&object_type=record`;
+      const response = await axios.get(url, pDNSAxiosConfig);
+      if (content !== undefined || content !== "") {
+        let filteredData = [];
+        for (let i = 0; i < response.data.length; i += 1) {
+          if (response.data[i].content === content && response.data[i].type === type) filteredData.push(response.data[i]);
+        }
+        return filteredData;
+      }
+      return response.data;
+  } else {
+    throw new Error('No DNS provider is enable!');
   }
-  const r = records.concat(response.data.result);
-  return r;
 }
 
 // throw error above
@@ -65,18 +91,57 @@ async function deleteDNSRecord(id) {
   return response.data;
 }
 
-// throw error above
-async function createDNSRecord(name, content, type = 'A', ttl = 1) {
-  // https://api.cloudflare.com/#dns-records-for-a-zone-create-dns-record
-  const data = {
-    type,
-    name,
-    content,
-    ttl,
-  };
-  const url = `${config.cloudflare.endpoint}zones/${config.cloudflare.zone}/dns_records`;
-  const response = await axios.post(url, data, cloudFlareAxiosConfig);
-  return response.data;
+//Deletes DNS record
+async function deleteDNSRecord(name, content, type = 'A', ttl = 60) {
+  if (config.pDNS.enabled) {
+    const data = {
+      "rrsets": [{
+        name: name + ".",
+        type: type,
+        ttl: ttl,
+        changetype: 'DELETE',
+        records: [{ "content": content, "disabled": false }]
+      }]
+    };
+    const url = `${config.pDNS.endpoint}zones/${config.pDNS.zone}`;
+    const response = await axios.patch(url, data, pDNSAxiosConfig);
+    return response.data;
+  } else {
+    throw new Error('No DNS provider is enable!');
+  }
+}
+
+// Creates new DNS record
+async function createDNSRecord(name, content, type = 'A', ttl = 60) {
+  if (config.cloudflare.enabled) {
+    // https://api.cloudflare.com/#dns-records-for-a-zone-create-dns-record
+    const data = {
+      type,
+      name,
+      content,
+      ttl,
+    };
+    const url = `${config.cloudflare.endpoint}zones/${config.cloudflare.zone}/dns_records`;
+    const response = await axios.post(url, data, cloudFlareAxiosConfig);
+    return response.data;
+
+  } else if (config.pDNS.enabled) {
+    const data = {
+      "rrsets": [{
+        name: name + ".",
+        type: type,
+        ttl: ttl,
+        changetype: 'REPLACE',
+        records: [{ "content": content, "disabled": false }]
+      }]
+    };
+    const url = `${config.pDNS.endpoint}zones/${config.pDNS.zone}`;
+    const response = await axios.patch(url, data, pDNSAxiosConfig);
+    return response.data;
+  } else {
+    throw new Error('No DNS provider is enable!');
+  }
+
 }
 
 async function getAllRecordsDBAPI(req, res) {
@@ -226,7 +291,11 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
       if (myIP && typeof myIP === 'string' && (record.content !== myIP)) {
         // delete the record
         // eslint-disable-next-line no-await-in-loop
-        await deleteDNSRecord(record.id); // may throw
+        if (config.cloudflare.enabled) {
+          await deleteDNSRecord(record.id); // may throw
+        } else if (config.pDNS.enabled) {
+          await deleteDNSRecord(record.name, record.content, record.type, record.ttl); // may throw
+        }
         log.info(`Record ${record.id} on ${record.content} deleted`);
       }
     }
@@ -241,7 +310,11 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
       for (const record of correctRecords) { // async inside
         // delete the record
         // eslint-disable-next-line no-await-in-loop
-        await deleteDNSRecord(record.id); // may throw
+        if (config.cloudflare.enabled) {
+          await deleteDNSRecord(record.id); // may throw
+        } else if (config.pDNS.enabled) {
+          await deleteDNSRecord(record.name, record.content, record.type, record.ttl); // may throw
+        }
         log.info(`Duplicate Record ${record.id} on ${record.content} deleted`);
       }
       return true;
@@ -383,13 +456,16 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     await createSSLDirectory();
     log.info('SSL directory checked');
     for (const appSpecs of applicationSpecifications) {
-      if (appSpecs.name === 'firefox' || appSpecs.name === 'firefoxtest' || appSpecs.name === 'firefox2' || appSpecs.name === 'apponflux' || appSpecs.name === 'appononflux'
+      if (serviceHelper.matchRule(appSpecs.name, appBlackList)) continue;
+      
+
+      /*if (appSpecs.name === 'firefox' || appSpecs.name === 'firefoxtest' || appSpecs.name === 'firefox2' || appSpecs.name === 'apponflux' || appSpecs.name === 'appononflux'
         || appSpecs.name === 'testapponflux' || appSpecs.name === 'mysqlonflux' || appSpecs.name === 'mysqlfluxmysql' || appSpecs.name === 'application'
         || appSpecs.name === 'applicationapplication'
         || appSpecs.name.includes('PresearchNode') || appSpecs.name.includes('FiroNode')) {
         // eslint-disable-next-line no-continue
         continue;
-      }
+      }*/
       log.info(`Adjusting domains and ssl for ${appSpecs.name}`);
       const domains = getUnifiedDomainsForApp(appSpecs);
       if (appSpecs.version <= 3) {
@@ -672,6 +748,8 @@ async function start() {
     }, 5 * 60 * 1000);
   }
 }
+
+
 
 module.exports = {
   start,

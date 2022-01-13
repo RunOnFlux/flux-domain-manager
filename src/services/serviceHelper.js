@@ -85,6 +85,15 @@ function ensureString(parameter) {
   return typeof parameter === 'string' ? parameter : JSON.stringify(parameter);
 }
 
+//Wildcard string comparison with Regex
+function matchRule(str, rules) {
+  for (const rule of rules) {
+    var escapeRegex = (str) => str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+    if(new RegExp("^" + rule.split("*").map(escapeRegex).join(".*") + "$").test(str)===true) return true;
+  }
+  return false;
+}
+
 // MongoDB functions
 async function connectMongoDb(url) {
   const connectUrl = url || mongoUrl;
@@ -178,4 +187,5 @@ module.exports = {
   createSuccessMessage,
   createWarningMessage,
   createErrorMessage,
+  matchRule
 };

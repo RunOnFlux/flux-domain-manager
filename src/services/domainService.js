@@ -12,6 +12,7 @@ const ipService = require('./ipService');
 const fluxService = require('./fluxService');
 const haproxyTemplate = require('./haproxyTemplate');
 const applicationChecks = require('./applicationChecks');
+const https = require('https');
 
 let myIP = null;
 
@@ -28,13 +29,18 @@ const cloudFlareAxiosConfig = {
   headers: {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${config.cloudflare.apiKey}`,
-  },
+  }
 };
 
+//set rejectUnauthorized to false to accept self signed certificates.
+const agent = new https.Agent({  
+  rejectUnauthorized: false
+});
 const pDNSAxiosConfig = {
   headers: {
     'X-API-Key': config.pDNS.apiKey
   },
+  httpsAgent: agent
 };
 
 // const uiBlackList = [];

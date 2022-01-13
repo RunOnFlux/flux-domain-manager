@@ -287,7 +287,7 @@ async function checkKadenaDataApplication(ip) {
     const lastTx = new Date(searchTxs[0].creationTime);
     const lastTimeTx = lastTx.getTime();
     // 2 hours difference
-    const diffTen = 20 * 12 * 60 * 60 * 1000;
+    const diffTen = 8 * 12 * 60 * 60 * 1000;
     if (currentTime - diffTen < lastTimeTx) {
       return true;
     }

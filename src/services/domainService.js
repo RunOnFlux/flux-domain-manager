@@ -333,7 +333,7 @@ async function doDomainCertOperations(domains) {
         // eslint-disable-next-line no-await-in-loop
         await serviceHelper.timeout(45 * 1000);
       }
-      return;
+      return true;
       try {
         // check if we have certificate
         // eslint-disable-next-line no-await-in-loop

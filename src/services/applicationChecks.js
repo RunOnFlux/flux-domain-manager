@@ -186,13 +186,13 @@ function checkRosettaheightOK(height) {
 function kadenaCheckHeight(height) {
   console.log(height);
   const currentTime = new Date().getTime();
-  const baseTime = 1641697090000;
-  const baseHeight = 46192960;
+  const baseTime = 1642151385000;
+  const baseHeight = 46493020;
   const timeDifference = currentTime - baseTime;
   const blocksPassedInDifference = (timeDifference / 30000) * 20; // 20 chains with blocktime 30 seconds
   const currentBlockEstimation = baseHeight + blocksPassedInDifference;
   const minimumAcceptedBlockHeight = currentBlockEstimation - (60 * 40); // allow being off sync for this amount of blocks
-  if (height > baseHeight) {
+  if (height > minimumAcceptedBlockHeight) {
     return true;
   }
   return false;
@@ -286,8 +286,7 @@ async function checkKadenaDataApplication(ip) {
     const searchTxs = await kadenaSearchTxs(ip);
     const lastTx = new Date(searchTxs[0].creationTime);
     const lastTimeTx = lastTx.getTime();
-    // 2 hours difference
-    const diffTen = 8 * 12 * 60 * 60 * 1000;
+    const diffTen = 5 * 24 * 60 * 60 * 1000;
     if (currentTime - diffTen < lastTimeTx) {
       return true;
     }

@@ -327,12 +327,12 @@ async function doDomainCertOperations(domains) {
       // check DNS
       // if DNS was adjusted for this domain, wait a minute
       // eslint-disable-next-line no-await-in-loop
-      const wasDomainAdjusted = await checkAndAdjustDNSrecordForDomain(appDomain);
-      if (wasDomainAdjusted) {
-        log.info(`Domain ${appDomain} was adjusted on DNS`);
-        // eslint-disable-next-line no-await-in-loop
-        await serviceHelper.timeout(45 * 1000);
-      }
+      // const wasDomainAdjusted = await checkAndAdjustDNSrecordForDomain(appDomain);
+      // if (wasDomainAdjusted) {
+      //   log.info(`Domain ${appDomain} was adjusted on DNS`);
+      //   // eslint-disable-next-line no-await-in-loop
+      //   await serviceHelper.timeout(45 * 1000);
+      // }
       return true;
       try {
         // check if we have certificate
@@ -605,6 +605,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       } else {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);
       }
+    }
+
+    if (configuredApps.length < 10) {
+      throw new Error('PANIC PLEASE DEV HELP ME');
     }
 
     const hc = await haproxyTemplate.createAppsHaproxyConfig(configuredApps);

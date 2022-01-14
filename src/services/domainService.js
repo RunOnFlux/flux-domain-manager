@@ -21,7 +21,7 @@ const axiosConfig = {
 };
 
 const cmdAsync = util.promisify(nodecmd.get);
-const appSub = "app2"; //subdomain for apps
+
 let db = null;
 const recordsCollection = config.database.mainDomain.collections.records;
 
@@ -45,11 +45,8 @@ const pDNSAxiosConfig = {
 
 // const uiBlackList = [];
 // const apiBlackList = [];
-const appBlackList = ['firefox', 'firefoxtest', 'firefox2', 'apponflux', 'appononflux', 'testapponflux', 'mysqlonflux', 'mysqlfluxmysql', 'application', 'applicationapplication', 'PresearchNode*','FiroNode*'];
 
-
-
-
+//Lists DNS records for given input, will return all if no input provided
 async function listDNSRecords(name, content, type = 'A', page = 1, per_page = 100, records = []) {
   // https://api.cloudflare.com/#dns-records-for-a-zone-list-dns-records
   if (config.cloudflare.enabled) {
@@ -86,7 +83,7 @@ async function listDNSRecords(name, content, type = 'A', page = 1, per_page = 10
   }
 }
 
-// throw error above
+//Deletes DNS record for given id (for cloudflare)
 async function deleteDNSRecord(id) {
   if (!id) {
     throw new Error('No DNS ID record specified');
@@ -97,7 +94,7 @@ async function deleteDNSRecord(id) {
   return response.data;
 }
 
-//Deletes DNS record
+//Deletes DNS records matching given parameters (for pDNS)
 async function deleteDNSRecord(name, content, type = 'A', ttl = 60) {
   if (config.pDNS.enabled) {
     const data = {
@@ -177,6 +174,7 @@ async function listDNSRecordsAPI(req, res) {
   }
 }
 
+//Generates config file for HAProxy
 async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `home.${config.mainDomain}`;
@@ -230,7 +228,7 @@ async function generateAndReplaceMainHaproxyConfig() {
     }, 4 * 60 * 1000);
   }
 }
-
+//Retrieves application specifications from network api
 async function getAppSpecifications() {
   try {
     const fluxnodeList = await axios.get('https://api.runonflux.io/apps/globalappsspecifications', axiosConfig);
@@ -243,7 +241,7 @@ async function getAppSpecifications() {
     return [];
   }
 }
-
+//Retrieves IP's that a given application in running on 
 async function getApplicationLocation(appName) {
   try {
     const fluxnodeList = await axios.get(`https://api.runonflux.io/apps/location/${appName}`, axiosConfig);
@@ -256,13 +254,13 @@ async function getApplicationLocation(appName) {
     return [];
   }
 }
-
+//generates domain names for a given app specificatoin
 function getUnifiedDomainsForApp(specifications) {
   const domains = [];
   if (specifications.version <= 3) {
     // adding names for each port with new scheme {appname}-{portnumber}.app2.runonflux.io
     for (let i = 0; i < specifications.ports.length; i += 1) {
-      const portDomain = `${lowerCaseName}_${specifications.ports[i]}.${appSub}.${config.mainDomain}`;
+      const portDomain = `${lowerCaseName}_${specifications.ports[i]}.${config.appSubDomain}.${config.mainDomain}`;
       domains.push(portDomain);
     }
   } else {
@@ -271,7 +269,7 @@ function getUnifiedDomainsForApp(specifications) {
       const lowerCaseComponent = component.name.toLowerCase();
       // same for composed apps, adding for each port with new scheme {appname}-{portnumber}.app2.runonflux.io
       for (let i = 0; i < component.ports.length; i += 1) {
-        const portDomain = `${lowerCaseName}_${component.ports[i]}.${appSub}.${config.mainDomain}`;
+        const portDomain = `${lowerCaseName}_${component.ports[i]}.${config.appSubDomain}.${config.mainDomain}`;
         domains.push(portDomain);
       }
       // push component itself, not needed in new naming scheme.
@@ -280,7 +278,7 @@ function getUnifiedDomainsForApp(specifications) {
     }
   }
   // finally push general name which is alias to first port
-  const mainDomain = `${lowerCaseName}.${appSub}.${config.mainDomain}`;
+  const mainDomain = `${lowerCaseName}.${config.appSubDomain}.${config.mainDomain}`;
   domains.push(mainDomain);
   return domains;
 }
@@ -444,6 +442,7 @@ async function doDomainCertOperations(domains) {
   }
 }
 
+//periodically keeps HAproxy ans certificates updated every 4 minutes
 async function generateAndReplaceMainApplicationHaproxyConfig() {
   try {
     // get applications on the network
@@ -461,7 +460,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     log.info('SSL directory checked');
     for (const appSpecs of applicationSpecifications) {
       //exclude blacklisted apps
-      if (serviceHelper.matchRule(appSpecs.name, appBlackList)) continue;
+      if (serviceHelper.matchRule(appSpecs.name, config.blackListedApps)) continue;
       
       log.info(`Adjusting domains and ssl for ${appSpecs.name}`);
       const domains = getUnifiedDomainsForApp(appSpecs);
@@ -521,7 +520,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             };
             configuredApps.push(configuredApp);
             if (app.domains[i]) {
-              if (!app.domains[i].includes(appSub + '.runonflux')) { // prevent double backend
+              if (!app.domains[i].includes(config.appSubDomain + '.runonflux')) { // prevent double backend
                 const domainExists = configuredApps.find((a) => a.domain === app.domains[i]);
                 if (!domainExists) {
                   const configuredAppCustom = {
@@ -581,7 +580,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               configuredApps.push(configuredApp);
 
               if (component.domains[i]) {
-                if (!component.domains[i].includes(appSub +'runonflux')) { // prevent double backend
+                if (!component.domains[i].includes(config.appSubDomain +'runonflux')) { // prevent double backend
                   const domainExists = configuredApps.find((a) => a.domain === component.domains[i]);
                   if (!domainExists) {
                     const configuredAppCustom = {

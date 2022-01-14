@@ -19,6 +19,7 @@ module.exports = {
     },
   },
   mainDomain: 'runonflux.io',
+  appSubDomain: 'app2',
   emailDomain: 'tessjonesie@gmail.com',
   certFolder: 'fluxapps',
   cloudflare: {
@@ -37,4 +38,5 @@ module.exports = {
     manageapp: true,
     enabled: true
   },
+  blackListedApps : ['firefox', 'firefoxtest', 'firefox2', 'apponflux', 'appononflux', 'testapponflux', 'mysqlonflux', 'mysqlfluxmysql', 'application', 'applicationapplication', 'PresearchNode*','FiroNode*']
 };

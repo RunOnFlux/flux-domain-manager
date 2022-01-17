@@ -91,7 +91,7 @@ function ensureString(parameter) {
 function matchRule(str, rules) {
   // eslint-disable-next-line no-restricted-syntax
   for (const rule of rules) {
-    const escapeRegex = (str) => str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, '\\$1');
+    const escapeRegex = (string) => string.replace(/([.*+?^=!:${}()|[\]/\\])/g, '\\$1');
     if (new RegExp(`^${rule.split('*').map(escapeRegex).join('.*')}$`).test(str) === true) return true;
   }
   return false;

@@ -3,7 +3,7 @@ const pDNSConfig = require('./PDNSConfig');
 
 module.exports = {
   server: {
-    port: 9988,
+    port: 16130,
   },
   explorer: 'https://explorer.runonflux.io',
   fallbackexplorer: 'https://explorer.flux.zelcore.io',

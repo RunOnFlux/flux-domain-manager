@@ -47,7 +47,7 @@ const pDNSAxiosConfig = {
 // const apiBlackList = [];
 
 // Lists DNS records for given input, will return all if no input provided
-async function listDNSRecords(name, content, type = 'A', page = 1, per_page = 100, records = []) {
+async function listDNSRecords(name, content, type = 'A', page = 1, perPage = 100, records = []) {
   // https://api.cloudflare.com/#dns-records-for-a-zone-list-dns-records
   if (config.cloudflare.enabled) {
     const query = {
@@ -55,14 +55,14 @@ async function listDNSRecords(name, content, type = 'A', page = 1, per_page = 10
       content,
       type,
       page,
-      per_page,
+      per_page: perPage,
     };
     const queryString = qs.stringify(query);
     const url = `${config.cloudflare.endpoint}zones/${config.cloudflare.zone}/dns_records?${queryString}`;
     const response = await axios.get(url, cloudFlareAxiosConfig);
     if (response.data.result_info.total_pages > page) {
       const recs = records.concat(response.data.result);
-      return listDNSRecords(name, content, type, page + 1, per_page, recs);
+      return listDNSRecords(name, content, type, page + 1, perPage, recs);
     }
     const r = records.concat(response.data.result);
     return r;

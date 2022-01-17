@@ -73,7 +73,7 @@ async function listDNSRecords(name, content, type = 'A', page = 1, perPage = 100
     }
     const url = `${config.pDNS.endpoint}search-data?q=${adjustedName}&object_type=record`;
     const response = await axios.get(url, pDNSAxiosConfig);
-    if (content !== undefined || content !== '') {
+    if (content) {
       const filteredData = [];
       for (let i = 0; i < response.data.length; i += 1) {
         if (response.data[i].content === content && response.data[i].type === type) filteredData.push(response.data[i]);

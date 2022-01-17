@@ -28,7 +28,7 @@ async function getFluxIPs() {
     const fluxnodes = await getFluxList();
     const ips = fluxnodes.map((fluxnode) => fluxnode.ip);
     const correctIps = [];
-    const ipvTest = new RegExp('^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(.(?!$)|$)){4}$');
+    const ipvTest = /^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(.(?!$)|$)){4}$/;
     ips.forEach((ip) => {
       if (ipvTest.test(ip)) {
         correctIps.push(ip);

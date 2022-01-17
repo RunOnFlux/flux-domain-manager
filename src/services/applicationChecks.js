@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 const axios = require('axios');
 const https = require('https');
 const log = require('../lib/log');

@@ -1,5 +1,5 @@
 const cloudflareConfig = require('./cloudflareConfig');
-const pDNSConfig = require('./pDNSConfig');
+const pDNSConfig = require('./PDNSConfig');
 
 module.exports = {
   server: {
@@ -22,13 +22,14 @@ module.exports = {
   appSubDomain: 'app2',
   emailDomain: 'tessjonesie@gmail.com',
   certFolder: 'fluxapps',
+  automateCertificates: false,
   cloudflare: {
     endpoint: 'https://api.cloudflare.com/client/v4/',
     apiKey: cloudflareConfig.apiKey,
     zone: cloudflareConfig.zoneID,
     domain: cloudflareConfig.domain,
     manageapp: false,
-    enabled: false
+    enabled: false,
   },
   pDNS: {
     endpoint: pDNSConfig.apiEndpoint,
@@ -36,7 +37,7 @@ module.exports = {
     zone: pDNSConfig.zoneID,
     domain: pDNSConfig.domain,
     manageapp: true,
-    enabled: true
+    enabled: true,
   },
-  blackListedApps : ['firefox', 'firefoxtest', 'firefox2', 'apponflux', 'appononflux', 'testapponflux', 'mysqlonflux', 'mysqlfluxmysql', 'application', 'applicationapplication', 'PresearchNode*','FiroNode*']
+  blackListedApps: ['firefox', 'firefoxtest', 'firefox2', 'apponflux', 'appononflux', 'testapponflux', 'mysqlonflux', 'mysqlfluxmysql', 'application', 'applicationapplication', 'PresearchNode*', 'FiroNode*'],
 };

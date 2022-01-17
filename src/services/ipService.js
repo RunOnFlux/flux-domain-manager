@@ -20,7 +20,7 @@ async function getMyIP() {
     getSingleIP('https://api4.my-ip.io/ip'),
   ]).then((results) => {
     const ips = [];
-    const ipvTest = new RegExp('^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(.(?!$)|$)){4}$');
+    const ipvTest = /^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(.(?!$)|$)){4}$/;
     results.forEach((res) => {
       if (ipvTest.test(res)) {
         ips.push(res);

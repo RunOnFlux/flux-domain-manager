@@ -6,13 +6,13 @@ const nodecmd = require('node-cmd');
 const util = require('util');
 const fs = require('fs').promises;
 const fsSync = require('fs');
+const https = require('https');
 const log = require('../lib/log');
 const serviceHelper = require('./serviceHelper');
 const ipService = require('./ipService');
 const fluxService = require('./fluxService');
 const haproxyTemplate = require('./haproxyTemplate');
 const applicationChecks = require('./applicationChecks');
-const https = require('https');
 
 let myIP = null;
 
@@ -29,24 +29,24 @@ const cloudFlareAxiosConfig = {
   headers: {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${config.cloudflare.apiKey}`,
-  }
+  },
 };
 
-//set rejectUnauthorized to false to accept self signed certificates.
-const agent = new https.Agent({  
-  rejectUnauthorized: false
+// set rejectUnauthorized to false to accept self signed certificates.
+const agent = new https.Agent({
+  rejectUnauthorized: false,
 });
 const pDNSAxiosConfig = {
   headers: {
-    'X-API-Key': config.pDNS.apiKey
+    'X-API-Key': config.pDNS.apiKey,
   },
-  httpsAgent: agent
+  httpsAgent: agent,
 };
 
 // const uiBlackList = [];
 // const apiBlackList = [];
 
-//Lists DNS records for given input, will return all if no input provided
+// Lists DNS records for given input, will return all if no input provided
 async function listDNSRecords(name, content, type = 'A', page = 1, per_page = 100, records = []) {
   // https://api.cloudflare.com/#dns-records-for-a-zone-list-dns-records
   if (config.cloudflare.enabled) {
@@ -66,25 +66,27 @@ async function listDNSRecords(name, content, type = 'A', page = 1, per_page = 10
     }
     const r = records.concat(response.data.result);
     return r;
-  } else if (config.pDNS.enabled) {
-      if (name === undefined || name === "") name = "*";
-      const url = `${config.pDNS.endpoint}search-data?q=${name}&object_type=record`;
-      const response = await axios.get(url, pDNSAxiosConfig);
-      if (content !== undefined || content !== "") {
-        let filteredData = [];
-        for (let i = 0; i < response.data.length; i += 1) {
-          if (response.data[i].content === content && response.data[i].type === type) filteredData.push(response.data[i]);
-        }
-        return filteredData;
+  } if (config.pDNS.enabled) {
+    let adjustedName = name;
+    if (!name) {
+      adjustedName = '*';
+    }
+    const url = `${config.pDNS.endpoint}search-data?q=${adjustedName}&object_type=record`;
+    const response = await axios.get(url, pDNSAxiosConfig);
+    if (content !== undefined || content !== '') {
+      const filteredData = [];
+      for (let i = 0; i < response.data.length; i += 1) {
+        if (response.data[i].content === content && response.data[i].type === type) filteredData.push(response.data[i]);
       }
-      return response.data;
-  } else {
-    throw new Error('No DNS provider is enable!');
+      return filteredData;
+    }
+    return response.data;
   }
+  throw new Error('No DNS provider is enable!');
 }
 
-//Deletes DNS record for given id (for cloudflare)
-async function deleteDNSRecord(id) {
+// Deletes DNS record for given id (for cloudflare)
+async function deleteDNSRecordCloudflare(id) {
   if (!id) {
     throw new Error('No DNS ID record specified');
   }
@@ -94,24 +96,23 @@ async function deleteDNSRecord(id) {
   return response.data;
 }
 
-//Deletes DNS records matching given parameters (for pDNS)
-async function deleteDNSRecord(name, content, type = 'A', ttl = 60) {
+// Deletes DNS records matching given parameters (for pDNS)
+async function deleteDNSRecordPDNS(name, content, type = 'A', ttl = 60) {
   if (config.pDNS.enabled) {
     const data = {
-      "rrsets": [{
-        name: name + ".",
-        type: type,
-        ttl: ttl,
+      rrsets: [{
+        name: `${name}.`,
+        type,
+        ttl,
         changetype: 'DELETE',
-        records: [{ "content": content, "disabled": false }]
-      }]
+        records: [{ content, disabled: false }],
+      }],
     };
     const url = `${config.pDNS.endpoint}zones/${config.pDNS.zone}`;
     const response = await axios.patch(url, data, pDNSAxiosConfig);
     return response.data;
-  } else {
-    throw new Error('No DNS provider is enable!');
   }
+  throw new Error('No DNS provider is enable!');
 }
 
 // Creates new DNS record
@@ -127,24 +128,21 @@ async function createDNSRecord(name, content, type = 'A', ttl = 60) {
     const url = `${config.cloudflare.endpoint}zones/${config.cloudflare.zone}/dns_records`;
     const response = await axios.post(url, data, cloudFlareAxiosConfig);
     return response.data;
-
-  } else if (config.pDNS.enabled) {
+  } if (config.pDNS.enabled) {
     const data = {
-      "rrsets": [{
-        name: name + ".",
-        type: type,
-        ttl: ttl,
+      rrsets: [{
+        name: `${name}.`,
+        type,
+        ttl,
         changetype: 'REPLACE',
-        records: [{ "content": content, "disabled": false }]
-      }]
+        records: [{ content, disabled: false }],
+      }],
     };
     const url = `${config.pDNS.endpoint}zones/${config.pDNS.zone}`;
     const response = await axios.patch(url, data, pDNSAxiosConfig);
     return response.data;
-  } else {
-    throw new Error('No DNS provider is enable!');
   }
-
+  throw new Error('No DNS provider is enable!');
 }
 
 async function getAllRecordsDBAPI(req, res) {
@@ -174,7 +172,7 @@ async function listDNSRecordsAPI(req, res) {
   }
 }
 
-//Generates config file for HAProxy
+// Generates config file for HAProxy
 async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `home.${config.mainDomain}`;
@@ -228,7 +226,7 @@ async function generateAndReplaceMainHaproxyConfig() {
     }, 4 * 60 * 1000);
   }
 }
-//Retrieves application specifications from network api
+// Retrieves application specifications from network api
 async function getAppSpecifications() {
   try {
     const fluxnodeList = await axios.get('https://api.runonflux.io/apps/globalappsspecifications', axiosConfig);
@@ -241,7 +239,7 @@ async function getAppSpecifications() {
     return [];
   }
 }
-//Retrieves IP's that a given application in running on 
+// Retrieves IP's that a given application in running on
 async function getApplicationLocation(appName) {
   try {
     const fluxnodeList = await axios.get(`https://api.runonflux.io/apps/location/${appName}`, axiosConfig);
@@ -254,11 +252,12 @@ async function getApplicationLocation(appName) {
     return [];
   }
 }
-//generates domain names for a given app specificatoin
+// generates domain names for a given app specificatoin
 function getUnifiedDomainsForApp(specifications) {
   const domains = [];
-  if (specifications.version <= 3) {
-    // adding names for each port with new scheme {appname}-{portnumber}.app2.runonflux.io
+  const lowerCaseName = specifications.name.toLowerCase();
+  if (specifications.version <= 3) { // app v1 cannot be spawned and do not exist
+    // adding names for each port with new scheme {appname}_{portnumber}.app2.runonflux.io
     for (let i = 0; i < specifications.ports.length; i += 1) {
       const portDomain = `${lowerCaseName}_${specifications.ports[i]}.${config.appSubDomain}.${config.mainDomain}`;
       domains.push(portDomain);
@@ -266,15 +265,11 @@ function getUnifiedDomainsForApp(specifications) {
   } else {
     // composed app
     for (const component of specifications.compose) {
-      const lowerCaseComponent = component.name.toLowerCase();
-      // same for composed apps, adding for each port with new scheme {appname}-{portnumber}.app2.runonflux.io
+      // same for composed apps, adding for each port with new scheme {appname}_{portnumber}.app2.runonflux.io
       for (let i = 0; i < component.ports.length; i += 1) {
         const portDomain = `${lowerCaseName}_${component.ports[i]}.${config.appSubDomain}.${config.mainDomain}`;
         domains.push(portDomain);
       }
-      // push component itself, not needed in new naming scheme.
-      //const mainDomainComponent = `${lowerCaseComponent}.${lowerCaseName}.app.${config.mainDomain}`;
-      //domains.push(mainDomainComponent);
     }
   }
   // finally push general name which is alias to first port
@@ -292,11 +287,12 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
     for (const record of dnsRecords) { // async inside
       if (myIP && typeof myIP === 'string' && (record.content !== myIP)) {
         // delete the record
-        // eslint-disable-next-line no-await-in-loop
         if (config.cloudflare.enabled) {
-          await deleteDNSRecord(record.id); // may throw
+          // eslint-disable-next-line no-await-in-loop
+          await deleteDNSRecordCloudflare(record.id); // may throw
         } else if (config.pDNS.enabled) {
-          await deleteDNSRecord(record.name, record.content, record.type, record.ttl); // may throw
+          // eslint-disable-next-line no-await-in-loop
+          await deleteDNSRecordPDNS(record.name, record.content, record.type, record.ttl); // may throw
         }
         log.info(`Record ${record.id} on ${record.content} deleted`);
       }
@@ -311,11 +307,12 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
       correctRecords.shift(); // remove first record from records to delete
       for (const record of correctRecords) { // async inside
         // delete the record
-        // eslint-disable-next-line no-await-in-loop
         if (config.cloudflare.enabled) {
-          await deleteDNSRecord(record.id); // may throw
+          // eslint-disable-next-line no-await-in-loop
+          await deleteDNSRecordCloudflare(record.id); // may throw
         } else if (config.pDNS.enabled) {
-          await deleteDNSRecord(record.name, record.content, record.type, record.ttl); // may throw
+          // eslint-disable-next-line no-await-in-loop
+          await deleteDNSRecordPDNS(record.name, record.content, record.type, record.ttl); // may throw
         }
         log.info(`Duplicate Record ${record.id} on ${record.content} deleted`);
       }
@@ -408,31 +405,33 @@ async function doDomainCertOperations(domains) {
         // eslint-disable-next-line no-await-in-loop
         await serviceHelper.timeout(45 * 1000);
       }
-      try {
-        // check if we have certificate
-        // eslint-disable-next-line no-await-in-loop
-        const isCertificatePresent = await checkCertificatePresetForDomain(appDomain);
-        if (appDomain.length > 64) {
-          log.warn(`Domain ${appDomain} is too long. Certificate not issued`);
-          return true;
-        }
-        if (!isCertificatePresent) {
-          // if we dont have certificate, obtain it
-          log.info(`Obtaning certificate for ${appDomain}`);
+      if (config.automateCertificates) {
+        try {
+          // check if we have certificate
           // eslint-disable-next-line no-await-in-loop
-          await obtainDomainCertificate(appDomain);
-        }
-        // eslint-disable-next-line no-await-in-loop
-        const isCertificatePresentB = await checkCertificatePresetForDomain(appDomain);
-        if (isCertificatePresentB) {
-          // check if domain has autorenewal, if not, adjust it
+          const isCertificatePresent = await checkCertificatePresetForDomain(appDomain);
+          if (appDomain.length > 64) {
+            log.warn(`Domain ${appDomain} is too long. Certificate not issued`);
+            return true;
+          }
+          if (!isCertificatePresent) {
+            // if we dont have certificate, obtain it
+            log.info(`Obtaning certificate for ${appDomain}`);
+            // eslint-disable-next-line no-await-in-loop
+            await obtainDomainCertificate(appDomain);
+          }
           // eslint-disable-next-line no-await-in-loop
-          await adjustAutoRenewalScriptForDomain(appDomain);
-        } else {
-          throw new Error(`Certificate not present for ${appDomain}`);
+          const isCertificatePresentB = await checkCertificatePresetForDomain(appDomain);
+          if (isCertificatePresentB) {
+            // check if domain has autorenewal, if not, adjust it
+            // eslint-disable-next-line no-await-in-loop
+            await adjustAutoRenewalScriptForDomain(appDomain);
+          } else {
+            throw new Error(`Certificate not present for ${appDomain}`);
+          }
+        } catch (error) {
+          log.error(error);
         }
-      } catch (error) {
-        log.error(error);
       }
     }
     return true;
@@ -442,7 +441,7 @@ async function doDomainCertOperations(domains) {
   }
 }
 
-//periodically keeps HAproxy ans certificates updated every 4 minutes
+// periodically keeps HAproxy ans certificates updated every 4 minutes
 async function generateAndReplaceMainApplicationHaproxyConfig() {
   try {
     // get applications on the network
@@ -459,9 +458,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     await createSSLDirectory();
     log.info('SSL directory checked');
     for (const appSpecs of applicationSpecifications) {
-      //exclude blacklisted apps
-      if (serviceHelper.matchRule(appSpecs.name, config.blackListedApps)) continue;
-      
+      // exclude blacklisted apps
+      if (serviceHelper.matchRule(appSpecs.name, config.blackListedApps)) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
       log.info(`Adjusting domains and ssl for ${appSpecs.name}`);
       const domains = getUnifiedDomainsForApp(appSpecs);
       if (appSpecs.version <= 3) {
@@ -482,7 +484,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         // composed app
         let ports = 0;
         appSpecs.compose.forEach((component) => {
-          //ports += 1; // component name itself not required in new scheme
+          // ports += 1; // component name itself not required in new scheme
           ports += component.ports.length;
         });
         if (domains.length === ports + 1) { // + 1 for app name
@@ -520,7 +522,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             };
             configuredApps.push(configuredApp);
             if (app.domains[i]) {
-              if (!app.domains[i].includes(config.appSubDomain + '.runonflux')) { // prevent double backend
+              if (!app.domains[i].includes(`${config.appSubDomain}.runonflux`)) { // prevent double backend
                 const domainExists = configuredApps.find((a) => a.domain === app.domains[i]);
                 if (!domainExists) {
                   const configuredAppCustom = {
@@ -568,10 +570,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           configuredApps.push(mainApp);
         } else {
           for (const component of app.compose) {
-            const lowerCaseComponent = component.name.toLowerCase();
-            // flux specs dont allow more than 10 ports so domainString is enough
             for (let i = 0; i < component.ports.length; i += 1) {
-              //const portDomain = `${domainString[i]}.${lowerCaseComponent}.${component.ports[i]}.app.${config.mainDomain}`;
               const configuredApp = {
                 domain: domains[i],
                 port: component.ports[i],
@@ -580,7 +579,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               configuredApps.push(configuredApp);
 
               if (component.domains[i]) {
-                if (!component.domains[i].includes(config.appSubDomain +'runonflux')) { // prevent double backend
+                if (!component.domains[i].includes(`${config.appSubDomain}runonflux`)) { // prevent double backend
                   const domainExists = configuredApps.find((a) => a.domain === component.domains[i]);
                   if (!domainExists) {
                     const configuredAppCustom = {
@@ -620,7 +619,6 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                 }
               }
             }
-
           }
           // push main domain
           if (app.compose[0].ports[0]) {
@@ -733,13 +731,8 @@ async function start() {
   }
 }
 
-
-
 module.exports = {
   start,
   getAllRecordsDBAPI,
   listDNSRecordsAPI,
-  listDNSRecords,
-  deleteDNSRecord,
-  createDNSRecord,
 };

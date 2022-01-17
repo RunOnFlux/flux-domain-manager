@@ -297,7 +297,7 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
         log.info(`Record ${record.id} on ${record.content} deleted`);
       }
     }
-    const correctRecords = dnsRecords.filter((record) => (record.content === myIP && record.proxied === false));
+    const correctRecords = dnsRecords.filter((record) => (record.content === myIP && (record.proxied === undefined || record.proxied === false)));
     if (correctRecords.length === 0) {
       await createDNSRecord(domain, myIP);
       return true;

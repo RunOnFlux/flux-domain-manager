@@ -6,6 +6,8 @@ const axiosConfig = {
   timeout: 3456,
 };
 
+const timeout = 3456;
+
 // MAIN
 async function checkLoginPhrase(ip) {
   try {
@@ -219,7 +221,16 @@ async function kadenaGetHeight(ip) {
     const agent = new https.Agent({
       rejectUnauthorized: false,
     });
-    const kadenaData = await axios.get(`https://${ip}:30004/chainweb/0.0/mainnet01/cut`, { httpsAgent: agent, timeout: 3456 });
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
+    const kadenaData = await axios.get(`https://${ip}:30004/chainweb/0.0/mainnet01/cut`, { httpsAgent: agent, timeout, cancelToken: source.token });
+    isResolved = true;
     return kadenaData.data.height;
   } catch (e) {
     // log.error(e);
@@ -232,7 +243,16 @@ async function kadenaGetConenctions(ip) {
     const agent = new https.Agent({
       rejectUnauthorized: false,
     });
-    const kadenaData = await axios.get(`https://${ip}:30004/chainweb/0.0/mainnet01/cut/peer`, { httpsAgent: agent, timeout: 3456 });
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
+    const kadenaData = await axios.get(`https://${ip}:30004/chainweb/0.0/mainnet01/cut/peer`, { httpsAgent: agent, timeout, cancelToken: source.token });
+    isResolved = true;
     return kadenaData.data.items;
   } catch (e) {
     // log.error(e);
@@ -262,7 +282,16 @@ async function kadenaRecentTxs(ip) {
     const agent = new https.Agent({
       rejectUnauthorized: false,
     });
-    const kadenaData = await axios.get(`http://${ip}:30006/txs/recent`, { httpsAgent: agent, timeout: 3456 });
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
+    const kadenaData = await axios.get(`http://${ip}:30006/txs/recent`, { httpsAgent: agent, timeout, cancelToken: source.token });
+    isResolved = true;
     return kadenaData.data;
   } catch (e) {
     // log.error(e);
@@ -272,7 +301,16 @@ async function kadenaRecentTxs(ip) {
 
 async function kadenaSearchTxs(ip) {
   try {
-    const kadenaData = await axios.get(`http://${ip}:30006/txs/search?search=2a3c8b18323ef7be8e28ec585d065a47925202330036a17867d85528f6720a05&offset=0&limit=100`, { timeout: 24000 });
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, 24000 * 2);
+    const kadenaData = await axios.get(`http://${ip}:30006/txs/search?search=2a3c8b18323ef7be8e28ec585d065a47925202330036a17867d85528f6720a05&offset=0&limit=100`, { timeout: 24000, cancelToken: source.token });
+    isResolved = true;
     return kadenaData.data;
   } catch (e) {
     // log.error(e);
@@ -286,7 +324,7 @@ async function checkKadenaDataApplication(ip) {
     const searchTxs = await kadenaSearchTxs(ip);
     const lastTx = new Date(searchTxs[0].creationTime);
     const lastTimeTx = lastTx.getTime();
-    const diffTen = 5 * 24 * 60 * 60 * 1000;
+    const diffTen = 10 * 24 * 60 * 60 * 1000;
     if (currentTime - diffTen < lastTimeTx) {
       return true;
     }

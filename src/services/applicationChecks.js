@@ -2,15 +2,25 @@ const axios = require('axios');
 const https = require('https');
 const log = require('../lib/log');
 
-const axiosConfig = {
-  timeout: 3456,
-};
+const timeout = 3456;
 
 // MAIN
 async function checkLoginPhrase(ip) {
   try {
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
     const url = `http://${ip}:16127/id/loginphrase`;
-    const response = await axios.get(url, axiosConfig);
+    const response = await axios.get(url, {
+      cancelToken: source.token,
+      timeout,
+    });
+    isResolved = true;
     if (response.data.status === 'success') {
       return true;
     }
@@ -22,12 +32,35 @@ async function checkLoginPhrase(ip) {
 
 async function isCommunicationOK(ip) {
   try {
-    // const url = `http://${ip}:16127/flux/checkcommunication`;
+    let { CancelToken } = axios;
+    let source = CancelToken.source();
+    let isResolvedA = false;
+    setTimeout(() => {
+      if (!isResolvedA) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
     const urlA = `http://${ip}:16127/flux/connectedpeersinfo`;
     const urlB = `http://${ip}:16127/flux/incomingconnectionsinfo`;
-    const responseA = await axios.get(urlA, axiosConfig);
+    const responseA = await axios.get(urlA, {
+      cancelToken: source.token,
+      timeout,
+    });
+    isResolvedA = true;
     if (responseA.data.data.length > 8) {
-      const responseB = await axios.get(urlB, axiosConfig);
+      CancelToken = axios.CancelToken;
+      source = CancelToken.source();
+      let isResolvedB = false;
+      setTimeout(() => {
+        if (!isResolvedB) {
+          source.cancel('Operation canceled by the user.');
+        }
+      }, timeout * 2);
+      const responseB = await axios.get(urlB, {
+        cancelToken: source.token,
+        timeout,
+      });
+      isResolvedB = true;
       if (responseB.data.data.length > 4) {
         return true;
       }
@@ -40,8 +73,20 @@ async function isCommunicationOK(ip) {
 
 async function isHomeOK(ip) {
   try {
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
     const url = `http://${ip}:16126`;
-    const response = await axios.get(url, axiosConfig);
+    const response = await axios.get(url, {
+      cancelToken: source.token,
+      timeout,
+    });
+    isResolved = true;
     if (response.data.startsWith('<!DOCTYPE html><html')) {
       return true;
     }
@@ -53,8 +98,20 @@ async function isHomeOK(ip) {
 
 async function isVersionOK(ip) {
   try {
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
     const url = `http://${ip}:16127/flux/version`;
-    const response = await axios.get(url, axiosConfig);
+    const response = await axios.get(url, {
+      cancelToken: source.token,
+      timeout,
+    });
+    isResolved = true;
     const version = response.data.data.replace(/\./g, '');
     if (version >= 321) {
       return true;
@@ -67,8 +124,20 @@ async function isVersionOK(ip) {
 
 async function isSyncedOK(ip) {
   try {
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
     const url = `http://${ip}:16127/explorer/scannedheight`;
-    const response = await axios.get(url, axiosConfig);
+    const response = await axios.get(url, {
+      cancelToken: source.token,
+      timeout,
+    });
+    isResolved = true;
     const version = response.data.data.generalScannedHeight;
     if (version > 1015637) {
       return true;
@@ -81,8 +150,20 @@ async function isSyncedOK(ip) {
 
 async function hasManyApps(ip) {
   try {
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
     const url = `http://${ip}:16127/apps/globalappsspecifications`;
-    const response = await axios.get(url, axiosConfig);
+    const response = await axios.get(url, {
+      cancelToken: source.token,
+      timeout,
+    });
+    isResolved = true;
     const appsAmount = response.data.data.length;
     if (appsAmount > 100) { // we surely have at least 177 apps on network
       const fluxWhitePaper = response.data.data.find((app) => app.name === 'FluxWhitepaper'); // hopefully its on network right

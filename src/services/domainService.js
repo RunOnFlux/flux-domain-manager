@@ -292,7 +292,7 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
           await deleteDNSRecordCloudflare(record.id); // may throw
         } else if (config.pDNS.enabled) {
           // eslint-disable-next-line no-await-in-loop
-          await deleteDNSRecordPDNS(record.name, record.content, record.type, record.ttl); // may throw
+          await deleteDNSRecordPDNS(record.name.slice(0, -1), record.content, record.type, record.ttl); // may throw
         }
         log.info(`Record ${record.id} on ${record.content} deleted`);
       }
@@ -312,7 +312,7 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
           await deleteDNSRecordCloudflare(record.id); // may throw
         } else if (config.pDNS.enabled) {
           // eslint-disable-next-line no-await-in-loop
-          await deleteDNSRecordPDNS(record.name, record.content, record.type, record.ttl); // may throw
+          await deleteDNSRecordPDNS(record.name.slice(0, -1), record.content, record.type, record.ttl); // may throw
         }
         log.info(`Duplicate Record ${record.id} on ${record.content} deleted`);
       }

@@ -290,11 +290,12 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
         if (config.cloudflare.enabled) {
           // eslint-disable-next-line no-await-in-loop
           await deleteDNSRecordCloudflare(record.id); // may throw
+          log.info(`Record ${record.id} on ${record.content} deleted`);
         } else if (config.pDNS.enabled) {
           // eslint-disable-next-line no-await-in-loop
           await deleteDNSRecordPDNS(record.name.slice(0, -1), record.content, record.type, record.ttl); // may throw
+          log.info(`Record ${record.name.slice(0, -1)} on ${record.content} deleted`);
         }
-        log.info(`Record ${record.id} on ${record.content} deleted`);
       }
     }
     const correctRecords = dnsRecords.filter((record) => (record.content === myIP && (record.proxied === undefined || record.proxied === false)));
@@ -310,11 +311,12 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
         if (config.cloudflare.enabled) {
           // eslint-disable-next-line no-await-in-loop
           await deleteDNSRecordCloudflare(record.id); // may throw
+          log.info(`Duplicate Record ${record.id} on ${record.content} deleted`);
         } else if (config.pDNS.enabled) {
           // eslint-disable-next-line no-await-in-loop
           await deleteDNSRecordPDNS(record.name.slice(0, -1), record.content, record.type, record.ttl); // may throw
+          log.info(`Duplicate Record ${record.name.slice(0, -1)} on ${record.content} deleted`);
         }
-        log.info(`Duplicate Record ${record.id} on ${record.content} deleted`);
       }
       return true;
     }

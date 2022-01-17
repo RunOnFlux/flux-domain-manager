@@ -2,9 +2,7 @@ const axios = require('axios');
 const config = require('config');
 const log = require('../lib/log');
 
-const axiosConfig = {
-  timeout: 13456,
-};
+const timeout = 13456;
 
 async function getFluxList(fallback) {
   try {
@@ -12,7 +10,19 @@ async function getFluxList(fallback) {
     if (fallback) {
       url = `${config.fallbackexplorer}/api/fluxnode/listfluxnodes`;
     }
-    const fluxnodeList = await axios.get(url, axiosConfig);
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
+    const fluxnodeList = await axios.get(url, {
+      cancelToken: source.token,
+      timeout,
+    });
+    isResolved = true;
     return fluxnodeList.data.result || [];
   } catch (e) {
     if (!fallback) {
@@ -43,7 +53,19 @@ async function getFluxIPs() {
 
 async function getSingleNodeAppLocation(ip, application) {
   try {
-    const fluxnodeList = await axios.get(`http://${ip}:16127/apps/location/${application}`, axiosConfig);
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
+    const fluxnodeList = await axios.get(`http://${ip}:16127/apps/location/${application}`, {
+      cancelToken: source.token,
+      timeout,
+    });
+    isResolved = true;
     if (fluxnodeList.data.status === 'success') {
       return fluxnodeList.data.data || [];
     }

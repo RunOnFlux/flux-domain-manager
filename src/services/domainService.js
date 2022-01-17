@@ -285,7 +285,7 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
     const dnsRecords = await listDNSRecords(domain);
     // delete bad
     for (const record of dnsRecords) { // async inside
-      if (myIP && typeof myIP === 'string' && (record.content !== myIP)) {
+      if (myIP && typeof myIP === 'string' && (record.content !== myIP || record.proxied === true)) {
         // delete the record
         if (config.cloudflare.enabled) {
           // eslint-disable-next-line no-await-in-loop
@@ -297,7 +297,7 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
         log.info(`Record ${record.id} on ${record.content} deleted`);
       }
     }
-    const correctRecords = dnsRecords.filter((record) => (record.content === myIP));
+    const correctRecords = dnsRecords.filter((record) => (record.content === myIP && record.proxied === false));
     if (correctRecords.length === 0) {
       await createDNSRecord(domain, myIP);
       return true;
@@ -662,6 +662,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       } else {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);
       }
+    }
+
+    if (configuredApps.length < 10) {
+      throw new Error('PANIC PLEASE DEV HELP ME');
     }
 
     const hc = await haproxyTemplate.createAppsHaproxyConfig(configuredApps);

@@ -324,13 +324,14 @@ function checkRosettaheightOK(height) {
 
 // KADENA
 function kadenaCheckHeight(height) {
+  console.log(height);
   const currentTime = new Date().getTime();
-  const baseTime = 1625422726000;
-  const baseHeight = 35347955;
+  const baseTime = 1642151385000;
+  const baseHeight = 46493020;
   const timeDifference = currentTime - baseTime;
   const blocksPassedInDifference = (timeDifference / 30000) * 20; // 20 chains with blocktime 30 seconds
   const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - (60 * 20); // allow being off sync for 1200 blocks; 30 mins
+  const minimumAcceptedBlockHeight = currentBlockEstimation - (60 * 40); // allow being off sync for this amount of blocks
   if (height > minimumAcceptedBlockHeight) {
     return true;
   }
@@ -407,8 +408,48 @@ async function checkRunOnFluxWebsite(ip) {
   }
 }
 
+async function kadenaRecentTxs(ip) {
+  try {
+    const agent = new https.Agent({
+      rejectUnauthorized: false,
+    });
+    const kadenaData = await axios.get(`http://${ip}:30006/txs/recent`, { httpsAgent: agent, timeout: 3456 });
+    return kadenaData.data;
+  } catch (e) {
+    // log.error(e);
+    return [];
+  }
+}
+
+async function kadenaSearchTxs(ip) {
+  try {
+    const kadenaData = await axios.get(`http://${ip}:30006/txs/search?search=2a3c8b18323ef7be8e28ec585d065a47925202330036a17867d85528f6720a05&offset=0&limit=100`, { timeout: 24000 });
+    return kadenaData.data;
+  } catch (e) {
+    // log.error(e);
+    return [];
+  }
+}
+
+async function checkKadenaDataApplication(ip) {
+  try {
+    const currentTime = new Date().getTime();
+    const searchTxs = await kadenaSearchTxs(ip);
+    const lastTx = new Date(searchTxs[0].creationTime);
+    const lastTimeTx = lastTx.getTime();
+    const diffTen = 5 * 24 * 60 * 60 * 1000;
+    if (currentTime - diffTen < lastTimeTx) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 module.exports = {
   checkMainFlux,
   checkKadenaApplication,
   checkRunOnFluxWebsite,
+  checkKadenaDataApplication,
 };

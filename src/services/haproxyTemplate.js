@@ -4,7 +4,7 @@ const configGlobal = require('config');
 
 const haproxyPrefix = `
 global
-  maxconn 50000
+  maxconn 500000
   log /dev/log    local0
   log /dev/log    local1 notice
   chroot /var/lib/haproxy
@@ -32,7 +32,7 @@ defaults
   timeout connect 5000
   timeout client  50000
   timeout server  50000
-  maxconn 50000
+  maxconn 500000
   errorfile 400 /etc/haproxy/errors/400.http
   errorfile 403 /etc/haproxy/errors/403.http
   errorfile 408 /etc/haproxy/errors/408.http
@@ -174,6 +174,8 @@ function createAppsHaproxyConfig(appConfig) {
   stick-table type ip size 1m expire 1h
   stick on src`;
     for (const ip of app.ips) {
+      console.log(app);
+      console.log(app.ip);
       const a = ip.split('.');
       let IpString = '';
       for (let i = 0; i < 4; i += 1) {
@@ -187,19 +189,87 @@ function createAppsHaproxyConfig(appConfig) {
           IpString = `${IpString}00${a[i]}`;
         }
       }
-      domainBackend += `\n  server ${IpString} ${ip}:${app.port} check`;
+      if (app.port === 30004) {
+        domainBackend += `\n  server ${IpString} ${ip}:${app.port} check ssl verify none`;
+      } else {
+        domainBackend += `\n  server ${IpString} ${ip}:${app.port} check`;
+      }
     }
     backends = `${backends + domainBackend}\n\n`;
     domains.push(app.domain);
     acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
     usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
   });
+
+  domains.push('kadena.app.runonflux.io');
+
+  const chainwebAcl1 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/0/pact\n';
+  const chainwebAcl2 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/1/pact\n';
+  const chainwebAcl3 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/2/pact\n';
+  const chainwebAcl4 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/3/pact\n';
+  const chainwebAcl5 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/4/pact\n';
+  const chainwebAcl6 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/5/pact\n';
+  const chainwebAcl7 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/6/pact\n';
+  const chainwebAcl8 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/7/pact\n';
+  const chainwebAcl9 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/8/pact\n';
+  const chainwebAcl10 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/9/pact\n';
+  const chainwebAcl11 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/10/pact\n';
+  const chainwebAcl12 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/11/pact\n';
+  const chainwebAcl13 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/12/pact\n';
+  const chainwebAcl14 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/13/pact\n';
+  const chainwebAcl15 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/14/pact\n';
+  const chainwebAcl16 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/15/pact\n';
+  const chainwebAcl17 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/16/pact\n';
+  const chainwebAcl18 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/17/pact\n';
+  const chainwebAcl19 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/18/pact\n';
+  const chainwebAcl20 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/19/pact\n';
+  const chainwebAcl = '  acl chainweb path_beg /chainweb/0.0/mainnet01/cut\n';
+  const chainwebAclB = '  acl chainweb path_beg /chainweb/0.0/mainnet01/chain\n';
+  const chainwebAclC = '  acl chainweb path_beg /chainweb/0.0/mainnet01/config\n';
+  const txsAcl = '  acl chainwebdata path_beg /txs\n';
+  const coinsAcl = '  acl chainwebdata path_beg /coins\n';
+  const statsAcl = '  acl chainwebdata path_beg /stats\n';
+  acls += chainwebAcl1;
+  acls += chainwebAcl2;
+  acls += chainwebAcl3;
+  acls += chainwebAcl4;
+  acls += chainwebAcl5;
+  acls += chainwebAcl6;
+  acls += chainwebAcl7;
+  acls += chainwebAcl8;
+  acls += chainwebAcl9;
+  acls += chainwebAcl10;
+  acls += chainwebAcl11;
+  acls += chainwebAcl12;
+  acls += chainwebAcl13;
+  acls += chainwebAcl14;
+  acls += chainwebAcl15;
+  acls += chainwebAcl16;
+  acls += chainwebAcl17;
+  acls += chainwebAcl18;
+  acls += chainwebAcl19;
+  acls += chainwebAcl20;
+  acls += chainwebAcl;
+  acls += chainwebAclB;
+  acls += chainwebAclC;
+  acls += txsAcl;
+  acls += coinsAcl;
+  acls += statsAcl;
+
+  const defaultBackend = '  default_backend bkadenachainwebnodeapprunonfluxiobackend\n';
+  const chainwebABackendUse = '  use_backend bkadenachainwebnodeapprunonfluxiobackend if chainwebB\n';
+  const chainwebBackendUse = '  use_backend akadenachainwebnodeapprunonfluxiobackend if chainweb\n';
+  const chainwebDataBackendUse = '  use_backend akadenachainwebdataapprunonfluxiobackend if chainwebdata\n';
+  usebackends += chainwebABackendUse;
+  usebackends += chainwebBackendUse;
+  usebackends += chainwebDataBackendUse;
+  usebackends += defaultBackend;
+
   const redirects = '';
 
   return generateHaproxyConfig(acls, usebackends, domains, backends, redirects);
 }
 
 module.exports = {
-  createMainHaproxyConfig,
   createAppsHaproxyConfig,
 };

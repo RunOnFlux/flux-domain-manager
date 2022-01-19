@@ -6,7 +6,9 @@ const { MongoClient } = mongodb;
 const mongoUrl = `mongodb://${config.database.url}:${config.database.port}/`;
 
 function timeout(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 function createDataMessage(data) {
@@ -85,12 +87,23 @@ function ensureString(parameter) {
   return typeof parameter === 'string' ? parameter : JSON.stringify(parameter);
 }
 
+// Wildcard string comparison with Regex
+function matchRule(str, rules) {
+  // eslint-disable-next-line no-restricted-syntax
+  for (const rule of rules) {
+    const escapeRegex = (string) => string.replace(/([.*+?^=!:${}()|[\]/\\])/g, '\\$1');
+    if (new RegExp(`^${rule.split('*').map(escapeRegex).join('.*')}$`).test(str) === true) return true;
+  }
+  return false;
+}
+
 // MongoDB functions
 async function connectMongoDb(url) {
   const connectUrl = url || mongoUrl;
   const mongoSettings = {
     useNewUrlParser: true,
     useUnifiedTopology: true,
+    maxPoolSize: 100,
   };
   const db = await MongoClient.connect(connectUrl, mongoSettings).catch((error) => { throw error; });
   return db;
@@ -178,4 +191,5 @@ module.exports = {
   createSuccessMessage,
   createWarningMessage,
   createErrorMessage,
+  matchRule,
 };

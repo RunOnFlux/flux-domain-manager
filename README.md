@@ -4,11 +4,13 @@
 
 Flux Domain Manager (FDM) manages domains, certificates and load balancing for entire Flux network as well as for applications running on Flux network. FDM in its basics is HAProxy configurator connected to Flux network.
 
-Flux Team is running FDM on runonflux.io domain and is automatically managed on cloudflare. Anyone can stand up its own FDM on any domain with default settings providing own cloudflare API keys.
+Flux Team is running FDM on runonflux.io domain and is automatically managed on cloudflare and pDNS solution. Anyone can stand up its own FDM on any domain with default settings providing own cloudflare API keys or pDNS keys.
 
 FDM scans Flux network, every healthy node on Flux network is put into FDM for both HOME.yourroot.domain (providing UI) and API.yourroot.domain (providing API endpoints to entire Flux).
 
-Furthermore FDM load balances all applications running on Flux network putting them begind YOURAPPNAME.app.yourroot.domain. If an application has more ports, applications lives on [a,b,c,d,e...].YOURAPPNAME.app.yourroot.domain in order of how ports were registered on Flux application specifications.
+Furthermore FDM load balances all applications running on Flux network putting them begind YOURAPPNAME.app.yourroot.domain. If an application has more ports, applications lives on YOURAPPNAME_PORT.app.yourroot.domain in order of how ports were registered on Flux application specifications.
+
+Enable automateCertificates flag in config if you want certificate management to be happening.
 
 - provide domain
 - provide ssl

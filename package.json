@@ -1,10 +1,10 @@
 {
   "name": "flux-domain-manager",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Flux Domain Manager (FDM) manages particular domain of Flux network and applications running on Flux.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TheTrunk/flux-domain-manager.git"
+    "url": "git+https://github.com/RunOnFlux/flux-domain-manager.git"
   },
   "keywords": [
     "flux",
@@ -12,38 +12,36 @@
     "manager",
     "fdm"
   ],
-  "author": "Tadeas Kmenta (tadeas@zel.network)",
+  "author": "Flux Foundation (info@runonflux.io)",
   "license": "AGPL-3.0-or-later",
   "bugs": {
-    "url": "https://github.com/TheTrunk/flux-domain-manager/issues"
+    "url": "https://github.com/RunOnFlux/flux-domain-manager/issues"
   },
-  "homepage": "https://github.com/TheTrurnk/flux-domain-manager#readme",
+  "homepage": "https://github.com/RunOnFlux/flux-domain-manager#readme",
   "scripts": {
     "start": "nodemon index.js",
-    "test": "echo 'No tests have been implemented' && exit 1",
-    "lint": "eslint src/"
+    "test": "mocha tests --timeout 10000",
+    "lint": "eslint ./",
+    "lint:fix": "eslint ./ --fix"
   },
   "dependencies": {
     "apicache": "1.5.2",
-    "axios": "^0.21.1",
-    "config": "^3.3.3",
+    "axios": "^0.24.0",
+    "chai": "^4.3.4",
+    "config": "^3.3.7",
     "cors": "^2.8.5",
-    "express": "^4.17.1",
-    "mongodb": "^3.6.3",
+    "express": "^4.17.2",
+    "mocha": "^9.1.4",
+    "mongodb": "^4.3.0",
     "morgan": "^1.10.0",
     "node-cmd": "^4.0.0",
-    "nodemon": "^2.0.7",
-    "qs": "^6.9.6"
+    "nodemon": "^2.0.15",
+    "qs": "^6.10.3"
   },
   "devDependencies": {
-    "babel-eslint": "^10.1.0",
-    "chai": "^4.2.0",
-    "eslint": "^7.19.0",
-    "mocha": "^8.2.1",
-    "eslint-config-airbnb": "^18.2.1",
-    "eslint-plugin-import": "^2.22.1",
-    "eslint-plugin-jsx-a11y": "^6.4.1",
-    "eslint-plugin-react": "^7.22.0",
-    "eslint-plugin-react-hooks": "^4.2.0"
+    "eslint": "^8.7.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.25.4",
+    "power-assert": "^1.6.1"
   }
 }

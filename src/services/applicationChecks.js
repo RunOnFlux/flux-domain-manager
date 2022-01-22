@@ -114,7 +114,7 @@ async function isVersionOK(ip) {
     });
     isResolved = true;
     const version = response.data.data.replace(/\./g, '');
-    if (version >= 321) {
+    if (version >= 360) {
       return true;
     }
     return false;
@@ -140,7 +140,7 @@ async function isSyncedOK(ip) {
     });
     isResolved = true;
     const version = response.data.data.generalScannedHeight;
-    if (version > 1015637) {
+    if (version > 1040709) {
       return true;
     }
     return false;
@@ -168,7 +168,7 @@ async function hasManyApps(ip) {
     const appsAmount = response.data.data.length;
     if (appsAmount > 100) { // we surely have at least 100 apps on network
       const fluxWhitePaper = response.data.data.find((app) => app.name === 'FluxWhitepaper'); // hopefully its on network right
-      if (fluxWhitePaper.height >= 1040709) {
+      if (fluxWhitePaper.height >= 1031339) {
         return true;
       }
     }

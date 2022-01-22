@@ -166,9 +166,9 @@ async function hasManyApps(ip) {
     });
     isResolved = true;
     const appsAmount = response.data.data.length;
-    if (appsAmount > 400) { // we surely have at least 400 apps on network
+    if (appsAmount > 100) { // we surely have at least 100 apps on network
       const fluxWhitePaper = response.data.data.find((app) => app.name === 'FluxWhitepaper'); // hopefully its on network right
-      if (fluxWhitePaper.height >= 1031339) {
+      if (fluxWhitePaper.height >= 1040709) {
         return true;
       }
     }

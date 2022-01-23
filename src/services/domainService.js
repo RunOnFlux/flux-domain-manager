@@ -123,11 +123,11 @@ function getUnifiedDomainsForApp(specifications) {
   const domains = [];
   // flux specs dont allow more than 10 ports so domainString is enough
   for (let i = 0; i < specifications.ports.length; i += 1) {
-    const portDomain = `${domainString[i]}.${lowerCaseName}2.app.${config.mainDomain}`;
+    const portDomain = `${domainString[i]}.${lowerCaseName}.app.${config.mainDomain}`;
     domains.push(portDomain);
   }
   // finally push general name which is alias to first port
-  const mainDomain = `${lowerCaseName}2.app.${config.mainDomain}`;
+  const mainDomain = `${lowerCaseName}.app.${config.mainDomain}`;
   domains.push(mainDomain);
   return domains;
 }

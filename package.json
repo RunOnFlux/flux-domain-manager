@@ -21,7 +21,8 @@
   "scripts": {
     "start": "nodemon index.js",
     "test": "echo 'No tests have been implemented' && exit 1",
-    "lint": "eslint src/"
+    "lint": "eslint ./",
+    "lint:fix": "eslint ./ --fix"
   },
   "dependencies": {
     "apicache": "1.5.2",

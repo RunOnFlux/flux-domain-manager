@@ -411,8 +411,9 @@ async function checkRunOnFluxWebsite(ip, port) {
 
 async function checkFluxExplorer(ip, port) {
   try {
-    const response = `http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`;
-    if (response.data.transactions.length > 0) {
+    const response = await axios.get(`http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`, { timeout: 8888 });
+    const responseB = await axios.get(`http://${ip}:${port}/api/sync`, { timeout: 8888 });
+    if (response.data.transactions.length > 0 && responseB.data.blockChainHeight > 1042841) {
       return true;
     }
     return false;

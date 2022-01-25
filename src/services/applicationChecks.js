@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 const axios = require('axios');
 const https = require('https');
+const Web3 = require('web3');
 const log = require('../lib/log');
 
 const timeout = 3456;
@@ -396,9 +397,9 @@ async function checkKadenaApplication(ip) {
   }
 }
 
-async function checkRunOnFluxWebsite(ip) {
+async function checkRunOnFluxWebsite(ip, port) {
   try {
-    const websiteResponse = await axios.get(`http://${ip}:33444`, { timeout: 8888 });
+    const websiteResponse = await axios.get(`http://${ip}:${port}`, { timeout: 8888 });
     if (websiteResponse.data.includes('<title>Flux')) {
       return true;
     }
@@ -408,8 +409,34 @@ async function checkRunOnFluxWebsite(ip) {
   }
 }
 
+async function checkFluxExplorer(ip, port) {
+  try {
+    const response = `http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`;
+    if (response.data.transactions.length > 0) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function checkEthereum(ip, port) {
+  try {
+    const addressFrom = '0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf';
+    const node = `http://${ip}:${port}`;
+    const web3 = new Web3(new Web3.providers.HttpProvider(node));
+    await web3.eth.getBalance(addressFrom);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 module.exports = {
   checkMainFlux,
   checkKadenaApplication,
   checkRunOnFluxWebsite,
+  checkEthereum,
+  checkFluxExplorer,
 };

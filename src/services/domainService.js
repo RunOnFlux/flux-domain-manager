@@ -511,9 +511,29 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       const appLocations = await getApplicationLocation(app.name);
       if (appLocations.length > 0) {
         const appIps = [];
-        appLocations.forEach((location) => {
-          appIps.push(location.ip);
-        });
+        for (const location of appLocations) { // run coded checks for app
+          if (app.name === 'EthereumNodeLight') {
+            // eslint-disable-next-line no-await-in-loop
+            const isOK = await applicationChecks.checkEthereum(location.ip, 31301);
+            if (isOK) {
+              appIps.push(location.ip);
+            }
+          } else if (app.name === 'explorer') {
+            // eslint-disable-next-line no-await-in-loop
+            const isOK = await applicationChecks.checkFluxExplorer(location.ip, 39185);
+            if (isOK) {
+              appIps.push(location.ip);
+            }
+          } else if (app.name === 'website') {
+            // eslint-disable-next-line no-await-in-loop
+            const isOK = await applicationChecks.checkRunOnFluxWebsite(location.ip, 33444);
+            if (isOK) {
+              appIps.push(location.ip);
+            }
+          } else {
+            appIps.push(location.ip);
+          }
+        }
         const domains = getUnifiedDomainsForApp(app);
         if (app.version <= 3) {
           for (let i = 0; i < app.ports.length; i += 1) {

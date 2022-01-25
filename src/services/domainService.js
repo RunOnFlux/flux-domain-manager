@@ -591,8 +591,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           };
           configuredApps.push(mainApp);
         } else {
+          let j = 0;
           for (const component of app.compose) {
-            let j = 0;
             for (let i = 0; i < component.ports.length; i += 1) {
               const configuredApp = {
                 domain: domains[j],

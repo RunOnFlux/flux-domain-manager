@@ -592,15 +592,16 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           configuredApps.push(mainApp);
         } else {
           for (const component of app.compose) {
+            let j = 0;
             for (let i = 0; i < component.ports.length; i += 1) {
               const configuredApp = {
-                domain: domains[i],
+                domain: domains[j],
                 port: component.ports[i],
                 ips: appIps,
               };
               configuredApps.push(configuredApp);
 
-              if (component.domains[i]) {
+              if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3) {
                 if (!component.domains[i].includes(`${config.appSubDomain}runonflux`)) { // prevent double backend
                   const domainExists = configuredApps.find((a) => a.domain === component.domains[i]);
                   if (!domainExists) {
@@ -640,6 +641,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                   }
                 }
               }
+              j += 1;
             }
           }
           // push main domain

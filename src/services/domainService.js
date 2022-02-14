@@ -86,9 +86,16 @@ async function listDNSRecords(name, content, type = 'A', page = 1, perPage = 100
 }
 
 // Deletes DNS record for given id (for cloudflare)
-async function deleteDNSRecordCloudflare(id) {
+async function deleteDNSRecordCloudflare(record) {
+  if (!record) {
+    throw new Error('No DNS record specified');
+  }
+  const { id } = record;
   if (!id) {
     throw new Error('No DNS ID record specified');
+  }
+  if (!record.name.endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
+    throw new Error('Invalid DNS record to delete specified');
   }
   // https://api.cloudflare.com/#dns-records-for-a-zone-delete-dns-record
   const url = `${config.cloudflare.endpoint}zones/${config.cloudflare.zone}/dns_records/${id}`;
@@ -98,6 +105,9 @@ async function deleteDNSRecordCloudflare(id) {
 
 // Deletes DNS records matching given parameters (for pDNS)
 async function deleteDNSRecordPDNS(name, content, type = 'A', ttl = 60) {
+  if (!name.endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
+    throw new Error('Invalid DNS record to delete specified');
+  }
   if (config.pDNS.enabled) {
     const data = {
       rrsets: [{
@@ -117,6 +127,9 @@ async function deleteDNSRecordPDNS(name, content, type = 'A', ttl = 60) {
 
 // Creates new DNS record
 async function createDNSRecord(name, content, type = 'A', ttl = 60) {
+  if (!name.endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
+    throw new Error('Invalid DNS record to create specified');
+  }
   if (config.cloudflare.enabled) {
     // https://api.cloudflare.com/#dns-records-for-a-zone-create-dns-record
     const data = {
@@ -142,7 +155,7 @@ async function createDNSRecord(name, content, type = 'A', ttl = 60) {
     const response = await axios.patch(url, data, pDNSAxiosConfig);
     return response.data;
   }
-  throw new Error('No DNS provider is enable!');
+  throw new Error('No DNS provider is not enabled!');
 }
 
 async function getAllRecordsDBAPI(req, res) {
@@ -289,8 +302,8 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
         // delete the record
         if (config.cloudflare.enabled) {
           // eslint-disable-next-line no-await-in-loop
-          await deleteDNSRecordCloudflare(record.id); // may throw
-          log.info(`Record ${record.id} on ${record.content} deleted`);
+          await deleteDNSRecordCloudflare(record); // may throw
+          log.info(`Record ${record.id} of ${record.name} on ${record.content} deleted`);
         } else if (config.pDNS.enabled) {
           // eslint-disable-next-line no-await-in-loop
           await deleteDNSRecordPDNS(record.name.slice(0, -1), record.content, record.type, record.ttl); // may throw
@@ -310,8 +323,8 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
         // delete the record
         if (config.cloudflare.enabled) {
           // eslint-disable-next-line no-await-in-loop
-          await deleteDNSRecordCloudflare(record.id); // may throw
-          log.info(`Duplicate Record ${record.id} on ${record.content} deleted`);
+          await deleteDNSRecordCloudflare(record); // may throw
+          log.info(`Duplicate Record ${record.id} of ${record.name} on ${record.content} deleted`);
         } else if (config.pDNS.enabled) {
           // eslint-disable-next-line no-await-in-loop
           await deleteDNSRecordPDNS(record.name.slice(0, -1), record.content, record.type, record.ttl); // may throw
@@ -544,7 +557,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             };
             configuredApps.push(configuredApp);
             if (app.domains[i]) {
-              if (!app.domains[i].includes(`${config.appSubDomain}.runonflux`)) { // prevent double backend
+              if (!app.domains[i].includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`)) { // prevent double backend
                 const domainExists = configuredApps.find((a) => a.domain === app.domains[i]);
                 if (!domainExists) {
                   const configuredAppCustom = {
@@ -602,7 +615,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               configuredApps.push(configuredApp);
 
               if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3) {
-                if (!component.domains[i].includes(`${config.appSubDomain}runonflux`)) { // prevent double backend
+                if (!component.domains[i].includes(`${config.appSubDomain}${config.mainDomain.split('.')[0]}`)) { // prevent double backend
                   const domainExists = configuredApps.find((a) => a.domain === component.domains[i]);
                   if (!domainExists) {
                     const configuredAppCustom = {

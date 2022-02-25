@@ -594,6 +594,33 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     }
                   }
                 }
+                if (app.domains[i].includes('test.')) { // add domain without the test. prefix
+                  const adjustedDomain = app.domains[i].split('test.')[1];
+                  if (adjustedDomain) {
+                    const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
+                    if (!domainExistsB) {
+                      const configuredAppCustom = {
+                        domain: adjustedDomain.replace('https://', '').replace('http://', ''),
+                        port: app.ports[i],
+                        ips: appIps,
+                      };
+                      configuredApps.push(configuredAppCustom);
+                    }
+                  }
+                } else { // does not have test, add with test
+                  const adjustedDomain = `test.${app.domains[i]}`;
+                  if (adjustedDomain) {
+                    const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
+                    if (!domainExistsB) {
+                      const configuredAppCustom = {
+                        domain: adjustedDomain.replace('https://', '').replace('http://', ''),
+                        port: app.ports[i],
+                        ips: appIps,
+                      };
+                      configuredApps.push(configuredAppCustom);
+                    }
+                  }
+                }
               }
             }
           }

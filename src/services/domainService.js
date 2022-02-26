@@ -543,6 +543,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             if (isOK) {
               appIps.push(location.ip);
             }
+          } else if (app.name === 'AtlasCloudMainnet') {
+            // eslint-disable-next-line no-await-in-loop
+            const isOK = await applicationChecks.checkCloudAtlasWebsite(location.ip, 37047);
+            if (isOK) {
+              appIps.push(location.ip);
+            }
           } else {
             appIps.push(location.ip);
           }

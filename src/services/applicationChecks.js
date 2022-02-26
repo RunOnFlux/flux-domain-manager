@@ -409,6 +409,18 @@ async function checkRunOnFluxWebsite(ip, port) {
   }
 }
 
+async function checkCloudAtlasWebsite(ip, port) {
+  try {
+    const websiteResponse = await axios.get(`http://${ip}:${port}`, { timeout: 8888 });
+    if (websiteResponse.data.includes('<title>Atlas')) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkFluxExplorer(ip, port) {
   try {
     const response = await axios.get(`http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`, { timeout: 8888 });
@@ -440,4 +452,5 @@ module.exports = {
   checkRunOnFluxWebsite,
   checkEthereum,
   checkFluxExplorer,
+  checkCloudAtlasWebsite,
 };

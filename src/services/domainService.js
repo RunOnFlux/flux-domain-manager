@@ -394,7 +394,7 @@ async function obtainDomainCertificate(domain) { // let it throw
   const cmdToExec = `sudo certbot certonly --standalone -d ${domain} --non-interactive --agree-tos --email ${config.emailDomain} --http-01-port=8787`;
   const cmdToExecContinue = `sudo cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem | sudo tee /etc/ssl/${config.certFolder}/${domain}.pem`;
   const response = await cmdAsync(cmdToExec);
-  if (response.includes('Congratulations')) {
+  if (response.includes('Congratulations') || response.includes('Certificate not yet due for renewal')) {
     await cmdAsync(cmdToExecContinue);
   }
 }

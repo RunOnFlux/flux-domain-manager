@@ -22,7 +22,8 @@ module.exports = {
   appSubDomain: 'app2',
   emailDomain: 'tessjonesie@gmail.com',
   certFolder: 'fluxapps',
-  automateCertificates: false,
+  automateCertificates: true,
+  automateCertificatesForFDMdomains: false,
   cloudflare: {
     endpoint: 'https://api.cloudflare.com/client/v4/',
     apiKey: cloudflareConfig.apiKey,

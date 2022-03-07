@@ -291,6 +291,40 @@ function getUnifiedDomainsForApp(specifications) {
   return domains;
 }
 
+function getCustomDomainsForApp(app) {
+  const domains = [];
+  if (app.version <= 3) {
+    for (let i = 0; i < app.ports.length; i += 1) {
+      if (app.domains[i] && app.domains[i].includes('.') && app.domains[i].length >= 3) {
+        let domain = app.domains[i].replace('https://', '').replace('http://', '');
+        if (domain.includes('www.')) {
+          // eslint-disable-next-line prefer-destructuring
+          domain = domain.split('www.')[1];
+        }
+        domains.push(domain);
+        domains.push(`www.${domain}`);
+        domains.push(`test.${domain}`);
+      }
+    }
+  } else {
+    for (const component of app.compose) {
+      for (let i = 0; i < component.ports.length; i += 1) {
+        if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3) {
+          let domain = component.domains[i].replace('https://', '').replace('http://', '');
+          if (domain.includes('www.')) {
+            // eslint-disable-next-line prefer-destructuring
+            domain = domain.split('www.')[1];
+          }
+          domains.push(domain);
+          domains.push(`www.${domain}`);
+          domains.push(`test.${domain}`);
+        }
+      }
+    }
+  }
+  return domains;
+}
+
 // return true if some domain operation was done
 // return false if no domain operation was done
 async function checkAndAdjustDNSrecordForDomain(domain) {
@@ -408,18 +442,10 @@ async function createSSLDirectory() {
   await fs.mkdir(dir, { recursive: true });
 }
 
-async function doDomainCertOperations(domains) {
+async function doCertOperationsForCustomDomains(domains) {
   try {
     for (const appDomain of domains) {
-      // check DNS
-      // if DNS was adjusted for this domain, wait a minute
-      // eslint-disable-next-line no-await-in-loop
-      const wasDomainAdjusted = await checkAndAdjustDNSrecordForDomain(appDomain);
-      if (wasDomainAdjusted) {
-        log.info(`Domain ${appDomain} was adjusted on DNS`);
-        // eslint-disable-next-line no-await-in-loop
-        await serviceHelper.timeout(45 * 1000);
-      }
+      // no dns check
       if (config.automateCertificates) {
         try {
           // check if we have certificate
@@ -431,7 +457,55 @@ async function doDomainCertOperations(domains) {
           }
           if (!isCertificatePresent) {
             // if we dont have certificate, obtain it
-            log.info(`Obtaning certificate for ${appDomain}`);
+            log.info(`Obtianing certificate for ${appDomain}`);
+            // eslint-disable-next-line no-await-in-loop
+            await obtainDomainCertificate(appDomain);
+          }
+          // eslint-disable-next-line no-await-in-loop
+          const isCertificatePresentB = await checkCertificatePresetForDomain(appDomain);
+          if (isCertificatePresentB) {
+            // check if domain has autorenewal, if not, adjust it
+            // eslint-disable-next-line no-await-in-loop
+            await adjustAutoRenewalScriptForDomain(appDomain);
+          } else {
+            throw new Error(`Certificate not present for ${appDomain}`);
+          }
+        } catch (error) {
+          log.error(error);
+        }
+      }
+    }
+    return true;
+  } catch (error) {
+    log.error(error);
+    return false;
+  }
+}
+
+async function doDomainCertOperationsForFDMdomains(domains) {
+  try {
+    for (const appDomain of domains) {
+      // check DNS
+      // if DNS was adjusted for this domain, wait a minute
+      // eslint-disable-next-line no-await-in-loop
+      const wasDomainAdjusted = await checkAndAdjustDNSrecordForDomain(appDomain);
+      if (wasDomainAdjusted) {
+        log.info(`Domain ${appDomain} was adjusted on DNS`);
+        // eslint-disable-next-line no-await-in-loop
+        await serviceHelper.timeout(45 * 1000);
+      }
+      if (config.automateCertificatesForFDMdomains) {
+        try {
+          // check if we have certificate
+          // eslint-disable-next-line no-await-in-loop
+          const isCertificatePresent = await checkCertificatePresetForDomain(appDomain);
+          if (appDomain.length > 64) {
+            log.warn(`Domain ${appDomain} is too long. Certificate not issued`);
+            return true;
+          }
+          if (!isCertificatePresent) {
+            // if we dont have certificate, obtain it
+            log.info(`Obtaining certificate for ${appDomain}`);
             // eslint-disable-next-line no-await-in-loop
             await obtainDomainCertificate(appDomain);
           }
@@ -481,16 +555,26 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
       log.info(`Adjusting domains and ssl for ${appSpecs.name}`);
       const domains = getUnifiedDomainsForApp(appSpecs);
+      const customDomains = getCustomDomainsForApp(appSpecs);
       if (appSpecs.version <= 3) {
         const { ports } = appSpecs;
         if (domains.length === ports.length + 1) {
           // eslint-disable-next-line no-await-in-loop
-          const domainOperationsSuccessful = await doDomainCertOperations(domains);
+          const domainOperationsSuccessful = await doDomainCertOperationsForFDMdomains(domains);
           if (domainOperationsSuccessful) {
             log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
             appsOK.push(appSpecs);
           } else {
             log.error(`Domain/ssl issues for ${appSpecs.name}`);
+          }
+          if (domainOperationsSuccessful && customDomains.length) {
+            // eslint-disable-next-line no-await-in-loop
+            const customCertOperationsSuccessful = await doCertOperationsForCustomDomains(customDomains);
+            if (customCertOperationsSuccessful) {
+              log.info(`Application domain and ssl for custom domains of ${appSpecs.name} is ready`);
+            } else {
+              log.error(`Domain/ssl issues for custom domains of ${appSpecs.name}`);
+            }
           }
         } else {
           log.error(`Application ${appSpecs.name} has wierd domain, settings. This is a bug.`);
@@ -504,12 +588,21 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         });
         if (domains.length === ports + 1) { // + 1 for app name
           // eslint-disable-next-line no-await-in-loop
-          const domainOperationsSuccessful = await doDomainCertOperations(domains);
+          const domainOperationsSuccessful = await doDomainCertOperationsForFDMdomains(domains);
           if (domainOperationsSuccessful) {
             log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
             appsOK.push(appSpecs);
           } else {
             log.error(`Domain/ssl issues for ${appSpecs.name}`);
+          }
+          if (domainOperationsSuccessful && customDomains.length) {
+            // eslint-disable-next-line no-await-in-loop
+            const customCertOperationsSuccessful = await doCertOperationsForCustomDomains(customDomains);
+            if (customCertOperationsSuccessful) {
+              log.info(`Application domain and ssl for custom domains of ${appSpecs.name} is ready`);
+            } else {
+              log.error(`Domain/ssl issues for custom domains of ${appSpecs.name}`);
+            }
           }
         } else {
           log.error(`Application ${appSpecs.name} has wierd domain, settings. This is a bug.`);

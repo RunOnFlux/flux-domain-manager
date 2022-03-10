@@ -642,6 +642,21 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             if (isOK) {
               appIps.push(location.ip);
             }
+          } else if (app.name === 'HavenNodeMainnet') {
+            const isOK = await applicationChecks.checkHavenHeight(location.ip, 31750);
+            if (isOK) {
+              appIps.push(location.ip);
+            }
+          } else if (app.name === 'HavenNodeTestnet') {
+            const isOK = await applicationChecks.checkHavenHeight(location.ip, 32750);
+            if (isOK) {
+              appIps.push(location.ip);
+            }
+          } else if (app.name === 'HavenNodeStagenet') {
+            const isOK = await applicationChecks.checkHavenHeight(location.ip, 33750);
+            if (isOK) {
+              appIps.push(location.ip);
+            }
           } else {
             appIps.push(location.ip);
           }

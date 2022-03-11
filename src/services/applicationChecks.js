@@ -446,6 +446,18 @@ async function checkEthereum(ip, port) {
   }
 }
 
+async function checkHavenHeight(ip, port) {
+  try {
+    const response = await axios.get(`http://${ip}:${port}/get_info`, { timeout: 5000 });
+    if (response.data.height > response.data.target_height ) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 module.exports = {
   checkMainFlux,
   checkKadenaApplication,
@@ -453,4 +465,5 @@ module.exports = {
   checkEthereum,
   checkFluxExplorer,
   checkCloudAtlasWebsite,
+  checkHavenHeight,
 };

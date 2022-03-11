@@ -92,7 +92,7 @@ function generateHaproxyConfig(acls, usebackends, domains, backends, redirects) 
 }
 
 // appConfig is an array of object of domain, port, ips
-function createAppsHaproxyConfig(appConfig) {
+function createKadenaHaproxyConfig(appConfig) {
   let backends = '';
   let acls = '';
   let usebackends = '';
@@ -121,7 +121,7 @@ function createAppsHaproxyConfig(appConfig) {
           IpString = `${IpString}00${a[i]}`;
         }
       }
-      if (app.port === 30004) {
+      if (app.port === 31350) {
         domainBackend += `\n  server ${IpString} ${ip}:${app.port} check ssl verify none`;
       } else {
         domainBackend += `\n  server ${IpString} ${ip}:${app.port} check`;
@@ -203,5 +203,5 @@ function createAppsHaproxyConfig(appConfig) {
 }
 
 module.exports = {
-  createAppsHaproxyConfig,
+  createKadenaHaproxyConfig,
 };

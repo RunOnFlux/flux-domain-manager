@@ -32,6 +32,7 @@ const cloudFlareAxiosConfig = {
 // const uiBlackList = [];
 // const apiBlackList = [];
 
+// eslint-disable-next-line camelcase
 async function listDNSRecords(name, content, type = 'A', page = 1, per_page = 100, records = []) {
   // https://api.cloudflare.com/#dns-records-for-a-zone-list-dns-records
   const query = {
@@ -39,6 +40,7 @@ async function listDNSRecords(name, content, type = 'A', page = 1, per_page = 10
     content,
     type,
     page,
+    // eslint-disable-next-line camelcase
     per_page,
   };
   const queryString = qs.stringify(query);
@@ -135,122 +137,77 @@ function getUnifiedDomainsForApp(specifications) {
 async function generateAndReplaceKadenaApplicationHaproxyConfig() {
   try {
     // kadena apps on network
-    const applicationSpecifications = [
-      {
-        version: 2,
-        name: 'KadenaChainWebNode', // corresponds to docker name and this name is stored in apps mongo database
-        description: 'Kadena is a fast, secure, and scalable blockchain using the Chainweb consensus protocol. '
-          + 'Chainweb is a braided, parallelized Proof Of Work consensus mechanism that improves throughput and scalability in executing transactions on the blockchain while maintaining the security and integrity found in Bitcoin. '
-          + 'The healthy information tells you if your node is running and synced. If you just installed the docker it can say unhealthy for long time because on first run a bootstrap is downloaded and extracted to make your node sync faster before the node is started. '
-          + 'Do not stop or restart the docker in the first hour after installation. You can also check if your kadena node is synced, by going to running apps and press visit button on kadena and compare your node height with Kadena explorer. Thank you.',
-        repotag: 'runonflux/kadena-chainweb-node:2.12.1',
-        owner: '1hjy4bCYBJr4mny4zCE85J94RXa8W6q37',
-        ports: [30004, 30005],
-        containerPorts: [30004, 30005],
-        domains: ['', ''],
-        tiered: false,
-        cpu: 2.5, // true resource registered for app. If not tiered only this is available
-        ram: 4000, // true resource registered for app
-        hdd: 90, // true resource registered for app
-        enviromentParameters: ['CHAINWEB_P2P_PORT=30004', 'CHAINWEB_SERVICE_PORT=30005', 'LOGLEVEL=warn'],
-        commands: ['/bin/bash', '-c', '(test -d /data/chainweb-db/0 && ./run-chainweb-node.sh) || (/chainweb/initialize-db.sh && ./run-chainweb-node.sh)'],
-        containerData: '/data', // cannot be root todo in verification
-        hash: 'localSpecificationsVersion17', // hash of app message
-        height: 680000, // height of tx on which it was
-      },
-      {
-        version: 2,
-        name: 'KadenaChainWebData', // corresponds to docker name and this name is stored in apps mongo database
-        description: 'Kadena Chainweb Data is extension to Chainweb Node offering additional data about Kadena blockchain. Chainweb Data offers statistics, coins circulation and mainly transaction history and custom searching through transactions',
-        repotag: 'runonflux/kadena-chainweb-data:v1.1.0',
-        owner: '1hjy4bCYBJr4mny4zCE85J94RXa8W6q37',
-        ports: [30006],
-        containerPorts: [8888],
-        domains: [''],
-        tiered: false,
-        cpu: 3, // true resource registered for app. If not tiered only this is available
-        ram: 6000, // true resource registered for app
-        hdd: 60, // true resource registered for app
-        enviromentParameters: [],
-        commands: [],
-        containerData: '/var/lib/postgresql/data', // cannot be root todo in verification
-        hash: 'chainwebDataLocalSpecificationsVersion3', // hash of app message
-        height: 900000, // height of tx on which it was
-      },
-    ];
-
-    // continue with appsOK
-    const configuredApps = []; // object of domain, port, ips for backend
-    for (const app of applicationSpecifications) {
-      log.info(`Configuring ${app.name}`);
+    const kdaApplications = ['Kadena', 'Kadena2'];
+    let appLocations = [];
+    for (const app of kdaApplications) {
       // eslint-disable-next-line no-await-in-loop
-      const appLocations = await getApplicationLocation(app.name);
-      if (appLocations.length > 0) {
-        const appIps = [];
-        // eslint-disable-next-line no-restricted-syntax
-        if (app.name === 'KadenaChainWebNode') {
-          for (const kdaNode of appLocations) {
-            if (kdaNode.hash === app.hash) {
-              // eslint-disable-next-line no-await-in-loop
-              const appOK = await applicationChecks.checkKadenaApplication(kdaNode.ip);
-              if (appOK) {
-                console.log(kdaNode);
-                appIps.push(kdaNode.ip);
-              }
-              if (appIps.length > 100) {
-                break;
-              }
-            }
-          }
-        } else if (app.name === 'KadenaChainWebData') {
-          for (const kdaNode of appLocations) {
-            if (kdaNode.hash === app.hash) {
-              // eslint-disable-next-line no-await-in-loop
-              const appOK = await applicationChecks.checkKadenaDataApplication(kdaNode.ip);
-              if (appOK) {
-                console.log(kdaNode);
-                appIps.push(kdaNode.ip);
-              } else {
-                console.log(`Node ${kdaNode.ip} not ok`);
-              }
-              if (appIps.length > 100) {
-                break;
-              }
-            }
-          }
-        }
-        const domains = getUnifiedDomainsForApp(app);
-        for (let i = 0; i < app.ports.length; i += 1) {
-          const configuredApp = {
-            domain: domains[i],
-            port: app.ports[i],
-            ips: appIps,
-          };
-          configuredApps.push(configuredApp);
-        }
-        const mainApp = {
-          domain: domains[domains.length - 1],
-          port: app.ports[0],
-          ips: appIps,
-        };
-        if (appIps.length > 2) {
-          configuredApps.push(mainApp);
-          log.info(`Application ${app.name} is OK. Proceeding to FDM`);
-        } else {
-          log.warn(`Application ${app.name} is excluded. Not enough IPs`);
-          if (app.name === 'KadenaChainWebNode') {
-            throw new Error('Not enought IPs on KDA app. PANIC');
-          }
-        }
-      } else {
-        log.warn(`Application ${app.name} is excluded. Not running properly?`);
-        if (app.name === 'KadenaChainWebNode') {
-          throw new Error('Not enought IPs on KDA app. PANIC 2');
-        }
+      const appLocationsApp = await getApplicationLocation(app);
+      appLocations = appLocations.concat(appLocationsApp);
+    }
+    if (!appLocations.length) {
+      throw new Error('Kadena is not running properly. PANIC');
+    }
+    const appIpsNode = [];
+    const appIpsData = [];
+    // eslint-disable-next-line no-restricted-syntax
+    for (const kdaNode of appLocations) {
+      // eslint-disable-next-line no-await-in-loop
+      const appOK = await applicationChecks.checkKadenaApplication(kdaNode.ip.split(':')[0]);
+      if (appOK) {
+        console.log(kdaNode);
+        appIpsNode.push(kdaNode.ip);
+      }
+      if (appIpsNode.length > 100) {
+        break;
       }
     }
+    for (const kdaNode of appLocations) {
+      // eslint-disable-next-line no-await-in-loop
+      const appOK = await applicationChecks.checkKadenaDataApplication(kdaNode.ip.split(':')[0]);
+      if (appOK) {
+        console.log(kdaNode);
+        appIpsData.push(kdaNode.ip);
+      } else {
+        console.log(`Node ${kdaNode.ip} not ok`);
+      }
+      if (appIpsData.length > 100) {
+        break;
+      }
+    }
+    const configuredApps = []; // object of domain, port, ips for backend
+    const apps = [
+      {
+        name: 'KadenaChainWebNode',
+        ports: [31350, 31351],
+      },
+      {
+        name: 'KadenaChainWebData',
+        ports: [31352],
+      },
+    ];
+    for (const app of apps) {
+      const domains = getUnifiedDomainsForApp(app);
+      let appIps = appIpsNode;
+      if (app.name === 'KadenaChainWebData') {
+        appIps = appIpsData;
+      }
+      for (let i = 0; i < app.ports.length; i += 1) {
+        const configuredApp = {
+          domain: domains[i],
+          port: app.ports[i],
+          ips: appIps,
+        };
+        configuredApps.push(configuredApp);
+      }
+      const mainApp = {
+        domain: domains[domains.length - 1],
+        port: app.ports[0],
+        ips: appIps,
+      };
+      configuredApps.push(mainApp);
+    }
 
-    const hc = await haproxyTemplate.createAppsHaproxyConfig(configuredApps);
+    const hc = await haproxyTemplate.createKadenaHaproxyConfig(configuredApps);
     console.log(hc);
     const dataToWrite = hc;
     // test haproxy config

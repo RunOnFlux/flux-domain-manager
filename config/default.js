@@ -40,5 +40,5 @@ module.exports = {
     manageapp: true,
     enabled: true,
   },
-  blackListedApps: ['Kadena', 'firefox', 'firefoxtest', 'firefox2', 'apponflux', 'appononflux', 'testapponflux', 'mysqlonflux', 'mysqlfluxmysql', 'application', 'applicationapplication', 'PresearchNode*', 'FiroNode*'],
+  blackListedApps: ['Kadena', 'Kadena2', 'firefox', 'firefoxtest', 'firefox2', 'apponflux', 'appononflux', 'testapponflux', 'mysqlonflux', 'mysqlfluxmysql', 'application', 'applicationapplication', 'PresearchNode*', 'FiroNode*'],
 };

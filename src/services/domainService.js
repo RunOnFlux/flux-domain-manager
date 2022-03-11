@@ -643,17 +643,26 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               appIps.push(location.ip);
             }
           } else if (app.name === 'HavenNodeMainnet') {
+            // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkHavenHeight(location.ip, 31750);
             if (isOK) {
               appIps.push(location.ip);
             }
           } else if (app.name === 'HavenNodeTestnet') {
+            // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkHavenHeight(location.ip, 32750);
             if (isOK) {
               appIps.push(location.ip);
             }
           } else if (app.name === 'HavenNodeStagenet') {
+            // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkHavenHeight(location.ip, 33750);
+            if (isOK) {
+              appIps.push(location.ip);
+            }
+          } else if (app.name === 'KDLaunch') {
+            // eslint-disable-next-line no-await-in-loop
+            const isOK = await applicationChecks.checkKDLaunch(location.ip, 35121);
             if (isOK) {
               appIps.push(location.ip);
             }

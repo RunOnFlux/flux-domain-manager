@@ -449,7 +449,19 @@ async function checkEthereum(ip, port) {
 async function checkHavenHeight(ip, port) {
   try {
     const response = await axios.get(`http://${ip}:${port}/get_info`, { timeout: 5000 });
-    if (response.data.height > response.data.target_height ) {
+    if (response.data.height > response.data.target_height) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function checkKDLaunch(ip, port) {
+  try {
+    const websiteResponse = await axios.get(`http://${ip}:${port}`, { timeout: 8888 });
+    if (websiteResponse.data.includes('<title>KDLaunch')) {
       return true;
     }
     return false;
@@ -466,4 +478,5 @@ module.exports = {
   checkFluxExplorer,
   checkCloudAtlasWebsite,
   checkHavenHeight,
+  checkKDLaunch,
 };

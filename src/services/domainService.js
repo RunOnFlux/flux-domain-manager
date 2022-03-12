@@ -2,6 +2,7 @@
 const axios = require('axios');
 const qs = require('qs');
 const config = require('config');
+const dns = require('dns').promises;
 const nodecmd = require('node-cmd');
 const util = require('util');
 const fs = require('fs').promises;
@@ -43,8 +44,23 @@ const pDNSAxiosConfig = {
   httpsAgent: agent,
 };
 
-// const uiBlackList = [];
-// const apiBlackList = [];
+// return array of IPs to which a hostname is pointeed
+async function dnsLookup(hostname) {
+  const result = dns.lookup(hostname, { all: true }); // eg. [ { address: '65.21.189.1', family: 4 } ]
+  return result;
+}
+
+async function isDomainPointedToThisFDM(hostname, ip = myIP) {
+  if (!ip) {
+    return false;
+  }
+  const dnsLookupdRecords = await dnsLookup(hostname);
+  const pointedToMyIp = dnsLookupdRecords.find((record) => record.address === ip);
+  if (pointedToMyIp) {
+    return true;
+  }
+  return false;
+}
 
 // Lists DNS records for given input, will return all if no input provided
 async function listDNSRecords(name, content, type = 'A', page = 1, perPage = 100, records = []) {
@@ -456,6 +472,11 @@ async function doCertOperationsForCustomDomains(domains) {
             return true;
           }
           if (!isCertificatePresent) {
+            // eslint-disable-next-line no-await-in-loop
+            const domainIsPointedCorrectly = await isDomainPointedToThisFDM(appDomain);
+            if (!domainIsPointedCorrectly) {
+              throw new Error(`DNS record is not pointed to this FDM for ${appDomain}, cert operations not proceeding`);
+            }
             // if we dont have certificate, obtain it
             log.info(`Obtianing certificate for ${appDomain}`);
             // eslint-disable-next-line no-await-in-loop
@@ -471,7 +492,7 @@ async function doCertOperationsForCustomDomains(domains) {
             throw new Error(`Certificate not present for ${appDomain}`);
           }
         } catch (error) {
-          log.error(error);
+          log.warn(error);
         }
       }
     }
@@ -504,6 +525,11 @@ async function doDomainCertOperationsForFDMdomains(domains) {
             return true;
           }
           if (!isCertificatePresent) {
+            // eslint-disable-next-line no-await-in-loop
+            const domainIsPointedCorrectly = await isDomainPointedToThisFDM(appDomain);
+            if (!domainIsPointedCorrectly) {
+              throw new Error(`DNS record is not pointed to this FDM for ${appDomain}, cert operations not proceeding`);
+            }
             // if we dont have certificate, obtain it
             log.info(`Obtaining certificate for ${appDomain}`);
             // eslint-disable-next-line no-await-in-loop
@@ -519,7 +545,7 @@ async function doDomainCertOperationsForFDMdomains(domains) {
             throw new Error(`Certificate not present for ${appDomain}`);
           }
         } catch (error) {
-          log.error(error);
+          log.warn(error);
         }
       }
     }
@@ -960,4 +986,6 @@ module.exports = {
   start,
   getAllRecordsDBAPI,
   listDNSRecordsAPI,
+  dnsLookup,
+  isDomainPointedToThisFDM,
 };

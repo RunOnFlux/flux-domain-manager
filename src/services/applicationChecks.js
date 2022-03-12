@@ -140,8 +140,8 @@ async function isSyncedOK(ip, port) {
       timeout,
     });
     isResolved = true;
-    const version = response.data.data.generalScannedHeight;
-    if (version > 1075376) {
+    const height = response.data.data.generalScannedHeight;
+    if (height > 1075376) {
       return true;
     }
     return false;
@@ -177,8 +177,8 @@ async function hasManyApps(ip, port) {
       const kadenaExists = response.data.data.find((app) => app.name === 'Kadena'); // hopefully its on network right
       const atlasExists = response.data.data.find((app) => app.name === 'AtlasCloudMainnet'); // hopefully its on network right
       if (
-        fluxWhitePaper.height >= 1073885 && explorerExists.height >= 1071293 && kdlExists.height >= 1063573 && HavenNodeMainnetExists.height >= 1074350
-        && ethExists.height >= 1067342 && websiteExists.height >= 1073907 && kadenaExists.height >= 1073159 && atlasExists.height >= 1065314
+        fluxWhitePaper.height >= 1060000 && explorerExists.height >= 1060000 && kdlExists.height >= 1060000 && HavenNodeMainnetExists.height >= 1060000
+        && ethExists.height >= 1060000 && websiteExists.height >= 1060000 && kadenaExists.height >= 1060000 && atlasExists.height >= 1060000
       ) {
         return true;
       }

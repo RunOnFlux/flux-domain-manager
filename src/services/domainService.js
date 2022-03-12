@@ -46,20 +46,25 @@ const pDNSAxiosConfig = {
 
 // return array of IPs to which a hostname is pointeed
 async function dnsLookup(hostname) {
-  const result = dns.lookup(hostname, { all: true }); // eg. [ { address: '65.21.189.1', family: 4 } ]
+  const result = await dns.lookup(hostname, { all: true }); // eg. [ { address: '65.21.189.1', family: 4 } ]
   return result;
 }
 
 async function isDomainPointedToThisFDM(hostname, ip = myIP) {
-  if (!ip) {
+  try {
+    if (!ip) {
+      return false;
+    }
+    const dnsLookupdRecords = await dnsLookup(hostname);
+    const pointedToMyIp = dnsLookupdRecords.find((record) => record.address === ip);
+    if (pointedToMyIp) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    log.warn(error);
     return false;
   }
-  const dnsLookupdRecords = await dnsLookup(hostname);
-  const pointedToMyIp = dnsLookupdRecords.find((record) => record.address === ip);
-  if (pointedToMyIp) {
-    return true;
-  }
-  return false;
 }
 
 // Lists DNS records for given input, will return all if no input provided

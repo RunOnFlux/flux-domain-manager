@@ -7,7 +7,7 @@ const log = require('../lib/log');
 const timeout = 3456;
 
 // MAIN
-async function checkLoginPhrase(ip) {
+async function checkLoginPhrase(ip, port) {
   try {
     const { CancelToken } = axios;
     const source = CancelToken.source();
@@ -17,7 +17,7 @@ async function checkLoginPhrase(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, timeout * 2);
-    const url = `http://${ip}:16127/id/loginphrase`;
+    const url = `http://${ip}:${port}/id/loginphrase`;
     const response = await axios.get(url, {
       cancelToken: source.token,
       timeout,
@@ -32,7 +32,7 @@ async function checkLoginPhrase(ip) {
   }
 }
 
-async function isCommunicationOK(ip) {
+async function isCommunicationOK(ip, port) {
   try {
     let { CancelToken } = axios;
     let source = CancelToken.source();
@@ -42,8 +42,8 @@ async function isCommunicationOK(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, timeout * 2);
-    const urlA = `http://${ip}:16127/flux/connectedpeersinfo`;
-    const urlB = `http://${ip}:16127/flux/incomingconnectionsinfo`;
+    const urlA = `http://${ip}:${port}/flux/connectedpeersinfo`;
+    const urlB = `http://${ip}:${port}/flux/incomingconnectionsinfo`;
     const responseA = await axios.get(urlA, {
       cancelToken: source.token,
       timeout,
@@ -73,7 +73,7 @@ async function isCommunicationOK(ip) {
   }
 }
 
-async function isHomeOK(ip) {
+async function isHomeOK(ip, port) {
   try {
     const { CancelToken } = axios;
     const source = CancelToken.source();
@@ -83,7 +83,7 @@ async function isHomeOK(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, timeout * 2);
-    const url = `http://${ip}:16126`;
+    const url = `http://${ip}:${port}`;
     const response = await axios.get(url, {
       cancelToken: source.token,
       timeout,
@@ -98,7 +98,7 @@ async function isHomeOK(ip) {
   }
 }
 
-async function isVersionOK(ip) {
+async function isVersionOK(ip, port) {
   try {
     const { CancelToken } = axios;
     const source = CancelToken.source();
@@ -108,14 +108,14 @@ async function isVersionOK(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, timeout * 2);
-    const url = `http://${ip}:16127/flux/version`;
+    const url = `http://${ip}:${port}/flux/version`;
     const response = await axios.get(url, {
       cancelToken: source.token,
       timeout,
     });
     isResolved = true;
     const version = response.data.data.replace(/\./g, '');
-    if (version >= 360) {
+    if (version >= 390) {
       return true;
     }
     return false;
@@ -124,7 +124,7 @@ async function isVersionOK(ip) {
   }
 }
 
-async function isSyncedOK(ip) {
+async function isSyncedOK(ip, port) {
   try {
     const { CancelToken } = axios;
     const source = CancelToken.source();
@@ -134,14 +134,14 @@ async function isSyncedOK(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, timeout * 2);
-    const url = `http://${ip}:16127/explorer/scannedheight`;
+    const url = `http://${ip}:${port}/explorer/scannedheight`;
     const response = await axios.get(url, {
       cancelToken: source.token,
       timeout,
     });
     isResolved = true;
     const version = response.data.data.generalScannedHeight;
-    if (version > 1040709) {
+    if (version > 1075376) {
       return true;
     }
     return false;
@@ -150,7 +150,7 @@ async function isSyncedOK(ip) {
   }
 }
 
-async function hasManyApps(ip) {
+async function hasManyApps(ip, port) {
   try {
     const { CancelToken } = axios;
     const source = CancelToken.source();
@@ -160,16 +160,26 @@ async function hasManyApps(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, timeout * 2);
-    const url = `http://${ip}:16127/apps/globalappsspecifications`;
+    const url = `http://${ip}:${port}/apps/globalappsspecifications`;
     const response = await axios.get(url, {
       cancelToken: source.token,
       timeout,
     });
     isResolved = true;
     const appsAmount = response.data.data.length;
-    if (appsAmount > 100) { // we surely have at least 100 apps on network
+    if (appsAmount > 250) { // we surely have at least 250 apps on network
       const fluxWhitePaper = response.data.data.find((app) => app.name === 'FluxWhitepaper'); // hopefully its on network right
-      if (fluxWhitePaper.height >= 1031339) {
+      const explorerExists = response.data.data.find((app) => app.name === 'explorer'); // hopefully its on network right
+      const kdlExists = response.data.data.find((app) => app.name === 'KDLaunch'); // hopefully its on network right
+      const HavenNodeMainnetExists = response.data.data.find((app) => app.name === 'HavenNodeMainnet'); // hopefully its on network right
+      const ethExists = response.data.data.find((app) => app.name === 'EthereumNodeLight'); // hopefully its on network right
+      const websiteExists = response.data.data.find((app) => app.name === 'website'); // hopefully its on network right
+      const kadenaExists = response.data.data.find((app) => app.name === 'Kadena'); // hopefully its on network right
+      const atlasExists = response.data.data.find((app) => app.name === 'AtlasCloudMainnet'); // hopefully its on network right
+      if (
+        fluxWhitePaper.height >= 1073885 && explorerExists.height >= 1071293 && kdlExists.height >= 1063573 && HavenNodeMainnetExists.height >= 1074350
+        && ethExists.height >= 1067342 && websiteExists.height >= 1073907 && kadenaExists.height >= 1073159 && atlasExists.height >= 1065314
+      ) {
         return true;
       }
     }
@@ -179,22 +189,22 @@ async function hasManyApps(ip) {
   }
 }
 
-async function checkMainFlux(ip) {
+async function checkMainFlux(ip, port = 16127) {
   try {
-    const versionOK = await isVersionOK(ip);
+    const versionOK = await isVersionOK(ip, port);
     if (versionOK) {
       // eslint-disable-next-line no-await-in-loop
-      const loginPhraseOK = await checkLoginPhrase(ip);
+      const loginPhraseOK = await checkLoginPhrase(ip, port);
       if (loginPhraseOK) {
         // eslint-disable-next-line no-await-in-loop
-        const communicationOK = await isCommunicationOK(ip);
+        const communicationOK = await isCommunicationOK(ip, port);
         if (communicationOK) {
-          const isSynced = await isSyncedOK(ip);
+          const isSynced = await isSyncedOK(ip, port);
           if (isSynced) {
-            const hasApps = await hasManyApps(ip);
+            const hasApps = await hasManyApps(ip, port);
             if (hasApps) {
               // eslint-disable-next-line no-await-in-loop
-              const uiOK = await isHomeOK(ip);
+              const uiOK = await isHomeOK(ip, +port - 1);
               if (uiOK) {
                 return true;
               }

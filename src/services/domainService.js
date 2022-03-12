@@ -201,7 +201,7 @@ async function generateAndReplaceMainHaproxyConfig() {
     // 3rd is ui
     for (const ip of fluxIPs) {
       // eslint-disable-next-line no-await-in-loop
-      const isOK = await applicationChecks.checkMainFlux(ip);
+      const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
       if (isOK) {
         fluxIPsForBalancing.push(ip);
         console.log(`adding ${ip} as backend`);
@@ -620,54 +620,54 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         for (const location of appLocations) { // run coded checks for app
           if (app.name === 'EthereumNodeLight') {
             // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkEthereum(location.ip, 31301);
+            const isOK = await applicationChecks.checkEthereum(location.ip.split(':')[0], 31301);
             if (isOK) {
-              appIps.push(location.ip);
+              appIps.push(location.ip.split(':')[0]);
             }
           } else if (app.name === 'explorer') {
             // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkFluxExplorer(location.ip, 39185);
+            const isOK = await applicationChecks.checkFluxExplorer(location.ip.split(':')[0], 39185);
             if (isOK) {
-              appIps.push(location.ip);
+              appIps.push(location.ip.split(':')[0]);
             }
           } else if (app.name === 'website') {
             // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkRunOnFluxWebsite(location.ip, 33444);
+            const isOK = await applicationChecks.checkRunOnFluxWebsite(location.ip.split(':')[0], 33444);
             if (isOK) {
-              appIps.push(location.ip);
+              appIps.push(location.ip.split(':')[0]);
             }
           } else if (app.name === 'AtlasCloudMainnet') {
             // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkCloudAtlasWebsite(location.ip, 37047);
+            const isOK = await applicationChecks.checkCloudAtlasWebsite(location.ip.split(':')[0], 37047);
             if (isOK) {
-              appIps.push(location.ip);
+              appIps.push(location.ip.split(':')[0]);
             }
           } else if (app.name === 'HavenNodeMainnet') {
             // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkHavenHeight(location.ip, 31750);
+            const isOK = await applicationChecks.checkHavenHeight(location.ip.split(':')[0], 31750);
             if (isOK) {
-              appIps.push(location.ip);
+              appIps.push(location.ip.split(':')[0]);
             }
           } else if (app.name === 'HavenNodeTestnet') {
             // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkHavenHeight(location.ip, 32750);
+            const isOK = await applicationChecks.checkHavenHeight(location.ip.split(':')[0], 32750);
             if (isOK) {
-              appIps.push(location.ip);
+              appIps.push(location.ip.split(':')[0]);
             }
           } else if (app.name === 'HavenNodeStagenet') {
             // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkHavenHeight(location.ip, 33750);
+            const isOK = await applicationChecks.checkHavenHeight(location.ip.split(':')[0], 33750);
             if (isOK) {
-              appIps.push(location.ip);
+              appIps.push(location.ip.split(':')[0]);
             }
           } else if (app.name === 'KDLaunch') {
             // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkKDLaunch(location.ip, 35121);
+            const isOK = await applicationChecks.checkKDLaunch(location.ip.split(':')[0], 35121);
             if (isOK) {
-              appIps.push(location.ip);
+              appIps.push(location.ip.split(':')[0]);
             }
           } else {
-            appIps.push(location.ip);
+            appIps.push(location.ip.split(':')[0]);
           }
         }
         const domains = getUnifiedDomainsForApp(app);

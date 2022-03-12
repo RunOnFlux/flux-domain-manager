@@ -82,8 +82,8 @@ backend letsencrypt-backend
 ```
 sudo service haproxy reload
 sudo mkdir -p /etc/ssl/rosetta.runonflux.io
-sudo certbot certonly --standalone -d rosetta.runonflux.io     --non-interactive --agree-tos --email tessjonesie@gmail.com     --http-01-port=8787
-sudo cat /etc/letsencrypt/live/rosetta.runonflux.io/fullchain.pem     /etc/letsencrypt/live/rosetta.runonflux.io/privkey.pem     | sudo tee /etc/ssl/rosetta.runonflux.io/rosetta.runonflux.io.pem
+#sudo certbot certonly --standalone -d rosetta.runonflux.io     --non-interactive --agree-tos --email tessjonesie@gmail.com     --http-01-port=8787
+#sudo cat /etc/letsencrypt/live/rosetta.runonflux.io/fullchain.pem     /etc/letsencrypt/live/rosetta.runonflux.io/privkey.pem     | sudo tee /etc/ssl/rosetta.runonflux.io/rosetta.runonflux.io.pem
 ```
 ```
 sudo nano /opt/update-certs.sh
@@ -95,7 +95,7 @@ sudo nano /opt/update-certs.sh
 certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
 
 # Concatenate new cert files, with less output (avoiding the use tee and its output to stdout)
-bash -c "cat /etc/letsencrypt/live/rosetta.runonflux.io/fullchain.pem /etc/letsencrypt/live/rosetta.runonflux.io/privkey.pem > /etc/ssl/rosetta.runonflux.io/rosetta.runonflux.io.pem"
+#bash -c "cat /etc/letsencrypt/live/rosetta.runonflux.io/fullchain.pem /etc/letsencrypt/live/rosetta.runonflux.io/privkey.pem > /etc/ssl/rosetta.runonflux.io/rosetta.runonflux.io.pem"
 
 # Reload  HAProxy
 service haproxy reload

@@ -20,7 +20,7 @@ const axiosConfig = {
   timeout: 13456,
 };
 
-const cmdAsync = util.promisify(nodecmd.get);
+const cmdAsync = util.promisify(nodecmd.run);
 
 let db = null;
 const recordsCollection = config.database.mainDomain.collections.records;

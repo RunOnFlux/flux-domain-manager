@@ -166,13 +166,17 @@ async function createDNSRecord(name, content, type = config.domainAppType, ttl =
     const response = await axios.post(url, data, cloudFlareAxiosConfig);
     return response.data;
   } if (config.pDNS.enabled) {
+    let adjustedContent = content;
+    if (type === 'CNAME') {
+      adjustedContent = `${content}.`;
+    }
     const data = {
       rrsets: [{
-        name,
+        name: `${name}.`,
         type,
         ttl,
         changetype: 'REPLACE',
-        records: [{ content, disabled: false }],
+        records: [{ content: adjustedContent, disabled: false }],
       }],
     };
     const url = `${config.pDNS.endpoint}zones/${config.pDNS.zone}`;

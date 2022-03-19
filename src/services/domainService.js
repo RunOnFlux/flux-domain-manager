@@ -525,7 +525,7 @@ async function doDomainCertOperationsForFDMdomains(domains) {
       if (wasDomainAdjusted) {
         log.info(`Domain ${appDomain} was adjusted on DNS`);
         // eslint-disable-next-line no-await-in-loop
-        await serviceHelper.timeout(45 * 1000);
+        await serviceHelper.timeout(1 * 1000);
       }
       if (config.automateCertificatesForFDMdomains) {
         try {

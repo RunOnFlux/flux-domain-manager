@@ -14,6 +14,9 @@ Enable `automateCertificatesForFDMdomains` flag in config if you want certificat
 
 Enable `automateCertificates` flag in config if you want certificate management to be happening for custom domains set by an application. Default true.
 
+domainAppType: 'CNEME' or 'A'
+- FDM can create either CNAME records or A record of an application. In case of using CNAME record type (default), records will be pointed to fdmAppDomain.
+
 -   provide domain
 -   provide ssl
 -   load balancing

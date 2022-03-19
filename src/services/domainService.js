@@ -16,6 +16,7 @@ const haproxyTemplate = require('./haproxyTemplate');
 const applicationChecks = require('./applicationChecks');
 
 let myIP = null;
+let myFDMnameORip = null;
 
 const axiosConfig = {
   timeout: 13456,
@@ -68,16 +69,18 @@ async function isDomainPointedToThisFDM(hostname, ip = myIP) {
 }
 
 // Lists DNS records for given input, will return all if no input provided
-async function listDNSRecords(name, content, type = 'A', page = 1, perPage = 100, records = []) {
+async function listDNSRecords(name, content, type = 'all', page = 1, perPage = 100, records = []) {
   // https://api.cloudflare.com/#dns-records-for-a-zone-list-dns-records
   if (config.cloudflare.enabled) {
     const query = {
       name,
       content,
-      type,
       page,
       per_page: perPage,
     };
+    if (type !== 'all') {
+      query.type = type;
+    }
     const queryString = qs.stringify(query);
     const url = `${config.cloudflare.endpoint}zones/${config.cloudflare.zone}/dns_records?${queryString}`;
     const response = await axios.get(url, cloudFlareAxiosConfig);
@@ -94,14 +97,14 @@ async function listDNSRecords(name, content, type = 'A', page = 1, perPage = 100
     }
     const url = `${config.pDNS.endpoint}search-data?q=${adjustedName}&object_type=record`;
     const response = await axios.get(url, pDNSAxiosConfig);
+    let filteredData = response.data;
     if (content) {
-      const filteredData = [];
-      for (let i = 0; i < response.data.length; i += 1) {
-        if (response.data[i].content === content && response.data[i].type === type) filteredData.push(response.data[i]);
-      }
-      return filteredData;
+      filteredData = filteredData.filter((data) => data.content === content);
     }
-    return response.data;
+    if (type !== 'all') {
+      filteredData = filteredData.filter((data) => data.type === type);
+    }
+    return filteredData;
   }
   throw new Error('No DNS provider is enable!');
 }
@@ -147,7 +150,7 @@ async function deleteDNSRecordPDNS(name, content, type = 'A', ttl = 60) {
 }
 
 // Creates new DNS record
-async function createDNSRecord(name, content, type = 'A', ttl = 60) {
+async function createDNSRecord(name, content, type = config.domainAppType, ttl = 60) {
   if (!name.endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
     throw new Error('Invalid DNS record to create specified');
   }
@@ -353,7 +356,7 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
     const dnsRecords = await listDNSRecords(domain);
     // delete bad
     for (const record of dnsRecords) { // async inside
-      if (myIP && typeof myIP === 'string' && (record.content !== myIP || record.proxied === true)) {
+      if (myFDMnameORip && typeof myFDMnameORip === 'string' && (record.content !== myFDMnameORip || record.proxied === true)) {
         // delete the record
         if (config.cloudflare.enabled) {
           // eslint-disable-next-line no-await-in-loop
@@ -366,9 +369,9 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
         }
       }
     }
-    const correctRecords = dnsRecords.filter((record) => (record.content === myIP && (record.proxied === undefined || record.proxied === false)));
+    const correctRecords = dnsRecords.filter((record) => (record.content === myFDMnameORip && (record.proxied === undefined || record.proxied === false)));
     if (correctRecords.length === 0) {
-      await createDNSRecord(domain, myIP);
+      await createDNSRecord(domain, myFDMnameORip, config.domainAppType);
       return true;
     }
     if (correctRecords.length > 1) {
@@ -944,6 +947,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 async function initializeServices() {
   myIP = await ipService.localIP();
   console.log(myIP);
+  if (config.domainAppType === 'CNAME') {
+    myFDMnameORip = config.fdmAppDomain;
+  } else {
+    myFDMnameORip = myIP;
+  }
   if (myIP) {
     if (config.mainDomain === config.cloudflare.domain && !config.cloudflare.manageapp) {
       generateAndReplaceMainHaproxyConfig();

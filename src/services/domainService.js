@@ -168,7 +168,7 @@ async function createDNSRecord(name, content, type = config.domainAppType, ttl =
   } if (config.pDNS.enabled) {
     const data = {
       rrsets: [{
-        name: `${name}.`,
+        name,
         type,
         ttl,
         changetype: 'REPLACE',

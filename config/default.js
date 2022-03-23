@@ -20,7 +20,7 @@ module.exports = {
   },
   mainDomain: 'runonflux.io',
   appSubDomain: 'app2',
-  fdmAppDomain: 'fdm-2.runonflux.io',
+  fdmAppDomain: 'fdm-lb-2.runonflux.io',
   domainAppType: 'CNAME',
   emailDomain: 'tessjonesie@gmail.com',
   certFolder: 'fluxapps',

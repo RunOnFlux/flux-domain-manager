@@ -155,7 +155,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
       const appOK = await applicationChecks.checkKadenaApplication(kdaNode.ip.split(':')[0]);
       if (appOK) {
         console.log(kdaNode);
-        appIpsNode.push(kdaNode.ip);
+        appIpsNode.push(kdaNode.ip.split(':')[0]);
       }
       if (appIpsNode.length > 100) {
         break;
@@ -166,7 +166,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
       const appOK = await applicationChecks.checkKadenaDataApplication(kdaNode.ip.split(':')[0]);
       if (appOK) {
         console.log(kdaNode);
-        appIpsData.push(kdaNode.ip);
+        appIpsData.push(kdaNode.ip.split(':')[0]);
       } else {
         console.log(`Node ${kdaNode.ip} not ok`);
       }

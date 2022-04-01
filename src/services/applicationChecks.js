@@ -141,7 +141,7 @@ async function isSyncedOK(ip, port) {
     });
     isResolved = true;
     const height = response.data.data.generalScannedHeight;
-    if (height > 1075376) {
+    if (height > 1089559) {
       return true;
     }
     return false;

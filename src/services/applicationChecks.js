@@ -168,22 +168,19 @@ async function hasManyApps(ip, port) {
     isResolved = true;
     const appsAmount = response.data.data.length;
     if (appsAmount > 250) { // we surely have at least 250 apps on network
-      const fluxWhitePaper = response.data.data.find((app) => app.name === 'FluxWhitepaper'); // hopefully its on network right
-      const explorerExists = response.data.data.find((app) => app.name === 'explorer'); // hopefully its on network right
-      const kdlExists = response.data.data.find((app) => app.name === 'KDLaunch'); // hopefully its on network right
-      const HavenNodeMainnetExists = response.data.data.find((app) => app.name === 'HavenNodeMainnet'); // hopefully its on network right
-      const ethExists = response.data.data.find((app) => app.name === 'EthereumNodeLight'); // hopefully its on network right
-      const websiteExists = response.data.data.find((app) => app.name === 'website'); // hopefully its on network right
-      const kadenaExists = response.data.data.find((app) => app.name === 'Kadena'); // hopefully its on network right
-      const atlasExists = response.data.data.find((app) => app.name === 'AtlasCloudMainnet'); // hopefully its on network right
-      if (
-        fluxWhitePaper.height >= 1060000 && explorerExists.height >= 1060000 && kdlExists.height >= 1060000 && HavenNodeMainnetExists.height >= 1060000
-        && ethExists.height >= 1060000 && websiteExists.height >= 1060000 && kadenaExists.height >= 1060000
-      ) {
-        return true;
+      const mandatoryApps = ['FluxWhitepaper', 'explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena', 'HavenNodeMainnet'];
+      // eslint-disable-next-line no-restricted-syntax
+      for (const app of mandatoryApps) {
+        const appExists = response.data.data.find((a) => a.name === app);
+        if (!appExists) {
+          return false;
+        }
+        if (appExists.height < 1060000) {
+          return false;
+        }
       }
     }
-    return false;
+    return true;
   } catch (error) {
     return false;
   }

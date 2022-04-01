@@ -178,7 +178,7 @@ async function hasManyApps(ip, port) {
       const atlasExists = response.data.data.find((app) => app.name === 'AtlasCloudMainnet'); // hopefully its on network right
       if (
         fluxWhitePaper.height >= 1060000 && explorerExists.height >= 1060000 && kdlExists.height >= 1060000 && HavenNodeMainnetExists.height >= 1060000
-        && ethExists.height >= 1060000 && websiteExists.height >= 1060000 && kadenaExists.height >= 1060000 && atlasExists.height >= 1060000
+        && websiteExists.height >= 1060000 && kadenaExists.height >= 1060000
       ) {
         return true;
       }

@@ -137,7 +137,7 @@ function getUnifiedDomainsForApp(specifications) {
 async function generateAndReplaceKadenaApplicationHaproxyConfig() {
   try {
     // kadena apps on network
-    const kdaApplications = ['Kadena', 'Kadena2', 'Kadena3'];
+    const kdaApplications = ['Kadena', 'Kadena2', 'Kadena3', 'Kadena4', 'Kadena5'];
     let appLocations = [];
     for (const app of kdaApplications) {
       // eslint-disable-next-line no-await-in-loop
@@ -155,7 +155,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
       const appOK = await applicationChecks.checkKadenaApplication(kdaNode.ip.split(':')[0]);
       if (appOK) {
         console.log(kdaNode);
-        appIpsNode.push(kdaNode.ip.split(':')[0]);
+        appIpsNode.push(kdaNode.ip);
       }
       if (appIpsNode.length > 100) {
         break;
@@ -166,7 +166,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
       const appOK = await applicationChecks.checkKadenaDataApplication(kdaNode.ip.split(':')[0]);
       if (appOK) {
         console.log(kdaNode);
-        appIpsData.push(kdaNode.ip.split(':')[0]);
+        appIpsData.push(kdaNode.ip);
       } else {
         console.log(`Node ${kdaNode.ip} not ok`);
       }

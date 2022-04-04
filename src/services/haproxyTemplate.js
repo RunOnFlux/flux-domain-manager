@@ -108,7 +108,8 @@ function createKadenaHaproxyConfig(appConfig) {
     for (const ip of app.ips) {
       console.log(app);
       console.log(app.ip);
-      const a = ip.split('.');
+      const a = ip.split(':')[0].split('.');
+      const b = ip.split(':')[1] || '';
       let IpString = '';
       for (let i = 0; i < 4; i += 1) {
         if (a[i].length === 3) {
@@ -122,9 +123,9 @@ function createKadenaHaproxyConfig(appConfig) {
         }
       }
       if (app.port === 31350) {
-        domainBackend += `\n  server ${IpString} ${ip}:${app.port} check ssl verify none`;
+        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ssl verify none`;
       } else {
-        domainBackend += `\n  server ${IpString} ${ip}:${app.port} check`;
+        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check`;
       }
     }
     backends = `${backends + domainBackend}\n\n`;

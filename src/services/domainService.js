@@ -660,52 +660,52 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkEthereum(location.ip.split(':')[0], 31301);
             if (isOK) {
-              appIps.push(location.ip.split(':')[0]);
+              appIps.push(location.ip);
             }
           } else if (app.name === 'explorer') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkFluxExplorer(location.ip.split(':')[0], 39185);
             if (isOK) {
-              appIps.push(location.ip.split(':')[0]);
+              appIps.push(location.ip);
             }
           } else if (app.name === 'website') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkRunOnFluxWebsite(location.ip.split(':')[0], 33444);
             if (isOK) {
-              appIps.push(location.ip.split(':')[0]);
+              appIps.push(location.ip);
             }
           } else if (app.name === 'AtlasCloudMainnet') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkCloudAtlasWebsite(location.ip.split(':')[0], 37047);
             if (isOK) {
-              appIps.push(location.ip.split(':')[0]);
+              appIps.push(location.ip);
             }
           } else if (app.name === 'HavenNodeMainnet') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkHavenHeight(location.ip.split(':')[0], 31750);
             if (isOK) {
-              appIps.push(location.ip.split(':')[0]);
+              appIps.push(location.ip);
             }
           } else if (app.name === 'HavenNodeTestnet') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkHavenHeight(location.ip.split(':')[0], 32750);
             if (isOK) {
-              appIps.push(location.ip.split(':')[0]);
+              appIps.push(location.ip);
             }
           } else if (app.name === 'HavenNodeStagenet') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkHavenHeight(location.ip.split(':')[0], 33750);
             if (isOK) {
-              appIps.push(location.ip.split(':')[0]);
+              appIps.push(location.ip);
             }
           } else if (app.name === 'KDLaunch') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkKDLaunch(location.ip.split(':')[0], 35121);
             if (isOK) {
-              appIps.push(location.ip.split(':')[0]);
+              appIps.push(location.ip);
             }
           } else {
-            appIps.push(location.ip.split(':')[0]);
+            appIps.push(location.ip);
           }
         }
         const domains = getUnifiedDomainsForApp(app);

@@ -92,7 +92,7 @@ function generateHaproxyConfig(acls, usebackends, domains, backends, redirects) 
 }
 
 function createMainHaproxyConfig(ui, api, fluxIPs) {
-  const uiB = ui.split(':')[0].split('.').join('');
+  const uiB = ui.split('.').join('');
   let uiBackend = `backend ${uiB}backend
   mode http
   balance source
@@ -102,6 +102,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
   for (const ip of fluxIPs) {
     const uiPort = ip.split(':')[1] || 16126;
     const a = ip.split(':')[0].split('.');
+    const b = ip.split(':')[1] || '';
     let IpString = '';
     for (let i = 0; i < 4; i += 1) {
       if (a[i].length === 3) {
@@ -114,11 +115,11 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
         IpString = `${IpString}00${a[i]}`;
       }
     }
-    uiBackend += `\n  server ${IpString} ${ip.split(':')[0]}:${uiPort} check`;
+    uiBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${uiPort} check`;
   }
   // console.log(uiBackend);
 
-  const apiB = api.split(':')[0].split('.').join('');
+  const apiB = api.split('.').join('');
   let apiBackend = `backend ${apiB}backend
   mode http
   balance source
@@ -128,6 +129,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || 16127;
     const a = ip.split(':')[0].split('.');
+    const b = ip.split(':')[1] || '';
     let IpString = '';
     for (let i = 0; i < 4; i += 1) {
       if (a[i].length === 3) {
@@ -140,7 +142,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
         IpString = `${IpString}00${a[i]}`;
       }
     }
-    apiBackend += `\n  server ${IpString} ${ip.split(':')[0]}:${apiPort} check`;
+    apiBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${apiPort} check`;
   }
   // console.log(apiBackend);
 
@@ -176,6 +178,7 @@ function createAppsHaproxyConfig(appConfig) {
     for (const ip of app.ips) {
       const a = ip.split(':')[0].split('.');
       let IpString = '';
+      const b = ip.split(':')[1] || '';
       for (let i = 0; i < 4; i += 1) {
         if (a[i].length === 3) {
           IpString += a[i];
@@ -187,7 +190,7 @@ function createAppsHaproxyConfig(appConfig) {
           IpString = `${IpString}00${a[i]}`;
         }
       }
-      domainBackend += `\n  server ${IpString} ${ip.split(':')[0]}:${app.port} check`;
+      domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check`;
     }
     backends = `${backends + domainBackend}\n\n`;
     domains.push(app.domain);

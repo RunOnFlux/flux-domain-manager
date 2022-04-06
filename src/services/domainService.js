@@ -364,6 +364,7 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
       if (adjustedRecord && config.pDNS.enabled) {
         adjustedRecord.slice(0, -1);
       }
+      console.log(record);
       if (myFDMnameORip && typeof myFDMnameORip === 'string' && record.content && (adjustedRecord !== myFDMnameORip || record.proxied === true)) {
         // delete the record
         if (config.cloudflare.enabled) {

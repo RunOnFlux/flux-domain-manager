@@ -135,7 +135,7 @@ async function deleteDNSRecordPDNS(name, content, type = 'A', ttl = 60) {
   if (config.pDNS.enabled) {
     const data = {
       rrsets: [{
-        name: `${name}.`,
+        name,
         type,
         ttl,
         changetype: 'DELETE',
@@ -360,11 +360,10 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
     const dnsRecords = await listDNSRecords(domain);
     // delete bad
     for (const record of dnsRecords) { // async inside
-      const adjustedRecord = record.content;
+      let adjustedRecord = record.content;
       if (adjustedRecord && config.pDNS.enabled) {
-        adjustedRecord.slice(0, -1);
+        adjustedRecord = adjustedRecord.slice(0, -1);
       }
-      console.log(record);
       if (myFDMnameORip && typeof myFDMnameORip === 'string' && record.content && (adjustedRecord !== myFDMnameORip || record.proxied === true)) {
         // delete the record
         if (config.cloudflare.enabled) {
@@ -373,8 +372,8 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
           log.info(`Record ${record.id} of ${record.name} on ${record.content} deleted`);
         } else if (config.pDNS.enabled) {
           // eslint-disable-next-line no-await-in-loop
-          await deleteDNSRecordPDNS(record.name.slice(0, -1), record.content, record.type, record.ttl); // may throw
-          log.info(`Record ${record.name.slice(0, -1)} on ${record.content} deleted`);
+          await deleteDNSRecordPDNS(record.name, record.content, record.type, record.ttl); // may throw
+          log.info(`Record ${record.name} on ${record.content} deleted`);
         }
       }
     }
@@ -394,8 +393,8 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
           log.info(`Duplicate Record ${record.id} of ${record.name} on ${record.content} deleted`);
         } else if (config.pDNS.enabled) {
           // eslint-disable-next-line no-await-in-loop
-          await deleteDNSRecordPDNS(record.name.slice(0, -1), record.content, record.type, record.ttl); // may throw
-          log.info(`Duplicate Record ${record.name.slice(0, -1)} on ${record.content} deleted`);
+          await deleteDNSRecordPDNS(record.name, record.content, record.type, record.ttl); // may throw
+          log.info(`Duplicate Record ${record.name} on ${record.content} deleted`);
         }
       }
       return true;

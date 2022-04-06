@@ -360,7 +360,11 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
     const dnsRecords = await listDNSRecords(domain);
     // delete bad
     for (const record of dnsRecords) { // async inside
-      if (myFDMnameORip && typeof myFDMnameORip === 'string' && (record.content !== myFDMnameORip || record.proxied === true)) {
+      const adjustedRecord = record.content;
+      if (adjustedRecord && config.pDNS.enabled) {
+        adjustedRecord.slice(0, -1);
+      }
+      if (myFDMnameORip && typeof myFDMnameORip === 'string' && record.content && (adjustedRecord !== myFDMnameORip || record.proxied === true)) {
         // delete the record
         if (config.cloudflare.enabled) {
           // eslint-disable-next-line no-await-in-loop
@@ -373,7 +377,7 @@ async function checkAndAdjustDNSrecordForDomain(domain) {
         }
       }
     }
-    const correctRecords = dnsRecords.filter((record) => (record.content === myFDMnameORip && (record.proxied === undefined || record.proxied === false)));
+    const correctRecords = dnsRecords.filter((record) => ((record.content === myFDMnameORip || (record.content && record.content.slice(0, -1) === myFDMnameORip)) && (record.proxied === undefined || record.proxied === false)));
     if (correctRecords.length === 0) {
       await createDNSRecord(domain, myFDMnameORip, config.domainAppType);
       return true;

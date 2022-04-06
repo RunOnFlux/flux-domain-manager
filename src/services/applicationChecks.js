@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
-const axios = require('axios');
 const https = require('https');
 const Web3 = require('web3');
+const serviceHelper = require('./serviceHelper');
 const log = require('../lib/log');
 
 const timeout = 3456;
@@ -9,20 +9,8 @@ const timeout = 3456;
 // MAIN
 async function checkLoginPhrase(ip, port) {
   try {
-    const { CancelToken } = axios;
-    const source = CancelToken.source();
-    let isResolved = false;
-    setTimeout(() => {
-      if (!isResolved) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, timeout * 2);
     const url = `http://${ip}:${port}/id/loginphrase`;
-    const response = await axios.get(url, {
-      cancelToken: source.token,
-      timeout,
-    });
-    isResolved = true;
+    const response = await serviceHelper.httpGetRequest(url, timeout);
     if (response.data.status === 'success') {
       return true;
     }
@@ -34,35 +22,11 @@ async function checkLoginPhrase(ip, port) {
 
 async function isCommunicationOK(ip, port) {
   try {
-    let { CancelToken } = axios;
-    let source = CancelToken.source();
-    let isResolvedA = false;
-    setTimeout(() => {
-      if (!isResolvedA) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, timeout * 2);
     const urlA = `http://${ip}:${port}/flux/connectedpeersinfo`;
     const urlB = `http://${ip}:${port}/flux/incomingconnectionsinfo`;
-    const responseA = await axios.get(urlA, {
-      cancelToken: source.token,
-      timeout,
-    });
-    isResolvedA = true;
+    const responseA = serviceHelper.httpGetRequest(urlA, timeout);
     if (responseA.data.data.length > 8) {
-      CancelToken = axios.CancelToken;
-      source = CancelToken.source();
-      let isResolvedB = false;
-      setTimeout(() => {
-        if (!isResolvedB) {
-          source.cancel('Operation canceled by the user.');
-        }
-      }, timeout * 2);
-      const responseB = await axios.get(urlB, {
-        cancelToken: source.token,
-        timeout,
-      });
-      isResolvedB = true;
+      const responseB = serviceHelper.httpGetRequest(urlB, timeout);
       if (responseB.data.data.length > 4) {
         return true;
       }
@@ -75,20 +39,8 @@ async function isCommunicationOK(ip, port) {
 
 async function isHomeOK(ip, port) {
   try {
-    const { CancelToken } = axios;
-    const source = CancelToken.source();
-    let isResolved = false;
-    setTimeout(() => {
-      if (!isResolved) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, timeout * 2);
     const url = `http://${ip}:${port}`;
-    const response = await axios.get(url, {
-      cancelToken: source.token,
-      timeout,
-    });
-    isResolved = true;
+    const response = serviceHelper.httpGetRequest(url, timeout);
     if (response.data.startsWith('<!DOCTYPE html><html')) {
       return true;
     }
@@ -100,20 +52,8 @@ async function isHomeOK(ip, port) {
 
 async function isVersionOK(ip, port) {
   try {
-    const { CancelToken } = axios;
-    const source = CancelToken.source();
-    let isResolved = false;
-    setTimeout(() => {
-      if (!isResolved) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, timeout * 2);
     const url = `http://${ip}:${port}/flux/version`;
-    const response = await axios.get(url, {
-      cancelToken: source.token,
-      timeout,
-    });
-    isResolved = true;
+    const response = serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.replace(/\./g, '');
     if (version >= 390) {
       return true;
@@ -126,20 +66,8 @@ async function isVersionOK(ip, port) {
 
 async function isSyncedOK(ip, port) {
   try {
-    const { CancelToken } = axios;
-    const source = CancelToken.source();
-    let isResolved = false;
-    setTimeout(() => {
-      if (!isResolved) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, timeout * 2);
     const url = `http://${ip}:${port}/explorer/scannedheight`;
-    const response = await axios.get(url, {
-      cancelToken: source.token,
-      timeout,
-    });
-    isResolved = true;
+    const response = serviceHelper.httpGetRequest(url, timeout);
     const height = response.data.data.generalScannedHeight;
     if (height > 1089559) {
       return true;
@@ -152,20 +80,8 @@ async function isSyncedOK(ip, port) {
 
 async function hasManyApps(ip, port) {
   try {
-    const { CancelToken } = axios;
-    const source = CancelToken.source();
-    let isResolved = false;
-    setTimeout(() => {
-      if (!isResolved) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, timeout * 2);
     const url = `http://${ip}:${port}/apps/globalappsspecifications`;
-    const response = await axios.get(url, {
-      cancelToken: source.token,
-      timeout,
-    });
-    isResolved = true;
+    const response = serviceHelper.httpGetRequest(url, timeout);
     const appsAmount = response.data.data.length;
     if (appsAmount > 250) { // we surely have at least 250 apps on network
       const mandatoryApps = ['FluxWhitepaper', 'explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena', 'HavenNodeMainnet'];
@@ -260,13 +176,10 @@ async function getPolkaNetworkHeight(ip, port) {
       params: [],
       id: Math.floor(Math.random() * (max - min + 1)) + min,
     };
-    const AConfig = {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      timeout: 3456,
+    const headers = {
+      'Content-Type': 'application/json',
     };
-    const rosettaData = await axios.post(`http://${ip}:${port}/network/status`, data, AConfig);
+    const rosettaData = await serviceHelper.httpPostRequest(`http://${ip}:${port}/network/status`, data, 3456, headers);
     console.log(rosettaData.data.result);
     return rosettaData.data.result.currentBlock;
   } catch (e) {
@@ -290,7 +203,7 @@ async function checkRosettaSynced(ip, height) {
         index: height - 30,
       },
     };
-    const rosettaData = await axios.post(`http://${ip}:38080/block`, data, { httpsAgent: agent, timeout: 3456 });
+    const rosettaData = await serviceHelper.httpPostRequest(`http://${ip}:38080/network/status`, data, 3456, undefined, agent);
     return rosettaData.data.block.block_identifier.index;
   } catch (e) {
     // log.error(e);
@@ -309,7 +222,7 @@ async function getRosettaHeight(ip) {
         network: 'mainnet',
       },
     };
-    const rosettaData = await axios.post(`http://${ip}:38080/network/status`, data, { httpsAgent: agent, timeout: 3456 });
+    const rosettaData = await serviceHelper.httpPostRequest(`http://${ip}:38080/network/status`, data, 3456, undefined, agent);
     return rosettaData.data.current_block_identifier.index;
   } catch (e) {
     // log.error(e);
@@ -367,7 +280,8 @@ async function kadenaGetHeight(ip) {
     const agent = new https.Agent({
       rejectUnauthorized: false,
     });
-    const kadenaData = await axios.get(`https://${ip}:30004/chainweb/0.0/mainnet01/cut`, { httpsAgent: agent, timeout: 3456 });
+    const url = `https://${ip}:30004/chainweb/0.0/mainnet01/cut`;
+    const kadenaData = await serviceHelper.httpGetRequest(url, timeout, undefined, agent);
     return kadenaData.data.height;
   } catch (e) {
     // log.error(e);
@@ -380,7 +294,8 @@ async function kadenaGetConenctions(ip) {
     const agent = new https.Agent({
       rejectUnauthorized: false,
     });
-    const kadenaData = await axios.get(`https://${ip}:30004/chainweb/0.0/mainnet01/cut/peer`, { httpsAgent: agent, timeout: 3456 });
+    const url = `https://${ip}:30004/chainweb/0.0/mainnet01/cut/peer`;
+    const kadenaData = await serviceHelper.httpGetRequest(url, timeout, undefined, agent);
     return kadenaData.data.items;
   } catch (e) {
     // log.error(e);
@@ -406,7 +321,7 @@ async function checkKadenaApplication(ip) {
 
 async function checkRunOnFluxWebsite(ip, port) {
   try {
-    const websiteResponse = await axios.get(`http://${ip}:${port}`, { timeout: 8888 });
+    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 8888);
     if (websiteResponse.data.includes('<title>Flux')) {
       return true;
     }
@@ -418,7 +333,7 @@ async function checkRunOnFluxWebsite(ip, port) {
 
 async function checkCloudAtlasWebsite(ip, port) {
   try {
-    const websiteResponse = await axios.get(`http://${ip}:${port}`, { timeout: 8888 });
+    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 8888);
     if (websiteResponse.data.includes('<title>Atlas')) {
       return true;
     }
@@ -430,8 +345,8 @@ async function checkCloudAtlasWebsite(ip, port) {
 
 async function checkFluxExplorer(ip, port) {
   try {
-    const response = await axios.get(`http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`, { timeout: 8888 });
-    const responseB = await axios.get(`http://${ip}:${port}/api/sync`, { timeout: 8888 });
+    const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`, 8888);
+    const responseB = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/sync`, 8888);
     if (response.data.transactions.length > 0 && responseB.data.blockChainHeight > 1061005) {
       return true;
     }
@@ -455,7 +370,7 @@ async function checkEthereum(ip, port) {
 
 async function checkHavenHeight(ip, port) {
   try {
-    const response = await axios.get(`http://${ip}:${port}/get_info`, { timeout: 5000 });
+    const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/get_info`, 5000);
     if (response.data.height > response.data.target_height) {
       return true;
     }
@@ -467,7 +382,7 @@ async function checkHavenHeight(ip, port) {
 
 async function checkKDLaunch(ip, port) {
   try {
-    const websiteResponse = await axios.get(`http://${ip}:${port}`, { timeout: 8888 });
+    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 8888);
     if (websiteResponse.data.includes('<title>KDLaunch')) {
       return true;
     }

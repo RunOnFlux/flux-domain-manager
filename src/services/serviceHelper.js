@@ -1,9 +1,54 @@
 const mongodb = require('mongodb');
 const config = require('config');
 const qs = require('qs');
+const axios = require('axios');
 
 const { MongoClient } = mongodb;
 const mongoUrl = `mongodb://${config.database.url}:${config.database.port}/`;
+
+async function httpGetRequest(url, awaitTime = 30000, headers = {}, httpsAgent) {
+  const { CancelToken } = axios;
+  const source = CancelToken.source();
+  let isResolved = false;
+  setTimeout(() => {
+    if (!isResolved) {
+      source.cancel('Operation canceled');
+    }
+  }, awaitTime * 2);
+  const options = {
+    cancelToken: source.token,
+    timeout: awaitTime,
+    headers,
+  };
+  if (httpsAgent) {
+    options.httpsAgent = httpsAgent;
+  }
+  const response = await axios.get(url, options);
+  isResolved = true;
+  return response;
+}
+
+async function httpPostRequest(url, data, awaitTime = 30000, headers = {}, httpsAgent) {
+  const { CancelToken } = axios;
+  const source = CancelToken.source();
+  let isResolved = false;
+  setTimeout(() => {
+    if (!isResolved) {
+      source.cancel('Operation canceled');
+    }
+  }, awaitTime * 2);
+  const options = {
+    cancelToken: source.token,
+    timeout: awaitTime,
+    headers,
+  };
+  if (httpsAgent) {
+    options.httpsAgent = httpsAgent;
+  }
+  const response = await axios.post(url, data, options);
+  isResolved = true;
+  return response;
+}
 
 function timeout(ms) {
   return new Promise((resolve) => {
@@ -170,6 +215,8 @@ async function collectionStats(database, collection) {
 }
 
 module.exports = {
+  httpGetRequest,
+  httpPostRequest,
   timeout,
   ensureBoolean,
   ensureNumber,

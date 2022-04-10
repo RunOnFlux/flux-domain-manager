@@ -84,7 +84,7 @@ async function hasManyApps(ip, port) {
     const response = serviceHelper.httpGetRequest(url, timeout);
     const appsAmount = response.data.data.length;
     if (appsAmount > 250) { // we surely have at least 250 apps on network
-      const mandatoryApps = ['FluxWhitepaper', 'explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena', 'HavenNodeMainnet'];
+      const mandatoryApps = ['FluxWhitepaper', 'explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena'];
       // eslint-disable-next-line no-restricted-syntax
       for (const app of mandatoryApps) {
         const appExists = response.data.data.find((a) => a.name === app);

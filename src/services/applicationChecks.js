@@ -24,9 +24,9 @@ async function isCommunicationOK(ip, port) {
   try {
     const urlA = `http://${ip}:${port}/flux/connectedpeersinfo`;
     const urlB = `http://${ip}:${port}/flux/incomingconnectionsinfo`;
-    const responseA = serviceHelper.httpGetRequest(urlA, timeout);
+    const responseA = await serviceHelper.httpGetRequest(urlA, timeout);
     if (responseA.data.data.length > 8) {
-      const responseB = serviceHelper.httpGetRequest(urlB, timeout);
+      const responseB = await serviceHelper.httpGetRequest(urlB, timeout);
       if (responseB.data.data.length > 4) {
         return true;
       }
@@ -40,7 +40,7 @@ async function isCommunicationOK(ip, port) {
 async function isHomeOK(ip, port) {
   try {
     const url = `http://${ip}:${port}`;
-    const response = serviceHelper.httpGetRequest(url, timeout);
+    const response = await serviceHelper.httpGetRequest(url, timeout);
     if (response.data.startsWith('<!DOCTYPE html><html')) {
       return true;
     }
@@ -53,9 +53,9 @@ async function isHomeOK(ip, port) {
 async function isVersionOK(ip, port) {
   try {
     const url = `http://${ip}:${port}/flux/version`;
-    const response = serviceHelper.httpGetRequest(url, timeout);
+    const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.replace(/\./g, '');
-    if (version >= 390) {
+    if (version >= 3150) {
       return true;
     }
     return false;
@@ -67,9 +67,9 @@ async function isVersionOK(ip, port) {
 async function isSyncedOK(ip, port) {
   try {
     const url = `http://${ip}:${port}/explorer/scannedheight`;
-    const response = serviceHelper.httpGetRequest(url, timeout);
+    const response = await serviceHelper.httpGetRequest(url, timeout);
     const height = response.data.data.generalScannedHeight;
-    if (height > 1089559) {
+    if (height > 1096940) {
       return true;
     }
     return false;
@@ -81,17 +81,17 @@ async function isSyncedOK(ip, port) {
 async function hasManyApps(ip, port) {
   try {
     const url = `http://${ip}:${port}/apps/globalappsspecifications`;
-    const response = serviceHelper.httpGetRequest(url, timeout);
+    const response = await serviceHelper.httpGetRequest(url, timeout);
     const appsAmount = response.data.data.length;
-    if (appsAmount > 250) { // we surely have at least 250 apps on network
-      const mandatoryApps = ['FluxWhitepaper', 'explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena'];
+    if (appsAmount > 300) { // we surely have at least 300 apps on network
+      const mandatoryApps = ['explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena'];
       // eslint-disable-next-line no-restricted-syntax
       for (const app of mandatoryApps) {
         const appExists = response.data.data.find((a) => a.name === app);
         if (!appExists) {
           return false;
         }
-        if (appExists.height < 1060000) {
+        if (appExists.height < (1096940 - 22000)) {
           return false;
         }
       }

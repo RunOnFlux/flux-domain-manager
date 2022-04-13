@@ -18,6 +18,8 @@ const applicationChecks = require('./applicationChecks');
 let myIP = null;
 let myFDMnameORip = null;
 
+const mandatoryApps = ['explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena'];
+
 const axiosConfig = {
   timeout: 13456,
 };
@@ -917,6 +919,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         log.info(`Application ${app.name} is OK. Proceeding to FDM`);
       } else {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);
+        if (mandatoryApps.includes(app.name)) {
+          throw new Error(`Application ${app.name} is not running well PANIC.`);
+        }
       }
     }
 

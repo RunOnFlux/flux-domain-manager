@@ -6,6 +6,8 @@ const log = require('../lib/log');
 
 const timeout = 3456;
 
+const mandatoryApps = ['explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena'];
+
 // MAIN
 async function checkLoginPhrase(ip, port) {
   try {
@@ -84,7 +86,6 @@ async function hasManyApps(ip, port) {
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const appsAmount = response.data.data.length;
     if (appsAmount > 300) { // we surely have at least 300 apps on network
-      const mandatoryApps = ['explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena'];
       // eslint-disable-next-line no-restricted-syntax
       for (const app of mandatoryApps) {
         const appExists = response.data.data.find((a) => a.name === app);
@@ -382,7 +383,7 @@ async function checkHavenHeight(ip, port) {
 
 async function checkKDLaunch(ip, port) {
   try {
-    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 8888);
+    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 5000);
     if (websiteResponse.data.includes('<title>KDLaunch')) {
       return true;
     }

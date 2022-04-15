@@ -206,7 +206,7 @@ function kadenaCheckPeers(peers) {
     if (goodPeers.length > 1) { // at least 2 chainweb peers
       return true;
     }
-    const goodPeersPort = peers.filter((peer) => peer.address.port !== 30004); // has outside of flux too
+    const goodPeersPort = peers.filter((peer) => peer.address.port !== 31350); // has outside of flux too
     if (goodPeersPort.length > 4) { // at least 5 different than flux peers
       return true;
     }
@@ -229,7 +229,7 @@ async function kadenaGetHeight(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, timeout * 2);
-    const kadenaData = await axios.get(`https://${ip}:30004/chainweb/0.0/mainnet01/cut`, { httpsAgent: agent, timeout, cancelToken: source.token });
+    const kadenaData = await axios.get(`https://${ip}:31350/chainweb/0.0/mainnet01/cut`, { httpsAgent: agent, timeout, cancelToken: source.token });
     isResolved = true;
     return kadenaData.data.height;
   } catch (e) {
@@ -251,7 +251,7 @@ async function kadenaGetConenctions(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, timeout * 2);
-    const kadenaData = await axios.get(`https://${ip}:30004/chainweb/0.0/mainnet01/cut/peer`, { httpsAgent: agent, timeout, cancelToken: source.token });
+    const kadenaData = await axios.get(`https://${ip}:31350/chainweb/0.0/mainnet01/cut/peer`, { httpsAgent: agent, timeout, cancelToken: source.token });
     isResolved = true;
     return kadenaData.data.items;
   } catch (e) {
@@ -290,7 +290,7 @@ async function kadenaRecentTxs(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, timeout * 2);
-    const kadenaData = await axios.get(`http://${ip}:30006/txs/recent`, { httpsAgent: agent, timeout, cancelToken: source.token });
+    const kadenaData = await axios.get(`http://${ip}:31352/txs/recent`, { httpsAgent: agent, timeout, cancelToken: source.token });
     isResolved = true;
     return kadenaData.data;
   } catch (e) {
@@ -309,7 +309,7 @@ async function kadenaSearchTxs(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, 24000 * 2);
-    const kadenaData = await axios.get(`http://${ip}:30006/txs/search?search=2a3c8b18323ef7be8e28ec585d065a47925202330036a17867d85528f6720a05&offset=0&limit=100`, { timeout: 24000, cancelToken: source.token });
+    const kadenaData = await axios.get(`http://${ip}:31352/txs/search?search=2a3c8b18323ef7be8e28ec585d065a47925202330036a17867d85528f6720a05&offset=0&limit=100`, { timeout: 24000, cancelToken: source.token });
     isResolved = true;
     return kadenaData.data;
   } catch (e) {

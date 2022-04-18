@@ -137,7 +137,7 @@ function getUnifiedDomainsForApp(specifications) {
 async function generateAndReplaceKadenaApplicationHaproxyConfig() {
   try {
     // kadena apps on network
-    const kdaApplications = ['Kadena', 'Kadena2', 'Kadena3', 'Kadena4', 'Kadena5'];
+    const kdaApplications = ['Kadena', 'KadenaNode', 'Kadena2', 'KadenaNode2', 'Kadena3', 'KadenaNode3','Kadena4', 'KadenaNode4', 'Kadena5', 'KadenaNode5'];
     let appLocations = [];
     for (const app of kdaApplications) {
       // eslint-disable-next-line no-await-in-loop

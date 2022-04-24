@@ -372,7 +372,7 @@ async function checkEthereum(ip, port) {
 async function checkHavenHeight(ip, port) {
   try {
     const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/get_info`, 5000);
-    if (response.data.height > response.data.target_height) {
+    if (response.data.height > response.data.target_height && response.data.height > 1) {
       return true;
     }
     return false;

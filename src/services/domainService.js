@@ -714,6 +714,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             appIps.push(location.ip);
           }
         }
+        if (mandatoryApps.includes(app.name) && appIps.length < 1) {
+          throw new Error(`Application ${app.name} checks not ok. PANIC.`);
+        }
         const domains = getUnifiedDomainsForApp(app);
         if (app.version <= 3) {
           for (let i = 0; i < app.ports.length; i += 1) {

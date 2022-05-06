@@ -383,7 +383,7 @@ async function checkHavenHeight(ip, port) {
 
 async function checkKDLaunch(ip, port) {
   try {
-    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 6000);
+    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 2000);
     if (websiteResponse.data.includes('<title>KDLaunch')) {
       return true;
     }

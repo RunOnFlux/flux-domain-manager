@@ -157,7 +157,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
         console.log(kdaNode);
         appIpsNode.push(kdaNode.ip);
       }
-      if (appIpsNode.length > 100) {
+      if (appIpsNode.length > 20) {
         break;
       }
     }
@@ -170,7 +170,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
       } else {
         console.log(`Node ${kdaNode.ip} not ok`);
       }
-      if (appIpsData.length > 100) {
+      if (appIpsData.length > 20) {
         break;
       }
     }

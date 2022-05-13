@@ -653,6 +653,13 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         }
       }
     }
+    // check appsOK against mandatoryApps
+    for (const mandatoryApp of mandatoryApps) {
+      const appExists = appsOK.find((app) => app.name === mandatoryApp);
+      if (!appExists) {
+        throw new Error(`Mandatory app ${mandatoryApp} does not exist. PANIC`);
+      }
+    }
     // continue with appsOK
     const configuredApps = []; // object of domain, port, ips for backend
     for (const app of appsOK) {

@@ -157,9 +157,12 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
         console.log(kdaNode);
         appIpsNode.push(kdaNode.ip);
       }
-      if (appIpsNode.length > 20) {
+      if (appIpsNode.length > 100) {
         break;
       }
+    }
+    if (appIpsNode.length < 50) {
+      throw new Error('PANIC Chainweb Node not sufficient');
     }
     for (const kdaNode of appLocations) {
       // eslint-disable-next-line no-await-in-loop
@@ -170,9 +173,12 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
       } else {
         console.log(`Node ${kdaNode.ip} not ok`);
       }
-      if (appIpsData.length > 20) {
+      if (appIpsData.length > 100) {
         break;
       }
+    }
+    if (appIpsData.length < 50) {
+      throw new Error('PANIC Chainweb Data not sufficient');
     }
     const configuredApps = []; // object of domain, port, ips for backend
     const apps = [

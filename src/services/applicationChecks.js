@@ -6,7 +6,7 @@ const log = require('../lib/log');
 
 const timeout = 3456;
 
-const mandatoryApps = ['explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena'];
+const mandatoryApps = ['explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena3', 'Kadena4'];
 
 // MAIN
 async function checkLoginPhrase(ip, port) {

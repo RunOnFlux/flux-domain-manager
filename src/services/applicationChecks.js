@@ -188,8 +188,8 @@ function checkRosettaheightOK(height) {
 function kadenaCheckHeight(height) {
   console.log(height);
   const currentTime = new Date().getTime();
-  const baseTime = 1652401859000;
-  const baseHeight = 53318115;
+  const baseTime = 1653912449000;
+  const baseHeight = 54325003;
   const timeDifference = currentTime - baseTime;
   const blocksPassedInDifference = (timeDifference / 30000) * 20; // 20 chains with blocktime 30 seconds
   const currentBlockEstimation = baseHeight + blocksPassedInDifference;
@@ -309,7 +309,7 @@ async function kadenaSearchTxs(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, 24000 * 2);
-    const kadenaData = await axios.get(`http://${ip}:31352/txs/search?search=2a3c8b18323ef7be8e28ec585d065a47925202330036a17867d85528f6720a05&offset=0&limit=100`, { timeout: 24000, cancelToken: source.token });
+    const kadenaData = await axios.get(`http://${ip}:31352/txs/search?search=2a3c8b18323ef7be8e28ec585d065a47925202330036a17867d85528f6720a05&offset=0&limit=100`, { timeout: 28000, cancelToken: source.token });
     isResolved = true;
     return kadenaData.data;
   } catch (e) {

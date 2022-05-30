@@ -162,7 +162,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
       }
     }
     if (appIpsNode.length < 50) {
-      throw new Error('PANIC Chainweb Node not sufficient');
+      throw new Error(`PANIC Chainweb Node not sufficient. Nodes OK: ${appIpsData.length}`);
     }
     for (const kdaNode of appLocations) {
       // eslint-disable-next-line no-await-in-loop
@@ -178,7 +178,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
       }
     }
     if (appIpsData.length < 50) {
-      throw new Error('PANIC Chainweb Data not sufficient');
+      throw new Error(`PANIC Chainweb Data not sufficient. Nodes OK: ${appIpsData.length}`);
     }
     const configuredApps = []; // object of domain, port, ips for backend
     const apps = [

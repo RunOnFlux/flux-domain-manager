@@ -137,20 +137,30 @@ function getUnifiedDomainsForApp(specifications) {
 async function generateAndReplaceKadenaApplicationHaproxyConfig() {
   try {
     // kadena apps on network
-    const kdaApplications = ['Kadena', 'KadenaNode', 'Kadena2', 'KadenaNode2', 'Kadena3', 'KadenaNode3','Kadena4', 'KadenaNode4', 'Kadena5', 'KadenaNode5'];
-    let appLocations = [];
-    for (const app of kdaApplications) {
+    const kdaNodeApplications = ['Kadena', 'KadenaNode', 'Kadena2', 'KadenaNode2', 'Kadena3', 'KadenaNode3','Kadena4', 'KadenaNode4', 'Kadena5', 'KadenaNode5'];
+    const kdaDataApplications = ['Kadena', 'Kadena2', 'Kadena3', 'Kadena4', 'Kadena5'];
+    let appLocationsNode = [];
+    for (const app of kdaNodeApplications) {
       // eslint-disable-next-line no-await-in-loop
-      const appLocationsApp = await getApplicationLocation(app);
-      appLocations = appLocations.concat(appLocationsApp);
+      const appLocationsNodeApp = await getApplicationLocation(app);
+      appLocationsNode = appLocationsNode.concat(appLocationsNodeApp);
     }
-    if (!appLocations.length) {
-      throw new Error('Kadena is not running properly. PANIC');
+    if (!appLocationsNode.length) {
+      throw new Error('Kadena Node is not running properly. PANIC');
+    }
+    let appLocationsData = [];
+    for (const app of kdaDataApplications) {
+      // eslint-disable-next-line no-await-in-loop
+      const appLocationsDataApp = await getApplicationLocation(app);
+      appLocationsData = appLocationsData.concat(appLocationsDataApp);
+    }
+    if (!appLocationsData.length) {
+      throw new Error('Kadena Data is not running properly. PANIC');
     }
     const appIpsNode = [];
     const appIpsData = [];
     // eslint-disable-next-line no-restricted-syntax
-    for (const kdaNode of appLocations) {
+    for (const kdaNode of appLocationsNode) {
       // eslint-disable-next-line no-await-in-loop
       const appOK = await applicationChecks.checkKadenaApplication(kdaNode.ip.split(':')[0]);
       if (appOK) {
@@ -164,14 +174,14 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
     if (appIpsNode.length < 50) {
       throw new Error(`PANIC Chainweb Node not sufficient. Nodes OK: ${appIpsData.length}`);
     }
-    for (const kdaNode of appLocations) {
+    for (const kdaNode of appLocationsData) {
       // eslint-disable-next-line no-await-in-loop
       const appOK = await applicationChecks.checkKadenaDataApplication(kdaNode.ip.split(':')[0]);
       if (appOK) {
         console.log(kdaNode);
         appIpsData.push(kdaNode.ip);
       } else {
-        console.log(`Node ${kdaNode.ip} not ok`);
+        console.log(`KDA DATA ${kdaNode.ip} not ok`);
       }
       if (appIpsData.length > 100) {
         break;

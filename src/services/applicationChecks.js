@@ -6,7 +6,7 @@ const axiosConfig = {
   timeout: 3456,
 };
 
-const timeout = 3456;
+const timeout = 1200;
 
 // MAIN
 async function checkLoginPhrase(ip) {
@@ -309,7 +309,7 @@ async function kadenaSearchTxs(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, 10000 * 2);
-    const kadenaData = await axios.get(`http://${ip}:31352/txs/search?search=2a3c8b18323ef7be8e28ec585d065a47925202330036a17867d85528f6720a05&offset=0&limit=100`, { timeout: 10000, cancelToken: source.token });
+    const kadenaData = await axios.get(`http://${ip}:31352/txs/search?search=2a3c8b18323ef7be8e28ec585d065a47925202330036a17867d85528f6720a05&offset=0&limit=100`, { timeout: 7000, cancelToken: source.token });
     isResolved = true;
     return kadenaData.data;
   } catch (e) {

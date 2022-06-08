@@ -321,6 +321,46 @@ function getUnifiedDomainsForApp(specifications) {
   return domains;
 }
 
+// return array of true or false if specific app port requires ssl backend
+function getSSLBackendsForApp(specifications) {
+  const ssl = [];
+  const requiesSSL = ['31350.kadefichainweb.KadefiChainweb'];
+  let mainPortSSL = '';
+  if (specifications.version <= 3) { // app v1 cannot be spawned and do not exist
+    // adding names for each port with new scheme {appname}_{portnumber}.app2.runonflux.io
+    for (let i = 0; i < specifications.ports.length; i += 1) {
+      const portNameSSL = `${specifications.ports[i]}.${specifications.name}`;
+      if (i === 0) {
+        mainPortSSL = portNameSSL;
+      }
+      if (requiesSSL.includes(portNameSSL)) {
+        ssl.push(true);
+      } else {
+        ssl.push(false);
+      }
+    }
+  } else {
+    // composed app
+    for (const component of specifications.compose) {
+      // same for composed apps, adding for each port with new scheme {appname}_{portnumber}.app2.runonflux.io
+      for (let i = 0; i < component.ports.length; i += 1) {
+        const portNameSSL = `${component.ports[i]}.${component.name}.${specifications.name}`;
+        if (requiesSSL.includes(portNameSSL)) {
+          ssl.push(true);
+        } else {
+          ssl.push(false);
+        }
+      }
+    }
+  }
+  if (requiesSSL.includes(mainPortSSL)) {
+    ssl.push(true);
+  } else {
+    ssl.push(false);
+  }
+  return ssl;
+}
+
 function getCustomDomainsForApp(app) {
   const domains = [];
   if (app.version <= 3) {
@@ -725,12 +765,14 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         const domains = getUnifiedDomainsForApp(app);
+        const sslBackends = getSSLBackendsForApp(app);
         if (app.version <= 3) {
           for (let i = 0; i < app.ports.length; i += 1) {
             const configuredApp = {
               domain: domains[i],
               port: app.ports[i],
               ips: appIps,
+              ssl: sslBackends[i],
             };
             configuredApps.push(configuredApp);
             if (app.domains[i]) {
@@ -741,6 +783,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     domain: app.domains[i].replace('https://', '').replace('http://', ''),
                     port: app.ports[i],
                     ips: appIps,
+                    ssl: sslBackends[i],
                   };
                   configuredApps.push(configuredAppCustom);
                 }
@@ -753,6 +796,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         domain: adjustedDomain.replace('https://', '').replace('http://', ''),
                         port: app.ports[i],
                         ips: appIps,
+                        ssl: sslBackends[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -766,6 +810,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         domain: adjustedDomain.replace('https://', '').replace('http://', ''),
                         port: app.ports[i],
                         ips: appIps,
+                        ssl: sslBackends[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -780,6 +825,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         domain: adjustedDomain.replace('https://', '').replace('http://', ''),
                         port: app.ports[i],
                         ips: appIps,
+                        ssl: sslBackends[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -793,6 +839,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         domain: adjustedDomain.replace('https://', '').replace('http://', ''),
                         port: app.ports[i],
                         ips: appIps,
+                        ssl: sslBackends[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -805,6 +852,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             domain: domains[domains.length - 1],
             port: app.ports[0],
             ips: appIps,
+            ssl: sslBackends[sslBackends.length - 1],
           };
           configuredApps.push(mainApp);
         } else {
@@ -815,6 +863,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                 domain: domains[j],
                 port: component.ports[i],
                 ips: appIps,
+                ssl: sslBackends[j],
               };
               configuredApps.push(configuredApp);
 
@@ -826,6 +875,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       domain: component.domains[i].replace('https://', '').replace('http://', ''),
                       port: component.ports[i],
                       ips: appIps,
+                      ssl: sslBackends[j],
                     };
                     configuredApps.push(configuredAppCustom);
                   }
@@ -838,6 +888,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           domain: adjustedDomain.replace('https://', '').replace('http://', ''),
                           port: component.ports[i],
                           ips: appIps,
+                          ssl: sslBackends[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -851,6 +902,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           domain: adjustedDomain.replace('https://', '').replace('http://', ''),
                           port: component.ports[i],
                           ips: appIps,
+                          ssl: sslBackends[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -865,6 +917,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           domain: adjustedDomain.replace('https://', '').replace('http://', ''),
                           port: component.ports[i],
                           ips: appIps,
+                          ssl: sslBackends[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -878,6 +931,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           domain: adjustedDomain.replace('https://', '').replace('http://', ''),
                           port: component.ports[i],
                           ips: appIps,
+                          ssl: sslBackends[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -894,6 +948,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               domain: domains[domains.length - 1],
               port: app.compose[0].ports[0],
               ips: appIps,
+              ssl: sslBackends[sslBackends.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[1] && app.compose[1].ports[0]) {
@@ -901,6 +956,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               domain: domains[domains.length - 1],
               port: app.compose[1].ports[0],
               ips: appIps,
+              ssl: sslBackends[sslBackends.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[2] && app.compose[2].ports[0]) {
@@ -908,6 +964,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               domain: domains[domains.length - 1],
               port: app.compose[2].ports[0],
               ips: appIps,
+              ssl: sslBackends[sslBackends.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[3] && app.compose[3].ports[0]) {
@@ -915,6 +972,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               domain: domains[domains.length - 1],
               port: app.compose[3].ports[0],
               ips: appIps,
+              ssl: sslBackends[sslBackends.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[4] && app.compose[4].ports[0]) {
@@ -922,6 +980,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               domain: domains[domains.length - 1],
               port: app.compose[4].ports[0],
               ips: appIps,
+              ssl: sslBackends[sslBackends.length - 1],
             };
             configuredApps.push(mainApp);
           }

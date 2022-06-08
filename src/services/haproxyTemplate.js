@@ -190,7 +190,11 @@ function createAppsHaproxyConfig(appConfig) {
           IpString = `${IpString}00${a[i]}`;
         }
       }
-      domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check`;
+      if (app.ssl) {
+        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ssl verify none`;
+      } else {
+        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check`;
+      }
     }
     backends = `${backends + domainBackend}\n\n`;
     domains.push(app.domain);

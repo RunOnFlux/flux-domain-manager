@@ -1,4 +1,5 @@
 /* eslint-disable no-unused-vars */
+const axios = require('axios');
 const https = require('https');
 const Web3 = require('web3');
 const serviceHelper = require('./serviceHelper');
@@ -266,7 +267,7 @@ function kadenaCheckPeers(peers) {
     if (goodPeers.length > 1) { // at least 2 chainweb peers
       return true;
     }
-    const goodPeersPort = peers.filter((peer) => peer.address.port !== 30004); // has outside of flux too
+    const goodPeersPort = peers.filter((peer) => peer.address.port !== 31350); // has outside of flux too
     if (goodPeersPort.length > 4) { // at least 5 different than flux peers
       return true;
     }
@@ -276,13 +277,22 @@ function kadenaCheckPeers(peers) {
     return true;
   }
 }
+
 async function kadenaGetHeight(ip) {
   try {
     const agent = new https.Agent({
       rejectUnauthorized: false,
     });
-    const url = `https://${ip}:30004/chainweb/0.0/mainnet01/cut`;
-    const kadenaData = await serviceHelper.httpGetRequest(url, timeout, undefined, agent);
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
+    const kadenaData = await axios.get(`https://${ip}:31350/chainweb/0.0/mainnet01/cut`, { httpsAgent: agent, timeout, cancelToken: source.token });
+    isResolved = true;
     return kadenaData.data.height;
   } catch (e) {
     // log.error(e);
@@ -295,8 +305,16 @@ async function kadenaGetConenctions(ip) {
     const agent = new https.Agent({
       rejectUnauthorized: false,
     });
-    const url = `https://${ip}:30004/chainweb/0.0/mainnet01/cut/peer`;
-    const kadenaData = await serviceHelper.httpGetRequest(url, timeout, undefined, agent);
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
+    const kadenaData = await axios.get(`https://${ip}:31350/chainweb/0.0/mainnet01/cut/peer`, { httpsAgent: agent, timeout, cancelToken: source.token });
+    isResolved = true;
     return kadenaData.data.items;
   } catch (e) {
     // log.error(e);

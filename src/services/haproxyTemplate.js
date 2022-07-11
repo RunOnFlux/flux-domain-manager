@@ -195,6 +195,9 @@ function createAppsHaproxyConfig(appConfig) {
       } else {
         domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check`;
       }
+      if(app.timeout) {
+        domainBackend += `\n  timeout server ${app.timeout}`
+      }
     }
     backends = `${backends + domainBackend}\n\n`;
     domains.push(app.domain);

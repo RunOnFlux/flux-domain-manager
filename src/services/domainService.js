@@ -395,29 +395,29 @@ function getCustomDomainsForApp(app) {
   return domains;
 }
 
-function getCustomBackendTimout(app) {
+function getCustomBackendTimout(specifications) {
   const customTimeout = {
-    '31350.KadefiChainwebNode.KadefiMoneyBackend': 90000
-  }
+    '31350.KadefiChainwebNode.KadefiMoneyBackend': 90000,
+  };
   const timeouts = [];
-  let mainPort = "";
-  if (app.version <= 3) {
-    for (let i = 0; i < app.ports.length; i += 1) {
+  let mainPort = '';
+  if (specifications.version <= 3) {
+    for (let i = 0; i < specifications.ports.length; i += 1) {
       const portName = `${specifications.ports[i]}.${specifications.name}`;
       if (i === 0) {
         mainPort = portName;
       }
-      if(customTimeout[portName]) {
+      if (customTimeout[portName]) {
         timeouts.push(customTimeout[portName]);
       } else {
         timeouts.push(false);
       }
     }
   } else {
-    for (const component of app.compose) {
+    for (const component of specifications.compose) {
       for (let i = 0; i < component.ports.length; i += 1) {
         const portName = `${component.ports[i]}.${component.name}.${specifications.name}`;
-        if(customTimeout[portName]) {
+        if (customTimeout[portName]) {
           timeouts.push(customTimeout[portName]);
         } else {
           timeouts.push(false);
@@ -425,14 +425,13 @@ function getCustomBackendTimout(app) {
       }
     }
   }
-  if(customTimeout[mainPort]) {
+  if (customTimeout[mainPort]) {
     timeouts.push(customTimeout[mainPort]);
   } else {
     timeouts.push(false);
   }
   return timeouts;
 }
-
 
 // return true if some domain operation was done
 // return false if no domain operation was done

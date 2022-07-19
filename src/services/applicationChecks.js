@@ -58,7 +58,7 @@ async function isVersionOK(ip, port) {
     const url = `http://${ip}:${port}/flux/version`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.replace(/\./g, '');
-    if (version >= 3170) {
+    if (version >= 3230) {
       return true;
     }
     return false;
@@ -72,7 +72,7 @@ async function isSyncedOK(ip, port) {
     const url = `http://${ip}:${port}/explorer/scannedheight`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const height = response.data.data.generalScannedHeight;
-    if (height > 1155713) {
+    if (height > 1167918) {
       return true;
     }
     return false;
@@ -93,7 +93,7 @@ async function hasManyApps(ip, port) {
         if (!appExists) {
           return false;
         }
-        if (appExists.height < (1155713 - 22000)) {
+        if (appExists.height < (1167918 - 22000)) {
           return false;
         }
       }

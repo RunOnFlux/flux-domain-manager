@@ -190,6 +190,12 @@ function createAppsHaproxyConfig(appConfig) {
           IpString = `${IpString}00${a[i]}`;
         }
       }
+      if (app.headers) {
+        // eslint-disable-next-line no-loop-func
+        app.headers.forEach((header) => {
+          domainBackend += `\n  ${header}`;
+        });
+      }
       if (app.ssl) {
         domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ssl verify none`;
       } else {

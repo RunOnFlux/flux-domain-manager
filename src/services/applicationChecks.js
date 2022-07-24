@@ -308,8 +308,8 @@ async function kadenaSearchTxs(ip) {
       if (!isResolved) {
         source.cancel('Operation canceled by the user.');
       }
-    }, 10000 * 2);
-    const kadenaData = await axios.get(`http://${ip}:31352/txs/search?search=2a3c8b18323ef7be8e28ec585d065a47925202330036a17867d85528f6720a05&offset=0&limit=100`, { timeout: 7000, cancelToken: source.token });
+    }, 12000 * 2);
+    const kadenaData = await axios.get(`http://${ip}:31352/txs/search?search=2a3c8b18323ef7be8e28ec585d065a47925202330036a17867d85528f6720a05&offset=0&limit=100`, { timeout: 11000, cancelToken: source.token });
     isResolved = true;
     return kadenaData.data;
   } catch (e) {

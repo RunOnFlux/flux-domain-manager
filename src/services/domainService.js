@@ -324,7 +324,7 @@ function getUnifiedDomainsForApp(specifications) {
 // return array of true or false if specific app port requires ssl backend
 function getSSLBackendsForApp(specifications) {
   const ssl = [];
-  const requiesSSL = ['31350.kadefichainweb.KadefiChainweb', '31350.KadefiChainwebNode.KadefiMoneyBackend'];
+  const requiesSSL = ['31350.kadefichainweb.KadefiChainweb', '31350.KadefiChainwebNode.KadefiMoneyBackend', '33952.wp.wordpressonflux'];
   let mainPortSSL = '';
   if (specifications.version <= 3) { // app v1 cannot be spawned and do not exist
     // adding names for each port with new scheme {appname}_{portnumber}.app2.runonflux.io

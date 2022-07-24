@@ -175,6 +175,12 @@ function createAppsHaproxyConfig(appConfig) {
   hash-type consistent
   stick-table type ip size 1m expire 1h
   stick on src`;
+    if (app.headers) {
+      // eslint-disable-next-line no-loop-func
+      app.headers.forEach((header) => {
+        domainBackend += `\n  ${header}`;
+      });
+    }
     for (const ip of app.ips) {
       const a = ip.split(':')[0].split('.');
       let IpString = '';
@@ -189,12 +195,6 @@ function createAppsHaproxyConfig(appConfig) {
         if (a[i].length === 1) {
           IpString = `${IpString}00${a[i]}`;
         }
-      }
-      if (app.headers) {
-        // eslint-disable-next-line no-loop-func
-        app.headers.forEach((header) => {
-          domainBackend += `\n  ${header}`;
-        });
       }
       if (app.ssl) {
         domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ssl verify none`;

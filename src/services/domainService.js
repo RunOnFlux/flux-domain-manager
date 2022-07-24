@@ -435,8 +435,7 @@ function getCustomBackendTimout(specifications) {
 
 function getCustomBackendHeaders(specifications) {
   const customTimeout = {
-    // eslint-disable-next-line no-useless-escape
-    '33952.wp.wordpressonflux': ['reqadd X-Forwarded-Proto:\ https'],
+    '33952.wp.wordpressonflux': ['reqadd X-Forwarded-Proto:\\ https'],
   };
   const headers = [];
   let mainPort = '';

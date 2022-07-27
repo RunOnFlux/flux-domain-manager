@@ -324,7 +324,7 @@ function getUnifiedDomainsForApp(specifications) {
 // return array of true or false if specific app port requires ssl backend
 function getSSLBackendsForApp(specifications) {
   const ssl = [];
-  const requiesSSL = ['31350.kadefichainweb.KadefiChainweb', '31350.KadefiChainwebNode.KadefiMoneyBackend'];
+  const requiesSSL = ['31350.KadefiPactAPI.KadefiMoneyPactAPI', '31350.KadefiChainwebNode.KadefiMoneyBackend'];
   let mainPortSSL = '';
   if (specifications.version <= 3) { // app v1 cannot be spawned and do not exist
     // adding names for each port with new scheme {appname}_{portnumber}.app2.runonflux.io
@@ -398,6 +398,7 @@ function getCustomDomainsForApp(app) {
 function getCustomBackendTimout(specifications) {
   const customTimeout = {
     '31350.KadefiChainwebNode.KadefiMoneyBackend': 90000,
+    '31351.KadefiPactAPI.KadefiMoneyPactAPI': 90000,
   };
   const timeouts = [];
   let mainPort = '';
@@ -469,6 +470,44 @@ function getCustomBackendHeaders(specifications) {
     headers.push(false);
   }
   return headers;
+}
+
+function getCustomLBAlgorithm(specifications) {
+  const customLB = {
+    '31351.KadefiPactAPI.KadefiMoneyPactAPI': `\n  balance roundrobin`,
+  };
+  const algos = [];
+  let mainPort = '';
+  if (specifications.version <= 3) {
+    for (let i = 0; i < specifications.ports.length; i += 1) {
+      const portName = `${specifications.ports[i]}.${specifications.name}`;
+      if (i === 0) {
+        mainPort = portName;
+      }
+      if (customLB[portName]) {
+        algos.push(customLB[portName]);
+      } else {
+        algos.push(false);
+      }
+    }
+  } else {
+    for (const component of specifications.compose) {
+      for (let i = 0; i < component.ports.length; i += 1) {
+        const portName = `${component.ports[i]}.${component.name}.${specifications.name}`;
+        if (customLB[portName]) {
+          algos.push(customLB[portName]);
+        } else {
+          algos.push(false);
+        }
+      }
+    }
+  }
+  if (customLB[mainPort]) {
+    algos.push(customLB[mainPort]);
+  } else {
+    algos.push(false);
+  }
+  return algos;
 }
 
 // return true if some domain operation was done
@@ -833,7 +872,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             if (isOK) {
               appIps.push(location.ip);
             }
-          } else if (app.name === 'KadefiChainweb') {
+          } else if (app.name === 'KadefiMoneyPactAPI') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkKadenaApplication(location.ip.split(':')[0]);
             if (isOK) {
@@ -850,6 +889,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         const sslBackends = getSSLBackendsForApp(app);
         const timeouts = getCustomBackendTimout(app);
         const headers = getCustomBackendHeaders(app);
+        const loadBalance = getCustomLBAlgorithm(app);
         if (app.version <= 3) {
           for (let i = 0; i < app.ports.length; i += 1) {
             const configuredApp = {
@@ -859,6 +899,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               ssl: sslBackends[i],
               timeout: timeouts[i],
               headers: headers[i],
+              loadBalance: loadBalance[i],
             };
             configuredApps.push(configuredApp);
             if (app.domains[i]) {
@@ -872,6 +913,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     ssl: sslBackends[i],
                     timeout: timeouts[i],
                     headers: headers[i],
+                    loadBalance: loadBalance[i],
                   };
                   configuredApps.push(configuredAppCustom);
                 }
@@ -887,6 +929,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         ssl: sslBackends[i],
                         timeout: timeouts[i],
                         headers: headers[i],
+                        loadBalance: loadBalance[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -903,6 +946,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         ssl: sslBackends[i],
                         timeout: timeouts[i],
                         headers: headers[i],
+                        loadBalance: loadBalance[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -920,6 +964,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         ssl: sslBackends[i],
                         timeout: timeouts[i],
                         headers: headers[i],
+                        loadBalance: loadBalance[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -936,6 +981,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         ssl: sslBackends[i],
                         timeout: timeouts[i],
                         headers: headers[i],
+                        loadBalance: loadBalance[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -951,6 +997,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             ssl: sslBackends[sslBackends.length - 1],
             timeout: timeouts[timeouts.length - 1],
             headers: headers[headers.length - 1],
+            loadBalance: loadBalance[loadBalance.length - 1],
           };
           configuredApps.push(mainApp);
         } else {
@@ -964,6 +1011,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                 ssl: sslBackends[j],
                 timeout: timeouts[j],
                 headers: headers[j],
+                loadBalance: loadBalance[j],
               };
               configuredApps.push(configuredApp);
 
@@ -978,6 +1026,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       ssl: sslBackends[j],
                       timeout: timeouts[j],
                       headers: headers[j],
+                      loadBalance: loadBalance[j],
                     };
                     configuredApps.push(configuredAppCustom);
                   }
@@ -993,6 +1042,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           ssl: sslBackends[j],
                           timeout: timeouts[j],
                           headers: headers[j],
+                          loadBalance: loadBalance[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -1009,6 +1059,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           ssl: sslBackends[j],
                           timeout: timeouts[j],
                           headers: headers[j],
+                          loadBalance: loadBalance[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -1026,6 +1077,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           ssl: sslBackends[j],
                           timeout: timeouts[j],
                           headers: headers[j],
+                          loadBalance: loadBalance[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -1042,6 +1094,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           ssl: sslBackends[j],
                           timeout: timeouts[j],
                           headers: headers[j],
+                          loadBalance: loadBalance[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -1061,6 +1114,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               ssl: sslBackends[sslBackends.length - 1],
               timeout: timeouts[timeouts.length - 1],
               headers: headers[headers.length - 1],
+              loadBalance: loadBalance[loadBalance.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[1] && app.compose[1].ports[0]) {
@@ -1071,6 +1125,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               ssl: sslBackends[sslBackends.length - 1],
               timeout: timeouts[timeouts.length - 1],
               headers: headers[headers.length - 1],
+              loadBalance: loadBalance[loadBalance.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[2] && app.compose[2].ports[0]) {
@@ -1081,6 +1136,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               ssl: sslBackends[sslBackends.length - 1],
               timeout: timeouts[timeouts.length - 1],
               headers: headers[headers.length - 1],
+              loadBalance: loadBalance[loadBalance.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[3] && app.compose[3].ports[0]) {
@@ -1091,6 +1147,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               ssl: sslBackends[sslBackends.length - 1],
               timeout: timeouts[timeouts.length - 1],
               headers: headers[headers.length - 1],
+              loadBalance: loadBalance[loadBalance.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[4] && app.compose[4].ports[0]) {
@@ -1101,6 +1158,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               ssl: sslBackends[sslBackends.length - 1],
               timeout: timeouts[timeouts.length - 1],
               headers: headers[headers.length - 1],
+              loadBalance: loadBalance[loadBalance.length - 1],
             };
             configuredApps.push(mainApp);
           }

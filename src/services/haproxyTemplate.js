@@ -170,11 +170,15 @@ function createAppsHaproxyConfig(appConfig) {
   appConfig.forEach((app) => {
     const domainUsed = app.domain.split('.').join('');
     let domainBackend = `backend ${domainUsed}backend
-  mode http
-  balance source
-  hash-type consistent
-  stick-table type ip size 1m expire 1h
-  stick on src`;
+  mode http`;
+    if (app.loadBalance) {
+      domainBackend += app.loadBalance; 
+    } else {
+      domainBackend += `\n  balance source`;
+      domainBackend += `\n  hash-type consistent`;
+      domainBackend += `\n  stick-table type ip size 1m expire 1h`;
+      domainBackend += `\n  stick on src`;
+    }
     if (app.headers) {
       // eslint-disable-next-line no-loop-func
       app.headers.forEach((header) => {

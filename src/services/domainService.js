@@ -474,7 +474,7 @@ function getCustomBackendHeaders(specifications) {
 
 function getCustomLBAlgorithm(specifications) {
   const customLB = {
-    '31351.KadefiPactAPI.KadefiMoneyPactAPI': `\n  balance roundrobin`,
+    '31351.KadefiPactAPI.KadefiMoneyPactAPI': '\n  balance roundrobin',
   };
   const algos = [];
   let mainPort = '';
@@ -512,7 +512,7 @@ function getCustomLBAlgorithm(specifications) {
 
 function getCustomHAProxyHealthcheck(specifications) {
   const healthcheckMap = {
-    '31352.KadefiPactAPI.KadefiMoneyPactAPI': ['option httpchk','http-check send meth GET uri /health', 'http-check expect status 200'],
+    '31352.KadefiPactAPI.KadefiMoneyPactAPI': ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
   };
   const healthchecks = [];
   let mainPort = '';
@@ -563,7 +563,7 @@ function getCustomServerConfig(specifications) {
       if (customServerConfig[portName]) {
         customConfigs.push(customServerConfig[portName]);
       } else {
-        customConfigs.push("");
+        customConfigs.push('');
       }
     }
   } else {
@@ -573,7 +573,7 @@ function getCustomServerConfig(specifications) {
         if (customServerConfig[portName]) {
           customConfigs.push(customServerConfig[portName]);
         } else {
-          customConfigs.push("");
+          customConfigs.push('');
         }
       }
     }
@@ -581,11 +581,10 @@ function getCustomServerConfig(specifications) {
   if (customServerConfig[mainPort]) {
     customConfigs.push(customServerConfig[mainPort]);
   } else {
-    customConfigs.push("");
+    customConfigs.push('');
   }
   return customConfigs;
 }
-
 
 // return true if some domain operation was done
 // return false if no domain operation was done

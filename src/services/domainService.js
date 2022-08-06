@@ -510,6 +510,83 @@ function getCustomLBAlgorithm(specifications) {
   return algos;
 }
 
+function getCustomHAProxyHealthcheck(specifications) {
+  const healthcheckMap = {
+    '31352.KadefiPactAPI.KadefiMoneyPactAPI': ['option httpchk','http-check send meth GET uri /health', 'http-check expect status 200'],
+  };
+  const healthchecks = [];
+  let mainPort = '';
+  if (specifications.version <= 3) {
+    for (let i = 0; i < specifications.ports.length; i += 1) {
+      const portName = `${specifications.ports[i]}.${specifications.name}`;
+      if (i === 0) {
+        mainPort = portName;
+      }
+      if (healthcheckMap[portName]) {
+        healthchecks.push(healthcheckMap[portName]);
+      } else {
+        healthchecks.push([]);
+      }
+    }
+  } else {
+    for (const component of specifications.compose) {
+      for (let i = 0; i < component.ports.length; i += 1) {
+        const portName = `${component.ports[i]}.${component.name}.${specifications.name}`;
+        if (healthcheckMap[portName]) {
+          healthchecks.push(healthcheckMap[portName]);
+        } else {
+          healthchecks.push([]);
+        }
+      }
+    }
+  }
+  if (healthcheckMap[mainPort]) {
+    healthchecks.push(healthcheckMap[mainPort]);
+  } else {
+    healthchecks.push([]);
+  }
+  return healthchecks;
+}
+
+function getCustomServerConfig(specifications) {
+  const customServerConfig = {
+    '31352.KadefiPactAPI.KadefiMoneyPactAPI': 'inter 30s fall 2 rise 2',
+  };
+  const customConfigs = [];
+  let mainPort = '';
+  if (specifications.version <= 3) {
+    for (let i = 0; i < specifications.ports.length; i += 1) {
+      const portName = `${specifications.ports[i]}.${specifications.name}`;
+      if (i === 0) {
+        mainPort = portName;
+      }
+      if (customServerConfig[portName]) {
+        customConfigs.push(customServerConfig[portName]);
+      } else {
+        customConfigs.push("");
+      }
+    }
+  } else {
+    for (const component of specifications.compose) {
+      for (let i = 0; i < component.ports.length; i += 1) {
+        const portName = `${component.ports[i]}.${component.name}.${specifications.name}`;
+        if (customServerConfig[portName]) {
+          customConfigs.push(customServerConfig[portName]);
+        } else {
+          customConfigs.push("");
+        }
+      }
+    }
+  }
+  if (customServerConfig[mainPort]) {
+    customConfigs.push(customServerConfig[mainPort]);
+  } else {
+    customConfigs.push("");
+  }
+  return customConfigs;
+}
+
+
 // return true if some domain operation was done
 // return false if no domain operation was done
 async function checkAndAdjustDNSrecordForDomain(domain) {
@@ -890,6 +967,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         const timeouts = getCustomBackendTimout(app);
         const headers = getCustomBackendHeaders(app);
         const loadBalance = getCustomLBAlgorithm(app);
+        const healthcheck = getCustomHAProxyHealthcheck(app);
+        const serverConfig = getCustomServerConfig(app);
         if (app.version <= 3) {
           for (let i = 0; i < app.ports.length; i += 1) {
             const configuredApp = {
@@ -900,6 +979,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               timeout: timeouts[i],
               headers: headers[i],
               loadBalance: loadBalance[i],
+              healthcheck: healthcheck[i],
+              serverConfig: serverConfig[i],
             };
             configuredApps.push(configuredApp);
             if (app.domains[i]) {
@@ -914,6 +995,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     timeout: timeouts[i],
                     headers: headers[i],
                     loadBalance: loadBalance[i],
+                    healthcheck: healthcheck[i],
+                    serverConfig: serverConfig[i],
                   };
                   configuredApps.push(configuredAppCustom);
                 }
@@ -930,6 +1013,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         timeout: timeouts[i],
                         headers: headers[i],
                         loadBalance: loadBalance[i],
+                        healthcheck: healthcheck[i],
+                        serverConfig: serverConfig[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -947,6 +1032,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         timeout: timeouts[i],
                         headers: headers[i],
                         loadBalance: loadBalance[i],
+                        healthcheck: healthcheck[i],
+                        serverConfig: serverConfig[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -965,6 +1052,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         timeout: timeouts[i],
                         headers: headers[i],
                         loadBalance: loadBalance[i],
+                        healthcheck: healthcheck[i],
+                        serverConfig: serverConfig[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -982,6 +1071,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         timeout: timeouts[i],
                         headers: headers[i],
                         loadBalance: loadBalance[i],
+                        healthcheck: healthcheck[i],
+                        serverConfig: serverConfig[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -998,6 +1089,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             timeout: timeouts[timeouts.length - 1],
             headers: headers[headers.length - 1],
             loadBalance: loadBalance[loadBalance.length - 1],
+            healthcheck: healthcheck[healthcheck.length - 1],
+            serverConfig: serverConfig[serverConfig.length - 1],
           };
           configuredApps.push(mainApp);
         } else {
@@ -1012,6 +1105,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                 timeout: timeouts[j],
                 headers: headers[j],
                 loadBalance: loadBalance[j],
+                healthcheck: healthcheck[j],
+                serverConfig: serverConfig[j],
               };
               configuredApps.push(configuredApp);
 
@@ -1027,6 +1122,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       timeout: timeouts[j],
                       headers: headers[j],
                       loadBalance: loadBalance[j],
+                      healthcheck: healthcheck[j],
+                      serverConfig: serverConfig[j],
                     };
                     configuredApps.push(configuredAppCustom);
                   }
@@ -1043,6 +1140,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           timeout: timeouts[j],
                           headers: headers[j],
                           loadBalance: loadBalance[j],
+                          healthcheck: healthcheck[j],
+                          serverConfig: serverConfig[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -1060,6 +1159,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           timeout: timeouts[j],
                           headers: headers[j],
                           loadBalance: loadBalance[j],
+                          healthcheck: healthcheck[j],
+                          serverConfig: serverConfig[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -1078,6 +1179,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           timeout: timeouts[j],
                           headers: headers[j],
                           loadBalance: loadBalance[j],
+                          healthcheck: healthcheck[j],
+                          serverConfig: serverConfig[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -1095,6 +1198,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           timeout: timeouts[j],
                           headers: headers[j],
                           loadBalance: loadBalance[j],
+                          healthcheck: healthcheck[j],
+                          serverConfig: serverConfig[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -1115,6 +1220,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               timeout: timeouts[timeouts.length - 1],
               headers: headers[headers.length - 1],
               loadBalance: loadBalance[loadBalance.length - 1],
+              healthcheck: healthcheck[healthcheck.length - 1],
+              serverConfig: serverConfig[serverConfig.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[1] && app.compose[1].ports[0]) {
@@ -1126,6 +1233,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               timeout: timeouts[timeouts.length - 1],
               headers: headers[headers.length - 1],
               loadBalance: loadBalance[loadBalance.length - 1],
+              healthcheck: healthcheck[healthcheck.length - 1],
+              serverConfig: serverConfig[serverConfig.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[2] && app.compose[2].ports[0]) {
@@ -1137,6 +1246,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               timeout: timeouts[timeouts.length - 1],
               headers: headers[headers.length - 1],
               loadBalance: loadBalance[loadBalance.length - 1],
+              healthcheck: healthcheck[healthcheck.length - 1],
+              serverConfig: serverConfig[serverConfig.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[3] && app.compose[3].ports[0]) {
@@ -1148,6 +1259,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               timeout: timeouts[timeouts.length - 1],
               headers: headers[headers.length - 1],
               loadBalance: loadBalance[loadBalance.length - 1],
+              healthcheck: healthcheck[healthcheck.length - 1],
+              serverConfig: serverConfig[serverConfig.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[4] && app.compose[4].ports[0]) {
@@ -1159,6 +1272,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               timeout: timeouts[timeouts.length - 1],
               headers: headers[headers.length - 1],
               loadBalance: loadBalance[loadBalance.length - 1],
+              healthcheck: healthcheck[healthcheck.length - 1],
+              serverConfig: serverConfig[serverConfig.length - 1],
             };
             configuredApps.push(mainApp);
           }

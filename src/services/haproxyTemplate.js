@@ -185,6 +185,10 @@ function createAppsHaproxyConfig(appConfig) {
         domainBackend += `\n  ${header}`;
       });
     }
+    // eslint-disable-next-line no-loop-func
+    app.healthcheck.forEach((hc) => {
+      domainBackend += `\n  ${hc}`;
+    });
     for (const ip of app.ips) {
       const a = ip.split(':')[0].split('.');
       let IpString = '';
@@ -200,10 +204,11 @@ function createAppsHaproxyConfig(appConfig) {
           IpString = `${IpString}00${a[i]}`;
         }
       }
+      
       if (app.ssl) {
-        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ssl verify none`;
+        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none`;
       } else {
-        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check`;
+        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}`;
       }
       if (app.timeout) {
         domainBackend += `\n  timeout server ${app.timeout}`;

@@ -44,7 +44,7 @@ defaults
 frontend wwwhttp
   bind *:80
   option forwardfor except 127.0.0.0/8
-  reqadd X-Forwarded-Proto:\\ http
+  http-request add-header X-Forwarded-Proto:\\ http
 
   acl letsencrypt-acl path_beg /.well-known/acme-challenge/
   redirect scheme https if !letsencrypt-acl

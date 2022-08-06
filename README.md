@@ -83,7 +83,7 @@ Paste this under all:
     frontend wwwhttp
             bind 0.0.0.0:80
             option forwardfor except 127.0.0.0/8
-            http-request add-header X-Forwarded-Proto:\ http
+            http-request add-header X-Forwarded-Proto http
 
             acl letsencrypt-acl path_beg /.well-known/acme-challenge/
             use_backend letsencrypt-backend if letsencrypt-acl

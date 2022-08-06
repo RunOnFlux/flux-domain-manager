@@ -436,7 +436,7 @@ function getCustomBackendTimout(specifications) {
 
 function getCustomBackendHeaders(specifications) {
   const customTimeout = {
-    '33952.wp.wordpressonflux': ['http-request add-header X-Forwarded-Proto:\\ https'],
+    '33952.wp.wordpressonflux': ['http-request add-header X-Forwarded-Proto https'],
   };
   const headers = [];
   let mainPort = '';

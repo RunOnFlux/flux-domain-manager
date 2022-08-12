@@ -189,7 +189,7 @@ function createKadenaHaproxyConfig(appConfig) {
   acls += coinsAcl;
   acls += statsAcl;
 
-  const defaultBackend = '  default_backend bkadenachainwebnod2eapprunonfluxiobackend\n';
+  const defaultBackend = '  default_backend bkadenachainwebnode2apprunonfluxiobackend\n';
   const chainwebABackendUse = '  use_backend bkadenachainwebnode2apprunonfluxiobackend if chainwebB\n';
   const chainwebBackendUse = '  use_backend akadenachainwebnode2apprunonfluxiobackend if chainweb\n';
   const chainwebDataBackendUse = '  use_backend akadenachainwebdata2apprunonfluxiobackend if chainwebdata\n';

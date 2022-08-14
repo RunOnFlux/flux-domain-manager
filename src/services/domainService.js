@@ -366,7 +366,7 @@ function getCustomDomainsForApp(app) {
   if (app.version <= 3) {
     for (let i = 0; i < app.ports.length; i += 1) {
       if (app.domains[i] && app.domains[i].includes('.') && app.domains[i].length >= 3) {
-        let domain = app.domains[i].replace('https://', '').replace('http://', '');
+        let domain = app.domains[i].replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
         if (domain.includes('www.')) {
           // eslint-disable-next-line prefer-destructuring
           domain = domain.split('www.')[1];
@@ -380,7 +380,7 @@ function getCustomDomainsForApp(app) {
     for (const component of app.compose) {
       for (let i = 0; i < component.ports.length; i += 1) {
         if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3) {
-          let domain = component.domains[i].replace('https://', '').replace('http://', '');
+          let domain = component.domains[i].replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
           if (domain.includes('www.')) {
             // eslint-disable-next-line prefer-destructuring
             domain = domain.split('www.')[1];
@@ -987,7 +987,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                 const domainExists = configuredApps.find((a) => a.domain === app.domains[i]);
                 if (!domainExists) {
                   const configuredAppCustom = {
-                    domain: app.domains[i].replace('https://', '').replace('http://', ''),
+                    domain: app.domains[i].replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                     port: app.ports[i],
                     ips: appIps,
                     ssl: sslBackends[i],
@@ -1005,7 +1005,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                     if (!domainExistsB) {
                       const configuredAppCustom = {
-                        domain: adjustedDomain.replace('https://', '').replace('http://', ''),
+                        domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                         port: app.ports[i],
                         ips: appIps,
                         ssl: sslBackends[i],
@@ -1024,7 +1024,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                     if (!domainExistsB) {
                       const configuredAppCustom = {
-                        domain: adjustedDomain.replace('https://', '').replace('http://', ''),
+                        domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                         port: app.ports[i],
                         ips: appIps,
                         ssl: sslBackends[i],
@@ -1044,7 +1044,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                     if (!domainExistsB) {
                       const configuredAppCustom = {
-                        domain: adjustedDomain.replace('https://', '').replace('http://', ''),
+                        domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                         port: app.ports[i],
                         ips: appIps,
                         ssl: sslBackends[i],
@@ -1063,7 +1063,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                     if (!domainExistsB) {
                       const configuredAppCustom = {
-                        domain: adjustedDomain.replace('https://', '').replace('http://', ''),
+                        domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                         port: app.ports[i],
                         ips: appIps,
                         ssl: sslBackends[i],
@@ -1114,7 +1114,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                   const domainExists = configuredApps.find((a) => a.domain === component.domains[i]);
                   if (!domainExists) {
                     const configuredAppCustom = {
-                      domain: component.domains[i].replace('https://', '').replace('http://', ''),
+                      domain: component.domains[i].replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                       port: component.ports[i],
                       ips: appIps,
                       ssl: sslBackends[j],
@@ -1132,7 +1132,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                       if (!domainExistsB) {
                         const configuredAppCustom = {
-                          domain: adjustedDomain.replace('https://', '').replace('http://', ''),
+                          domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                           port: component.ports[i],
                           ips: appIps,
                           ssl: sslBackends[j],
@@ -1151,7 +1151,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                       if (!domainExistsB) {
                         const configuredAppCustom = {
-                          domain: adjustedDomain.replace('https://', '').replace('http://', ''),
+                          domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                           port: component.ports[i],
                           ips: appIps,
                           ssl: sslBackends[j],
@@ -1171,7 +1171,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                       if (!domainExistsB) {
                         const configuredAppCustom = {
-                          domain: adjustedDomain.replace('https://', '').replace('http://', ''),
+                          domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                           port: component.ports[i],
                           ips: appIps,
                           ssl: sslBackends[j],
@@ -1190,7 +1190,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                       if (!domainExistsB) {
                         const configuredAppCustom = {
-                          domain: adjustedDomain.replace('https://', '').replace('http://', ''),
+                          domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                           port: component.ports[i],
                           ips: appIps,
                           ssl: sslBackends[j],

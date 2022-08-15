@@ -18,7 +18,7 @@ const applicationChecks = require('./applicationChecks');
 let myIP = null;
 let myFDMnameORip = null;
 
-const mandatoryApps = ['explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena3', 'Kadena4'];
+const mandatoryApps = ['explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena3', 'Kadena4', 'themok3', 'themok'];
 
 const axiosConfig = {
   timeout: 13456,
@@ -915,6 +915,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           } else if (app.name === 'website') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkRunOnFluxWebsite(location.ip.split(':')[0], 33444);
+            if (isOK) {
+              appIps.push(location.ip);
+            }
+          } else if (app.name === 'themok' || app.name === 'themok2' || app.name === 'themok3') {
+            // eslint-disable-next-line no-await-in-loop
+            const isOK = await applicationChecks.checkMOKWebsite(location.ip.split(':')[0], 31000);
             if (isOK) {
               appIps.push(location.ip);
             }

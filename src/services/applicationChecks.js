@@ -350,6 +350,18 @@ async function checkRunOnFluxWebsite(ip, port) {
   }
 }
 
+async function checkMOKWebsite(ip, port) {
+  try {
+    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 5000);
+    if (websiteResponse.data.includes('<title>The Miners')) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkCloudAtlasWebsite(ip, port) {
   try {
     const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 8888);
@@ -420,4 +432,5 @@ module.exports = {
   checkCloudAtlasWebsite,
   checkHavenHeight,
   checkKDLaunch,
+  checkMOKWebsite,
 };

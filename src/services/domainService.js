@@ -918,7 +918,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             if (isOK) {
               appIps.push(location.ip);
             }
-          } else if (app.name === 'themok' || app.name === 'themok2' || app.name === 'themok3') {
+          } else if (app.name === 'themok' || app.name === 'themok2' || app.name === 'themok3' || app.name === 'themok4') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkMOKWebsite(location.ip.split(':')[0], 31000);
             if (isOK) {

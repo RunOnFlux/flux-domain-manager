@@ -321,44 +321,60 @@ function getUnifiedDomainsForApp(specifications) {
   return domains;
 }
 
-// return array of true or false if specific app port requires ssl backend
-function getSSLBackendsForApp(specifications) {
-  const ssl = [];
-  const requiesSSL = ['31350.KadefiPactAPI.KadefiMoneyPactAPI', '31350.KadefiChainwebNode.KadefiMoneyBackend'];
-  let mainPortSSL = '';
-  if (specifications.version <= 3) { // app v1 cannot be spawned and do not exist
-    // adding names for each port with new scheme {appname}_{portnumber}.app2.runonflux.io
+function getCustomConfigs(specifications) {
+  const configs = [];
+  const defaultConfig = {
+    ssl: false,
+    timeout: false,
+    headers: false,
+    loadBalance: false,
+    healthcheck: [],
+    serverConfig: ''
+  };
+
+  const customConfigs = {
+    '31350.KadefiChainwebNode.KadefiMoneyBackend': {
+      ssl: true,
+      timeout: 90000,
+    },
+    '31350.KadefiPactAPI.KadefiMoneyPactAPI': {
+      ssl: true,
+    },
+    '31351.KadefiPactAPI.KadefiMoneyPactAPI': {
+      timeout: 90000,
+      loadBalance: '\n  balance roundrobin',
+    },
+    '31352.KadefiPactAPI.KadefiMoneyPactAPI': {
+      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
+      serverConfig: 'inter 30s fall 2 rise 2',
+    },
+    '33952.wp.wordpressonflux': {
+      headers: ['http-request add-header X-Forwarded-Proto https'],
+    },
+  };
+
+  let mainPort = '';
+  if (specifications.version <= 3) {
     for (let i = 0; i < specifications.ports.length; i += 1) {
-      const portNameSSL = `${specifications.ports[i]}.${specifications.name}`;
+      const portName = `${specifications.ports[i]}.${specifications.name}`;
       if (i === 0) {
-        mainPortSSL = portNameSSL;
+        mainPort = portName;
       }
-      if (requiesSSL.includes(portNameSSL)) {
-        ssl.push(true);
-      } else {
-        ssl.push(false);
-      }
+      const appCustomConfig = customConfigs[portName] ? Object.assign({...defaultConfig}, customConfigs[portName]) : defaultConfig;
+      configs.push(appCustomConfig)
     }
   } else {
-    // composed app
     for (const component of specifications.compose) {
-      // same for composed apps, adding for each port with new scheme {appname}_{portnumber}.app2.runonflux.io
       for (let i = 0; i < component.ports.length; i += 1) {
-        const portNameSSL = `${component.ports[i]}.${component.name}.${specifications.name}`;
-        if (requiesSSL.includes(portNameSSL)) {
-          ssl.push(true);
-        } else {
-          ssl.push(false);
-        }
+        const portName = `${component.ports[i]}.${component.name}.${specifications.name}`;
+        const appCustomConfig = customConfigs[portName] ? Object.assign({...defaultConfig}, customConfigs[portName]) : defaultConfig;
+        configs.push(appCustomConfig)
       }
     }
   }
-  if (requiesSSL.includes(mainPortSSL)) {
-    ssl.push(true);
-  } else {
-    ssl.push(false);
-  }
-  return ssl;
+  const appCustomConfig = customConfigs[mainPort] ? Object.assign({...defaultConfig}, customConfigs[mainPort]) : defaultConfig;
+  configs.push(appCustomConfig);
+  return configs;
 }
 
 function getCustomDomainsForApp(app) {
@@ -393,197 +409,6 @@ function getCustomDomainsForApp(app) {
     }
   }
   return domains;
-}
-
-function getCustomBackendTimout(specifications) {
-  const customTimeout = {
-    '31350.KadefiChainwebNode.KadefiMoneyBackend': 90000,
-    '31351.KadefiPactAPI.KadefiMoneyPactAPI': 90000,
-  };
-  const timeouts = [];
-  let mainPort = '';
-  if (specifications.version <= 3) {
-    for (let i = 0; i < specifications.ports.length; i += 1) {
-      const portName = `${specifications.ports[i]}.${specifications.name}`;
-      if (i === 0) {
-        mainPort = portName;
-      }
-      if (customTimeout[portName]) {
-        timeouts.push(customTimeout[portName]);
-      } else {
-        timeouts.push(false);
-      }
-    }
-  } else {
-    for (const component of specifications.compose) {
-      for (let i = 0; i < component.ports.length; i += 1) {
-        const portName = `${component.ports[i]}.${component.name}.${specifications.name}`;
-        if (customTimeout[portName]) {
-          timeouts.push(customTimeout[portName]);
-        } else {
-          timeouts.push(false);
-        }
-      }
-    }
-  }
-  if (customTimeout[mainPort]) {
-    timeouts.push(customTimeout[mainPort]);
-  } else {
-    timeouts.push(false);
-  }
-  return timeouts;
-}
-
-function getCustomBackendHeaders(specifications) {
-  const customTimeout = {
-    '33952.wp.wordpressonflux': ['http-request add-header X-Forwarded-Proto https'],
-  };
-  const headers = [];
-  let mainPort = '';
-  if (specifications.version <= 3) {
-    for (let i = 0; i < specifications.ports.length; i += 1) {
-      const portName = `${specifications.ports[i]}.${specifications.name}`;
-      if (i === 0) {
-        mainPort = portName;
-      }
-      if (customTimeout[portName]) {
-        headers.push(customTimeout[portName]);
-      } else {
-        headers.push(false);
-      }
-    }
-  } else {
-    for (const component of specifications.compose) {
-      for (let i = 0; i < component.ports.length; i += 1) {
-        const portName = `${component.ports[i]}.${component.name}.${specifications.name}`;
-        if (customTimeout[portName]) {
-          headers.push(customTimeout[portName]);
-        } else {
-          headers.push(false);
-        }
-      }
-    }
-  }
-  if (customTimeout[mainPort]) {
-    headers.push(customTimeout[mainPort]);
-  } else {
-    headers.push(false);
-  }
-  return headers;
-}
-
-function getCustomLBAlgorithm(specifications) {
-  const customLB = {
-    '31351.KadefiPactAPI.KadefiMoneyPactAPI': '\n  balance roundrobin',
-  };
-  const algos = [];
-  let mainPort = '';
-  if (specifications.version <= 3) {
-    for (let i = 0; i < specifications.ports.length; i += 1) {
-      const portName = `${specifications.ports[i]}.${specifications.name}`;
-      if (i === 0) {
-        mainPort = portName;
-      }
-      if (customLB[portName]) {
-        algos.push(customLB[portName]);
-      } else {
-        algos.push(false);
-      }
-    }
-  } else {
-    for (const component of specifications.compose) {
-      for (let i = 0; i < component.ports.length; i += 1) {
-        const portName = `${component.ports[i]}.${component.name}.${specifications.name}`;
-        if (customLB[portName]) {
-          algos.push(customLB[portName]);
-        } else {
-          algos.push(false);
-        }
-      }
-    }
-  }
-  if (customLB[mainPort]) {
-    algos.push(customLB[mainPort]);
-  } else {
-    algos.push(false);
-  }
-  return algos;
-}
-
-function getCustomHAProxyHealthcheck(specifications) {
-  const healthcheckMap = {
-    '31352.KadefiPactAPI.KadefiMoneyPactAPI': ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
-  };
-  const healthchecks = [];
-  let mainPort = '';
-  if (specifications.version <= 3) {
-    for (let i = 0; i < specifications.ports.length; i += 1) {
-      const portName = `${specifications.ports[i]}.${specifications.name}`;
-      if (i === 0) {
-        mainPort = portName;
-      }
-      if (healthcheckMap[portName]) {
-        healthchecks.push(healthcheckMap[portName]);
-      } else {
-        healthchecks.push([]);
-      }
-    }
-  } else {
-    for (const component of specifications.compose) {
-      for (let i = 0; i < component.ports.length; i += 1) {
-        const portName = `${component.ports[i]}.${component.name}.${specifications.name}`;
-        if (healthcheckMap[portName]) {
-          healthchecks.push(healthcheckMap[portName]);
-        } else {
-          healthchecks.push([]);
-        }
-      }
-    }
-  }
-  if (healthcheckMap[mainPort]) {
-    healthchecks.push(healthcheckMap[mainPort]);
-  } else {
-    healthchecks.push([]);
-  }
-  return healthchecks;
-}
-
-function getCustomServerConfig(specifications) {
-  const customServerConfig = {
-    '31352.KadefiPactAPI.KadefiMoneyPactAPI': 'inter 30s fall 2 rise 2',
-  };
-  const customConfigs = [];
-  let mainPort = '';
-  if (specifications.version <= 3) {
-    for (let i = 0; i < specifications.ports.length; i += 1) {
-      const portName = `${specifications.ports[i]}.${specifications.name}`;
-      if (i === 0) {
-        mainPort = portName;
-      }
-      if (customServerConfig[portName]) {
-        customConfigs.push(customServerConfig[portName]);
-      } else {
-        customConfigs.push('');
-      }
-    }
-  } else {
-    for (const component of specifications.compose) {
-      for (let i = 0; i < component.ports.length; i += 1) {
-        const portName = `${component.ports[i]}.${component.name}.${specifications.name}`;
-        if (customServerConfig[portName]) {
-          customConfigs.push(customServerConfig[portName]);
-        } else {
-          customConfigs.push('');
-        }
-      }
-    }
-  }
-  if (customServerConfig[mainPort]) {
-    customConfigs.push(customServerConfig[mainPort]);
-  } else {
-    customConfigs.push('');
-  }
-  return customConfigs;
 }
 
 // return true if some domain operation was done
@@ -687,7 +512,6 @@ async function adjustAutoRenewalScriptForDomain(domain) { // let it throw
     const beginning = `#!/usr/bin/env bash
 # Renew the certificate
 certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
-
 # Concatenate new cert files, with less output (avoiding the use tee and its output to stdout)\n`;
     const ending = `
 # Reload  HAProxy
@@ -968,24 +792,14 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         const domains = getUnifiedDomainsForApp(app);
-        const sslBackends = getSSLBackendsForApp(app);
-        const timeouts = getCustomBackendTimout(app);
-        const headers = getCustomBackendHeaders(app);
-        const loadBalance = getCustomLBAlgorithm(app);
-        const healthcheck = getCustomHAProxyHealthcheck(app);
-        const serverConfig = getCustomServerConfig(app);
+        const customConfigs = getCustomConfigs(app);
         if (app.version <= 3) {
           for (let i = 0; i < app.ports.length; i += 1) {
             const configuredApp = {
               domain: domains[i],
               port: app.ports[i],
               ips: appIps,
-              ssl: sslBackends[i],
-              timeout: timeouts[i],
-              headers: headers[i],
-              loadBalance: loadBalance[i],
-              healthcheck: healthcheck[i],
-              serverConfig: serverConfig[i],
+              ...customConfigs[i],
             };
             configuredApps.push(configuredApp);
             if (app.domains[i]) {
@@ -996,12 +810,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     domain: app.domains[i].replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                     port: app.ports[i],
                     ips: appIps,
-                    ssl: sslBackends[i],
-                    timeout: timeouts[i],
-                    headers: headers[i],
-                    loadBalance: loadBalance[i],
-                    healthcheck: healthcheck[i],
-                    serverConfig: serverConfig[i],
+                    ...customConfigs[i],
                   };
                   configuredApps.push(configuredAppCustom);
                 }
@@ -1014,12 +823,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                         port: app.ports[i],
                         ips: appIps,
-                        ssl: sslBackends[i],
-                        timeout: timeouts[i],
-                        headers: headers[i],
-                        loadBalance: loadBalance[i],
-                        healthcheck: healthcheck[i],
-                        serverConfig: serverConfig[i],
+                        ...customConfigs[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -1033,12 +837,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                         port: app.ports[i],
                         ips: appIps,
-                        ssl: sslBackends[i],
-                        timeout: timeouts[i],
-                        headers: headers[i],
-                        loadBalance: loadBalance[i],
-                        healthcheck: healthcheck[i],
-                        serverConfig: serverConfig[i],
+                        ...customConfigs[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -1053,12 +852,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                         port: app.ports[i],
                         ips: appIps,
-                        ssl: sslBackends[i],
-                        timeout: timeouts[i],
-                        headers: headers[i],
-                        loadBalance: loadBalance[i],
-                        healthcheck: healthcheck[i],
-                        serverConfig: serverConfig[i],
+                        ...customConfigs[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -1072,12 +866,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                         port: app.ports[i],
                         ips: appIps,
-                        ssl: sslBackends[i],
-                        timeout: timeouts[i],
-                        headers: headers[i],
-                        loadBalance: loadBalance[i],
-                        healthcheck: healthcheck[i],
-                        serverConfig: serverConfig[i],
+                        ...customConfigs[i],
                       };
                       configuredApps.push(configuredAppCustom);
                     }
@@ -1090,12 +879,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             domain: domains[domains.length - 1],
             port: app.ports[0],
             ips: appIps,
-            ssl: sslBackends[sslBackends.length - 1],
-            timeout: timeouts[timeouts.length - 1],
-            headers: headers[headers.length - 1],
-            loadBalance: loadBalance[loadBalance.length - 1],
-            healthcheck: healthcheck[healthcheck.length - 1],
-            serverConfig: serverConfig[serverConfig.length - 1],
+            ...customConfigs[customConfigs.length - 1],
           };
           configuredApps.push(mainApp);
         } else {
@@ -1106,12 +890,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                 domain: domains[j],
                 port: component.ports[i],
                 ips: appIps,
-                ssl: sslBackends[j],
-                timeout: timeouts[j],
-                headers: headers[j],
-                loadBalance: loadBalance[j],
-                healthcheck: healthcheck[j],
-                serverConfig: serverConfig[j],
+                ...customConfigs[j],
               };
               configuredApps.push(configuredApp);
 
@@ -1123,12 +902,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       domain: component.domains[i].replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                       port: component.ports[i],
                       ips: appIps,
-                      ssl: sslBackends[j],
-                      timeout: timeouts[j],
-                      headers: headers[j],
-                      loadBalance: loadBalance[j],
-                      healthcheck: healthcheck[j],
-                      serverConfig: serverConfig[j],
+                      ...customConfigs[j],
                     };
                     configuredApps.push(configuredAppCustom);
                   }
@@ -1141,12 +915,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                           port: component.ports[i],
                           ips: appIps,
-                          ssl: sslBackends[j],
-                          timeout: timeouts[j],
-                          headers: headers[j],
-                          loadBalance: loadBalance[j],
-                          healthcheck: healthcheck[j],
-                          serverConfig: serverConfig[j],
+                          ...customConfigs[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -1160,12 +929,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                           port: component.ports[i],
                           ips: appIps,
-                          ssl: sslBackends[j],
-                          timeout: timeouts[j],
-                          headers: headers[j],
-                          loadBalance: loadBalance[j],
-                          healthcheck: healthcheck[j],
-                          serverConfig: serverConfig[j],
+                          ...customConfigs[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -1180,12 +944,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                           port: component.ports[i],
                           ips: appIps,
-                          ssl: sslBackends[j],
-                          timeout: timeouts[j],
-                          headers: headers[j],
-                          loadBalance: loadBalance[j],
-                          healthcheck: healthcheck[j],
-                          serverConfig: serverConfig[j],
+                          ...customConfigs[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -1199,12 +958,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                           port: component.ports[i],
                           ips: appIps,
-                          ssl: sslBackends[j],
-                          timeout: timeouts[j],
-                          headers: headers[j],
-                          loadBalance: loadBalance[j],
-                          healthcheck: healthcheck[j],
-                          serverConfig: serverConfig[j],
+                          ...customConfigs[j],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
@@ -1221,12 +975,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               domain: domains[domains.length - 1],
               port: app.compose[0].ports[0],
               ips: appIps,
-              ssl: sslBackends[sslBackends.length - 1],
-              timeout: timeouts[timeouts.length - 1],
-              headers: headers[headers.length - 1],
-              loadBalance: loadBalance[loadBalance.length - 1],
-              healthcheck: healthcheck[healthcheck.length - 1],
-              serverConfig: serverConfig[serverConfig.length - 1],
+              ...customConfigs[customConfigs.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[1] && app.compose[1].ports[0]) {
@@ -1234,12 +983,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               domain: domains[domains.length - 1],
               port: app.compose[1].ports[0],
               ips: appIps,
-              ssl: sslBackends[sslBackends.length - 1],
-              timeout: timeouts[timeouts.length - 1],
-              headers: headers[headers.length - 1],
-              loadBalance: loadBalance[loadBalance.length - 1],
-              healthcheck: healthcheck[healthcheck.length - 1],
-              serverConfig: serverConfig[serverConfig.length - 1],
+              ...customConfigs[customConfigs.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[2] && app.compose[2].ports[0]) {
@@ -1247,12 +991,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               domain: domains[domains.length - 1],
               port: app.compose[2].ports[0],
               ips: appIps,
-              ssl: sslBackends[sslBackends.length - 1],
-              timeout: timeouts[timeouts.length - 1],
-              headers: headers[headers.length - 1],
-              loadBalance: loadBalance[loadBalance.length - 1],
-              healthcheck: healthcheck[healthcheck.length - 1],
-              serverConfig: serverConfig[serverConfig.length - 1],
+              ...customConfigs[customConfigs.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[3] && app.compose[3].ports[0]) {
@@ -1260,12 +999,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               domain: domains[domains.length - 1],
               port: app.compose[3].ports[0],
               ips: appIps,
-              ssl: sslBackends[sslBackends.length - 1],
-              timeout: timeouts[timeouts.length - 1],
-              headers: headers[headers.length - 1],
-              loadBalance: loadBalance[loadBalance.length - 1],
-              healthcheck: healthcheck[healthcheck.length - 1],
-              serverConfig: serverConfig[serverConfig.length - 1],
+              ...customConfigs[customConfigs.length - 1],
             };
             configuredApps.push(mainApp);
           } else if (app.compose[4] && app.compose[4].ports[0]) {
@@ -1273,12 +1007,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               domain: domains[domains.length - 1],
               port: app.compose[4].ports[0],
               ips: appIps,
-              ssl: sslBackends[sslBackends.length - 1],
-              timeout: timeouts[timeouts.length - 1],
-              headers: headers[headers.length - 1],
-              loadBalance: loadBalance[loadBalance.length - 1],
-              healthcheck: healthcheck[healthcheck.length - 1],
-              serverConfig: serverConfig[serverConfig.length - 1],
+              ...customConfigs[customConfigs.length - 1],
             };
             configuredApps.push(mainApp);
           }

@@ -423,6 +423,18 @@ async function checkKDLaunch(ip, port) {
   }
 }
 
+async function checkHavenValut(ip, port) {
+  try {
+    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 2000);
+    if (websiteResponse.data.includes('<title>Haven')) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 module.exports = {
   checkMainFlux,
   checkKadenaApplication,
@@ -433,4 +445,5 @@ module.exports = {
   checkHavenHeight,
   checkKDLaunch,
   checkMOKWebsite,
+  checkHavenValut,
 };

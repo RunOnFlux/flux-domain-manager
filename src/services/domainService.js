@@ -784,6 +784,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             if (isOK) {
               appIps.push(location.ip);
             }
+          } else if (app.name === 'HavenVaultMainnet') {
+            // eslint-disable-next-line no-await-in-loop
+            const isOK = await applicationChecks.checkHavenValut(location.ip.split(':')[0], 34895);
+            if (isOK) {
+              appIps.push(location.ip);
+            }
           } else {
             appIps.push(location.ip);
           }

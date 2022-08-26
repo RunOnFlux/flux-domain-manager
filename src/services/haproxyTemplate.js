@@ -1,6 +1,7 @@
 /* eslint-disable no-useless-escape */
 /* eslint-disable no-restricted-syntax */
 const configGlobal = require('config');
+const log = require('../lib/log');
 
 const haproxyPrefix = `
 global

@@ -191,9 +191,19 @@ function createAppsHaproxyConfig(appConfig) {
     });
     for (const ip of app.ips) {
       const a = ip.split(':')[0].split('.');
+      if (!a) {
+        log.error('STRANGE IP');
+        log.error(ip);
+        continue;
+      }
       let IpString = '';
       const b = ip.split(':')[1] || '';
       for (let i = 0; i < 4; i += 1) {
+        if (!(a[i])) {
+          log.error('STRANGE IP');
+          log.error(ip);
+          continue;
+        }
         if (a[i].length === 3) {
           IpString += a[i];
         }

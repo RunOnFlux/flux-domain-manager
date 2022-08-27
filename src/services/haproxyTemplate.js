@@ -71,6 +71,8 @@ const certificatePrefix = '  bind *:443 ssl ';
 
 const certificatesSuffix = 'ciphers kEECDH+aRSA+AES:kRSA+AES:+AES256:RC4-SHA:!kEDH:!LOW:!EXP:!MD5:!aNULL:!eNULL no-sslv3';
 
+const h2Suffix = 'alpn h2,http/1.1';
+
 const letsEncryptBackend = `backend letsencrypt-backend
   server letsencrypt 127.0.0.1:8787
 `;
@@ -88,7 +90,7 @@ function createCertificatesPaths(domains) {
 }
 
 function generateHaproxyConfig(acls, usebackends, domains, backends, redirects) {
-  const config = `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}`;
+  const config = `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix} ${h2Suffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}`;
   return config;
 }
 
@@ -217,7 +219,8 @@ function createAppsHaproxyConfig(appConfig) {
       }
 
       if (app.ssl) {
-        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none`;
+        const h2Config = app.enableH2 ? h2Suffix : '';
+        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}`;
       } else {
         domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}`;
       }

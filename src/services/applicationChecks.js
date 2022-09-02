@@ -324,7 +324,7 @@ async function checkKadenaDataApplication(ip) {
     const searchTxs = await kadenaSearchTxs(ip);
     const lastTx = new Date(searchTxs[0].creationTime);
     const lastTimeTx = lastTx.getTime();
-    const diffTen = 15 * 24 * 60 * 60 * 1000;
+    const diffTen = 10 * 24 * 60 * 60 * 1000;
     if (currentTime - diffTen < lastTimeTx) {
       return true;
     }

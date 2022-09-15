@@ -18,7 +18,7 @@ const applicationChecks = require('./applicationChecks');
 let myIP = null;
 let myFDMnameORip = null;
 
-const mandatoryApps = ['explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena3', 'Kadena4', 'themok3'];
+const mandatoryApps = ['explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena3', 'Kadena4'];
 
 const axiosConfig = {
   timeout: 13456,
@@ -412,6 +412,9 @@ function getCustomDomainsForApp(app) {
         }
       }
     }
+  }
+  if (app.name === "themok") {
+    return ["themok.io", "www.themok.io", "test.themok.io"];
   }
   return domains;
 }

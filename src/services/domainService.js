@@ -587,6 +587,10 @@ async function doCertOperationsForCustomDomains(domains) {
 async function doDomainCertOperationsForFDMdomains(domains) {
   try {
     for (const appDomain of domains) {
+      if (appDomain === 'ethereumnodelight.app.runonflux.io') { // temporarily disable
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       // check DNS
       // if DNS was adjusted for this domain, wait a minute
       // eslint-disable-next-line no-await-in-loop

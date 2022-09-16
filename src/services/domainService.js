@@ -352,10 +352,10 @@ function getCustomConfigs(specifications) {
     '33952.wp.wordpressonflux': {
       headers: ['http-request add-header X-Forwarded-Proto https'],
     },
-    "35000.KadefiMoneyDevAPI.KadefiMoneyDevAPI": {
+    '35000.KadefiMoneyDevAPI.KadefiMoneyDevAPI': {
       ssl: true,
       enableH2: true,
-    }
+    },
   };
 
   let mainPort = '';
@@ -365,19 +365,19 @@ function getCustomConfigs(specifications) {
       if (i === 0) {
         mainPort = portName;
       }
-      const appCustomConfig = customConfigs[portName] ? Object.assign({...defaultConfig}, customConfigs[portName]) : defaultConfig;
-      configs.push(appCustomConfig)
+      const appCustomConfig = customConfigs[portName] ? ({ ...defaultConfig, ...customConfigs[portName] }) : defaultConfig;
+      configs.push(appCustomConfig);
     }
   } else {
     for (const component of specifications.compose) {
       for (let i = 0; i < component.ports.length; i += 1) {
         const portName = `${component.ports[i]}.${component.name}.${specifications.name}`;
-        const appCustomConfig = customConfigs[portName] ? Object.assign({...defaultConfig}, customConfigs[portName]) : defaultConfig;
-        configs.push(appCustomConfig)
+        const appCustomConfig = customConfigs[portName] ? ({ ...defaultConfig, ...customConfigs[portName] }) : defaultConfig;
+        configs.push(appCustomConfig);
       }
     }
   }
-  const appCustomConfig = customConfigs[mainPort] ? Object.assign({...defaultConfig}, customConfigs[mainPort]) : defaultConfig;
+  const appCustomConfig = customConfigs[mainPort] ? ({ ...defaultConfig, ...customConfigs[mainPort] }) : defaultConfig;
   configs.push(appCustomConfig);
   return configs;
 }
@@ -413,8 +413,8 @@ function getCustomDomainsForApp(app) {
       }
     }
   }
-  if (app.name === "themok") {
-    return ["themok.io", "www.themok.io", "test.themok.io"];
+  if (app.name === 'themok') {
+    return ['themok.io', 'www.themok.io', 'test.themok.io'];
   }
   return domains;
 }
@@ -750,7 +750,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             if (isOK) {
               appIps.push(location.ip);
             }
-          } else if (app.name === 'themok' || app.name === 'themok2' || app.name === 'themok3' || app.name === 'themok4') {
+          } else if (app.name === 'themok' || app.name === 'themok2' || app.name === 'themok3' || app.name === 'themok4' || app.name === 'themok5') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkMOKWebsite(location.ip.split(':')[0], 31000);
             if (isOK) {

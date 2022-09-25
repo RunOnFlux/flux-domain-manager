@@ -152,7 +152,10 @@ async function deleteDNSRecordPDNS(name, content, type = 'A', ttl = 60) {
 }
 
 // Creates new DNS record
-async function createDNSRecord(name, content, type = config.domainAppType, ttl = 60) {
+async function createDNSRecord(name, content, type = config.domainAppType, ttl = 60, skipDNSRecordCreation = config.skipDNSRecordCreation) {
+  if (skipDNSRecordCreation) {
+    return true;
+  }
   if (!name.endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
     throw new Error('Invalid DNS record to create specified');
   }

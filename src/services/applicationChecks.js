@@ -7,7 +7,9 @@ const log = require('../lib/log');
 
 const timeout = 3456;
 
-const mandatoryApps = ['explorer', 'KDLaunch', 'EthereumNodeLight', 'website', 'Kadena3', 'Kadena4'];
+const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4'];
+
+let currentFluxBlockheight = 1216061;
 
 // MAIN
 async function checkLoginPhrase(ip, port) {
@@ -58,7 +60,7 @@ async function isVersionOK(ip, port) {
     const url = `http://${ip}:${port}/flux/version`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.replace(/\./g, '');
-    if (version >= 3230) {
+    if (version >= 3240) {
       return true;
     }
     return false;
@@ -72,7 +74,7 @@ async function isSyncedOK(ip, port) {
     const url = `http://${ip}:${port}/explorer/scannedheight`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const height = response.data.data.generalScannedHeight;
-    if (height > 1167918) {
+    if (height > currentFluxBlockheight) {
       return true;
     }
     return false;
@@ -93,7 +95,7 @@ async function hasManyApps(ip, port) {
         if (!appExists) {
           return false;
         }
-        if (appExists.height < (1167918 - 22000)) {
+        if (appExists.height < (currentFluxBlockheight - 22000)) {
           return false;
         }
       }
@@ -435,6 +437,30 @@ async function checkHavenValut(ip, port) {
   }
 }
 
+async function generalWebsiteCheck(ip, port, timeOut = 2000) {
+  try {
+    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, timeOut);
+    if (websiteResponse.data.includes('<title>')) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
+setInterval(async () => {
+  try {
+    const response = await serviceHelper.httpGetRequest('https://explorer.runonflux.io/api/status', 4000);
+    const height = response.data.info.blocks;
+    if (height > currentFluxBlockheight) {
+      currentFluxBlockheight = height;
+    }
+  } catch (error) {
+    log.error('ERROR OBTAINING FLUX HEIGHT');
+  }
+}, 60 * 1000);
+
 module.exports = {
   checkMainFlux,
   checkKadenaApplication,
@@ -446,4 +472,5 @@ module.exports = {
   checkKDLaunch,
   checkMOKWebsite,
   checkHavenValut,
+  generalWebsiteCheck,
 };

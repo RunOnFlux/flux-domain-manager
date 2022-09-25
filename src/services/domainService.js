@@ -731,12 +731,20 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     const configuredApps = []; // object of domain, port, ips for backend
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
+      const generalWebsiteApps = ['website', 'themok', 'themok2', 'themok3', 'themok4', 'themok5', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2, jetpack'];
       // eslint-disable-next-line no-await-in-loop
       const appLocations = await getApplicationLocation(app.name);
       if (appLocations.length > 0) {
         const appIps = [];
         for (const location of appLocations) { // run coded checks for app
-          if (app.name === 'EthereumNodeLight') {
+          if (generalWebsiteApps.includes(app.name)) {
+            // <= 3 or compose of 1 component
+            // eslint-disable-next-line no-await-in-loop
+            const isOK = await applicationChecks.generalWebsiteCheck(location.ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0]);
+            if (isOK) {
+              appIps.push(location.ip);
+            }
+          } else if (app.name === 'EthereumNodeLight') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkEthereum(location.ip.split(':')[0], 31301);
             if (isOK) {
@@ -745,24 +753,6 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           } else if (app.name === 'explorer') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkFluxExplorer(location.ip.split(':')[0], 39185);
-            if (isOK) {
-              appIps.push(location.ip);
-            }
-          } else if (app.name === 'website') {
-            // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkRunOnFluxWebsite(location.ip.split(':')[0], 33444);
-            if (isOK) {
-              appIps.push(location.ip);
-            }
-          } else if (app.name === 'themok' || app.name === 'themok2' || app.name === 'themok3' || app.name === 'themok4' || app.name === 'themok5') {
-            // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkMOKWebsite(location.ip.split(':')[0], 31000);
-            if (isOK) {
-              appIps.push(location.ip);
-            }
-          } else if (app.name === 'AtlasCloudMainnet') {
-            // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkCloudAtlasWebsite(location.ip.split(':')[0], 37047);
             if (isOK) {
               appIps.push(location.ip);
             }
@@ -784,21 +774,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             if (isOK) {
               appIps.push(location.ip);
             }
-          } else if (app.name === 'KDLaunch') {
-            // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkKDLaunch(location.ip.split(':')[0], 35121);
-            if (isOK) {
-              appIps.push(location.ip);
-            }
           } else if (app.name === 'KadefiMoneyPactAPI') {
             // eslint-disable-next-line no-await-in-loop
             const isOK = await applicationChecks.checkKadenaApplication(location.ip.split(':')[0]);
-            if (isOK) {
-              appIps.push(location.ip);
-            }
-          } else if (app.name === 'HavenVaultMainnet') {
-            // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkHavenValut(location.ip.split(':')[0], 34895);
             if (isOK) {
               appIps.push(location.ip);
             }

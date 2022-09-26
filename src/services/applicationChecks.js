@@ -74,7 +74,7 @@ async function isSyncedOK(ip, port) {
     const url = `http://${ip}:${port}/explorer/scannedheight`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const height = response.data.data.generalScannedHeight;
-    if (height > currentFluxBlockheight) {
+    if (height >= currentFluxBlockheight) {
       return true;
     }
     return false;
@@ -380,7 +380,7 @@ async function checkFluxExplorer(ip, port) {
   try {
     const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`, 8888);
     const responseB = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/sync`, 8888);
-    if (response.data.transactions.length > 0 && responseB.data.blockChainHeight > 1155713) {
+    if (response.data.transactions.length > 0 && responseB.data.blockChainHeight >= currentFluxBlockheight) {
       return true;
     }
     return false;

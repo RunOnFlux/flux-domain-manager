@@ -416,12 +416,12 @@ function getCustomDomainsForApp(app) {
       }
     }
   }
-  if (app.name === 'themok') {
-    return ['themok.io', 'www.themok.io', 'test.themok.io'];
-  }
-  if (app.name === 'themok2' || app.name === 'themok3' || app.name === 'themok4' || app.name === 'themok5') {
-    return [];
-  }
+  // if (app.name === 'themok') {
+  //   return ['themok.io', 'www.themok.io', 'test.themok.io'];
+  // }
+  // if (app.name === 'themok2' || app.name === 'themok3' || app.name === 'themok4' || app.name === 'themok5') {
+  //   return [];
+  // }
   return domains;
 }
 
@@ -737,7 +737,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     const configuredApps = []; // object of domain, port, ips for backend
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
-      const generalWebsiteApps = ['website', 'themok', 'themok2', 'themok3', 'themok4', 'themok5', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2, jetpack'];
+      const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2, jetpack'];
       // eslint-disable-next-line no-await-in-loop
       const appLocations = await getApplicationLocation(app.name);
       if (appLocations.length > 0) {

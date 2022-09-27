@@ -437,7 +437,7 @@ async function checkHavenValut(ip, port) {
   }
 }
 
-async function generalWebsiteCheck(ip, port, timeOut = 2000) {
+async function generalWebsiteCheck(ip, port, timeOut = 5000) {
   try {
     const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, timeOut);
     if (websiteResponse.data.includes('<title>')) {

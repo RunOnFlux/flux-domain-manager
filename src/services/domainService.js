@@ -419,6 +419,9 @@ function getCustomDomainsForApp(app) {
   if (app.name === 'themok') {
     return ['themok.io', 'www.themok.io', 'test.themok.io'];
   }
+  if (app.name === 'themok2' || app.name === 'themok3' || app.name === 'themok4' || app.name === 'themok5') {
+    return [];
+  }
   return domains;
 }
 

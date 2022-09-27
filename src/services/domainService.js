@@ -18,7 +18,7 @@ const applicationChecks = require('./applicationChecks');
 let myIP = null;
 let myFDMnameORip = null;
 
-const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4', 'themok', 'themok2', 'themok3', 'themok4', 'themok5'];
+const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4'];
 
 const axiosConfig = {
   timeout: 13456,

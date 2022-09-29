@@ -188,7 +188,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
       }
     }
     if (appIpsData.length < 20) {
-      // throw new Error(`PANIC Chainweb Data not sufficient. Nodes OK: ${appIpsData.length}`);
+      throw new Error(`PANIC Chainweb Data not sufficient. Nodes OK: ${appIpsData.length}`);
     }
     const configuredApps = []; // object of domain, port, ips for backend
     const apps = [

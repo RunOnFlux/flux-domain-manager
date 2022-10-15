@@ -403,7 +403,7 @@ function getCustomDomainsForApp(app) {
   } else {
     for (const component of app.compose) {
       for (let i = 0; i < component.ports.length; i += 1) {
-        if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3 && !app.domains[i].endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
+        if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3 && !component.domains[i].endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
           let domain = component.domains[i].replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
           if (domain.includes('www.')) {
             // eslint-disable-next-line prefer-destructuring

@@ -389,7 +389,7 @@ function getCustomDomainsForApp(app) {
   const domains = [];
   if (app.version <= 3) {
     for (let i = 0; i < app.ports.length; i += 1) {
-      if (app.domains[i] && app.domains[i].includes('.') && app.domains[i].length >= 3) {
+      if (app.domains[i] && app.domains[i].includes('.') && app.domains[i].length >= 3 && !app.domains[i].endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
         let domain = app.domains[i].replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
         if (domain.includes('www.')) {
           // eslint-disable-next-line prefer-destructuring
@@ -403,7 +403,7 @@ function getCustomDomainsForApp(app) {
   } else {
     for (const component of app.compose) {
       for (let i = 0; i < component.ports.length; i += 1) {
-        if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3) {
+        if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3 && !app.domains[i].endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
           let domain = component.domains[i].replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
           if (domain.includes('www.')) {
             // eslint-disable-next-line prefer-destructuring
@@ -895,7 +895,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               };
               configuredApps.push(configuredApp);
 
-              if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3) {
+              if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3 && !component.domains[i].includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`)) {
                 if (!component.domains[i].includes(`${config.appSubDomain}${config.mainDomain.split('.')[0]}`)) { // prevent double backend
                   const domainExists = configuredApps.find((a) => a.domain === component.domains[i]);
                   if (!domainExists) {

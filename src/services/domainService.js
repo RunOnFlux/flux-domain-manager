@@ -389,29 +389,29 @@ function getCustomDomainsForApp(app) {
   const domains = [];
   if (app.version <= 3) {
     for (let i = 0; i < app.ports.length; i += 1) {
-      if (app.domains[i] && app.domains[i].includes('.') && app.domains[i].length >= 3 && !app.domains[i].endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
+      if (app.domains[i] && app.domains[i].includes('.') && app.domains[i].length >= 3 && !app.domains[i].toLowerCase().endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
         let domain = app.domains[i].replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
         if (domain.includes('www.')) {
           // eslint-disable-next-line prefer-destructuring
           domain = domain.split('www.')[1];
         }
-        domains.push(domain);
-        domains.push(`www.${domain}`);
-        domains.push(`test.${domain}`);
+        domains.push(domain.toLowerCase());
+        domains.push(`www.${domain.toLowerCase()}`);
+        domains.push(`test.${domain.toLowerCase()}`);
       }
     }
   } else {
     for (const component of app.compose) {
       for (let i = 0; i < component.ports.length; i += 1) {
-        if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3 && !component.domains[i].endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
+        if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3 && !component.domains[i].toLowerCase().endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
           let domain = component.domains[i].replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
           if (domain.includes('www.')) {
             // eslint-disable-next-line prefer-destructuring
             domain = domain.split('www.')[1];
           }
-          domains.push(domain);
-          domains.push(`www.${domain}`);
-          domains.push(`test.${domain}`);
+          domains.push(domain.toLowerCase());
+          domains.push(`www.${domain.toLowerCase()}`);
+          domains.push(`test.${domain.toLowerCase()}`);
         }
       }
     }
@@ -804,11 +804,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             };
             configuredApps.push(configuredApp);
             if (app.domains[i]) {
-              if (!app.domains[i].includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`)) { // prevent double backend
-                const domainExists = configuredApps.find((a) => a.domain === app.domains[i]);
+              if (!app.domains[i].toLowerCase().includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`)) { // prevent double backend
+                const domainExists = configuredApps.find((a) => a.domain === app.domains[i].toLowerCase());
                 if (!domainExists) {
                   const configuredAppCustom = {
-                    domain: app.domains[i].replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                    domain: app.domains[i].toLowerCase().replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                     port: app.ports[i],
                     ips: appIps,
                     ...customConfigs[i],
@@ -816,7 +816,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                   configuredApps.push(configuredAppCustom);
                 }
                 if (app.domains[i].includes('www.')) { // add domain without the www. prefix
-                  const adjustedDomain = app.domains[i].split('www.')[1];
+                  const adjustedDomain = app.domains[i].toLowerCase().split('www.')[1];
                   if (adjustedDomain) {
                     const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                     if (!domainExistsB) {
@@ -830,7 +830,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     }
                   }
                 } else { // does not have www, add with www
-                  const adjustedDomain = `www.${app.domains[i]}`;
+                  const adjustedDomain = `www.${app.domains[i].toLowerCase()}`;
                   if (adjustedDomain) {
                     const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                     if (!domainExistsB) {
@@ -845,7 +845,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                   }
                 }
                 if (app.domains[i].includes('test.')) { // add domain without the test. prefix
-                  const adjustedDomain = app.domains[i].split('test.')[1];
+                  const adjustedDomain = app.domains[i].toLowerCase().split('test.')[1];
                   if (adjustedDomain) {
                     const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                     if (!domainExistsB) {
@@ -859,7 +859,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     }
                   }
                 } else { // does not have test, add with test
-                  const adjustedDomain = `test.${app.domains[i]}`;
+                  const adjustedDomain = `test.${app.domains[i].toLowerCase()}`;
                   if (adjustedDomain) {
                     const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                     if (!domainExistsB) {
@@ -895,12 +895,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               };
               configuredApps.push(configuredApp);
 
-              if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3 && !component.domains[i].includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`)) {
+              if (component.domains[i] && component.domains[i].includes('.') && component.domains[i].length >= 3 && !component.domains[i].toLowerCase().includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`)) {
                 if (!component.domains[i].includes(`${config.appSubDomain}${config.mainDomain.split('.')[0]}`)) { // prevent double backend
-                  const domainExists = configuredApps.find((a) => a.domain === component.domains[i]);
+                  const domainExists = configuredApps.find((a) => a.domain === component.domains[i].toLowerCase());
                   if (!domainExists) {
                     const configuredAppCustom = {
-                      domain: component.domains[i].replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                      domain: component.domains[i].toLowerCase().replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                       port: component.ports[i],
                       ips: appIps,
                       ...customConfigs[j],
@@ -908,7 +908,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     configuredApps.push(configuredAppCustom);
                   }
                   if (component.domains[i].includes('www.')) { // add domain without the www. prefix
-                    const adjustedDomain = component.domains[i].split('www.')[1];
+                    const adjustedDomain = component.domains[i].toLowerCase().split('www.')[1];
                     if (adjustedDomain) {
                       const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                       if (!domainExistsB) {
@@ -922,7 +922,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       }
                     }
                   } else { // does not have www, add with www
-                    const adjustedDomain = `www.${component.domains[i]}`;
+                    const adjustedDomain = `www.${component.domains[i].toLowerCase()}`;
                     if (adjustedDomain) {
                       const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                       if (!domainExistsB) {
@@ -937,7 +937,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     }
                   }
                   if (component.domains[i].includes('test.')) { // add domain without the test. prefix
-                    const adjustedDomain = component.domains[i].split('test.')[1];
+                    const adjustedDomain = component.domains[i].toLowerCase().split('test.')[1];
                     if (adjustedDomain) {
                       const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                       if (!domainExistsB) {
@@ -951,7 +951,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       }
                     }
                   } else { // does not have test, add with test
-                    const adjustedDomain = `test.${component.domains[i]}`;
+                    const adjustedDomain = `test.${component.domains[i].toLowerCase()}`;
                     if (adjustedDomain) {
                       const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
                       if (!domainExistsB) {

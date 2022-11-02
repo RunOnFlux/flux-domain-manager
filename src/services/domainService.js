@@ -348,6 +348,10 @@ function getCustomConfigs(specifications) {
       timeout: 90000,
       loadBalance: '\n  balance roundrobin',
     },
+    '31352.KadenaChainWebData.Kadena3': {
+      timeout: 90000,
+      loadBalance: '\n  balance roundrobin',
+    },
     '31352.KadefiPactAPI.KadefiMoneyPactAPI': {
       healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
       serverConfig: 'inter 30s fall 2 rise 2',

@@ -789,12 +789,6 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             if (isOK) {
               appIps.push(location.ip);
             }
-          } else if (app.name === 'KadefiMoneyPactAPI') {
-            // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkKadenaApplication(location.ip.split(':')[0]);
-            if (isOK) {
-              appIps.push(location.ip);
-            }
           } else {
             appIps.push(location.ip);
           }

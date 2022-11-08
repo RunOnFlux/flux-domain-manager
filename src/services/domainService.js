@@ -343,10 +343,14 @@ function getCustomConfigs(specifications) {
     },
     '31350.KadefiPactAPI.KadefiMoneyPactAPI': {
       ssl: true,
+      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
+      serverConfig: 'port 31352 inter 30s fall 2 rise 2',
     },
     '31351.KadefiPactAPI.KadefiMoneyPactAPI': {
       timeout: 90000,
       loadBalance: '\n  balance roundrobin',
+      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
+      serverConfig: 'port 31352 inter 30s fall 2 rise 2',
     },
     '31352.KadenaChainWebData.Kadena3': {
       timeout: 90000,

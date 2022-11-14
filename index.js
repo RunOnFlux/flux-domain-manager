@@ -1,6 +1,6 @@
 const http = require('http');
 const config = require('config');
-const app = require('./src/lib/server');
+const app = require('./src/api/server');
 const log = require('./src/lib/log');
 
 const domainService = require('./src/services/domainService');

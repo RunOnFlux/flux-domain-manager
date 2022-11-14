@@ -11,6 +11,5 @@ if (nodeEnv !== 'test') {
 }
 
 app.use(cors());
-require('../routes')(app);
 
 module.exports = app;

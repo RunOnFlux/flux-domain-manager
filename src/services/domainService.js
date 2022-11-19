@@ -1,12 +1,11 @@
 /* eslint-disable no-restricted-syntax */
-const axios = require('axios');
 const config = require('config');
 const nodecmd = require('node-cmd');
 const util = require('util');
 const fs = require('fs').promises;
 const log = require('../lib/log');
 const ipService = require('./ipService');
-const fluxService = require('./fluxService');
+const fluxService = require('./flux');
 const haproxyTemplate = require('./haproxyTemplate');
 const applicationChecks = require('./applicationChecks');
 const { processApplications, getUnifiedDomains } = require('./domain');
@@ -15,10 +14,6 @@ let myIP = null;
 let myFDMnameORip = null;
 
 const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4'];
-
-const axiosConfig = {
-  timeout: 13456,
-};
 
 const cmdAsync = util.promisify(nodecmd.run);
 
@@ -74,32 +69,6 @@ async function generateAndReplaceMainHaproxyConfig() {
     setTimeout(() => {
       generateAndReplaceMainHaproxyConfig();
     }, 4 * 60 * 1000);
-  }
-}
-// Retrieves application specifications from network api
-async function getAppSpecifications() {
-  try {
-    const fluxnodeList = await axios.get('https://api.runonflux.io/apps/globalappsspecifications', axiosConfig);
-    if (fluxnodeList.data.status === 'success') {
-      return fluxnodeList.data.data || [];
-    }
-    return [];
-  } catch (e) {
-    log.error(e);
-    return [];
-  }
-}
-// Retrieves IP's that a given application in running on
-async function getApplicationLocation(appName) {
-  try {
-    const fluxnodeList = await axios.get(`https://api.runonflux.io/apps/location/${appName}`, axiosConfig);
-    if (fluxnodeList.data.status === 'success') {
-      return fluxnodeList.data.data || [];
-    }
-    return [];
-  } catch (e) {
-    log.error(e);
-    return [];
   }
 }
 
@@ -181,7 +150,7 @@ async function createSSLDirectory() {
 async function generateAndReplaceMainApplicationHaproxyConfig() {
   try {
     // get applications on the network
-    const applicationSpecifications = await getAppSpecifications();
+    const applicationSpecifications = await fluxService.getAppSpecifications();
     // for every application do following
     // get name, ports
     // main application domain is name.app.domain, for every port we have name-port.app.domain
@@ -206,7 +175,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       log.info(`Configuring ${app.name}`);
       const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'themok', 'themok2', 'themok3', 'themok4', 'themok5'];
       // eslint-disable-next-line no-await-in-loop
-      const appLocations = await getApplicationLocation(app.name);
+      const appLocations = await fluxService.getApplicationLocation(app.name);
       if (appLocations.length > 0) {
         const appIps = [];
         for (const location of appLocations) { // run coded checks for app

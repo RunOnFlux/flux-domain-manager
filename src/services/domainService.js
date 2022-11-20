@@ -1,7 +1,5 @@
 /* eslint-disable no-restricted-syntax */
 const config = require('config');
-const nodecmd = require('node-cmd');
-const util = require('util');
 const fs = require('fs').promises;
 const log = require('../lib/log');
 const ipService = require('./ipService');
@@ -9,13 +7,12 @@ const fluxService = require('./flux');
 const haproxyTemplate = require('./haproxyTemplate');
 const applicationChecks = require('./applicationChecks');
 const { processApplications, getUnifiedDomains } = require('./domain');
+const { cmdAsync } = require('./constants');
 
 let myIP = null;
 let myFDMnameORip = null;
 
 const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4'];
-
-const cmdAsync = util.promisify(nodecmd.run);
 
 // Generates config file for HAProxy
 async function generateAndReplaceMainHaproxyConfig() {

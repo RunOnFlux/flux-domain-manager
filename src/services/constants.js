@@ -8,7 +8,12 @@ const DOMAIN_TYPE = {
   CUSTOM: 'CUSTOM',
 };
 
+const TEMP_HAPROXY_CONFIG = '/tmp/haproxytemp.cfg';
+const HAPROXY_CONFIG = '/etc/haproxy/haproxy.cfg';
+
 module.exports = {
   DOMAIN_TYPE,
   cmdAsync,
+  TEMP_HAPROXY_CONFIG,
+  HAPROXY_CONFIG,
 };

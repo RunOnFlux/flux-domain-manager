@@ -6,7 +6,6 @@ const ipService = require('./ipService');
 const fluxService = require('./flux');
 const haproxyTemplate = require('./haproxyTemplate');
 const { processApplications, getUnifiedDomains } = require('./domain');
-const { cmdAsync } = require('./constants');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
 
@@ -47,17 +46,9 @@ async function generateAndReplaceMainHaproxyConfig() {
     console.log(hc);
     const dataToWrite = hc;
     // test haproxy config
-    const haproxyPathTemp = '/tmp/haproxytemp.cfg';
-    await fs.writeFile(haproxyPathTemp, dataToWrite);
-    const response = await cmdAsync(`sudo haproxy -f ${haproxyPathTemp} -c`);
-    if (response.includes('Configuration file is valid')) {
-      // write and reload
-      const haproxyPath = '/etc/haproxy/haproxy.cfg';
-      await fs.writeFile(haproxyPath, dataToWrite);
-      const execHAreload = 'sudo service haproxy reload';
-      await cmdAsync(execHAreload);
-    } else {
-      throw new Error('Invalid HAPROXY config file!');
+    const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
+    if (!successRestart) {
+      throw new Error('Invalid HAPROXY Config File!');
     }
     setTimeout(() => {
       generateAndReplaceMainHaproxyConfig();
@@ -303,17 +294,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     console.log(hc);
     const dataToWrite = hc;
     // test haproxy config
-    const haproxyPathTemp = '/tmp/haproxytemp.cfg';
-    await fs.writeFile(haproxyPathTemp, dataToWrite);
-    const response = await cmdAsync(`sudo haproxy -f ${haproxyPathTemp} -c`);
-    if (response.includes('Configuration file is valid')) {
-      // write and reload
-      const haproxyPath = '/etc/haproxy/haproxy.cfg';
-      await fs.writeFile(haproxyPath, dataToWrite);
-      const execHAreload = 'sudo service haproxy reload';
-      await cmdAsync(execHAreload);
-    } else {
-      throw new Error('Invalid HAPROXY config file!');
+    const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
+    if (!successRestart) {
+      throw new Error('Invalid HAPROXY Config File!');
     }
     setTimeout(() => {
       generateAndReplaceMainApplicationHaproxyConfig();

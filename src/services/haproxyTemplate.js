@@ -1,7 +1,9 @@
 /* eslint-disable no-useless-escape */
 /* eslint-disable no-restricted-syntax */
 const configGlobal = require('config');
+const fs = require('fs').promises;
 const log = require('../lib/log');
+const { cmdAsync, TEMP_HAPROXY_CONFIG, HAPROXY_CONFIG } = require('./constants');
 
 const haproxyPrefix = `
 global
@@ -238,7 +240,29 @@ function createAppsHaproxyConfig(appConfig) {
   return generateHaproxyConfig(acls, usebackends, domains, backends, redirects);
 }
 
+async function writeConfig(configName, data) {
+  await fs.writeFile(configName, data);
+}
+
+async function checkConfig(configName) {
+  const response = await cmdAsync(`sudo haproxy -f ${configName} -c`);
+  return response.includes('Configuration file is valid');
+}
+
+async function restartProxy(dataToWrite) {
+  await writeConfig(TEMP_HAPROXY_CONFIG, dataToWrite);
+  const isConfigOk = await checkConfig(TEMP_HAPROXY_CONFIG);
+  if (!isConfigOk) {
+    return false;
+  }
+  await writeConfig(HAPROXY_CONFIG, dataToWrite);
+  const execHAreload = 'sudo service haproxy reload';
+  await cmdAsync(execHAreload);
+  return true;
+}
+
 module.exports = {
   createMainHaproxyConfig,
   createAppsHaproxyConfig,
+  restartProxy,
 };

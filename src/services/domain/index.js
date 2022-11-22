@@ -89,57 +89,31 @@ const processApplications = async (specifications, myFDMnameORip) => {
     }
     const domains = getUnifiedDomains(appSpecs);
     const customDomains = getCustomDomains(appSpecs);
-    if (appSpecs.version <= 3) {
-      const { ports } = appSpecs;
-      if (domains.length === ports.length + 1) {
-        // eslint-disable-next-line no-await-in-loop
-        const domainOperationsSuccessful = await executeCertificateOperations(domains, DOMAIN_TYPE.FDM, myFDMnameORip);
-        if (domainOperationsSuccessful) {
-          log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
-          processedApplications.push(appSpecs);
-        } else {
-          log.error(`Domain/ssl issues for ${appSpecs.name}`);
-        }
-        if (domainOperationsSuccessful && customDomains.length) {
-          // eslint-disable-next-line no-await-in-loop
-          const customCertOperationsSuccessful = await executeCertificateOperations(customDomains, DOMAIN_TYPE.CUSTOM, myFDMnameORip);
-          if (customCertOperationsSuccessful) {
-            log.info(`Application domain and ssl for custom domains of ${appSpecs.name} is ready`);
-          } else {
-            log.error(`Domain/ssl issues for custom domains of ${appSpecs.name}`);
-          }
-        }
+    const ports = appSpecs.version <= 3 ? appSpecs.ports : appSpecs.compose.reduce(
+      (p, c) => p + c.ports.length, // ports += 1; // component name itself not required in new scheme
+      0,
+    );
+
+    if (domains.length === ports.length + 1) {
+      // eslint-disable-next-line no-await-in-loop
+      const domainOperationsSuccessful = await executeCertificateOperations(domains, DOMAIN_TYPE.FDM, myFDMnameORip);
+      if (domainOperationsSuccessful) {
+        log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
+        processedApplications.push(appSpecs);
       } else {
-        log.error(`Application ${appSpecs.name} has wierd domain, settings. This is a bug.`);
+        log.error(`Domain/ssl issues for ${appSpecs.name}`);
+      }
+      if (domainOperationsSuccessful && customDomains.length) {
+        // eslint-disable-next-line no-await-in-loop
+        const customCertOperationsSuccessful = await executeCertificateOperations(customDomains, DOMAIN_TYPE.CUSTOM, myFDMnameORip);
+        if (customCertOperationsSuccessful) {
+          log.info(`Application domain and ssl for custom domains of ${appSpecs.name} is ready`);
+        } else {
+          log.error(`Domain/ssl issues for custom domains of ${appSpecs.name}`);
+        }
       }
     } else {
-      // composed app
-      let ports = 0;
-      appSpecs.compose.forEach((component) => {
-        // ports += 1; // component name itself not required in new scheme
-        ports += component.ports.length;
-      });
-      if (domains.length === ports + 1) { // + 1 for app name
-        // eslint-disable-next-line no-await-in-loop
-        const domainOperationsSuccessful = await executeCertificateOperations(domains, DOMAIN_TYPE.FDM, myFDMnameORip);
-        if (domainOperationsSuccessful) {
-          log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
-          processedApplications.push(appSpecs);
-        } else {
-          log.error(`Domain/ssl issues for ${appSpecs.name}`);
-        }
-        if (domainOperationsSuccessful && customDomains.length) {
-          // eslint-disable-next-line no-await-in-loop
-          const customCertOperationsSuccessful = await executeCertificateOperations(customDomains, DOMAIN_TYPE.CUSTOM, myFDMnameORip);
-          if (customCertOperationsSuccessful) {
-            log.info(`Application domain and ssl for custom domains of ${appSpecs.name} is ready`);
-          } else {
-            log.error(`Domain/ssl issues for custom domains of ${appSpecs.name}`);
-          }
-        }
-      } else {
-        log.error(`Application ${appSpecs.name} has wierd domain, settings. This is a bug.`);
-      }
+      log.error(`Application ${appSpecs.name} has wierd domain, settings. This is a bug.`);
     }
   }
 

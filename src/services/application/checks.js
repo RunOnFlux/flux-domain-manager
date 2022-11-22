@@ -2,12 +2,13 @@
 const axios = require('axios');
 const https = require('https');
 const Web3 = require('web3');
-const serviceHelper = require('./serviceHelper');
-const log = require('../lib/log');
+const serviceHelper = require('../serviceHelper');
+const log = require('../../lib/log');
 
 const timeout = 3456;
 
 const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4'];
+const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'themok', 'themok2', 'themok3', 'themok4', 'themok5'];
 
 let currentFluxBlockheight = 1216061;
 
@@ -449,6 +450,24 @@ async function generalWebsiteCheck(ip, port, timeOut = 2500) {
   }
 }
 
+async function checkApplication(app, ip) {
+  let isOK = true;
+  if (generalWebsiteApps.includes(app.name)) {
+    isOK = await generalWebsiteCheck(ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0]);
+  } else if (app.name === 'EthereumNodeLight') {
+    isOK = await checkEthereum(ip.split(':')[0], 31301);
+  } else if (app.name === 'explorer') {
+    isOK = await checkFluxExplorer(ip.split(':')[0], 39185);
+  } else if (app.name === 'HavenNodeMainnet') {
+    isOK = await checkHavenHeight(ip.split(':')[0], 31750);
+  } else if (app.name === 'HavenNodeTestnet') {
+    isOK = await checkHavenHeight(ip.split(':')[0], 32750);
+  } else if (app.name === 'HavenNodeStagenet') {
+    isOK = await checkHavenHeight(ip.split(':')[0], 33750);
+  }
+  return isOK;
+}
+
 setInterval(async () => {
   try {
     const response = await serviceHelper.httpGetRequest('https://explorer.runonflux.io/api/status', 4000);
@@ -473,4 +492,5 @@ module.exports = {
   checkMOKWebsite,
   checkHavenValut,
   generalWebsiteCheck,
+  checkApplication,
 };

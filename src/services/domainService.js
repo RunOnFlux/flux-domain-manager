@@ -1,26 +1,18 @@
 /* eslint-disable no-restricted-syntax */
-const axios = require('axios');
 const config = require('config');
-const nodecmd = require('node-cmd');
-const util = require('util');
 const fs = require('fs').promises;
 const log = require('../lib/log');
 const ipService = require('./ipService');
-const fluxService = require('./fluxService');
+const fluxService = require('./flux');
 const haproxyTemplate = require('./haproxyTemplate');
-const applicationChecks = require('./applicationChecks');
 const { processApplications, getUnifiedDomains } = require('./domain');
+const applicationChecks = require('./application/checks');
+const { getCustomConfigs } = require('./application/custom');
 
 let myIP = null;
 let myFDMnameORip = null;
 
 const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4'];
-
-const axiosConfig = {
-  timeout: 13456,
-};
-
-const cmdAsync = util.promisify(nodecmd.run);
 
 // Generates config file for HAProxy
 async function generateAndReplaceMainHaproxyConfig() {
@@ -54,17 +46,9 @@ async function generateAndReplaceMainHaproxyConfig() {
     console.log(hc);
     const dataToWrite = hc;
     // test haproxy config
-    const haproxyPathTemp = '/tmp/haproxytemp.cfg';
-    await fs.writeFile(haproxyPathTemp, dataToWrite);
-    const response = await cmdAsync(`sudo haproxy -f ${haproxyPathTemp} -c`);
-    if (response.includes('Configuration file is valid')) {
-      // write and reload
-      const haproxyPath = '/etc/haproxy/haproxy.cfg';
-      await fs.writeFile(haproxyPath, dataToWrite);
-      const execHAreload = 'sudo service haproxy reload';
-      await cmdAsync(execHAreload);
-    } else {
-      throw new Error('Invalid HAPROXY config file!');
+    const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
+    if (!successRestart) {
+      throw new Error('Invalid HAPROXY Config File!');
     }
     setTimeout(() => {
       generateAndReplaceMainHaproxyConfig();
@@ -76,101 +60,6 @@ async function generateAndReplaceMainHaproxyConfig() {
     }, 4 * 60 * 1000);
   }
 }
-// Retrieves application specifications from network api
-async function getAppSpecifications() {
-  try {
-    const fluxnodeList = await axios.get('https://api.runonflux.io/apps/globalappsspecifications', axiosConfig);
-    if (fluxnodeList.data.status === 'success') {
-      return fluxnodeList.data.data || [];
-    }
-    return [];
-  } catch (e) {
-    log.error(e);
-    return [];
-  }
-}
-// Retrieves IP's that a given application in running on
-async function getApplicationLocation(appName) {
-  try {
-    const fluxnodeList = await axios.get(`https://api.runonflux.io/apps/location/${appName}`, axiosConfig);
-    if (fluxnodeList.data.status === 'success') {
-      return fluxnodeList.data.data || [];
-    }
-    return [];
-  } catch (e) {
-    log.error(e);
-    return [];
-  }
-}
-
-function getCustomConfigs(specifications) {
-  const configs = [];
-  const defaultConfig = {
-    ssl: false,
-    timeout: false,
-    headers: false,
-    loadBalance: false,
-    healthcheck: [],
-    serverConfig: '',
-    enableH2: false,
-  };
-
-  const customConfigs = {
-    '31350.KadefiChainwebNode.KadefiMoneyBackend': {
-      ssl: true,
-      timeout: 90000,
-    },
-    '31350.KadefiPactAPI.KadefiMoneyPactAPI': {
-      ssl: true,
-      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
-      serverConfig: 'port 31352 inter 30s fall 2 rise 2',
-    },
-    '31351.KadefiPactAPI.KadefiMoneyPactAPI': {
-      timeout: 90000,
-      loadBalance: '\n  balance roundrobin',
-      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
-      serverConfig: 'port 31352 inter 30s fall 2 rise 2',
-    },
-    '31352.KadenaChainWebData.Kadena3': {
-      timeout: 90000,
-      loadBalance: '\n  balance roundrobin',
-    },
-    '31352.KadefiPactAPI.KadefiMoneyPactAPI': {
-      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
-      serverConfig: 'inter 30s fall 2 rise 2',
-    },
-    '33952.wp.wordpressonflux': {
-      headers: ['http-request add-header X-Forwarded-Proto https'],
-    },
-    '35000.KadefiMoneyDevAPI.KadefiMoneyDevAPI': {
-      ssl: true,
-      enableH2: true,
-    },
-  };
-
-  let mainPort = '';
-  if (specifications.version <= 3) {
-    for (let i = 0; i < specifications.ports.length; i += 1) {
-      const portName = `${specifications.ports[i]}.${specifications.name}`;
-      if (i === 0) {
-        mainPort = portName;
-      }
-      const appCustomConfig = customConfigs[portName] ? ({ ...defaultConfig, ...customConfigs[portName] }) : defaultConfig;
-      configs.push(appCustomConfig);
-    }
-  } else {
-    for (const component of specifications.compose) {
-      for (let i = 0; i < component.ports.length; i += 1) {
-        const portName = `${component.ports[i]}.${component.name}.${specifications.name}`;
-        const appCustomConfig = customConfigs[portName] ? ({ ...defaultConfig, ...customConfigs[portName] }) : defaultConfig;
-        configs.push(appCustomConfig);
-      }
-    }
-  }
-  const appCustomConfig = customConfigs[mainPort] ? ({ ...defaultConfig, ...customConfigs[mainPort] }) : defaultConfig;
-  configs.push(appCustomConfig);
-  return configs;
-}
 
 async function createSSLDirectory() {
   const dir = `/etc/ssl/${config.certFolder}`;
@@ -181,7 +70,7 @@ async function createSSLDirectory() {
 async function generateAndReplaceMainApplicationHaproxyConfig() {
   try {
     // get applications on the network
-    const applicationSpecifications = await getAppSpecifications();
+    const applicationSpecifications = await fluxService.getAppSpecifications();
     // for every application do following
     // get name, ports
     // main application domain is name.app.domain, for every port we have name-port.app.domain
@@ -204,50 +93,14 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     const configuredApps = []; // object of domain, port, ips for backend
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
-      const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'themok', 'themok2', 'themok3', 'themok4', 'themok5'];
       // eslint-disable-next-line no-await-in-loop
-      const appLocations = await getApplicationLocation(app.name);
+      const appLocations = await fluxService.getApplicationLocation(app.name);
       if (appLocations.length > 0) {
         const appIps = [];
         for (const location of appLocations) { // run coded checks for app
-          if (generalWebsiteApps.includes(app.name)) {
-            // <= 3 or compose of 1 component
-            // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.generalWebsiteCheck(location.ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0]);
-            if (isOK) {
-              appIps.push(location.ip);
-            }
-          } else if (app.name === 'EthereumNodeLight') {
-            // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkEthereum(location.ip.split(':')[0], 31301);
-            if (isOK) {
-              appIps.push(location.ip);
-            }
-          } else if (app.name === 'explorer') {
-            // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkFluxExplorer(location.ip.split(':')[0], 39185);
-            if (isOK) {
-              appIps.push(location.ip);
-            }
-          } else if (app.name === 'HavenNodeMainnet') {
-            // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkHavenHeight(location.ip.split(':')[0], 31750);
-            if (isOK) {
-              appIps.push(location.ip);
-            }
-          } else if (app.name === 'HavenNodeTestnet') {
-            // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkHavenHeight(location.ip.split(':')[0], 32750);
-            if (isOK) {
-              appIps.push(location.ip);
-            }
-          } else if (app.name === 'HavenNodeStagenet') {
-            // eslint-disable-next-line no-await-in-loop
-            const isOK = await applicationChecks.checkHavenHeight(location.ip.split(':')[0], 33750);
-            if (isOK) {
-              appIps.push(location.ip);
-            }
-          } else {
+          // eslint-disable-next-line no-await-in-loop
+          const isOk = await applicationChecks.checkApplication(app, location.ip);
+          if (isOk) {
             appIps.push(location.ip);
           }
         }
@@ -281,62 +134,31 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     };
                     configuredApps.push(configuredAppCustom);
                   }
-                  if (portDomain.includes('www.')) { // add domain without the www. prefix
-                    const adjustedDomain = portDomain.toLowerCase().split('www.')[1];
-                    if (adjustedDomain) {
-                      const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
-                      if (!domainExistsB) {
-                        const configuredAppCustom = {
-                          domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
-                          port: app.ports[i],
-                          ips: appIps,
-                          ...customConfigs[i],
-                        };
-                        configuredApps.push(configuredAppCustom);
-                      }
-                    }
-                  } else { // does not have www, add with www
-                    const adjustedDomain = `www.${portDomain.toLowerCase()}`;
-                    if (adjustedDomain) {
-                      const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
-                      if (!domainExistsB) {
-                        const configuredAppCustom = {
-                          domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
-                          port: app.ports[i],
-                          ips: appIps,
-                          ...customConfigs[i],
-                        };
-                        configuredApps.push(configuredAppCustom);
-                      }
+                  const wwwAdjustedDomain = portDomain.includes('www.') ? portDomain.toLowerCase().split('www.')[1] : `www.${portDomain.toLowerCase()}`;
+                  if (wwwAdjustedDomain) {
+                    const domainExistsB = configuredApps.find((a) => a.domain === wwwAdjustedDomain);
+                    if (!domainExistsB) {
+                      const configuredAppCustom = {
+                        domain: wwwAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                        port: app.ports[i],
+                        ips: appIps,
+                        ...customConfigs[i],
+                      };
+                      configuredApps.push(configuredAppCustom);
                     }
                   }
-                  if (portDomain.includes('test.')) { // add domain without the test. prefix
-                    const adjustedDomain = portDomain.toLowerCase().split('test.')[1];
-                    if (adjustedDomain) {
-                      const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
-                      if (!domainExistsB) {
-                        const configuredAppCustom = {
-                          domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
-                          port: app.ports[i],
-                          ips: appIps,
-                          ...customConfigs[i],
-                        };
-                        configuredApps.push(configuredAppCustom);
-                      }
-                    }
-                  } else { // does not have test, add with test
-                    const adjustedDomain = `test.${portDomain.toLowerCase()}`;
-                    if (adjustedDomain) {
-                      const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
-                      if (!domainExistsB) {
-                        const configuredAppCustom = {
-                          domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
-                          port: app.ports[i],
-                          ips: appIps,
-                          ...customConfigs[i],
-                        };
-                        configuredApps.push(configuredAppCustom);
-                      }
+
+                  const testAdjustedDomain = portDomain.includes('test.') ? portDomain.toLowerCase().split('test.')[1] : `test.${portDomain.toLowerCase()}`;
+                  if (testAdjustedDomain) {
+                    const domainExistsB = configuredApps.find((a) => a.domain === testAdjustedDomain);
+                    if (!domainExistsB) {
+                      const configuredAppCustom = {
+                        domain: testAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                        port: app.ports[i],
+                        ips: appIps,
+                        ...customConfigs[i],
+                      };
+                      configuredApps.push(configuredAppCustom);
                     }
                   }
                 }
@@ -378,62 +200,32 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       };
                       configuredApps.push(configuredAppCustom);
                     }
-                    if (portDomain.includes('www.')) { // add domain without the www. prefix
-                      const adjustedDomain = portDomain.toLowerCase().split('www.')[1];
-                      if (adjustedDomain) {
-                        const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
-                        if (!domainExistsB) {
-                          const configuredAppCustom = {
-                            domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
-                            port: component.ports[i],
-                            ips: appIps,
-                            ...customConfigs[j],
-                          };
-                          configuredApps.push(configuredAppCustom);
-                        }
-                      }
-                    } else { // does not have www, add with www
-                      const adjustedDomain = `www.${portDomain.toLowerCase()}`;
-                      if (adjustedDomain) {
-                        const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
-                        if (!domainExistsB) {
-                          const configuredAppCustom = {
-                            domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
-                            port: component.ports[i],
-                            ips: appIps,
-                            ...customConfigs[j],
-                          };
-                          configuredApps.push(configuredAppCustom);
-                        }
+
+                    const wwwAdjustedDomain = portDomain.includes('www.') ? portDomain.toLowerCase().split('www.')[1] : `www.${portDomain.toLowerCase()}`;
+                    if (wwwAdjustedDomain) {
+                      const domainExistsB = configuredApps.find((a) => a.domain === wwwAdjustedDomain);
+                      if (!domainExistsB) {
+                        const configuredAppCustom = {
+                          domain: wwwAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                          port: component.ports[i],
+                          ips: appIps,
+                          ...customConfigs[j],
+                        };
+                        configuredApps.push(configuredAppCustom);
                       }
                     }
-                    if (portDomain.includes('test.')) { // add domain without the test. prefix
-                      const adjustedDomain = portDomain.toLowerCase().split('test.')[1];
-                      if (adjustedDomain) {
-                        const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
-                        if (!domainExistsB) {
-                          const configuredAppCustom = {
-                            domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
-                            port: component.ports[i],
-                            ips: appIps,
-                            ...customConfigs[j],
-                          };
-                          configuredApps.push(configuredAppCustom);
-                        }
-                      }
-                    } else { // does not have test, add with test
-                      const adjustedDomain = `test.${portDomain.toLowerCase()}`;
-                      if (adjustedDomain) {
-                        const domainExistsB = configuredApps.find((a) => a.domain === adjustedDomain);
-                        if (!domainExistsB) {
-                          const configuredAppCustom = {
-                            domain: adjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
-                            port: component.ports[i],
-                            ips: appIps,
-                            ...customConfigs[j],
-                          };
-                          configuredApps.push(configuredAppCustom);
-                        }
+
+                    const testAdjustedDomain = portDomain.includes('test.') ? portDomain.toLowerCase().split('test.')[1] : `test.${portDomain.toLowerCase()}`;
+                    if (testAdjustedDomain) {
+                      const domainExistsB = configuredApps.find((a) => a.domain === testAdjustedDomain);
+                      if (!domainExistsB) {
+                        const configuredAppCustom = {
+                          domain: testAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                          port: component.ports[i],
+                          ips: appIps,
+                          ...customConfigs[j],
+                        };
+                        configuredApps.push(configuredAppCustom);
                       }
                     }
                   }
@@ -502,17 +294,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     console.log(hc);
     const dataToWrite = hc;
     // test haproxy config
-    const haproxyPathTemp = '/tmp/haproxytemp.cfg';
-    await fs.writeFile(haproxyPathTemp, dataToWrite);
-    const response = await cmdAsync(`sudo haproxy -f ${haproxyPathTemp} -c`);
-    if (response.includes('Configuration file is valid')) {
-      // write and reload
-      const haproxyPath = '/etc/haproxy/haproxy.cfg';
-      await fs.writeFile(haproxyPath, dataToWrite);
-      const execHAreload = 'sudo service haproxy reload';
-      await cmdAsync(execHAreload);
-    } else {
-      throw new Error('Invalid HAPROXY config file!');
+    const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
+    if (!successRestart) {
+      throw new Error('Invalid HAPROXY Config File!');
     }
     setTimeout(() => {
       generateAndReplaceMainApplicationHaproxyConfig();

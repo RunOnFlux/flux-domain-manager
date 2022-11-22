@@ -1,8 +1,12 @@
 const axios = require('axios');
 const config = require('config');
-const log = require('../lib/log');
+const log = require('../../lib/log');
 
 const timeout = 13456;
+
+const axiosConfig = {
+  timeout,
+};
 
 async function getFluxList(fallback) {
   try {
@@ -51,21 +55,23 @@ async function getFluxIPs() {
   }
 }
 
-async function getSingleNodeAppLocation(ip, application) {
+// Retrieves application specifications from network api
+async function getAppSpecifications() {
   try {
-    const { CancelToken } = axios;
-    const source = CancelToken.source();
-    let isResolved = false;
-    setTimeout(() => {
-      if (!isResolved) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, timeout * 2);
-    const fluxnodeList = await axios.get(`http://${ip}:16127/apps/location/${application}`, {
-      cancelToken: source.token,
-      timeout,
-    });
-    isResolved = true;
+    const fluxnodeList = await axios.get('https://api.runonflux.io/apps/globalappsspecifications', axiosConfig);
+    if (fluxnodeList.data.status === 'success') {
+      return fluxnodeList.data.data || [];
+    }
+    return [];
+  } catch (e) {
+    log.error(e);
+    return [];
+  }
+}
+// Retrieves IP's that a given application in running on
+async function getApplicationLocation(appName) {
+  try {
+    const fluxnodeList = await axios.get(`https://api.runonflux.io/apps/location/${appName}`, axiosConfig);
     if (fluxnodeList.data.status === 'success') {
       return fluxnodeList.data.data || [];
     }
@@ -76,31 +82,8 @@ async function getSingleNodeAppLocation(ip, application) {
   }
 }
 
-// check where an application is running
-// let it throw
-async function getApplicationLocation(application) {
-  const fluxnodeList = await getFluxIPs();
-  if (fluxnodeList.length < 10) {
-    throw new Error('Invalid Flux List');
-  }
-  // choose 10 random nodes and get chainwebnode locations from them
-  const stringOfTenChars = 'qwertyuiop';
-  const applocations = [];
-  // eslint-disable-next-line no-restricted-syntax, no-unused-vars
-  for (const index of stringOfTenChars) { // async inside
-    const randomNumber = Math.floor((Math.random() * fluxnodeList.length));
-    // eslint-disable-next-line no-await-in-loop
-    const al = await getSingleNodeAppLocation(fluxnodeList[randomNumber], application);
-    al.forEach((node) => {
-      applocations.push(node.ip);
-    });
-  }
-  // create a set of it so we dont have duplicates
-  const appLocOK = [...new Set(applocations)]; // continue running checks
-  return appLocOK;
-}
-
 module.exports = {
   getFluxIPs,
   getApplicationLocation,
+  getAppSpecifications,
 };

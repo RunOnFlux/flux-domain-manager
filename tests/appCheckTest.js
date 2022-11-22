@@ -1,6 +1,6 @@
 /* eslint-disable func-names */
 const chai = require('chai');
-const appChecks = require('../src/services/applicationChecks');
+const appChecks = require('../src/services/application/checks');
 
 const { expect } = chai;
 

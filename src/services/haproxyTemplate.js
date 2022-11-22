@@ -199,6 +199,7 @@ function createAppsHaproxyConfig(appConfig) {
       if (!a) {
         log.error('STRANGE IP');
         log.error(ip);
+        // eslint-disable-next-line no-continue
         continue;
       }
       let IpString = '';
@@ -207,6 +208,7 @@ function createAppsHaproxyConfig(appConfig) {
         if (!(a[i])) {
           log.error('STRANGE IP');
           log.error(ip);
+          // eslint-disable-next-line no-continue
           continue;
         }
         if (a[i].length === 3) {

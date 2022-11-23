@@ -89,12 +89,12 @@ const processApplications = async (specifications, myFDMnameORip) => {
     }
     const domains = getUnifiedDomains(appSpecs);
     const customDomains = getCustomDomains(appSpecs);
-    const ports = appSpecs.version <= 3 ? appSpecs.ports : appSpecs.compose.reduce(
+    const portLength = appSpecs.version <= 3 ? appSpecs.ports.length : appSpecs.compose.reduce(
       (p, c) => p + c.ports.length, // ports += 1; // component name itself not required in new scheme
       0,
     );
 
-    if (domains.length === ports.length + 1) {
+    if (domains.length === portLength + 1) {
       // eslint-disable-next-line no-await-in-loop
       const domainOperationsSuccessful = await executeCertificateOperations(domains, DOMAIN_TYPE.FDM, myFDMnameORip);
       if (domainOperationsSuccessful) {

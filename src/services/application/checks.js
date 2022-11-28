@@ -7,7 +7,7 @@ const log = require('../../lib/log');
 
 const timeout = 3456;
 
-const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4'];
+const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4', 'HavenNodeMainnet'];
 const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'themok', 'themok2', 'themok3', 'themok4', 'themok5'];
 
 let currentFluxBlockheight = 1216061;

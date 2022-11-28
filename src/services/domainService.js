@@ -12,7 +12,7 @@ const { getCustomConfigs } = require('./application/custom');
 let myIP = null;
 let myFDMnameORip = null;
 
-const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4'];
+const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4', 'HavenNodeMainnet'];
 
 // Generates config file for HAProxy
 async function generateAndReplaceMainHaproxyConfig() {

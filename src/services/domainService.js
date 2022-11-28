@@ -9,9 +9,6 @@ const { processApplications, getUnifiedDomains } = require('./domain');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
 
-let myIP = null;
-let myFDMnameORip = null;
-
 const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4', 'HavenNodeMainnet'];
 
 // Generates config file for HAProxy
@@ -67,7 +64,7 @@ async function createSSLDirectory() {
 }
 
 // periodically keeps HAproxy ans certificates updated every 4 minutes
-async function generateAndReplaceMainApplicationHaproxyConfig() {
+async function generateAndReplaceMainApplicationHaproxyConfig(myFDMnameORip) {
   try {
     // get applications on the network
     const applicationSpecifications = await fluxService.getAppSpecifications();
@@ -310,13 +307,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
 // services run every 6 mins
 async function initializeServices() {
-  myIP = await ipService.localIP();
+  const myIP = await ipService.localIP();
   console.log(myIP);
-  if (config.domainAppType === 'CNAME') {
-    myFDMnameORip = config.fdmAppDomain;
-  } else {
-    myFDMnameORip = myIP;
-  }
+  const myFDMnameORip = config.domainAppType === 'CNAME' ? config.fdmAppDomain : myIP;
   if (myIP) {
     if (config.mainDomain === config.cloudflare.domain && !config.cloudflare.manageapp) {
       generateAndReplaceMainHaproxyConfig();
@@ -326,11 +319,11 @@ async function initializeServices() {
       log.info('Flux Main Node Domain Service initiated.');
     } else if (config.mainDomain === config.cloudflare.domain && config.cloudflare.manageapp) {
       // only runs on main FDM handles X.APP.runonflux.io
-      generateAndReplaceMainApplicationHaproxyConfig();
+      generateAndReplaceMainApplicationHaproxyConfig(myFDMnameORip);
       log.info('Flux Main Application Domain Service initiated.');
     } else if (config.mainDomain === config.pDNS.domain && config.pDNS.manageapp) {
       // only runs on main FDM handles X.APP.runonflux.io
-      generateAndReplaceMainApplicationHaproxyConfig();
+      generateAndReplaceMainApplicationHaproxyConfig(myFDMnameORip);
       log.info('Flux Main Application Domain Service initiated.');
     } else {
       log.info('CUSTOM DOMAIN SERVICE UNAVAILABLE');

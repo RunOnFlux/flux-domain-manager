@@ -11,9 +11,12 @@ const DOMAIN_TYPE = {
 const TEMP_HAPROXY_CONFIG = '/tmp/haproxytemp.cfg';
 const HAPROXY_CONFIG = '/etc/haproxy/haproxy.cfg';
 
+const MANDATORY_APPS = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4', 'HavenNodeMainnet'];
+
 module.exports = {
   DOMAIN_TYPE,
   cmdAsync,
   TEMP_HAPROXY_CONFIG,
   HAPROXY_CONFIG,
+  MANDATORY_APPS,
 };

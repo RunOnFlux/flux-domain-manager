@@ -8,8 +8,7 @@ const haproxyTemplate = require('./haproxyTemplate');
 const { processApplications, getUnifiedDomains } = require('./domain');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
-
-const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4', 'HavenNodeMainnet'];
+const { MANDATORY_APPS } = require('./constants');
 
 // Generates config file for HAProxy
 async function generateAndReplaceMainHaproxyConfig() {
@@ -80,7 +79,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(myFDMnameORip) {
     log.info('SSL directory checked');
     const appsOK = await processApplications(applicationSpecifications, myFDMnameORip);
     // check appsOK against mandatoryApps
-    for (const mandatoryApp of mandatoryApps) {
+    for (const mandatoryApp of MANDATORY_APPS) {
       const appExists = appsOK.find((app) => app.name === mandatoryApp);
       if (!appExists) {
         throw new Error(`Mandatory app ${mandatoryApp} does not exist. PANIC`);
@@ -94,7 +93,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(myFDMnameORip) {
       const appLocations = await fluxService.getApplicationLocation(app.name);
       if (appLocations.length === 0) {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);
-        if (mandatoryApps.includes(app.name)) {
+        if (MANDATORY_APPS.includes(app.name)) {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
       }
@@ -106,7 +105,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(myFDMnameORip) {
           appIps.push(location.ip);
         }
       }
-      if (mandatoryApps.includes(app.name) && appIps.length < 1) {
+      if (MANDATORY_APPS.includes(app.name) && appIps.length < 1) {
         throw new Error(`Application ${app.name} checks not ok. PANIC.`);
       }
       const domains = getUnifiedDomains(app);

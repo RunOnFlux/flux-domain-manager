@@ -450,6 +450,18 @@ async function generalWebsiteCheck(ip, port, timeOut = 2500) {
   }
 }
 
+async function checkFuseHeight(ip, port) {
+  try {
+    const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/get_info`, 5000);
+    if (response.data.height > response.data.target_height && response.data.height > 1) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
@@ -464,6 +476,8 @@ async function checkApplication(app, ip) {
     isOK = await checkHavenHeight(ip.split(':')[0], 32750);
   } else if (app.name === 'HavenNodeStagenet') {
     isOK = await checkHavenHeight(ip.split(':')[0], 33750);
+  } else if (app.name === 'FuseRPC') {
+    isOK = await checkFuseHeight(ip.split(':')[0], 33750);
   }
   return isOK;
 }
@@ -493,4 +507,5 @@ module.exports = {
   checkHavenValut,
   generalWebsiteCheck,
   checkApplication,
+  checkFuseHeight,
 };

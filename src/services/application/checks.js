@@ -61,7 +61,7 @@ async function isVersionOK(ip, port) {
     const url = `http://${ip}:${port}/flux/version`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.replace(/\./g, '');
-    if (version >= 3240) {
+    if (version >= 3280) {
       return true;
     }
     return false;
@@ -89,7 +89,7 @@ async function hasManyApps(ip, port) {
     const url = `http://${ip}:${port}/apps/globalappsspecifications`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const appsAmount = response.data.data.length;
-    if (appsAmount > 300) { // we surely have at least 300 apps on network
+    if (appsAmount > 420) { // we surely have at least 420 apps on network
       // eslint-disable-next-line no-restricted-syntax
       for (const app of mandatoryApps) {
         const appExists = response.data.data.find((a) => a.name === app);

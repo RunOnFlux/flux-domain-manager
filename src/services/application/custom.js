@@ -10,6 +10,10 @@ function getCustomConfigs(specifications) {
     enableH2: false,
   };
 
+  if (specifications.name.toLowerCase().includes('wordpress')) {
+    defaultConfig.headers = ['http-request add-header X-Forwarded-Proto https'];
+  }
+
   const customConfigs = {
     '31350.KadefiChainwebNode.KadefiMoneyBackend': {
       ssl: true,

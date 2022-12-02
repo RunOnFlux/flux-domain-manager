@@ -1,6 +1,5 @@
 const axios = require('axios');
 const https = require('https');
-const { Logger } = require('mongodb');
 const log = require('../lib/log');
 
 const axiosConfig = {

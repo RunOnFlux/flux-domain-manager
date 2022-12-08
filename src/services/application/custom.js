@@ -45,6 +45,10 @@ function getCustomConfigs(specifications) {
       ssl: true,
       enableH2: true,
     },
+    '36117.KadefiMoneyUDFServer.KadefiMoneyUDFServer': {
+      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
+      serverConfig: 'inter 30s fall 2 rise 2',
+    },
   };
 
   let mainPort = '';

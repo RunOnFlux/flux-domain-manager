@@ -2,6 +2,7 @@
 const axios = require('axios');
 const https = require('https');
 const Web3 = require('web3');
+const ethers = require("ethers");
 const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
 
@@ -452,11 +453,10 @@ async function generalWebsiteCheck(ip, port, timeOut = 2500) {
 
 async function checkFuse(ip, port) {
   try {
-    const addressFrom = '0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf';
     const node = `http://${ip}:${port}`;
-    const web3 = new Web3(new Web3.providers.HttpProvider(node));
-    await web3.eth.isSyncing();
-    return true;
+    const provider = new ethers.providers.JsonRpcProvider(node);
+    const isSyncing = await provider.send("eth_syncing");
+    return !isSyncing;
   } catch (error) {
     return false;
   }
@@ -477,7 +477,7 @@ async function checkApplication(app, ip) {
   } else if (app.name === 'HavenNodeStagenet') {
     isOK = await checkHavenHeight(ip.split(':')[0], 33750);
   } else if (app.name === 'FuseRPC') {
-    isOK = await checkFuse(ip.split(':')[0], 33750);
+    isOK = await checkFuse(ip.split(':')[0], 38545);
   }
   return isOK;
 }
@@ -507,5 +507,5 @@ module.exports = {
   checkHavenValut,
   generalWebsiteCheck,
   checkApplication,
-  checkFuseHeight,
+  checkFuse,
 };

@@ -450,13 +450,13 @@ async function generalWebsiteCheck(ip, port, timeOut = 2500) {
   }
 }
 
-async function checkFuseHeight(ip, port) {
+async function checkFuse(ip, port) {
   try {
-    const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/get_info`, 5000);
-    if (response.data.height > response.data.target_height && response.data.height > 1) {
-      return true;
-    }
-    return false;
+    const addressFrom = '0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf';
+    const node = `http://${ip}:${port}`;
+    const web3 = new Web3(new Web3.providers.HttpProvider(node));
+    await web3.eth.getBalance(addressFrom);
+    return true;
   } catch (error) {
     return false;
   }
@@ -477,7 +477,7 @@ async function checkApplication(app, ip) {
   } else if (app.name === 'HavenNodeStagenet') {
     isOK = await checkHavenHeight(ip.split(':')[0], 33750);
   } else if (app.name === 'FuseRPC') {
-    isOK = await checkFuseHeight(ip.split(':')[0], 33750);
+    isOK = await checkFuse(ip.split(':')[0], 33750);
   }
   return isOK;
 }

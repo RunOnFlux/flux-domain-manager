@@ -455,7 +455,7 @@ async function checkFuse(ip, port) {
     const addressFrom = '0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf';
     const node = `http://${ip}:${port}`;
     const web3 = new Web3(new Web3.providers.HttpProvider(node));
-    await web3.eth.getBalance(addressFrom);
+    await web3.eth.isSyncing();
     return true;
   } catch (error) {
     return false;

@@ -12,8 +12,6 @@ const { getCustomConfigs } = require('./application/custom');
 let myIP = null;
 let myFDMnameORip = null;
 
-const mandatoryApps = [];
-
 // Generates config file for HAProxy
 async function generateAndReplaceMainHaproxyConfig() {
   try {
@@ -83,7 +81,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     log.info('SSL directory checked');
     const appsOK = await processApplications(applicationSpecifications, myFDMnameORip);
     // check appsOK against mandatoryApps
-    for (const mandatoryApp of mandatoryApps) {
+    for (const mandatoryApp of config.mandatoryApps) {
       const appExists = appsOK.find((app) => app.name === mandatoryApp);
       if (!appExists) {
         throw new Error(`Mandatory app ${mandatoryApp} does not exist. PANIC`);
@@ -104,7 +102,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             appIps.push(location.ip);
           }
         }
-        if (mandatoryApps.includes(app.name) && appIps.length < 1) {
+        if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         const domains = getUnifiedDomains(app);
@@ -280,7 +278,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         log.info(`Application ${app.name} is OK. Proceeding to FDM`);
       } else {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);
-        if (mandatoryApps.includes(app.name)) {
+        if (config.mandatoryApps.includes(app.name)) {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
       }

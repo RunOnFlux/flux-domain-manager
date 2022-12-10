@@ -1,13 +1,12 @@
 /* eslint-disable no-unused-vars */
 const axios = require('axios');
+const config = require('config');
 const https = require('https');
 const Web3 = require('web3');
 const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
 
 const timeout = 3456;
-
-const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4', 'HavenNodeMainnet'];
 const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'themok', 'themok2', 'themok3', 'themok4', 'themok5'];
 
 let currentFluxBlockheight = 1216061;
@@ -91,7 +90,7 @@ async function hasManyApps(ip, port) {
     const appsAmount = response.data.data.length;
     if (appsAmount > 420) { // we surely have at least 420 apps on network
       // eslint-disable-next-line no-restricted-syntax
-      for (const app of mandatoryApps) {
+      for (const app of config.mandatoryApps) {
         const appExists = response.data.data.find((a) => a.name === app);
         if (!appExists) {
           return false;

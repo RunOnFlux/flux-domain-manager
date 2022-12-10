@@ -311,7 +311,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
 // services run every 6 mins
 async function initializeServices() {
-  myIP = await ipService.localIP();
+  myIP = ipService.localIP();
   console.log(myIP);
   if (config.domainAppType === 'CNAME') {
     myFDMnameORip = config.fdmAppDomain;

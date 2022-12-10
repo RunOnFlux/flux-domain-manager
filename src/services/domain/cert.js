@@ -4,6 +4,7 @@ const dns = require('dns').promises;
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const { DOMAIN_TYPE, cmdAsync } = require('../constants');
+const ipService = require('./../ipService');
 const log = require('../../lib/log');
 const serviceHelper = require('../serviceHelper');
 const {
@@ -76,16 +77,10 @@ const dnsLookup = async (hostname) => {
   return result;
 };
 
-const isDomainPointedToThisFDM = async (hostname, fdmOrIP) => {
+const isDomainPointedToThisFDM = async (hostname, ip) => {
   try {
-    if (!fdmOrIP) {
+    if (!ip) {
       return false;
-    }
-
-    let ip = fdmOrIP;
-    // If fdmOrIP is a hostname, we need to get the ip
-    if(!serviceHelper.stringIsIP(ip)) {
-      ip = (await dnsLookup(ip))[0].address;
     }
 
     const dnsLookupdRecords = await dnsLookup(hostname);
@@ -184,7 +179,7 @@ const executeCertificateOperations = async (domains, type, fdmOrIP) => {
           }
           if (!isCertificatePresent) {
             // eslint-disable-next-line no-await-in-loop
-            const domainIsPointedCorrectly = await isDomainPointedToThisFDM(appDomain, fdmOrIP);
+            const domainIsPointedCorrectly = await isDomainPointedToThisFDM(appDomain, ipService.localIP());
             if (!domainIsPointedCorrectly) {
               throw new Error(`DNS record is not pointed to this FDM for ${appDomain}, cert operations not proceeding`);
             }

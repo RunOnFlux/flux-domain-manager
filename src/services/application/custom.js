@@ -10,10 +10,25 @@ function getCustomConfigs(specifications) {
     enableH2: false,
   };
 
+  if (specifications.name.toLowerCase().includes('wordpress')) {
+    defaultConfig.headers = ['http-request add-header X-Forwarded-Proto https'];
+  }
+
   const customConfigs = {
-    '31350.KadefiChainwebNode.KadefiMoneyBackend': {
+    '31350.kmdsapactapi.kmdsapactapi': {
       ssl: true,
+      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
+      serverConfig: 'port 31352 inter 30s fall 2 rise 2',
+    },
+    '31351.kmdsapactapi.kmdsapactapi': {
       timeout: 90000,
+      loadBalance: '\n  balance roundrobin',
+      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
+      serverConfig: 'port 31352 inter 30s fall 2 rise 2',
+    },
+    '31352.kmdsapactapi.kmdsapactapi': {
+      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
+      serverConfig: 'inter 30s fall 2 rise 2',
     },
     '31350.KadefiPactAPI.KadefiMoneyPactAPI': {
       ssl: true,
@@ -37,9 +52,13 @@ function getCustomConfigs(specifications) {
     '33952.wp.wordpressonflux': {
       headers: ['http-request add-header X-Forwarded-Proto https'],
     },
-    '35000.KadefiMoneyDevAPI.KadefiMoneyDevAPI': {
-      ssl: true,
-      enableH2: true,
+    '36117.KadefiMoneyUDFServer.KadefiMoneyUDFServer': {
+      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
+      serverConfig: 'inter 30s fall 2 rise 2',
+    },
+    '33016.kmdsaudfserver.kmdsaudfserver': {
+      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
+      serverConfig: 'inter 30s fall 2 rise 2',
     },
   };
 

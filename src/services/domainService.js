@@ -68,7 +68,13 @@ async function createSSLDirectory() {
 async function generateAndReplaceMainApplicationHaproxyConfig() {
   try {
     // get applications on the network
-    const applicationSpecifications = await fluxService.getAppSpecifications();
+    let applicationSpecifications = await fluxService.getAppSpecifications();
+
+    // If there's ownersApps, only include them
+    if(config.ownersApps.length > 0) {
+      applicationSpecifications = applicationSpecifications.filter(appSpec => config.ownersApps.includes(appSpec.owner))
+    }
+
     // for every application do following
     // get name, ports
     // main application domain is name.app.domain, for every port we have name-port.app.domain

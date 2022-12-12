@@ -71,7 +71,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     let applicationSpecifications = await fluxService.getAppSpecifications();
 
     // If there's ownersApps, only include them
-    if(config.ownersApps.length > 0) {
+    if(config.ownersApps.length) {
       applicationSpecifications = applicationSpecifications.filter(appSpec => config.ownersApps.includes(appSpec.owner))
     }
 

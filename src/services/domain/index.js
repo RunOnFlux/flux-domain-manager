@@ -76,7 +76,7 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
   const processedApplications = [];
   for (const appSpecs of specifications) {
 
-    if(config.whiteListedApps.length > 0) {
+    if(config.whiteListedApps.length) {
       // exclude not whitelisted apps
       if (!serviceHelper.matchRule(appSpecs.name, config.whiteListedApps)) {
         // eslint-disable-next-line no-continue

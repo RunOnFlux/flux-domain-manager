@@ -85,7 +85,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     // if all ok, add for creation of domain
     await createSSLDirectory();
     log.info('SSL directory checked');
-    const appsOK = await processApplications(applicationSpecifications, myFDMnameORip);
+    const appsOK = await processApplications(applicationSpecifications, myFDMnameORip, myIP);
     // check appsOK against mandatoryApps
     for (const mandatoryApp of config.mandatoryApps) {
       const appExists = appsOK.find((app) => app.name === mandatoryApp);

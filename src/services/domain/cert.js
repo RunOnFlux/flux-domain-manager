@@ -4,14 +4,13 @@ const dns = require('dns').promises;
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const { DOMAIN_TYPE, cmdAsync } = require('../constants');
-const ipService = require('./../ipService');
 const log = require('../../lib/log');
 const serviceHelper = require('../serviceHelper');
 const {
   listDNSRecords, deleteDNSRecordCloudflare, deleteDNSRecordPDNS, createDNSRecord,
 } = require('./dns');
 
-const checkCertificatePresetForDomain = async (domain) => {
+async function checkCertificatePresetForDomain(domain) {
   try {
     const path = `/etc/ssl/fluxapps/${domain}.pem`;
     await fs.access(path); // only check if file exists. Does not check permissions
@@ -23,18 +22,18 @@ const checkCertificatePresetForDomain = async (domain) => {
   } catch (error) {
     return false;
   }
-};
+}
 
-const obtainDomainCertificate = async (domain) => { // let it throw
+async function obtainDomainCertificate(domain) { // let it throw
   const cmdToExec = `sudo certbot certonly --standalone -d ${domain} --non-interactive --agree-tos --email ${config.emailDomain} --http-01-port=8787`;
   const cmdToExecContinue = `sudo cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem | sudo tee /etc/ssl/${config.certFolder}/${domain}.pem`;
   const response = await cmdAsync(cmdToExec);
   if (response.includes('Congratulations') || response.includes('Certificate not yet due for renewal')) {
     await cmdAsync(cmdToExecContinue);
   }
-};
+}
 
-const adjustAutoRenewalScriptForDomain = async (domain) => { // let it throw
+async function adjustAutoRenewalScriptForDomain(domain) { // let it throw
   const path = '/opt/update-certs.sh';
   try {
     await fs.readFile(path);
@@ -69,22 +68,22 @@ service haproxy reload`;
       encoding: 'utf-8',
     });
   }
-};
+}
 
 // return array of IPs to which a hostname is pointeed
-const dnsLookup = async (hostname) => {
+async function dnsLookup(hostname) {
   const result = await dns.lookup(hostname, { all: true }); // eg. [ { address: '65.21.189.1', family: 4 } ]
   return result;
-};
+}
 
-const isDomainPointedToThisFDM = async (hostname, ip) => {
+async function isDomainPointedToThisFDM(hostname, FDMnameOrIP, myIP) {
   try {
-    if (!ip) {
+    if (!FDMnameOrIP) {
       return false;
     }
 
     const dnsLookupdRecords = await dnsLookup(hostname);
-    const pointedToMyIp = dnsLookupdRecords.find((record) => record.address === ip);
+    const pointedToMyIp = dnsLookupdRecords.find((record) => (record.address === FDMnameOrIP || record.address === myIP));
     if (pointedToMyIp) {
       return true;
     }
@@ -93,7 +92,7 @@ const isDomainPointedToThisFDM = async (hostname, ip) => {
     log.warn(error);
     return false;
   }
-};
+}
 
 // return true if some domain operation was done
 // return false if no domain operation was done
@@ -150,15 +149,17 @@ async function checkAndAdjustDNSrecordForDomain(domain, myFDMnameORip) {
   }
 }
 
-const executeCertificateOperations = async (domains, type, fdmOrIP) => {
+async function executeCertificateOperations(domains, type, fdmOrIP, myIP) {
   try {
-    domains.forEach(async (appDomain) => {
+    for (const appDomain of domains) {
       if (appDomain === 'ethereumnodelight.app.runonflux.io') { // temporarily disable
-        return;
+        // eslint-disable-next-line no-continue
+        continue;
       }
       if (type === DOMAIN_TYPE.FDM) {
         // check DNS
         // if DNS was adjusted for this domain, wait a minute
+        // eslint-disable-next-line no-await-in-loop
         const wasDomainAdjusted = await checkAndAdjustDNSrecordForDomain(appDomain, fdmOrIP);
         if (wasDomainAdjusted) {
           log.info(`Domain ${appDomain} was adjusted on DNS`);
@@ -175,11 +176,13 @@ const executeCertificateOperations = async (domains, type, fdmOrIP) => {
           const isCertificatePresent = await checkCertificatePresetForDomain(appDomain);
           if (appDomain.length > 64) {
             log.warn(`Domain ${appDomain} is too long. Certificate not issued`);
-            return;
+            // eslint-disable-next-line no-continue
+            continue;
           }
           if (!isCertificatePresent) {
             // eslint-disable-next-line no-await-in-loop
-            const domainIsPointedCorrectly = await isDomainPointedToThisFDM(appDomain, ipService.localIP());
+            const domainIsPointedCorrectly = await isDomainPointedToThisFDM(appDomain, fdmOrIP, myIP);
+
             if (!domainIsPointedCorrectly) {
               throw new Error(`DNS record is not pointed to this FDM for ${appDomain}, cert operations not proceeding`);
             }
@@ -201,13 +204,13 @@ const executeCertificateOperations = async (domains, type, fdmOrIP) => {
           log.warn(error);
         }
       }
-    });
+    }
     return true;
   } catch (error) {
     log.error(error);
     return false;
   }
-};
+}
 
 module.exports = {
   executeCertificateOperations,

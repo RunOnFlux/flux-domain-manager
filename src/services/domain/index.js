@@ -72,7 +72,7 @@ function getCustomDomains(app) {
   return domains;
 }
 
-const processApplications = async (specifications, myFDMnameORip) => {
+async function processApplications(specifications, myFDMnameORip, myIP) {
   const processedApplications = [];
   for (const appSpecs of specifications) {
 
@@ -106,7 +106,7 @@ const processApplications = async (specifications, myFDMnameORip) => {
 
     if (domains.length === portLength + 1) {
       // eslint-disable-next-line no-await-in-loop
-      const domainOperationsSuccessful = await executeCertificateOperations(domains, DOMAIN_TYPE.FDM, myFDMnameORip);
+      const domainOperationsSuccessful = await executeCertificateOperations(domains, DOMAIN_TYPE.FDM, myFDMnameORip, myIP);
       if (domainOperationsSuccessful) {
         log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
         processedApplications.push(appSpecs);
@@ -115,7 +115,7 @@ const processApplications = async (specifications, myFDMnameORip) => {
       }
       if (domainOperationsSuccessful && customDomains.length) {
         // eslint-disable-next-line no-await-in-loop
-        const customCertOperationsSuccessful = await executeCertificateOperations(customDomains, DOMAIN_TYPE.CUSTOM, myFDMnameORip);
+        const customCertOperationsSuccessful = await executeCertificateOperations(customDomains, DOMAIN_TYPE.CUSTOM, myFDMnameORip, myIP);
         if (customCertOperationsSuccessful) {
           log.info(`Application domain and ssl for custom domains of ${appSpecs.name} is ready`);
         } else {
@@ -128,7 +128,7 @@ const processApplications = async (specifications, myFDMnameORip) => {
   }
 
   return processedApplications;
-};
+}
 
 module.exports = {
   processApplications,

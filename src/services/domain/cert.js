@@ -6,7 +6,6 @@ const fsSync = require('fs');
 const { DOMAIN_TYPE, cmdAsync } = require('../constants');
 const log = require('../../lib/log');
 const serviceHelper = require('../serviceHelper');
-const domainService = require('../domainService');
 const {
   listDNSRecords, deleteDNSRecordCloudflare, deleteDNSRecordPDNS, createDNSRecord,
 } = require('./dns');
@@ -77,9 +76,8 @@ const dnsLookup = async (hostname) => {
   return result;
 };
 
-const isDomainPointedToThisFDM = async (hostname) => {
+const isDomainPointedToThisFDM = async (hostname, ip) => {
   try {
-    const ip = domainService.getMyIP();
     if (!ip) {
       return false;
     }
@@ -179,7 +177,7 @@ const executeCertificateOperations = async (domains, type, fdmOrIP) => {
           }
           if (!isCertificatePresent) {
             // eslint-disable-next-line no-await-in-loop
-            const domainIsPointedCorrectly = await isDomainPointedToThisFDM(appDomain);
+            const domainIsPointedCorrectly = await isDomainPointedToThisFDM(appDomain, fdmOrIP);
             if (!domainIsPointedCorrectly) {
               throw new Error(`DNS record is not pointed to this FDM for ${appDomain}, cert operations not proceeding`);
             }

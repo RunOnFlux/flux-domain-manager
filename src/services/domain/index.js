@@ -75,18 +75,17 @@ function getCustomDomains(app) {
 async function processApplications(specifications, myFDMnameORip, myIP) {
   const processedApplications = [];
   for (const appSpecs of specifications) {
-
-    if(config.whiteListedApps.length) {
+    if (config.whiteListedApps.length) {
       // exclude not whitelisted apps
       if (!serviceHelper.matchRule(appSpecs.name, config.whiteListedApps)) {
         // eslint-disable-next-line no-continue
         continue;
       }
     }
-    else {
-      // exclude blacklisted apps
+    if (config.blackListedApps.length) {
+    // exclude blacklisted apps
       if (serviceHelper.matchRule(appSpecs.name, config.blackListedApps)) {
-        // eslint-disable-next-line no-continue
+      // eslint-disable-next-line no-continue
         continue;
       }
     }

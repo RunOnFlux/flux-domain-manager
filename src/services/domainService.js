@@ -314,7 +314,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 }
 
 // services run every 6 mins
-async function initializeServices() {
+function initializeServices() {
   myIP = ipService.localIP();
   console.log(myIP);
   if (config.domainAppType === 'CNAME') {

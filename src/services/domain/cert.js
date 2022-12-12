@@ -81,7 +81,6 @@ async function isDomainPointedToThisFDM(hostname, FDMnameOrIP, myIP) {
     if (!FDMnameOrIP) {
       return false;
     }
-
     const dnsLookupdRecords = await dnsLookup(hostname);
     const pointedToMyIp = dnsLookupdRecords.find((record) => (record.address === FDMnameOrIP || record.address === myIP));
     if (pointedToMyIp) {
@@ -182,7 +181,6 @@ async function executeCertificateOperations(domains, type, fdmOrIP, myIP) {
           if (!isCertificatePresent) {
             // eslint-disable-next-line no-await-in-loop
             const domainIsPointedCorrectly = await isDomainPointedToThisFDM(appDomain, fdmOrIP, myIP);
-
             if (!domainIsPointedCorrectly) {
               throw new Error(`DNS record is not pointed to this FDM for ${appDomain}, cert operations not proceeding`);
             }

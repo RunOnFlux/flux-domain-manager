@@ -150,13 +150,15 @@ async function checkAndAdjustDNSrecordForDomain(domain, myFDMnameORip) {
 
 const executeCertificateOperations = async (domains, type, fdmOrIP) => {
   try {
-    domains.forEach(async (appDomain) => {
+    for (const appDomain of domains) {
       if (appDomain === 'ethereumnodelight.app.runonflux.io') { // temporarily disable
-        return;
+        // eslint-disable-next-line no-continue
+        continue;
       }
       if (type === DOMAIN_TYPE.FDM) {
         // check DNS
         // if DNS was adjusted for this domain, wait a minute
+        // eslint-disable-next-line no-await-in-loop
         const wasDomainAdjusted = await checkAndAdjustDNSrecordForDomain(appDomain, fdmOrIP);
         if (wasDomainAdjusted) {
           log.info(`Domain ${appDomain} was adjusted on DNS`);
@@ -173,7 +175,8 @@ const executeCertificateOperations = async (domains, type, fdmOrIP) => {
           const isCertificatePresent = await checkCertificatePresetForDomain(appDomain);
           if (appDomain.length > 64) {
             log.warn(`Domain ${appDomain} is too long. Certificate not issued`);
-            return;
+            // eslint-disable-next-line no-continue
+            continue;
           }
           if (!isCertificatePresent) {
             // eslint-disable-next-line no-await-in-loop
@@ -199,7 +202,7 @@ const executeCertificateOperations = async (domains, type, fdmOrIP) => {
           log.warn(error);
         }
       }
-    });
+    }
     return true;
   } catch (error) {
     log.error(error);

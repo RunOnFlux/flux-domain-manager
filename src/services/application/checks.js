@@ -2,7 +2,7 @@
 const axios = require('axios');
 const config = require('config');
 const https = require('https');
-const Web3 = require('web3');
+const ethers = require("ethers");
 const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
 
@@ -389,18 +389,6 @@ async function checkFluxExplorer(ip, port) {
   }
 }
 
-async function checkEthereum(ip, port) {
-  try {
-    const addressFrom = '0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf';
-    const node = `http://${ip}:${port}`;
-    const web3 = new Web3(new Web3.providers.HttpProvider(node));
-    await web3.eth.getBalance(addressFrom);
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
 async function checkHavenHeight(ip, port) {
   try {
     const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/get_info`, 5000);
@@ -449,12 +437,21 @@ async function generalWebsiteCheck(ip, port, timeOut = 2500) {
   }
 }
 
+async function checkFuse(ip, port) {
+  try {
+    const node = `http://${ip}:${port}`;
+    const provider = new ethers.providers.JsonRpcProvider(node);
+    const isSyncing = await provider.send("eth_syncing");
+    return !isSyncing;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
     isOK = await generalWebsiteCheck(ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0]);
-  } else if (app.name === 'EthereumNodeLight') {
-    isOK = await checkEthereum(ip.split(':')[0], 31301);
   } else if (app.name === 'explorer') {
     isOK = await checkFluxExplorer(ip.split(':')[0], 39185);
   } else if (app.name === 'HavenNodeMainnet') {
@@ -463,6 +460,8 @@ async function checkApplication(app, ip) {
     isOK = await checkHavenHeight(ip.split(':')[0], 32750);
   } else if (app.name === 'HavenNodeStagenet') {
     isOK = await checkHavenHeight(ip.split(':')[0], 33750);
+  } else if (app.name === 'FuseRPC') {
+    isOK = await checkFuse(ip.split(':')[0], 38545);
   }
   return isOK;
 }
@@ -483,7 +482,6 @@ module.exports = {
   checkMainFlux,
   checkKadenaApplication,
   checkRunOnFluxWebsite,
-  checkEthereum,
   checkFluxExplorer,
   checkCloudAtlasWebsite,
   checkHavenHeight,
@@ -492,4 +490,5 @@ module.exports = {
   checkHavenValut,
   generalWebsiteCheck,
   checkApplication,
+  checkFuse,
 };

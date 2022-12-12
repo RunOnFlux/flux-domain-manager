@@ -75,10 +75,20 @@ function getCustomDomains(app) {
 async function processApplications(specifications, myFDMnameORip, myIP) {
   const processedApplications = [];
   for (const appSpecs of specifications) {
-    // exclude blacklisted apps
-    if (serviceHelper.matchRule(appSpecs.name, config.blackListedApps)) {
-      // eslint-disable-next-line no-continue
-      continue;
+
+    if(config.whiteListedApps.length) {
+      // exclude not whitelisted apps
+      if (!serviceHelper.matchRule(appSpecs.name, config.whiteListedApps)) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+    }
+    else {
+      // exclude blacklisted apps
+      if (serviceHelper.matchRule(appSpecs.name, config.blackListedApps)) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
     }
 
     log.info(`Adjusting domains and ssl for ${appSpecs.name}`);

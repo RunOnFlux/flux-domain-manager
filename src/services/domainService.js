@@ -12,8 +12,6 @@ const { getCustomConfigs } = require('./application/custom');
 let myIP = null;
 let myFDMnameORip = null;
 
-const mandatoryApps = ['explorer', 'KDLaunch', 'website', 'Kadena3', 'Kadena4', 'HavenNodeMainnet'];
-
 // Generates config file for HAProxy
 async function generateAndReplaceMainHaproxyConfig() {
   try {
@@ -70,7 +68,13 @@ async function createSSLDirectory() {
 async function generateAndReplaceMainApplicationHaproxyConfig() {
   try {
     // get applications on the network
-    const applicationSpecifications = await fluxService.getAppSpecifications();
+    let applicationSpecifications = await fluxService.getAppSpecifications();
+
+    // If there's ownersApps, only include them
+    if(config.ownersApps.length) {
+      applicationSpecifications = applicationSpecifications.filter(appSpec => config.ownersApps.includes(appSpec.owner))
+    }
+
     // for every application do following
     // get name, ports
     // main application domain is name.app.domain, for every port we have name-port.app.domain
@@ -83,7 +87,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     log.info('SSL directory checked');
     const appsOK = await processApplications(applicationSpecifications, myFDMnameORip, myIP);
     // check appsOK against mandatoryApps
-    for (const mandatoryApp of mandatoryApps) {
+    for (const mandatoryApp of config.mandatoryApps) {
       const appExists = appsOK.find((app) => app.name === mandatoryApp);
       if (!appExists) {
         throw new Error(`Mandatory app ${mandatoryApp} does not exist. PANIC`);
@@ -104,7 +108,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             appIps.push(location.ip);
           }
         }
-        if (mandatoryApps.includes(app.name) && appIps.length < 1) {
+        if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         const domains = getUnifiedDomains(app);
@@ -280,7 +284,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         log.info(`Application ${app.name} is OK. Proceeding to FDM`);
       } else {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);
-        if (mandatoryApps.includes(app.name)) {
+        if (config.mandatoryApps.includes(app.name)) {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
       }
@@ -310,8 +314,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 }
 
 // services run every 6 mins
-async function initializeServices() {
-  myIP = await ipService.localIP();
+function initializeServices() {
+  myIP = ipService.localIP();
   console.log(myIP);
   if (config.domainAppType === 'CNAME') {
     myFDMnameORip = config.fdmAppDomain;

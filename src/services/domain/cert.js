@@ -6,6 +6,7 @@ const fsSync = require('fs');
 const { DOMAIN_TYPE, cmdAsync } = require('../constants');
 const log = require('../../lib/log');
 const serviceHelper = require('../serviceHelper');
+const domainService = require('../domainService');
 const {
   listDNSRecords, deleteDNSRecordCloudflare, deleteDNSRecordPDNS, createDNSRecord,
 } = require('./dns');
@@ -76,8 +77,9 @@ const dnsLookup = async (hostname) => {
   return result;
 };
 
-const isDomainPointedToThisFDM = async (hostname, ip) => {
+const isDomainPointedToThisFDM = async (hostname) => {
   try {
+    const ip = domainService.getMyIP();
     if (!ip) {
       return false;
     }

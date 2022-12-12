@@ -309,6 +309,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
   }
 }
 
+function getMyIP() {
+  return myIP;
+}
+
 // services run every 6 mins
 async function initializeServices() {
   myIP = await ipService.localIP();
@@ -359,4 +363,5 @@ async function start() {
 
 module.exports = {
   start,
+  getMyIP,
 };

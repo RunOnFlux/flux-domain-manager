@@ -17,8 +17,8 @@ async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `home.${config.mainDomain}`;
     const api = `api.${config.mainDomain}`;
-    const fluxIPs = await fluxService.getFluxIPs();
-    if (fluxIPs.length < 10) {
+    const fluxIPs = await fluxService.getFluxIPs('STRATUS'); // use only stratus for home
+    if (fluxIPs.length < 1000) {
       throw new Error('Invalid Flux List');
     }
     const fluxIPsForBalancing = [];

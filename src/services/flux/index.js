@@ -37,9 +37,12 @@ async function getFluxList(fallback) {
   }
 }
 
-async function getFluxIPs() {
+async function getFluxIPs(tier) {
   try {
-    const fluxnodes = await getFluxList();
+    let fluxnodes = await getFluxList();
+    if (tier === 'STRATUS' || tier === 'NIMBUS' || tier === 'CUMULUS') {
+      fluxnodes = fluxnodes.filter((fluxnode) => fluxnode.tier === tier);
+    }
     const ips = fluxnodes.map((fluxnode) => fluxnode.ip);
     const correctIps = [];
     const ipvTest = /^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(.(?!$)|$)){4}$/;

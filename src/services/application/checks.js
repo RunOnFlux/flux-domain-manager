@@ -448,6 +448,17 @@ async function checkFuse(ip, port) {
   }
 }
 
+async function checkWanchain(ip, port) {
+  try {
+    const node = `http://${ip}:${port}`;
+    const provider = new ethers.providers.JsonRpcProvider(node);
+    const isSyncing = await provider.send("eth_syncing");
+    return !isSyncing;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
@@ -462,6 +473,8 @@ async function checkApplication(app, ip) {
     isOK = await checkHavenHeight(ip.split(':')[0], 33750);
   } else if (app.name === 'FuseRPC') {
     isOK = await checkFuse(ip.split(':')[0], 38545);
+  } else if (app.name === 'WanchainRPC') {
+    isOK = await checkFuse(ip.split(':')[0], 31000);
   }
   return isOK;
 }
@@ -491,4 +504,5 @@ module.exports = {
   generalWebsiteCheck,
   checkApplication,
   checkFuse,
+  checkWanchain,
 };

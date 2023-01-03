@@ -20,6 +20,7 @@
   "homepage": "https://github.com/RunOnFlux/flux-domain-manager#readme",
   "scripts": {
     "start": "nodemon index.js",
+    "proxy": "node proxy/index.js",
     "test": "mocha tests --timeout 10000",
     "lint": "eslint ./",
     "lint:fix": "eslint ./ --fix"
@@ -30,6 +31,7 @@
     "chai": "^4.3.6",
     "config": "^3.3.7",
     "cors": "^2.8.5",
+    "crypto-js": "^4.1.1",
     "ethers": "^5.7.2",
     "express": "^4.17.3",
     "mocha": "^9.2.2",

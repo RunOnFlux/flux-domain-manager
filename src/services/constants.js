@@ -8,6 +8,11 @@ const DOMAIN_TYPE = {
   CUSTOM: 'CUSTOM',
 };
 
+const SUBSET_TYPE = {
+  BUCKET: 'BUCKET',
+  APPLICATION: 'APPLICATION',
+};
+
 const TEMP_HAPROXY_CONFIG = '/tmp/haproxytemp.cfg';
 const HAPROXY_CONFIG = '/etc/haproxy/haproxy.cfg';
 
@@ -16,4 +21,5 @@ module.exports = {
   cmdAsync,
   TEMP_HAPROXY_CONFIG,
   HAPROXY_CONFIG,
+  SUBSET_TYPE,
 };

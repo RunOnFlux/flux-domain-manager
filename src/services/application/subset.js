@@ -28,6 +28,7 @@ function getAppsInThisBucket(applications, bucket) {
 }
 
 function getApplicationsToProcess(apps, subsetConfig) {
+  const totalAppsLength = apps.length;
   let applicationsToProcess = apps;
   // exclude not whitelisted apps
   if (config.whiteListedApps.length) {
@@ -56,6 +57,7 @@ function getApplicationsToProcess(apps, subsetConfig) {
     default:
   }
 
+  console.log(`Total: ${totalAppsLength}, After Apps Subset Filtering: ${applicationsToProcess.length}`);
   return applicationsToProcess;
 }
 

@@ -11,11 +11,6 @@ function getBucket(appName) {
 
 // Filtering function for getting applications that reside in this bucket
 function getAppsInThisBucket(applications, bucket) {
-  // IF bucket is set as 0, we run fdm for all applications
-  if (bucket === 0) {
-    return applications;
-  }
-
   const appsInBucket = [];
   // eslint-disable-next-line no-restricted-syntax
   for (const app of applications) {

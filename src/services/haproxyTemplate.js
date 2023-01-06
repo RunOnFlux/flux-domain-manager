@@ -179,10 +179,8 @@ function createAppsHaproxyConfig(appConfig) {
     if (app.loadBalance) {
       domainBackend += app.loadBalance;
     } else {
-      domainBackend += '\n  balance source';
-      domainBackend += '\n  hash-type consistent';
-      domainBackend += '\n  stick-table type ip size 1m expire 1h';
-      domainBackend += '\n  stick on src';
+      domainBackend += '\n  balance roundrobin';
+      domainBackend += '\n  cookie FDMSERVERID insert indirect nocache maxlife 8h';
     }
     if (app.headers) {
       // eslint-disable-next-line no-loop-func
@@ -221,12 +219,12 @@ function createAppsHaproxyConfig(appConfig) {
           IpString = `${IpString}00${a[i]}`;
         }
       }
-
+      const cookieConfig = app.loadBalance ? '' : ` cookie ${IpString}${b}`;
       if (app.ssl) {
         const h2Config = app.enableH2 ? h2Suffix : '';
-        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}`;
+        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
       } else {
-        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}`;
+        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}${cookieConfig}`;
       }
       if (app.timeout) {
         domainBackend += `\n  timeout server ${app.timeout}`;

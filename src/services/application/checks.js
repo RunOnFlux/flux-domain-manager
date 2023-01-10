@@ -474,7 +474,7 @@ async function checkApplication(app, ip) {
   } else if (app.name === 'FuseRPC') {
     isOK = await checkFuse(ip.split(':')[0], 38545);
   } else if (app.name === 'WanchainRPC') {
-    isOK = await checkFuse(ip.split(':')[0], 31000);
+    isOK = await checkWanchain(ip.split(':')[0], 31000);
   }
   return isOK;
 }

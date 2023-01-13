@@ -47,6 +47,7 @@ defaults
   mode    http
   option  httplog
   option  dontlognull
+  option  forwardfor except 127.0.0.0/8
   timeout connect 5000
   timeout client  50000
   timeout server  50000
@@ -65,8 +66,15 @@ ${usebackends}
 
 frontend wwwhttps
   bind *:443 ssl crt /etc/ssl/fluxapps/ ciphers kEECDH+aRSA+AES:kRSA+AES:+AES256:RC4-SHA:!kEDH:!LOW:!EXP:!MD5:!aNULL:!eNULL no-sslv3 alpn h2,http/1.1
+  option forwardfor except 127.0.0.0/8
   http-request add-header X-Forwarded-Proto http
   http-request set-header X-Forwarded-Host %[req.hdr(Host)]
+  
+  # stats in /fluxstatistics publicly available
+  stats enable
+  stats hide-version
+  stats uri     /fluxstatistics
+  stats realm   Flux\\ Statistics
 ${acls}
 ${usebackends}
 ${getBucketBackends()}

@@ -40,4 +40,7 @@ async function generateFDMProxy() {
 
 (async () => {
   await generateFDMProxy();
+  setInterval(async () => {
+    await generateFDMProxy();
+  }, 3 * 60 * 1000);
 })();

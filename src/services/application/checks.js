@@ -2,7 +2,7 @@
 const axios = require('axios');
 const config = require('config');
 const https = require('https');
-const ethers = require("ethers");
+const ethers = require('ethers');
 const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
 
@@ -441,7 +441,7 @@ async function checkFuse(ip, port) {
   try {
     const node = `http://${ip}:${port}`;
     const provider = new ethers.providers.JsonRpcProvider(node);
-    const isSyncing = await provider.send("eth_syncing");
+    const isSyncing = await provider.send('eth_syncing');
     if (isSyncing) {
       return false;
     }
@@ -461,7 +461,7 @@ async function checkWanchain(ip, port) {
   try {
     const node = `http://${ip}:${port}`;
     const provider = new ethers.providers.JsonRpcProvider(node);
-    const isSyncing = await provider.send("eth_syncing");
+    const isSyncing = await provider.send('eth_syncing');
     return !isSyncing;
   } catch (error) {
     return false;
@@ -470,7 +470,7 @@ async function checkWanchain(ip, port) {
 
 async function checkApplication(app, ip) {
   let isOK = true;
-  if (generalWebsiteApps.includes(app.name)) {
+  if (generalWebsiteApps.includes(app.name) || app.name.startsWith('wordpress')) {
     isOK = await generalWebsiteCheck(ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0]);
   } else if (app.name === 'explorer') {
     isOK = await checkFluxExplorer(ip.split(':')[0], 39185);

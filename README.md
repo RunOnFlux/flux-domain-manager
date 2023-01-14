@@ -30,7 +30,7 @@ domainAppType: 'CNEME' or 'A'
 
 ## Application Overview
 
-Prer equiswitories: 
+Prerequisites: 
 - Nodejs 14+
 - haproxy
 - mongodb 4+
@@ -38,7 +38,7 @@ Prer equiswitories:
 - letsencrypt
 
 
-Install FDM dependancies (Ubuntu/CentOS/Redhat):
+Install FDM dependencies (Ubuntu/CentOS/Redhat):
 
 ```bash
 cd Flux

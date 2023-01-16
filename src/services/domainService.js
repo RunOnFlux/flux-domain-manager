@@ -27,11 +27,13 @@ async function generateAndReplaceMainHaproxyConfig() {
     // 2nd check is communication
     // 3rd is ui
     for (const ip of fluxIPs) {
-      // eslint-disable-next-line no-await-in-loop
-      const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
-      if (isOK) {
-        fluxIPsForBalancing.push(ip);
-        console.log(`adding ${ip} as backend`);
+      if (ip.split(':')[1] === 16127 || ip.split(':')[1] === '16127' || !ip.split(':')[1]) {
+        // eslint-disable-next-line no-await-in-loop
+        const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
+        if (isOK) {
+          fluxIPsForBalancing.push(ip);
+          console.log(`adding ${ip} as backend`);
+        }
       }
       if (fluxIPsForBalancing.length > 100) { // maximum of 100 for load balancing
         break;

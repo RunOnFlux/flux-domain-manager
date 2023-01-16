@@ -99,6 +99,7 @@ function generateHaproxyConfig(acls, usebackends, domains, backends, redirects) 
 function createMainHaproxyConfig(ui, api, fluxIPs) {
   const uiB = ui.split('.').join('');
   let uiBackend = `backend ${uiB}backend
+  cookie FLUXNODE insert indirect nocache
   mode http
   balance source
   hash-type consistent
@@ -120,12 +121,13 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
         IpString = `${IpString}00${a[i]}`;
       }
     }
-    uiBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${uiPort} check`;
+    uiBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${uiPort} check cookie ${ip.split(':')[0]}:${uiPort}`;
   }
   // console.log(uiBackend);
 
   const apiB = api.split('.').join('');
   let apiBackend = `backend ${apiB}backend
+  cookie FLUXNODE insert indirect nocache
   mode http
   balance source
   hash-type consistent
@@ -147,7 +149,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
         IpString = `${IpString}00${a[i]}`;
       }
     }
-    apiBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${apiPort} check`;
+    apiBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${apiPort} check cookie ${ip.split(':')[0]}:${apiPort} `;
   }
   // console.log(apiBackend);
 

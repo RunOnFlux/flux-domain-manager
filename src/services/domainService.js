@@ -239,46 +239,19 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             }
           }
           // push main domain
-          if (app.compose[0].ports[0]) {
-            const mainApp = {
-              domain: domains[domains.length - 1],
-              port: app.compose[0].ports[0],
-              ips: appIps,
-              ...customConfigs[customConfigs.length - 1],
-            };
-            configuredApps.push(mainApp);
-          } else if (app.compose[1] && app.compose[1].ports[0]) {
-            const mainApp = {
-              domain: domains[domains.length - 1],
-              port: app.compose[1].ports[0],
-              ips: appIps,
-              ...customConfigs[customConfigs.length - 1],
-            };
-            configuredApps.push(mainApp);
-          } else if (app.compose[2] && app.compose[2].ports[0]) {
-            const mainApp = {
-              domain: domains[domains.length - 1],
-              port: app.compose[2].ports[0],
-              ips: appIps,
-              ...customConfigs[customConfigs.length - 1],
-            };
-            configuredApps.push(mainApp);
-          } else if (app.compose[3] && app.compose[3].ports[0]) {
-            const mainApp = {
-              domain: domains[domains.length - 1],
-              port: app.compose[3].ports[0],
-              ips: appIps,
-              ...customConfigs[customConfigs.length - 1],
-            };
-            configuredApps.push(mainApp);
-          } else if (app.compose[4] && app.compose[4].ports[0]) {
-            const mainApp = {
-              domain: domains[domains.length - 1],
-              port: app.compose[4].ports[0],
-              ips: appIps,
-              ...customConfigs[customConfigs.length - 1],
-            };
-            configuredApps.push(mainApp);
+          for (let q = 0; q < app.compose.length; q += 1) {
+            for (let w = 0; w < app.compose.ports.length; w += 1) {
+              const mainDomainExists = configuredApps.find((qw) => qw.domain === domains[domains.length - 1]);
+              if (!mainDomainExists) {
+                const mainApp = {
+                  domain: domains[domains.length - 1],
+                  port: app.compose[q].ports[w],
+                  ips: appIps,
+                  ...customConfigs[customConfigs.length - 1],
+                };
+                configuredApps.push(mainApp);
+              }
+            }
           }
         }
         log.info(`Application ${app.name} is OK. Proceeding to FDM`);

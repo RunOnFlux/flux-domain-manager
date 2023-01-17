@@ -12,6 +12,7 @@ function getCustomConfigs(specifications) {
 
   if (specifications.name.toLowerCase().includes('wordpress')) {
     defaultConfig.headers = ['http-request add-header X-Forwarded-Proto https'];
+    defaultConfig.healthcheck = ['option httpchk', 'http-check send meth GET uri /'];
   }
 
   const customConfigs = {

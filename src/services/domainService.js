@@ -242,7 +242,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           }
           // push main domain
           for (let q = 0; q < app.compose.length; q += 1) {
-            for (let w = 0; w < app.compose.ports.length; w += 1) {
+            for (let w = 0; w < app.compose[q].ports.length; w += 1) {
               const mainDomainExists = configuredApps.find((qw) => qw.domain === domains[domains.length - 1]);
               if (!mainDomainExists) {
                 const mainApp = {

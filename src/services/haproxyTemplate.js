@@ -202,31 +202,31 @@ function createAppsHaproxyConfig(appConfig) {
         // eslint-disable-next-line no-continue
         continue;
       }
-      let IpString = '';
-      const b = ip.split(':')[1] || '';
-      for (let i = 0; i < 4; i += 1) {
-        if (!(a[i])) {
-          log.error('STRANGE IP');
-          log.error(ip);
-          // eslint-disable-next-line no-continue
-          continue;
-        }
-        if (a[i].length === 3) {
-          IpString += a[i];
-        }
-        if (a[i].length === 2) {
-          IpString = `${IpString}0${a[i]}`;
-        }
-        if (a[i].length === 1) {
-          IpString = `${IpString}00${a[i]}`;
-        }
-      }
-      const cookieConfig = app.loadBalance ? '' : ` cookie ${IpString}${b}`;
+      const apiPort = ip.split(':')[1] || 16127;
+      // let IpString = '';
+      // for (let i = 0; i < 4; i += 1) {
+      //   if (!(a[i])) {
+      //     log.error('STRANGE IP');
+      //     log.error(ip);
+      //     // eslint-disable-next-line no-continue
+      //     continue;
+      //   }
+      //   if (a[i].length === 3) {
+      //     IpString += a[i];
+      //   }
+      //   if (a[i].length === 2) {
+      //     IpString = `${IpString}0${a[i]}`;
+      //   }
+      //   if (a[i].length === 1) {
+      //     IpString = `${IpString}00${a[i]}`;
+      //   }
+      // }
+      const cookieConfig = app.loadBalance ? '' : ` cookie ${ip.split(':')[0]}:${app.port}`;
       if (app.ssl) {
         const h2Config = app.enableH2 ? h2Suffix : '';
-        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
+        domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
       } else {
-        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}${cookieConfig}`;
+        domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}${cookieConfig}`;
       }
       if (app.timeout) {
         domainBackend += `\n  timeout server ${app.timeout}`;

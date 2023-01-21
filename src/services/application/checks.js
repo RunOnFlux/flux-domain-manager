@@ -489,9 +489,9 @@ async function checkApplication(app, ip) {
     isOK = await checkHavenHeight(ip.split(':')[0], 32750);
   } else if (app.name === 'HavenNodeStagenet') {
     isOK = await checkHavenHeight(ip.split(':')[0], 33750);
-  } else if (app.name === 'FuseRPC') {
+  } else if (app.name.startsWith('FuseRPC')) {
     isOK = await checkFuse(ip.split(':')[0], 38545);
-  } else if (app.name === 'WanchainRPC') {
+  } else if (app.name.startsWith('WanchainRPC')) {
     isOK = await checkWanchain(ip.split(':')[0], 31000);
   }
   return isOK;

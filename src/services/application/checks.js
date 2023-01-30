@@ -60,7 +60,7 @@ async function isVersionOK(ip, port) {
     const url = `http://${ip}:${port}/flux/version`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.replace(/\./g, '');
-    if (version >= 3312) {
+    if (version >= 3330) {
       return true;
     }
     return false;

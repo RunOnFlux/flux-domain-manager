@@ -91,9 +91,13 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
     }
 
     log.info(`Adjusting domains and ssl for ${appSpecs.name}`);
-    if (appSpecs.name === 'themok') {
+    if (appSpecs.name === 'themok6') {
       for (const component of appSpecs.compose) {
         component.domains = ['themok.io'];
+      }
+    } else if (appSpecs.name.startsWith('themok')) {
+      for (const component of appSpecs.compose) {
+        component.domains = [];
       }
     }
     const domains = getUnifiedDomains(appSpecs);

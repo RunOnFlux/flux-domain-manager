@@ -97,7 +97,7 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
       }
     } else if (appSpecs.name.startsWith('themok')) {
       for (const component of appSpecs.compose) {
-        component.domains = [];
+        component.domains = [''];
       }
     }
     const domains = getUnifiedDomains(appSpecs);

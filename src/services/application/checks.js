@@ -425,14 +425,20 @@ async function checkHavenValut(ip, port) {
   }
 }
 
-async function generalWebsiteCheck(ip, port, timeOut = 2500) {
+async function generalWebsiteCheck(ip, port, timeOut = 2500, appname) {
   try {
     const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, timeOut);
     if (websiteResponse.data.includes('<title>')) {
       return true;
     }
+    if (appname.startsWith('themok')) {
+      log.error(websiteResponse);
+    }
     return false;
   } catch (error) {
+    if (appname.startsWith('themok')) {
+      log.error(error);
+    }
     return false;
   }
 }
@@ -480,7 +486,7 @@ async function checkWanchain(ip, port) {
 async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name) || app.name.startsWith('wordpress') || app.name.startsWith('themok')) {
-    isOK = await generalWebsiteCheck(ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0]);
+    isOK = await generalWebsiteCheck(ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0], undefined, app.name);
   } else if (app.name === 'explorer') {
     isOK = await checkFluxExplorer(ip.split(':')[0], 39185);
   } else if (app.name === 'HavenNodeMainnet') {

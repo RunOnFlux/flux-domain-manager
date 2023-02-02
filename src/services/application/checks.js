@@ -476,7 +476,7 @@ async function checkWanchain(ip, port) {
 
 async function checkApplication(app, ip) {
   let isOK = true;
-  if (generalWebsiteApps.includes(app.name) || app.name.startsWith('wordpress') || app.name.startsWith('themok6')) {
+  if (generalWebsiteApps.includes(app.name) || app.name.startsWith('themok6')) {
     isOK = await generalWebsiteCheck(ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0], undefined, app.name);
   } else if (app.name === 'explorer') {
     isOK = await checkFluxExplorer(ip.split(':')[0], 39185);

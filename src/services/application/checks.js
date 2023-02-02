@@ -468,16 +468,7 @@ async function checkWanchain(ip, port) {
     const node = `http://${ip}:${port}`;
     const provider = new ethers.providers.JsonRpcProvider(node);
     const isSyncing = await provider.send('eth_syncing');
-    if (isSyncing) {
-      return false;
-    }
-    const blockNum = await provider.getBlockNumber();
-    const providerB = new ethers.providers.JsonRpcProvider('https://gwan-ssl.wandevs.org:56891');
-    const blockNumB = await providerB.getBlockNumber();
-    if (blockNumB - blockNum > 1) {
-      return false;
-    }
-    return true;
+    return !isSyncing;
   } catch (error) {
     return false;
   }

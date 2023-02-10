@@ -496,12 +496,13 @@ async function checkApplication(app, ip) {
 
 setInterval(async () => {
   try {
-    const response = await serviceHelper.httpGetRequest('https://explorer.runonflux.io/api/status', 4000);
+    const response = await serviceHelper.httpGetRequest('https://explorer.runonflux.io/api/status', 8000);
     const height = response.data.info.blocks;
     if (height > currentFluxBlockheight) {
       currentFluxBlockheight = height;
     }
   } catch (error) {
+    log.error(error);
     log.error('ERROR OBTAINING FLUX HEIGHT');
   }
 }, 60 * 1000);

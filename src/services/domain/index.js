@@ -99,6 +99,8 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
       for (const component of appSpecs.compose) {
         component.domains = [''];
       }
+    } else if (appSpecs.name === 'jetpack2') {
+      appSpecs.compose[0].domains = ['cloud.runonflux.io'];
     }
     const domains = getUnifiedDomains(appSpecs);
     const customDomains = getCustomDomains(appSpecs);

@@ -9,7 +9,7 @@ const log = require('../../lib/log');
 const timeout = 3456;
 const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack'];
 
-let currentFluxBlockheight = 1216061;
+let currentFluxBlockheight = 1319138;
 
 // MAIN
 async function checkLoginPhrase(ip, port) {
@@ -496,7 +496,7 @@ async function checkApplication(app, ip) {
 
 setInterval(async () => {
   try {
-    const response = await serviceHelper.httpGetRequest('https://explorer.runonflux.io/api/status', 8000);
+    const response = await axios.get('https://explorer.runonflux.io/api/status');
     const height = response.data.info.blocks;
     if (height > currentFluxBlockheight) {
       currentFluxBlockheight = height;
@@ -505,7 +505,7 @@ setInterval(async () => {
     log.error(error);
     log.error('ERROR OBTAINING FLUX HEIGHT');
   }
-}, 60 * 1000);
+}, 120 * 1000);
 
 module.exports = {
   checkMainFlux,

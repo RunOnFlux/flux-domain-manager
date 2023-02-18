@@ -103,6 +103,8 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
       appSpecs.compose[0].domains = ['cloud.runonflux.io'];
     } else if (appSpecs.name === 'wordpress1676693433553') {
       appSpecs.compose[0].domains = [''];
+    } else if (appSpecs.name === 'wordpress1676230122494') {
+      appSpecs.compose[0].domains = [''];
     }
     const domains = getUnifiedDomains(appSpecs);
     const customDomains = getCustomDomains(appSpecs);

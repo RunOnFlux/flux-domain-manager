@@ -59,7 +59,7 @@ const httpsPrefix = `
 frontend wwwhttps
   option httplog
   option http-server-close
-  option forwardfor except 127.0.0.0/8å
+  option forwardfor except 127.0.0.0/8
   http-response add-header Access-Control-Expose-Headers '*'
 
   # stats in /fluxstatistics publicly available

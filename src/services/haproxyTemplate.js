@@ -48,6 +48,7 @@ frontend wwwhttp
   bind *:80
   option forwardfor except 127.0.0.0/8
   http-request add-header X-Forwarded-Proto http
+  http-response add-header Access-Control-Allow-Headers 'FLUXNODE'
 
   acl letsencrypt-acl path_beg /.well-known/acme-challenge/
   redirect scheme https if !letsencrypt-acl
@@ -59,6 +60,7 @@ frontend wwwhttps
   option httplog
   option http-server-close
   option forwardfor except 127.0.0.0/8
+  http-response add-header Access-Control-Allow-Headers 'FLUXNODE'
 
   # stats in /fluxstatistics publicly available
   stats enable

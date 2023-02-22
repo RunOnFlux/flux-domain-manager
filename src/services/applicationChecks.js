@@ -327,7 +327,11 @@ async function checkKadenaDataApplication(ip) {
     const lastTimeTx = lastTx.getTime();
     const diffTen = 10 * 24 * 60 * 60 * 1000;
     if (currentTime - diffTen < lastTimeTx) {
-      return true;
+      const searchTxsAcc = await kadenaSearchTxs(ip);
+      if (searchTxsAcc.length === 100) {
+        return true;
+      }
+      return false;
     }
     return false;
   } catch (error) {

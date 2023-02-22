@@ -182,6 +182,10 @@ function createAppsHaproxyConfig(appConfig) {
       continue;
     }
     const domainUsed = app.domain.split('.').join('');
+    if (usebackends.includes(`  use_backend ${domainUsed}backend if ${domainUsed}\n`)) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     let domainBackend = `backend ${domainUsed}backend
   mode http`;
     if (app.loadBalance) {

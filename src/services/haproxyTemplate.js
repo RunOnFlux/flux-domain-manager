@@ -176,7 +176,11 @@ function createAppsHaproxyConfig(appConfig) {
   let acls = '';
   let usebackends = '';
   const domains = [];
-  appConfig.forEach((app) => {
+  for (const app of appConfig) {
+    if (domains.includes(app.domain)) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     const domainUsed = app.domain.split('.').join('');
     let domainBackend = `backend ${domainUsed}backend
   mode http`;
@@ -238,7 +242,7 @@ function createAppsHaproxyConfig(appConfig) {
     domains.push(app.domain);
     acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
     usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
-  });
+  }
   const redirects = '';
 
   return generateHaproxyConfig(acls, usebackends, domains, backends, redirects);

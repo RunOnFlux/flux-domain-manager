@@ -71,8 +71,8 @@ service haproxy reload`;
 }
 
 // return array of IPs to which a hostname is pointeed
-async function dnsLookup(hostname) {
-  const result = await dns.lookup(hostname, { all: true }); // eg. [ { address: '65.21.189.1', family: 4 } ]
+async function dnsResolve(hostname) {
+  const result = await dns.resolveAny(hostname); // eg. [ { address: '65.21.189.1', family: 4 } ]
   return result;
 }
 
@@ -81,8 +81,8 @@ async function isDomainPointedToThisFDM(hostname, FDMnameOrIP, myIP) {
     if (!FDMnameOrIP) {
       return false;
     }
-    const dnsLookupdRecords = await dnsLookup(hostname);
-    const pointedToMyIp = dnsLookupdRecords.find((record) => (record.address === FDMnameOrIP || record.address === myIP));
+    const dnsLookupdRecords = await dnsResolve(hostname);
+    const pointedToMyIp = dnsLookupdRecords.find((record) => (record.address === FDMnameOrIP || record.address === myIP) && record.address);
     if (pointedToMyIp) {
       return true;
     }

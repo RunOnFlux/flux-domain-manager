@@ -9,7 +9,7 @@ const log = require('../../lib/log');
 const timeout = 3456;
 const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack'];
 
-let currentFluxBlockheight = 1319138;
+let currentFluxBlockheight = 1324270;
 
 // MAIN
 async function checkLoginPhrase(ip, port) {
@@ -93,9 +93,6 @@ async function hasManyApps(ip, port) {
       for (const app of config.mandatoryApps) {
         const appExists = response.data.data.find((a) => a.name === app);
         if (!appExists) {
-          return false;
-        }
-        if (appExists.height < (currentFluxBlockheight - 22000)) {
           return false;
         }
       }

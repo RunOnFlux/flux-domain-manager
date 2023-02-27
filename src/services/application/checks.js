@@ -473,6 +473,37 @@ async function checkWanchain(ip, port) {
   }
 }
 
+async function checkCelo(ip, port) {
+  try {
+    const node = `http://${ip}:${port}`;
+    const provider = new ethers.providers.JsonRpcProvider(node);
+    const isSyncing = await provider.send('eth_syncing');
+    if (isSyncing) {
+      return false;
+    }
+    const blockNum = await provider.getBlockNumber();
+    const providerB = new ethers.providers.JsonRpcProvider('https://forno.celo.org');
+    const blockNumB = await providerB.getBlockNumber();
+    if (blockNumB - blockNum > 1) {
+      return false;
+    }
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function checkBitgert(ip, port) {
+  try {
+    const node = `http://${ip}:${port}`;
+    const provider = new ethers.providers.JsonRpcProvider(node);
+    const isSyncing = await provider.send('eth_syncing');
+    return !isSyncing;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
@@ -489,6 +520,10 @@ async function checkApplication(app, ip) {
     isOK = await checkFuse(ip.split(':')[0], 38545);
   } else if (app.name.startsWith('WanchainRpc')) {
     isOK = await checkWanchain(ip.split(':')[0], 31000);
+  } else if (app.name.startsWith('CeloRPC')) {
+    isOK = await checkCelo(ip.split(':')[0], 35000);
+  } else if (app.name.startsWith('BitgertRPC')) {
+    isOK = await checkBitgert(ip.split(':')[0], 32300);
   }
   return isOK;
 }
@@ -520,4 +555,6 @@ module.exports = {
   checkApplication,
   checkFuse,
   checkWanchain,
+  checkCelo,
+  checkBitgert,
 };

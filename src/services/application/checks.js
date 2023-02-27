@@ -377,7 +377,9 @@ async function checkFluxExplorer(ip, port) {
   try {
     const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`, 8888);
     const responseB = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/sync`, 8888);
-    if (response.data.transactions.length > 0 && responseB.data.blockChainHeight >= currentFluxBlockheight) {
+    // eslint-disable-next-line no-use-before-define
+    const responseC = await generalWebsiteCheck(ip, port, 8888, 'explorer');
+    if (response.data.transactions.length > 0 && responseB.data.blockChainHeight >= currentFluxBlockheight && responseC) {
       return true;
     }
     return false;
@@ -425,11 +427,11 @@ async function checkHavenValut(ip, port) {
 async function generalWebsiteCheck(ip, port, timeOut = 2500, appname) {
   try {
     const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, timeOut);
-    if (websiteResponse.data.includes('<title>')) {
-      return true;
-    }
     if (appname.startsWith('themok')) {
       log.error(websiteResponse);
+    }
+    if (websiteResponse.data.includes('<title>')) {
+      return true;
     }
     return false;
   } catch (error) {

@@ -433,8 +433,10 @@ async function generalWebsiteCheck(ip, port, timeOut = 2500, appname) {
     if (websiteResponse.data.includes('<html>')) {
       return true;
     }
+    log.error(websiteResponse.data);
     return false;
   } catch (error) {
+    log.error(error);
     if (appname.startsWith('themok')) {
       log.error(error);
     }

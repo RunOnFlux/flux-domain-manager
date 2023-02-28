@@ -27,6 +27,7 @@ module.exports = {
   certFolder: 'fluxapps',
   automateCertificates: true,
   automateCertificatesForFDMdomains: false,
+  adjustFDMdomains: false,
   cloudflare: {
     endpoint: 'https://api.cloudflare.com/client/v4/',
     apiKey: cloudflareConfig.apiKey,

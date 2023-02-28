@@ -18,7 +18,9 @@ function filterApps(apps, subsetConfig) {
   const appsInBucket = [];
   // eslint-disable-next-line no-restricted-syntax
   for (const app of apps) {
-    const code = app.name.toLowerCase().charCodeAt(0);
+    const charCode = app.name.toLowerCase().charCodeAt(0);
+    // If starts with 0-9
+    const code = charCode >= 48 && charCode <= 57 ? charCode % 48 : charCode;
     const c = String.fromCharCode((code % 97) + 97);
     if (c in lettersToProcess) {
       appsInBucket.push(app);

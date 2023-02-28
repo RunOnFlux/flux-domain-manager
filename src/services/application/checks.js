@@ -7,7 +7,7 @@ const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
 
 const timeout = 3456;
-const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack'];
+const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'web'];
 
 let currentFluxBlockheight = 1324270;
 

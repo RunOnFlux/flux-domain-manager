@@ -95,11 +95,11 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
       for (const component of appSpecs.compose) {
         component.domains = ['themok.io'];
       }
-    } else if (appSpecs.name === 'web') {
-      // appSpecs.domains = [''];
-      for (const component of appSpecs.compose) {
-        component.domains = [''];
-      }
+    } else if (appSpecs.name === 'website') {
+      appSpecs.domains = [''];
+      // for (const component of appSpecs.compose) {
+      //   component.domains = [''];
+      // }
     } else if (appSpecs.name.startsWith('themok')) {
       for (const component of appSpecs.compose) {
         component.domains = [''];

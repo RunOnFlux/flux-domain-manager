@@ -74,7 +74,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     let applicationSpecifications = await fluxService.getAppSpecifications();
 
     // filter applications based on config
-    applicationSpecifications = getApplicationsToProcess(applicationSpecifications, config.subset);
+    applicationSpecifications = getApplicationsToProcess(applicationSpecifications);
 
     // for every application do following
     // get name, ports

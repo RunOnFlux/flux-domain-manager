@@ -1,7 +1,8 @@
 const config = require('config');
 const serviceHelper = require('../serviceHelper');
 
-function filterApps(apps, subsetConfig) {
+function filterApps(apps) {
+  const subsetConfig = config.subset;
   const { start, end } = subsetConfig;
   const startCode = start.charCodeAt(0);
   const endCode = end.charCodeAt(0);
@@ -9,20 +10,11 @@ function filterApps(apps, subsetConfig) {
     throw new Error(`${start} is after ${end} lexicographically`);
   }
 
-  const lettersToProcess = {};
-  for (let i = startCode; i <= endCode; i += 1) {
-    const code = String.fromCharCode(i);
-    lettersToProcess[code] = true;
-  }
-
   const appsInBucket = [];
   // eslint-disable-next-line no-restricted-syntax
   for (const app of apps) {
-    const charCode = app.name.toLowerCase().charCodeAt(0);
-    // If starts with 0-9
-    const code = charCode >= 48 && charCode <= 57 ? charCode % 48 : charCode;
-    const c = String.fromCharCode((code % 97) + 97);
-    if (c in lettersToProcess) {
+    const charCode = app.name.toUpperCase().charCodeAt(0);
+    if (charCode >= startCode && charCode <= endCode) {
       appsInBucket.push(app);
     }
   }
@@ -30,7 +22,7 @@ function filterApps(apps, subsetConfig) {
   return appsInBucket;
 }
 
-function getApplicationsToProcess(apps, subsetConfig) {
+function getApplicationsToProcess(apps) {
   let applicationsToProcess = apps;
 
   // if running apps for a specific owner
@@ -47,11 +39,11 @@ function getApplicationsToProcess(apps, subsetConfig) {
     applicationsToProcess = applicationsToProcess.filter((app) => !serviceHelper.matchRule(app.name, config.blackListedApps));
   }
 
-  if (!subsetConfig) {
+  if (!config.useSubset) {
     return applicationsToProcess;
   }
 
-  return filterApps(applicationsToProcess, subsetConfig);
+  return filterApps(applicationsToProcess);
 }
 
 module.exports = {

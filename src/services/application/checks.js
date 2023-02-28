@@ -430,7 +430,7 @@ async function generalWebsiteCheck(ip, port, timeOut = 2500, appname) {
     if (appname.startsWith('themok')) {
       log.error(websiteResponse);
     }
-    if (websiteResponse.data.includes('<title>')) {
+    if (websiteResponse.data.includes('<html>')) {
       return true;
     }
     return false;

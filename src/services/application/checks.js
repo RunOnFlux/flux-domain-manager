@@ -378,8 +378,7 @@ async function checkFluxExplorer(ip, port) {
     const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`, 8888);
     const responseB = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/sync`, 8888);
     // eslint-disable-next-line no-use-before-define
-    const responseC = await generalWebsiteCheck(ip, port, 8888, 'explorer');
-    if (response.data.transactions.length > 0 && responseB.data.blockChainHeight >= currentFluxBlockheight && responseC) {
+    if (response.data.transactions.length > 0 && responseB.data.blockChainHeight >= currentFluxBlockheight) {
       return true;
     }
     return false;

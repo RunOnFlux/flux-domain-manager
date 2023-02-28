@@ -47,8 +47,8 @@ module.exports = {
   ownersApps: appsConfig.ownersApps, // Will retrieve only apps of owners specified here
   whiteListedApps: appsConfig.whiteListedApps, // If there's app in the array, blacklisting will be ignore
   blackListedApps: appsConfig.blackListedApps,
-  subset: {
-    start: 'a',
-    end: 'f',
-  },
+  // subset: {
+  //   start: 'a',
+  //   end: 'f',
+  // },
 };

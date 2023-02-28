@@ -6,7 +6,7 @@ function filterApps(apps, subsetConfig) {
   const startCode = start.charCodeAt(0);
   const endCode = end.charCodeAt(0);
   if (startCode > endCode) {
-    throw new Error(`${start} is after ${end} lexigraphically`);
+    throw new Error(`${start} is after ${end} lexicographically`);
   }
 
   const lettersToProcess = {};

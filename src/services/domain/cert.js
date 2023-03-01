@@ -155,9 +155,9 @@ async function executeCertificateOperations(domains, type, fdmOrIP, myIP) {
         // eslint-disable-next-line no-continue
         continue;
       }
-      if (type === DOMAIN_TYPE.FDM) {
+      if (type === DOMAIN_TYPE.FDM && config.adjustFDMdomains) {
         // check DNS
-        // if DNS was adjusted for this domain, wait a minute
+        // if DNS was adjusted for this domain, wait a second
         // eslint-disable-next-line no-await-in-loop
         const wasDomainAdjusted = await checkAndAdjustDNSrecordForDomain(appDomain, fdmOrIP);
         if (wasDomainAdjusted) {

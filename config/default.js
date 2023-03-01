@@ -27,6 +27,7 @@ module.exports = {
   certFolder: 'fluxapps',
   automateCertificates: true,
   automateCertificatesForFDMdomains: false,
+  adjustFDMdomains: false,
   cloudflare: {
     endpoint: 'https://api.cloudflare.com/client/v4/',
     apiKey: cloudflareConfig.apiKey,
@@ -47,4 +48,9 @@ module.exports = {
   ownersApps: appsConfig.ownersApps, // Will retrieve only apps of owners specified here
   whiteListedApps: appsConfig.whiteListedApps, // If there's app in the array, blacklisting will be ignore
   blackListedApps: appsConfig.blackListedApps,
+  useSubset: true,
+  subset: {
+    start: '0',
+    end: 'F',
+  },
 };

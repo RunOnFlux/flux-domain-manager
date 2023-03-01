@@ -8,6 +8,7 @@ const haproxyTemplate = require('./haproxyTemplate');
 const { processApplications, getUnifiedDomains } = require('./domain');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
+const { getApplicationsToProcess } = require('./application/subset');
 
 let myIP = null;
 let myFDMnameORip = null;
@@ -72,10 +73,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     // get applications on the network
     let applicationSpecifications = await fluxService.getAppSpecifications();
 
-    // If there's ownersApps, only include them
-    if (config.ownersApps.length) {
-      applicationSpecifications = applicationSpecifications.filter((appSpec) => config.ownersApps.includes(appSpec.owner));
-    }
+    // filter applications based on config
+    applicationSpecifications = getApplicationsToProcess(applicationSpecifications);
 
     // for every application do following
     // get name, ports

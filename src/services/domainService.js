@@ -67,6 +67,23 @@ async function createSSLDirectory() {
   await fs.mkdir(dir, { recursive: true });
 }
 
+function filterMandatoryApps(apps) {
+  const subsetConfig = config.subset;
+  const startCode = subsetConfig.start.charCodeAt(0);
+  const endCode = subsetConfig.end.charCodeAt(0);
+
+  const appsInBucket = [];
+  // eslint-disable-next-line no-restricted-syntax
+  for (const app of apps) {
+    const charCode = app.toUpperCase().charCodeAt(0);
+    if (charCode >= startCode && charCode <= endCode) {
+      appsInBucket.push(app);
+    }
+  }
+
+  return appsInBucket;
+}
+
 // periodically keeps HAproxy ans certificates updated every 4 minutes
 async function generateAndReplaceMainApplicationHaproxyConfig() {
   try {
@@ -88,7 +105,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     log.info('SSL directory checked');
     const appsOK = await processApplications(applicationSpecifications, myFDMnameORip, myIP);
     // check appsOK against mandatoryApps
-    for (const mandatoryApp of config.mandatoryApps) {
+    let { mandatoryApps } = config;
+    if (config.useSubset) {
+      mandatoryApps = filterMandatoryApps(mandatoryApps);
+    }
+    for (const mandatoryApp of mandatoryApps) {
       const appExists = appsOK.find((app) => app.name === mandatoryApp);
       if (!appExists) {
         throw new Error(`Mandatory app ${mandatoryApp} does not exist. PANIC`);

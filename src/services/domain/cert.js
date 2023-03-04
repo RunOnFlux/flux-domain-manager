@@ -13,9 +13,12 @@ const {
 async function checkCertificatePresetForDomain(domain) {
   try {
     const path = `/etc/ssl/fluxapps/${domain}.pem`;
+    const pathB = `/etc/letsencrypt/live/${domain}/fullchain.pem`;
     await fs.access(path); // only check if file exists. Does not check permissions
+    await fs.access(pathB); // only check if file exists. Does not check permissions
     const fileSize = fsSync.statSync(path).size;
-    if (fileSize > 128) { // it can be an empty file.
+    const fileSizeB = fsSync.statSync(pathB).size;
+    if (fileSize > 128 && fileSizeB > 10) { // it can be an empty file.
       return true;
     }
     return false;

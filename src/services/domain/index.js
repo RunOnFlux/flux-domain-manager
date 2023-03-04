@@ -143,4 +143,5 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
 module.exports = {
   processApplications,
   getUnifiedDomains,
+  getCustomDomains,
 };

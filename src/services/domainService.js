@@ -5,10 +5,12 @@ const log = require('../lib/log');
 const ipService = require('./ipService');
 const fluxService = require('./flux');
 const haproxyTemplate = require('./haproxyTemplate');
-const { processApplications, getUnifiedDomains } = require('./domain');
+const { processApplications, getUnifiedDomains, getCustomDomains } = require('./domain');
+const { executeCertificateOperations } = require('./domain/cert');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
 const { getApplicationsToProcess } = require('./application/subset');
+const { DOMAIN_TYPE } = require('./constants');
 
 let myIP = null;
 let myFDMnameORip = null;
@@ -318,6 +320,34 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
   }
 }
 
+async function obtainCertificatesMode() {
+  try {
+    // get applications on the network
+    let applicationSpecifications = await fluxService.getAppSpecifications();
+
+    // filter applications based on config
+    applicationSpecifications = getApplicationsToProcess(applicationSpecifications);
+    for (const appSpecs of applicationSpecifications) {
+      const customDomains = getCustomDomains(appSpecs);
+      if (customDomains.length) {
+        log.info(`Processing ${appSpecs.name}`);
+        // eslint-disable-next-line no-await-in-loop
+        const customCertOperationsSuccessful = await executeCertificateOperations(customDomains, DOMAIN_TYPE.CUSTOM, myFDMnameORip, myIP);
+        if (customCertOperationsSuccessful) {
+          log.info(`Application domain and ssl for custom domains of ${appSpecs.name} is ready`);
+        } else {
+          log.error(`Domain/ssl issues for custom domains of ${appSpecs.name}`);
+        }
+      }
+    }
+  } catch (error) {
+    log.error(error);
+    setTimeout(() => {
+      obtainCertificatesMode();
+    }, 5 * 60 * 1000);
+  }
+}
+
 // services run every 6 mins
 function initializeServices() {
   myIP = ipService.localIP();
@@ -328,7 +358,10 @@ function initializeServices() {
     myFDMnameORip = myIP;
   }
   if (myIP) {
-    if (config.mainDomain === config.cloudflare.domain && !config.cloudflare.manageapp) {
+    if (config.manageCertificateOnly) {
+      obtainCertificatesMode();
+      log.info('FDM Certificate Service initialized.');
+    } else if (config.mainDomain === config.cloudflare.domain && !config.cloudflare.manageapp) {
       generateAndReplaceMainHaproxyConfig();
       log.info('Flux Main Node Domain Service initiated.');
     } else if (config.mainDomain === config.pDNS.domain && !config.pDNS.manageapp) {

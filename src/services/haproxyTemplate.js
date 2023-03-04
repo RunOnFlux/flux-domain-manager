@@ -176,76 +176,83 @@ function createAppsHaproxyConfig(appConfig) {
   let acls = '';
   let usebackends = '';
   const domains = [];
+  const seenApps = {};
   for (const app of appConfig) {
     if (domains.includes(app.domain)) {
       // eslint-disable-next-line no-continue
       continue;
     }
-    const domainUsed = app.domain.split('.').join('');
-    if (usebackends.includes(`  use_backend ${domainUsed}backend if ${domainUsed}\n`)) {
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-    let domainBackend = `backend ${domainUsed}backend
-  mode http`;
-    if (app.loadBalance) {
-      domainBackend += app.loadBalance;
+    if (app.appName in seenApps) {
+      domains.push(app.domain);
+      acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
     } else {
-      domainBackend += '\n  balance roundrobin';
-      domainBackend += '\n  cookie FDMSERVERID insert indirect nocache maxlife 8h';
-    }
-    if (app.headers) {
-      // eslint-disable-next-line no-loop-func
-      app.headers.forEach((header) => {
-        domainBackend += `\n  ${header}`;
-      });
-    }
-    // eslint-disable-next-line no-loop-func
-    app.healthcheck.forEach((hc) => {
-      domainBackend += `\n  ${hc}`;
-    });
-    for (const ip of app.ips) {
-      const a = ip.split(':')[0].split('.');
-      if (!a) {
-        log.error('STRANGE IP');
-        log.error(ip);
+      const domainUsed = app.domain.split('.').join('');
+      if (usebackends.includes(`  use_backend ${domainUsed}backend if ${domainUsed}\n`)) {
         // eslint-disable-next-line no-continue
         continue;
       }
-      const apiPort = ip.split(':')[1] || 16127;
-      // let IpString = '';
-      // for (let i = 0; i < 4; i += 1) {
-      //   if (!(a[i])) {
-      //     log.error('STRANGE IP');
-      //     log.error(ip);
-      //     // eslint-disable-next-line no-continue
-      //     continue;
-      //   }
-      //   if (a[i].length === 3) {
-      //     IpString += a[i];
-      //   }
-      //   if (a[i].length === 2) {
-      //     IpString = `${IpString}0${a[i]}`;
-      //   }
-      //   if (a[i].length === 1) {
-      //     IpString = `${IpString}00${a[i]}`;
-      //   }
-      // }
-      const cookieConfig = app.loadBalance ? '' : ` cookie ${ip.split(':')[0]}:${app.port}`;
-      if (app.ssl) {
-        const h2Config = app.enableH2 ? h2Suffix : '';
-        domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
+      let domainBackend = `backend ${domainUsed}backend
+    mode http`;
+      if (app.loadBalance) {
+        domainBackend += app.loadBalance;
       } else {
-        domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}${cookieConfig}`;
+        domainBackend += '\n  balance roundrobin';
+        domainBackend += '\n  cookie FDMSERVERID insert indirect nocache maxlife 8h';
       }
-      if (app.timeout) {
-        domainBackend += `\n  timeout server ${app.timeout}`;
+      if (app.headers) {
+        // eslint-disable-next-line no-loop-func
+        app.headers.forEach((header) => {
+          domainBackend += `\n  ${header}`;
+        });
       }
+      // eslint-disable-next-line no-loop-func
+      app.healthcheck.forEach((hc) => {
+        domainBackend += `\n  ${hc}`;
+      });
+      for (const ip of app.ips) {
+        const a = ip.split(':')[0].split('.');
+        if (!a) {
+          log.error('STRANGE IP');
+          log.error(ip);
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        const apiPort = ip.split(':')[1] || 16127;
+        // let IpString = '';
+        // for (let i = 0; i < 4; i += 1) {
+        //   if (!(a[i])) {
+        //     log.error('STRANGE IP');
+        //     log.error(ip);
+        //     // eslint-disable-next-line no-continue
+        //     continue;
+        //   }
+        //   if (a[i].length === 3) {
+        //     IpString += a[i];
+        //   }
+        //   if (a[i].length === 2) {
+        //     IpString = `${IpString}0${a[i]}`;
+        //   }
+        //   if (a[i].length === 1) {
+        //     IpString = `${IpString}00${a[i]}`;
+        //   }
+        // }
+        const cookieConfig = app.loadBalance ? '' : ` cookie ${ip.split(':')[0]}:${app.port}`;
+        if (app.ssl) {
+          const h2Config = app.enableH2 ? h2Suffix : '';
+          domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
+        } else {
+          domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}${cookieConfig}`;
+        }
+        if (app.timeout) {
+          domainBackend += `\n  timeout server ${app.timeout}`;
+        }
+      }
+      backends = `${backends + domainBackend}\n\n`;
+      domains.push(app.domain);
+      acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
+      usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
+      seenApps[app.appName] = domainUsed;
     }
-    backends = `${backends + domainBackend}\n\n`;
-    domains.push(app.domain);
-    acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
-    usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
   }
   const redirects = '';
 

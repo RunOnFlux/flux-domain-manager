@@ -79,7 +79,7 @@ async function dnsLookup(hostname) {
     setTimeout(resolve, 2000, []);
   });
   const dnsPromise = dns.lookup(hostname, { all: true }).catch((error) => console.log(error)); // eg. [ { address: '65.21.189.1', family: 4 } ]
-  const result = await Promise.race(dnsPromise, timeoutPromise);
+  const result = await Promise.race([dnsPromise, timeoutPromise]);
   return result || [];
 }
 

@@ -7,8 +7,13 @@ const domainService = require('./src/services/domainService');
 
 const server = http.createServer(app);
 
-server.listen(config.server.port, () => {
-  log.info(`FDM listening on port ${config.server.port}!`);
+let { port } = config.server;
+if (config.manageCertificateOnly) {
+  port += 1;
+}
+
+server.listen(port, () => {
+  log.info(`FDM listening on port ${port}!`);
 
   domainService.start();
   log.info('FDM services starting...');

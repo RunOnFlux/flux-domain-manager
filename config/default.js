@@ -24,7 +24,7 @@ module.exports = {
   emailDomain: 'tessjonesie@gmail.com',
   certFolder: 'fluxapps',
   manageCertificateOnly: true,
-  automateCertificates: true,
+  automateCertificates: false,
   automateCertificatesForFDMdomains: false,
   adjustFDMdomains: false,
   cloudflare: {

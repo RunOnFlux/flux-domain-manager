@@ -23,6 +23,7 @@ module.exports = {
   domainAppType: 'CNAME',
   emailDomain: 'tessjonesie@gmail.com',
   certFolder: 'fluxapps',
+  manageCertificateOnly: true,
   automateCertificates: true,
   automateCertificatesForFDMdomains: false,
   adjustFDMdomains: false,

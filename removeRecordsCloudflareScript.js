@@ -11,7 +11,7 @@ const cloudFlareAxiosConfig = {
   },
 };
 
-async function listDNSRecords(name, content, type = 'A', page = 1, per_page = 100, records = []) {
+async function listDNSRecords(name, content, type = 'CNAME', page = 1, per_page = 100, records = []) {
   // https://api.cloudflare.com/#dns-records-for-a-zone-list-dns-records
   const query = {
     name,
@@ -44,10 +44,12 @@ async function deleteDNSRecord(id) {
 
 async function removeObsoleteRecords() {
   const dnsRecords = await listDNSRecords();
+  // console.log(JSON.stringify(dnsRecords));
+  // console.log(dnsRecords);
   // delete bad
   for (const record of dnsRecords) { // async inside
     // console.log(record);
-    if (record.name.split('.')[4]) {
+    if (record.name.endsWith('.app.runonflux.io') && record.name.length >= '13.app.runonflux.io'.length && record.content === 'fdm-lb-1.runonflux.io') {
       // eslint-disable-next-line no-await-in-loop
       await deleteDNSRecord(record.id); // may throw
       console.info(`Record ${record.name} on ${record.content} deleted`);

@@ -340,6 +340,9 @@ async function obtainCertificatesMode() {
         }
       }
     }
+    setTimeout(() => {
+      obtainCertificatesMode();
+    }, 5 * 60 * 1000);
   } catch (error) {
     log.error(error);
     setTimeout(() => {

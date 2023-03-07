@@ -210,7 +210,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           for (const component of app.compose) {
             for (let i = 0; i < component.ports.length; i += 1) {
               const configuredApp = {
-                appName: `${component.name}_${component.ports[i]}`,
+                appName: `${app.name}_${component.name}_${component.ports[i]}`,
                 domain: domains[j],
                 port: component.ports[i],
                 ips: appIps,
@@ -227,7 +227,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     const domainExists = configuredApps.find((a) => a.domain === portDomain.toLowerCase());
                     if (!domainExists) {
                       const configuredAppCustom = {
-                        appName: `${component.name}_${component.ports[i]}`,
+                        appName: `${app.name}_${component.name}_${component.ports[i]}`,
                         domain: portDomain.toLowerCase().replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                         port: component.ports[i],
                         ips: appIps,
@@ -241,7 +241,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       const domainExistsB = configuredApps.find((a) => a.domain === wwwAdjustedDomain);
                       if (!domainExistsB) {
                         const configuredAppCustom = {
-                          appName: `${component.name}_${component.ports[i]}`,
+                          appName: `${app.name}_${component.name}_${component.ports[i]}`,
                           domain: wwwAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                           port: component.ports[i],
                           ips: appIps,
@@ -256,7 +256,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       const domainExistsB = configuredApps.find((a) => a.domain === testAdjustedDomain);
                       if (!domainExistsB) {
                         const configuredAppCustom = {
-                          appName: `${component.name}_${component.ports[i]}`,
+                          appName: `${app.name}_${component.name}_${component.ports[i]}`,
                           domain: testAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                           port: component.ports[i],
                           ips: appIps,
@@ -277,7 +277,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               const mainDomainExists = configuredApps.find((qw) => qw.domain === domains[domains.length - 1]);
               if (!mainDomainExists) {
                 const mainApp = {
-                  appName: `${app.compose[q].name}_${app.compose[q].ports[w]}`,
+                  appName: `${app.name}_${app.compose[q].name}_${app.compose[q].ports[w]}`,
                   domain: domains[domains.length - 1],
                   port: app.compose[q].ports[w],
                   ips: appIps,

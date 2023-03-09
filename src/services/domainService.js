@@ -123,6 +123,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     const appsToProcessBatches = []; // [[.,.,.,.,],[.,.,.,.,],[.,.,.]];
     let appsToProcessBatchX = [];
     for (let i = 0; i < appsOK.length; i += 1) {
+      appsToProcessBatchX.push(appsOK[i]);
       if (appsToProcessBatchX.length >= paralelism) { // if batch contains more or equal to, finalise this batch
         appsToProcessBatches.push(appsToProcessBatchX);
         appsToProcessBatchX = [];

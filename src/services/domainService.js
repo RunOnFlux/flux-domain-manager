@@ -138,7 +138,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         locationPromises.push(fluxService.getApplicationLocation(appBatch[i].name));
       }
       // eslint-disable-next-line no-await-in-loop
-      const locationResults = await Promise.allSettled(locationPromises);
+      const locationResults = (await Promise.allSettled(locationPromises)).map((res) => res.value);
       appBatch.forEach(async (app, index) => {
         log.info(`Configuring ${app.name}`);
         const appLocations = locationResults[index];
@@ -150,7 +150,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             appCheckPromises.push(applicationChecks.checkApplication(app, appLocations[i].ip));
           }
           // eslint-disable-next-line no-await-in-loop
-          const appChecksResults = await Promise.allSettled(appCheckPromises); // shall we split it, if an app has a lot of instances?
+          const appChecksResults = (await Promise.allSettled(appCheckPromises)).map((res) => res.value); // shall we split it, if an app has a lot of instances?
           for (let i = 0; i < appChecksResults.length; i += 1) {
             if (appChecksResults[i]) {
               appIps.push(appLocations[i]);

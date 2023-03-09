@@ -153,7 +153,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           const appChecksResults = (await Promise.allSettled(appCheckPromises)).map((res) => res.value); // shall we split it, if an app has a lot of instances?
           for (let i = 0; i < appChecksResults.length; i += 1) {
             if (appChecksResults[i]) {
-              appIps.push(appLocations[i]);
+              appIps.push(appLocations[i].ip);
             }
           }
           if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {

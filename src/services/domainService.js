@@ -158,118 +158,48 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           }
           if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
             throw new Error(`Application ${app.name} checks not ok. PANIC.`);
-          }
-          const domains = getUnifiedDomains(app);
-          const customConfigs = getCustomConfigs(app);
-          if (app.version <= 3) {
-            for (let i = 0; i < app.ports.length; i += 1) {
-              const configuredApp = {
-                appName: `${app.name}_${app.ports[i]}`,
-                domain: domains[i],
-                port: app.ports[i],
-                ips: appIps,
-                ...customConfigs[i],
-              };
-              configuredApps.push(configuredApp);
-              if (app.domains[i]) {
-                const portDomains = app.domains[i].split(',');
-                portDomains.forEach((portDomain) => {
-                  // prevention for double backend on custom domains, can be improved
-                  const domainAssigned = configuredApps.find((appThatIsConfigured) => appThatIsConfigured.domain === portDomain);
-                  if (portDomain && portDomain.includes('.') && portDomain.length > 3 && !portDomain.toLowerCase().includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`) && !domainAssigned) { // prevent double backend
-                    const domainExists = configuredApps.find((a) => a.domain === portDomain.toLowerCase());
-                    if (!domainExists) {
-                      const configuredAppCustom = {
-                        appName: `${app.name}_${app.ports[i]}`,
-                        domain: portDomain.toLowerCase().replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
-                        port: app.ports[i],
-                        ips: appIps,
-                        ...customConfigs[i],
-                      };
-                      configuredApps.push(configuredAppCustom);
-                    }
-                    const wwwAdjustedDomain = portDomain.includes('www.') ? portDomain.toLowerCase().split('www.')[1] : `www.${portDomain.toLowerCase()}`;
-                    if (wwwAdjustedDomain) {
-                      const domainExistsB = configuredApps.find((a) => a.domain === wwwAdjustedDomain);
-                      if (!domainExistsB) {
-                        const configuredAppCustom = {
-                          appName: `${app.name}_${app.ports[i]}`,
-                          domain: wwwAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
-                          port: app.ports[i],
-                          ips: appIps,
-                          ...customConfigs[i],
-                        };
-                        configuredApps.push(configuredAppCustom);
-                      }
-                    }
-
-                    const testAdjustedDomain = portDomain.includes('test.') ? portDomain.toLowerCase().split('test.')[1] : `test.${portDomain.toLowerCase()}`;
-                    if (testAdjustedDomain) {
-                      const domainExistsB = configuredApps.find((a) => a.domain === testAdjustedDomain);
-                      if (!domainExistsB) {
-                        const configuredAppCustom = {
-                          appName: `${app.name}_${app.ports[i]}`,
-                          domain: testAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
-                          port: app.ports[i],
-                          ips: appIps,
-                          ...customConfigs[i],
-                        };
-                        configuredApps.push(configuredAppCustom);
-                      }
-                    }
-                  }
-                });
-              }
-            }
-            const mainApp = {
-              appName: `${app.name}_${app.ports[0]}`,
-              domain: domains[domains.length - 1],
-              port: app.ports[0],
-              ips: appIps,
-              ...customConfigs[customConfigs.length - 1],
-            };
-            configuredApps.push(mainApp);
+          } else if (!appIps.length) {
+            log.warn(`Application ${app.name} is excluded. App checks not ok`);
           } else {
-            let j = 0;
-            for (const component of app.compose) {
-              for (let i = 0; i < component.ports.length; i += 1) {
+            const domains = getUnifiedDomains(app);
+            const customConfigs = getCustomConfigs(app);
+            if (app.version <= 3) {
+              for (let i = 0; i < app.ports.length; i += 1) {
                 const configuredApp = {
-                  appName: `${app.name}_${component.name}_${component.ports[i]}`,
-                  domain: domains[j],
-                  port: component.ports[i],
+                  appName: `${app.name}_${app.ports[i]}`,
+                  domain: domains[i],
+                  port: app.ports[i],
                   ips: appIps,
-                  ...customConfigs[j],
+                  ...customConfigs[i],
                 };
                 configuredApps.push(configuredApp);
-                const portDomains = component.domains[i].split(',');
-                // eslint-disable-next-line no-loop-func
-                portDomains.forEach((portDomain) => {
+                if (app.domains[i]) {
+                  const portDomains = app.domains[i].split(',');
+                  portDomains.forEach((portDomain) => {
                   // prevention for double backend on custom domains, can be improved
-                  const domainAssigned = configuredApps.find((appThatIsConfigured) => appThatIsConfigured.domain === portDomain);
-                  if (portDomain && portDomain.includes('.') && portDomain.length >= 3 && !portDomain.toLowerCase().includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`) && !domainAssigned) {
-                    if (!portDomain.includes(`${config.appSubDomain}${config.mainDomain.split('.')[0]}`)) { // prevent double backend
+                    const domainAssigned = configuredApps.find((appThatIsConfigured) => appThatIsConfigured.domain === portDomain);
+                    if (portDomain && portDomain.includes('.') && portDomain.length > 3 && !portDomain.toLowerCase().includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`) && !domainAssigned) { // prevent double backend
                       const domainExists = configuredApps.find((a) => a.domain === portDomain.toLowerCase());
                       if (!domainExists) {
                         const configuredAppCustom = {
-                          appName: `${app.name}_${component.name}_${component.ports[i]}`,
+                          appName: `${app.name}_${app.ports[i]}`,
                           domain: portDomain.toLowerCase().replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
-                          port: component.ports[i],
+                          port: app.ports[i],
                           ips: appIps,
-                          ...customConfigs[j],
+                          ...customConfigs[i],
                         };
                         configuredApps.push(configuredAppCustom);
                       }
-
                       const wwwAdjustedDomain = portDomain.includes('www.') ? portDomain.toLowerCase().split('www.')[1] : `www.${portDomain.toLowerCase()}`;
                       if (wwwAdjustedDomain) {
                         const domainExistsB = configuredApps.find((a) => a.domain === wwwAdjustedDomain);
                         if (!domainExistsB) {
                           const configuredAppCustom = {
-                            appName: `${app.name}_${component.name}_${component.ports[i]}`,
+                            appName: `${app.name}_${app.ports[i]}`,
                             domain: wwwAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
-                            port: component.ports[i],
+                            port: app.ports[i],
                             ips: appIps,
-                            ...customConfigs[j],
+                            ...customConfigs[i],
                           };
                           configuredApps.push(configuredAppCustom);
                         }
@@ -280,39 +210,112 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         const domainExistsB = configuredApps.find((a) => a.domain === testAdjustedDomain);
                         if (!domainExistsB) {
                           const configuredAppCustom = {
-                            appName: `${app.name}_${component.name}_${component.ports[i]}`,
+                            appName: `${app.name}_${app.ports[i]}`,
                             domain: testAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                            port: app.ports[i],
+                            ips: appIps,
+                            ...customConfigs[i],
+                          };
+                          configuredApps.push(configuredAppCustom);
+                        }
+                      }
+                    }
+                  });
+                }
+              }
+              const mainApp = {
+                appName: `${app.name}_${app.ports[0]}`,
+                domain: domains[domains.length - 1],
+                port: app.ports[0],
+                ips: appIps,
+                ...customConfigs[customConfigs.length - 1],
+              };
+              configuredApps.push(mainApp);
+            } else {
+              let j = 0;
+              for (const component of app.compose) {
+                for (let i = 0; i < component.ports.length; i += 1) {
+                  const configuredApp = {
+                    appName: `${app.name}_${component.name}_${component.ports[i]}`,
+                    domain: domains[j],
+                    port: component.ports[i],
+                    ips: appIps,
+                    ...customConfigs[j],
+                  };
+                  configuredApps.push(configuredApp);
+                  const portDomains = component.domains[i].split(',');
+                  // eslint-disable-next-line no-loop-func
+                  portDomains.forEach((portDomain) => {
+                  // prevention for double backend on custom domains, can be improved
+                    const domainAssigned = configuredApps.find((appThatIsConfigured) => appThatIsConfigured.domain === portDomain);
+                    if (portDomain && portDomain.includes('.') && portDomain.length >= 3 && !portDomain.toLowerCase().includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`) && !domainAssigned) {
+                      if (!portDomain.includes(`${config.appSubDomain}${config.mainDomain.split('.')[0]}`)) { // prevent double backend
+                        const domainExists = configuredApps.find((a) => a.domain === portDomain.toLowerCase());
+                        if (!domainExists) {
+                          const configuredAppCustom = {
+                            appName: `${app.name}_${component.name}_${component.ports[i]}`,
+                            domain: portDomain.toLowerCase().replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
                             port: component.ports[i],
                             ips: appIps,
                             ...customConfigs[j],
                           };
                           configuredApps.push(configuredAppCustom);
                         }
+
+                        const wwwAdjustedDomain = portDomain.includes('www.') ? portDomain.toLowerCase().split('www.')[1] : `www.${portDomain.toLowerCase()}`;
+                        if (wwwAdjustedDomain) {
+                          const domainExistsB = configuredApps.find((a) => a.domain === wwwAdjustedDomain);
+                          if (!domainExistsB) {
+                            const configuredAppCustom = {
+                              appName: `${app.name}_${component.name}_${component.ports[i]}`,
+                              domain: wwwAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                              port: component.ports[i],
+                              ips: appIps,
+                              ...customConfigs[j],
+                            };
+                            configuredApps.push(configuredAppCustom);
+                          }
+                        }
+
+                        const testAdjustedDomain = portDomain.includes('test.') ? portDomain.toLowerCase().split('test.')[1] : `test.${portDomain.toLowerCase()}`;
+                        if (testAdjustedDomain) {
+                          const domainExistsB = configuredApps.find((a) => a.domain === testAdjustedDomain);
+                          if (!domainExistsB) {
+                            const configuredAppCustom = {
+                              appName: `${app.name}_${component.name}_${component.ports[i]}`,
+                              domain: testAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                              port: component.ports[i],
+                              ips: appIps,
+                              ...customConfigs[j],
+                            };
+                            configuredApps.push(configuredAppCustom);
+                          }
+                        }
                       }
                     }
-                  }
-                });
-                j += 1;
+                  });
+                  j += 1;
+                }
               }
-            }
-            // push main domain
-            for (let q = 0; q < app.compose.length; q += 1) {
-              for (let w = 0; w < app.compose[q].ports.length; w += 1) {
-                const mainDomainExists = configuredApps.find((qw) => qw.domain === domains[domains.length - 1]);
-                if (!mainDomainExists) {
-                  const mainApp = {
-                    appName: `${app.name}_${app.compose[q].name}_${app.compose[q].ports[w]}`,
-                    domain: domains[domains.length - 1],
-                    port: app.compose[q].ports[w],
-                    ips: appIps,
-                    ...customConfigs[customConfigs.length - 1],
-                  };
-                  configuredApps.push(mainApp);
+              // push main domain
+              for (let q = 0; q < app.compose.length; q += 1) {
+                for (let w = 0; w < app.compose[q].ports.length; w += 1) {
+                  const mainDomainExists = configuredApps.find((qw) => qw.domain === domains[domains.length - 1]);
+                  if (!mainDomainExists) {
+                    const mainApp = {
+                      appName: `${app.name}_${app.compose[q].name}_${app.compose[q].ports[w]}`,
+                      domain: domains[domains.length - 1],
+                      port: app.compose[q].ports[w],
+                      ips: appIps,
+                      ...customConfigs[customConfigs.length - 1],
+                    };
+                    configuredApps.push(mainApp);
+                  }
                 }
               }
             }
+            log.info(`Application ${app.name} is OK. Proceeding to FDM`);
           }
-          log.info(`Application ${app.name} is OK. Proceeding to FDM`);
         } else {
           log.warn(`Application ${app.name} is excluded. Not running properly?`);
           if (config.mandatoryApps.includes(app.name)) {

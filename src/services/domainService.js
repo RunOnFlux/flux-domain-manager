@@ -55,12 +55,12 @@ async function generateAndReplaceMainHaproxyConfig() {
     }
     setTimeout(() => {
       generateAndReplaceMainHaproxyConfig();
-    }, 4 * 60 * 1000);
+    }, 30 * 1000);
   } catch (error) {
     log.error(error);
     setTimeout(() => {
       generateAndReplaceMainHaproxyConfig();
-    }, 4 * 60 * 1000);
+    }, 30 * 1000);
   }
 }
 
@@ -311,12 +311,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     }
     setTimeout(() => {
       generateAndReplaceMainApplicationHaproxyConfig();
-    }, 4 * 60 * 1000);
+    }, 30 * 1000);
   } catch (error) {
     log.error(error);
     setTimeout(() => {
       generateAndReplaceMainApplicationHaproxyConfig();
-    }, 4 * 60 * 1000);
+    }, 30 * 1000);
   }
 }
 

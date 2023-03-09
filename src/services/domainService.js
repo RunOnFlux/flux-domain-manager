@@ -139,7 +139,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       }
       // eslint-disable-next-line no-await-in-loop
       const locationResults = (await Promise.allSettled(locationPromises)).map((res) => res.value);
-      appBatch.forEach(async (app, index) => {
+      for (const [index, app] of appBatch) {
         log.info(`Configuring ${app.name}`);
         const appLocations = locationResults[index];
         if (appLocations.length) {
@@ -322,7 +322,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             throw new Error(`Application ${app.name} is not running well PANIC.`);
           }
         }
-      });
+      }
     }
 
     if (configuredApps.length < 10) {

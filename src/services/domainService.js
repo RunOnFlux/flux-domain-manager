@@ -139,7 +139,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       }
       // eslint-disable-next-line no-await-in-loop
       const locationResults = (await Promise.allSettled(locationPromises)).map((res) => res.value);
-      for (const [index, app] of appBatch) {
+      for (const [index, app] of appBatch.entries()) {
         log.info(`Configuring ${app.name}`);
         const appLocations = locationResults[index];
         if (appLocations.length) {

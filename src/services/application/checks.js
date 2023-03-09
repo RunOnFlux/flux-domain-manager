@@ -496,10 +496,14 @@ async function checkCelo(ip, port) {
 
 async function checkBitgert(ip, port) {
   try {
+    const timeoutPromise = new Promise((resolve) => {
+      setTimeout(resolve, 10000, true);
+    });
     const node = `http://${ip}:${port}`;
     const provider = new ethers.providers.JsonRpcProvider(node);
-    const isSyncing = await provider.send('eth_syncing');
-    return !isSyncing;
+    const syncingPromise = provider.send('eth_syncing');
+    const result = await Promise.race([syncingPromise, timeoutPromise]);
+    return !result; // syncing returns false if its good.
   } catch (error) {
     return false;
   }

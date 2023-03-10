@@ -185,10 +185,11 @@ function createAppsHaproxyConfig(appConfig) {
     if (app.appName in seenApps) {
       domains.push(app.domain);
       if (app.domain === 'runonflux.io' || app.domain === 'www.runonflux.io') {
-        acls += `  acl website_33444apprunonfluxio { hdr(host) ${app.domain} } { path_beg /* }\n`;
-        acls += `  acl web_35389apprunonfluxio { hdr(host) ${app.domain} }\n`;
+        acls += `  acl website_33444apprunonfluxio hdr(host) ${app.domain}\n`;
+        acls += '  acl website_33444apprunonfluxio path_beg /*\n';
+        acls += `  acl web_35389apprunonfluxio hdr(host) ${app.domain}\n`;
       } else {
-        acls += `  acl ${seenApps[app.appName]} { hdr(host) ${app.domain} }\n`;
+        acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
       }
     } else {
       const domainUsed = app.domain.split('.').join('');
@@ -255,8 +256,9 @@ function createAppsHaproxyConfig(appConfig) {
       backends = `${backends + domainBackend}\n\n`;
       domains.push(app.domain);
       if (app.domain === 'runonflux.io' || app.domain === 'www.runonflux.io') {
-        acls += `  acl website_33444apprunonfluxio { hdr(host) ${app.domain} } { path_beg /* }\n`;
-        acls += `  acl web_35389apprunonfluxio { hdr(host) ${app.domain} }\n`;
+        acls += `  acl website_33444apprunonfluxio hdr(host) ${app.domain}\n`;
+        acls += '  acl website_33444apprunonfluxio path_beg /*\n';
+        acls += `  acl web_35389apprunonfluxio hdr(host) ${app.domain}\n`;
       } else {
         acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
       }

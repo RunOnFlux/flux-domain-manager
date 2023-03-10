@@ -145,15 +145,30 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         if (appLocations.length) {
           const appIps = [];
           // batch processing
-          const appCheckPromises = [];
+          const checkParalelism = 10;
+          const appCheckPromisesBatches = []; // [[.,.,.,.,],[.,.,.,.,],[.,.,.]];
+          let appCheckPromisesBatchX = [];
           for (let i = 0; i < appLocations.length; i += 1) {
-            appCheckPromises.push(applicationChecks.checkApplication(app, appLocations[i].ip));
+            appCheckPromisesBatchX.push(appLocations[i]);
+            if (appCheckPromisesBatchX.length >= checkParalelism) { // if batch contains more or equal to, finalise this batch
+              appCheckPromisesBatches.push(appCheckPromisesBatchX);
+              appCheckPromisesBatchX = [];
+            }
           }
-          // eslint-disable-next-line no-await-in-loop
-          const appChecksResults = (await Promise.allSettled(appCheckPromises)).map((res) => res.value); // shall we split it, if an app has a lot of instances?
-          for (let i = 0; i < appChecksResults.length; i += 1) {
-            if (appChecksResults[i]) {
-              appIps.push(appLocations[i].ip);
+          if (appCheckPromisesBatchX.length) {
+            appCheckPromisesBatches.push(appCheckPromisesBatchX); // last batch can have less apps
+          }
+          for (const appChecPromiseBatch of appCheckPromisesBatches) {
+            const checkPromises = [];
+            for (let i = 0; i < appChecPromiseBatch.length; i += 1) {
+              checkPromises.push(applicationChecks.checkApplication(app, appChecPromiseBatch[i].ip));
+            }
+            // eslint-disable-next-line no-await-in-loop
+            const appChecksResults = (await Promise.allSettled(checkPromises)).map((res) => res.value); // shall we split it, if an app has a lot of instances?
+            for (let i = 0; i < appChecksResults.length; i += 1) {
+              if (appChecksResults[i]) {
+                appIps.push(appChecPromiseBatch[i].ip);
+              }
             }
           }
           if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {

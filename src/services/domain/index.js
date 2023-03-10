@@ -100,6 +100,7 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
       for (const component of appSpecs.compose) {
         component.domains = [''];
       }
+      appSpecs.compose[0] = ['new.runonflux.io'];
     } else if (appSpecs.name.startsWith('themok')) {
       for (const component of appSpecs.compose) {
         component.domains = [''];

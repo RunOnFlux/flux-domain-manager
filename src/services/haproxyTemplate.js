@@ -194,7 +194,7 @@ function createAppsHaproxyConfig(appConfig) {
       const domainUsed = app.domain.split('.').join('');
       if (usebackends.includes(`  use_backend ${domainUsed}backend if ${domainUsed}\n`)
        || usebackends.includes('  use_backend web_38499apprunonfluxiobackend if web_35389apprunonfluxio\n)')
-       || usebackends.includes('  use_backend web_35389apprunonfluxio if web_35389apprunonfluxio !web_38499apprunonfluxio\n)')
+       // || usebackends.includes('  use_backend web_35389apprunonfluxiobackend if web_35389apprunonfluxio !web_38499apprunonfluxio\n)')
       ) {
         // eslint-disable-next-line no-continue
         continue;
@@ -265,7 +265,7 @@ function createAppsHaproxyConfig(appConfig) {
       }
       if (app.domain === 'runonflux.io' || app.domain === 'www.runonflux.io') {
         usebackends += '  use_backend web_38499apprunonfluxiobackend if web_35389apprunonfluxio\n';
-        usebackends += '  use_backend web_35389apprunonfluxio if web_35389apprunonfluxio !web_38499apprunonfluxio\n';
+        // usebackends += '  use_backend web_35389apprunonfluxiobackend if web_35389apprunonfluxio !web_38499apprunonfluxio\n';
       } else {
         usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
       }

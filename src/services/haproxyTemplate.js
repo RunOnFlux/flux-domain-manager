@@ -175,6 +175,8 @@ function createAppsHaproxyConfig(appConfig) {
   let backends = '';
   let acls = '';
   let usebackends = '';
+  usebackends += '  use_backend web_38499apprunonfluxiobackend if newWeb oldWeb\n';
+  usebackends += '  use_backend web_35389apprunonfluxiobackend if newWeb !oldWeb\n';
   const domains = [];
   const seenApps = {};
   for (const app of appConfig) {
@@ -185,17 +187,14 @@ function createAppsHaproxyConfig(appConfig) {
     if (app.appName in seenApps) {
       domains.push(app.domain);
       if (app.domain === 'runonflux.io' || app.domain === 'www.runonflux.io') {
-        acls += '  acl web_38499apprunonfluxio path_beg /\n';
-        acls += `  acl web_35389apprunonfluxio hdr(host) ${app.domain}\n`;
+        acls += '  acl oldWeb path_beg /*\n';
+        acls += `  acl newWeb hdr(host) ${app.domain}\n`;
       } else {
         acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
       }
     } else {
       const domainUsed = app.domain.split('.').join('');
-      if (usebackends.includes(`  use_backend ${domainUsed}backend if ${domainUsed}\n`)
-       || usebackends.includes('  use_backend web_38499apprunonfluxiobackend if web_35389apprunonfluxio\n)')
-       // || usebackends.includes('  use_backend web_35389apprunonfluxiobackend if web_35389apprunonfluxio !web_38499apprunonfluxio\n)')
-      ) {
+      if (usebackends.includes(`  use_backend ${domainUsed}backend if ${domainUsed}\n`)) {
         // eslint-disable-next-line no-continue
         continue;
       }
@@ -258,17 +257,12 @@ function createAppsHaproxyConfig(appConfig) {
       backends = `${backends + domainBackend}\n\n`;
       domains.push(app.domain);
       if (app.domain === 'runonflux.io' || app.domain === 'www.runonflux.io') {
-        acls += '  acl web_38499apprunonfluxio path_beg /\n';
-        acls += `  acl web_35389apprunonfluxio hdr(host) ${app.domain}\n`;
+        acls += '  acl oldWeb path_beg /*\n';
+        acls += `  acl newWeb hdr(host) ${app.domain}\n`;
       } else {
         acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
       }
-      if (app.domain === 'runonflux.io' || app.domain === 'www.runonflux.io') {
-        usebackends += '  use_backend web_38499apprunonfluxiobackend if web_35389apprunonfluxio\n';
-        // usebackends += '  use_backend web_35389apprunonfluxiobackend if web_35389apprunonfluxio !web_38499apprunonfluxio\n';
-      } else {
-        usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
-      }
+      usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
       seenApps[app.appName] = domainUsed;
     }
   }

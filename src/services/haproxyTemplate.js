@@ -175,8 +175,9 @@ function createAppsHaproxyConfig(appConfig) {
   let backends = '';
   let acls = '';
   let usebackends = '';
-  usebackends += '  use_backend web_38499apprunonfluxiobackend if newWeb oldWeb\n';
-  usebackends += '  use_backend web_35389apprunonfluxiobackend if newWeb !oldWeb\n';
+  usebackends += '  use_backend web_38499apprunonfluxiobackend if newWeb\n';
+  // usebackends += '  use_backend web_38499apprunonfluxiobackend if newWeb oldWeb\n';
+  // usebackends += '  use_backend web_35389apprunonfluxiobackend if newWeb !oldWeb\n';
   const domains = [];
   const seenApps = {};
   for (const app of appConfig) {

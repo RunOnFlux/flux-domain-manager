@@ -511,8 +511,8 @@ async function checkBitgert(ip, port) {
 
 async function checkBlockBook(ip, port, appsname) {
   try {
-    const coinList = ['litecoin','flux','ethereumclassic','vertcoin','zcash','dogecoin'];
-    const addressList = ['LVjoCYFESyTbKAEU5VbFYtb9EYyBXx55V5','t1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj','0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf','VbFrQgNEiR8ZxMh9WmkjJu9kkqjJA6imdD','t1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj',"DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8"]; 
+    const coinList = ['litecoin','flux','ethereumclassic','vertcoin','zcash','dogecoin','digibyte'];
+    const addressList = ['LVjoCYFESyTbKAEU5VbFYtb9EYyBXx55V5','t1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj','0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf','VbFrQgNEiR8ZxMh9WmkjJu9kkqjJA6imdD','t1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj','DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8','DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8']; 
     let coin = appsname.replace("blockbook", "");
     coin = coin.replace(/\d+/g, '')
     let index = coinList.indexOf(coin)

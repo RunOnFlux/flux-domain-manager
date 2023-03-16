@@ -511,8 +511,8 @@ async function checkBitgert(ip, port) {
 
 async function checkBlockBook(ip, port, appsname) {
   try {
-    const coinList = ['litecoin','flux'];
-    const addressList = ['LVjoCYFESyTbKAEU5VbFYtb9EYyBXx55V5','t1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj']; 
+    const coinList = ['litecoin','flux','ethereumclassic'];
+    const addressList = ['LVjoCYFESyTbKAEU5VbFYtb9EYyBXx55V5','t1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj','0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf']; 
     let coin = appsname.replace("blockbook", "");
     coin = coin.replace(/\d+/g, '')
     let index = coinList.indexOf(coin)

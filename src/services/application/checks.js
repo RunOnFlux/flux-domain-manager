@@ -509,6 +509,24 @@ async function checkBitgert(ip, port) {
   }
 }
 
+async function checkBlockBook(ip, port, appsname) {
+  try {
+    const coinList = ['litecoin','flux'];
+    const addressList = ['LVjoCYFESyTbKAEU5VbFYtb9EYyBXx55V5','t1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj']; 
+    let coin = appsname.replace("blockbook", "");
+    coin = coin.replace(/\d+/g, '')
+    let index = coinList.indexOf(coin)
+    const response1 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api`, 5000);
+    const response2 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, 5000);
+    if (response2.txids.length > 0 && response1.blockbook.inSync === true && response1.blockbook.bestHeight > (response1.backend.blocks - 100) && response1.blockbook.bestHeight > 0 && response1.backend.blocks > 0) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
@@ -529,6 +547,8 @@ async function checkApplication(app, ip) {
     isOK = await checkCelo(ip.split(':')[0], 35000);
   } else if (app.name.startsWith('BitgertRPC')) {
     isOK = await checkBitgert(ip.split(':')[0], 32300);
+  } else if (app.name.startsWith('blockbook')) {
+    isOK = await checkBlockBook(ip.split(':')[0], app.compose[0].ports[0], app.name);
   }
   return isOK;
 }

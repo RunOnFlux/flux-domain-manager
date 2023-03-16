@@ -518,7 +518,7 @@ async function checkBlockBook(ip, port, appsname) {
     let index = coinList.indexOf(coin)
     const response1 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api`, 5000);
     const response2 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, 5000);
-    if (response2.txids.length > 0 && response1.blockbook.inSync === true && response1.blockbook.bestHeight > (response1.backend.blocks - 100) && response1.blockbook.bestHeight > 0 && response1.backend.blocks > 0) {
+    if (response2.data.txids.length > 0 && response1.data.blockbook.inSync === true && response1.data.blockbook.bestHeight > (response1.data.backend.blocks - 100) && response1.data.blockbook.bestHeight > 0 && response1.data.backend.blocks > 0) {
       return true;
     }
     return false;

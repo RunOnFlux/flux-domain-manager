@@ -9,7 +9,7 @@ const log = require('../../lib/log');
 const timeout = 3456;
 const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'web'];
 
-let currentFluxBlockheight = 1324270;
+let currentFluxBlockheight = 1342772;
 
 // MAIN
 async function checkLoginPhrase(ip, port) {
@@ -60,7 +60,7 @@ async function isVersionOK(ip, port) {
     const url = `http://${ip}:${port}/flux/version`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.replace(/\./g, '');
-    if (version >= 3350) {
+    if (version >= 3370) {
       return true;
     }
     return false;
@@ -88,7 +88,7 @@ async function hasManyApps(ip, port) {
     const url = `http://${ip}:${port}/apps/globalappsspecifications`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const appsAmount = response.data.data.length;
-    if (appsAmount > 420) { // we surely have at least 420 apps on network
+    if (appsAmount > 1000) { // we surely have at least 1000 apps on network
       // eslint-disable-next-line no-restricted-syntax
       for (const app of config.mandatoryApps) {
         const appExists = response.data.data.find((a) => a.name === app);

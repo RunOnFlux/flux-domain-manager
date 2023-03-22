@@ -192,7 +192,7 @@ function createAppsHaproxyConfig(appConfig) {
   acls += '  acl forbiddenacl hdr(host) www.ecko.finance\n';
   acls += '  acl forbiddenacl hdr(host) dao.ecko.finance\n';
   usebackends += '  use_backend web_38499apprunonfluxiobackend if newWeb\n';
-  usebackends += '  use_backend forbiddenbackend if forbiddenacl\n';
+  usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
   // usebackends += '  use_backend web_38499apprunonfluxiobackend if newWeb oldWeb\n';
   // usebackends += '  use_backend web_35389apprunonfluxiobackend if newWeb !oldWeb\n';
   const domains = [];

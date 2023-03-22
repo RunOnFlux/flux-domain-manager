@@ -107,6 +107,8 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
       }
     } else if (appSpecs.name === 'Jetpack2') {
       appSpecs.compose[0].domains = ['cloud.runonflux.io'];
+    } else if (appSpecs.name === 'eckodao') {
+      appSpecs.compose[0].domains = ['dao.ecko.finance', '', '', '', ''];
     }
     const domains = getUnifiedDomains(appSpecs);
     const customDomains = getCustomDomains(appSpecs);

@@ -35,7 +35,19 @@ async function listDNSRecordsAPI(req, res) {
   }
 }
 
+async function pkiValidation(req, res) {
+  try {
+    let { id } = req.params;
+    id = id || req.query.id;
+    console.log(id);
+    res.send('ca3-b1970edefd4c4eacb7a7b70c41fc433e');
+  } catch (error) {
+    res.status(404).send('Not found!');
+  }
+}
+
 module.exports = {
   getAllRecordsDBAPI,
   listDNSRecordsAPI,
+  pkiValidation,
 };

@@ -52,8 +52,7 @@ frontend wwwhttp
 
   acl letsencrypt-acl path_beg /.well-known/acme-challenge/
   acl cloudflare-flux-acl path_beg /.well-known/pki-validation/
-  redirect scheme https if !letsencrypt-acl
-  redirect scheme https if !cloudflare-flux-acl
+  redirect scheme https if !letsencrypt-acl !cloudflare-flux-acl
   use_backend letsencrypt-backend if letsencrypt-acl
   use_backend cloudflare-flux-backend if cloudflare-flux-acl
 `;

@@ -22,7 +22,8 @@
     "start": "nodemon index.js",
     "test": "mocha tests --timeout 10000",
     "lint": "eslint ./",
-    "lint:fix": "eslint ./ --fix"
+    "lint:fix": "eslint ./ --fix",
+    "testcloudflare": "mocha tests --timeout 10000 --grep 'cloudflareService'"
   },
   "dependencies": {
     "apicache": "^1.6.3",

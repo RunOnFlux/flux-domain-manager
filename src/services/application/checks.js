@@ -509,6 +509,26 @@ async function checkBitgert(ip, port) {
   }
 }
 
+async function checkBlockBook(ip, port, appsname) {
+  try {
+    const coinList = ['litecoin','flux','ethereumclassic','vertcoin','zcash','dogecoin','digibyte','groestlcoin','dash','firo','sin','ravencoin'];
+    const addressList = ['LVjoCYFESyTbKAEU5VbFYtb9EYyBXx55V5','t1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj','0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf','VbFrQgNEiR8ZxMh9WmkjJu9kkqjJA6imdD',
+          't1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj','DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8','DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8','FfgZPEfmvou5VxZRnTbRjPKhgVsrx7Qjq9',
+          'XmCgmabJL2S8DJ8tmEvB8QDArgBbSSMJea','aBEJgEP2b7DP7tyQukv639qtdhjFhWp2QE','SXoqyAiZ6gQjafKmSnb2pmfwg7qLC8r4Sf','RKo31qpgy9278MuWNXb5NPranc4W6oaUFf'];
+    let coin = appsname.replace("blockbook", "");
+    coin = coin.replace(/\d+/g, '')
+    let index = coinList.indexOf(coin)
+    const response1 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api`, 5000);
+    const response2 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, 5000);
+    if (response2.data.txids.length > 0 && response1.data.blockbook.inSync === true && response1.data.blockbook.bestHeight > (response1.data.backend.blocks - 100) && response1.data.blockbook.bestHeight > 0 && response1.data.backend.blocks > 0) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
@@ -529,6 +549,8 @@ async function checkApplication(app, ip) {
     isOK = await checkCelo(ip.split(':')[0], 35000);
   } else if (app.name.startsWith('BitgertRPC')) {
     isOK = await checkBitgert(ip.split(':')[0], 32300);
+  } else if (app.name.startsWith('blockbook')) {
+    isOK = await checkBlockBook(ip.split(':')[0], app.compose[0].ports[0], app.name);
   }
   return isOK;
 }
@@ -562,4 +584,5 @@ module.exports = {
   checkWanchain,
   checkCelo,
   checkBitgert,
+  checkBlockBook,
 };

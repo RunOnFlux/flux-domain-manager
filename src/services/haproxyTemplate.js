@@ -9,7 +9,7 @@ global
   log /dev/log    local1 notice
   chroot /var/lib/haproxy
   stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
-  stats timeout 30s
+  stats timeout 130s
   user haproxy
   group haproxy
   daemon
@@ -29,9 +29,9 @@ defaults
   mode    http
   option  httplog
   option  dontlognull
-  timeout connect 5000
-  timeout client  50000
-  timeout server  50000
+  timeout connect 99000
+  timeout client  150000
+  timeout server  150000
   maxconn 500000
   errorfile 400 /etc/haproxy/errors/400.http
   errorfile 403 /etc/haproxy/errors/403.http

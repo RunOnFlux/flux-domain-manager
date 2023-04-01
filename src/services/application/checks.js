@@ -448,7 +448,7 @@ async function generalWebsiteCheck(ip, port, timeOut = 2500, appname) {
   }
 }
 
-async function etherscheck(ip, port, providerURL, cmd ) {
+async function ethersCheck(ip, port, providerURL, cmd ) {
  try {
     const node = `http://${ip}:${port}`;
     const provider = new ethers.providers.JsonRpcProvider(node);
@@ -539,7 +539,7 @@ async function checkApplication(app, ip) {
   } else {
     let index = ethersList.findIndex( ({ name, index }) =>  app.name.startsWith(name));
     if ( index !== -1 ){
-        isOK = await etherscheck(ip.split(':')[0], ethersList[index].port , ethersList[index].providerURL, ethersList[index].cmd);
+        isOK = await ethersCheck(ip.split(':')[0], ethersList[index].port , ethersList[index].providerURL, ethersList[index].cmd);
     }
   }
   return isOK;

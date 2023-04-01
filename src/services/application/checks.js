@@ -8,7 +8,7 @@ const log = require('../../lib/log');
 
 const timeout = 3456;
 const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'web'];
-ethersList= [
+const ethersList= [
               {name: 'BitgertRPC', providerURL: null, cmd: 'eth_syncing', port: '32300'},
               {name: 'CeloRPC', providerURL: 'https://forno.celo.org', cmd: 'eth_syncing', port: '35000'},
               {name: 'WanchainRpc', providerURL: null, cmd: 'eth_syncing', port: '31000'},

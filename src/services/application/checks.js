@@ -529,6 +529,31 @@ async function checkBlockBook(ip, port, appsname) {
   }
 }
 
+async function algorandCheck(ip,port){
+  const axiosConfig = {
+    timeout: 13456,
+    headers: {
+      'X-Algo-API-Token': '21wh2OBowbkYtRqB0LsprrfZORh7wS9LrsueY5nkxvclVvYclfWOh4zfPL56Uxh7'
+    }
+  };
+  try {
+    const status = await axios.get(`http://${ip}:${port}/v2/status`, axiosConfig);
+    for(var attributename in status.data){
+      if (attributename === 'catchup-time') {
+        if (status.data[attributename] === 0) {
+          return true;
+        } else{
+          return false;
+        }
+      }
+    }
+  } catch(e) {
+    return false;
+  }
+}
+
+
+
 async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
@@ -551,6 +576,8 @@ async function checkApplication(app, ip) {
     isOK = await checkBitgert(ip.split(':')[0], 32300);
   } else if (app.name.startsWith('blockbook')) {
     isOK = await checkBlockBook(ip.split(':')[0], app.compose[0].ports[0], app.name);
+  } else if (app.name.startsWith('AlgorandRPC'){
+    isOK = await algorandCheck(ip.split(':')[0], app.compose[0].ports[0]);             
   }
   return isOK;
 }

@@ -8,9 +8,14 @@ const log = require('../../lib/log');
 
 const timeout = 3456;
 const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'web'];
-
+ethersList= [
+              {name: 'BitgertRPC', providerURL: null, cmd: 'eth_syncing', port: '32300'},
+              {name: 'CeloRPC', providerURL: 'https://forno.celo.org', cmd: 'eth_syncing', port: '35000'},
+              {name: 'WanchainRpc', providerURL: null, cmd: 'eth_syncing', port: '31000'},
+              {name: 'FuseRPC', providerURL: 'https://fuse-mainnet.chainstacklabs.com', cmd: 'eth_syncing', port: '38545'},
+              {name: 'AstarRPC', providerURL: null, cmd: 'system_health', port:'36011'}
+            ];
 let currentFluxBlockheight = 1342772;
-
 // MAIN
 async function checkLoginPhrase(ip, port) {
   try {
@@ -443,67 +448,28 @@ async function generalWebsiteCheck(ip, port, timeOut = 2500, appname) {
   }
 }
 
-async function checkFuse(ip, port) {
-  try {
+async function etherscheck(ip, port, providerURL, cmd ) {
+ try {
     const node = `http://${ip}:${port}`;
     const provider = new ethers.providers.JsonRpcProvider(node);
-    const isSyncing = await provider.send('eth_syncing');
+    const isSyncing = await provider.send(cmd);
     if (isSyncing) {
-      return false;
+      if (typeof isSyncing?.isSyncing  === "undefined"){
+        console.log(JSON.stringify(isSyncing));
+        return false;
+      } else if (isSyncing?.isSyncing === true ){
+        return false;
+      }
     }
-    const blockNum = await provider.getBlockNumber();
-    const providerB = new ethers.providers.JsonRpcProvider('https://fuse-mainnet.chainstacklabs.com');
-    const blockNumB = await providerB.getBlockNumber();
-    if (blockNumB - blockNum > 1) {
-      return false;
+    if ( providerURL !== null ) {
+      const blockNum = await provider.getBlockNumber();
+      const providerB = new ethers.providers.JsonRpcProvider(providerURL);
+      const blockNumB = await providerB.getBlockNumber();
+      if (blockNumB - blockNum > 1) {
+        return false;
+      }
     }
     return true;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkWanchain(ip, port) {
-  try {
-    const node = `http://${ip}:${port}`;
-    const provider = new ethers.providers.JsonRpcProvider(node);
-    const isSyncing = await provider.send('eth_syncing');
-    return !isSyncing;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkCelo(ip, port) {
-  try {
-    const node = `http://${ip}:${port}`;
-    const provider = new ethers.providers.JsonRpcProvider(node);
-    const isSyncing = await provider.send('eth_syncing');
-    if (isSyncing) {
-      return false;
-    }
-    const blockNum = await provider.getBlockNumber();
-    const providerB = new ethers.providers.JsonRpcProvider('https://forno.celo.org');
-    const blockNumB = await providerB.getBlockNumber();
-    if (blockNumB - blockNum > 1) {
-      return false;
-    }
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkBitgert(ip, port) {
-  try {
-    const timeoutPromise = new Promise((resolve) => {
-      setTimeout(resolve, 10000, true);
-    });
-    const node = `http://${ip}:${port}`;
-    const provider = new ethers.providers.JsonRpcProvider(node);
-    const syncingPromise = provider.send('eth_syncing');
-    const result = await Promise.race([syncingPromise, timeoutPromise]);
-    return !result; // syncing returns false if its good.
   } catch (error) {
     return false;
   }
@@ -566,18 +532,15 @@ async function checkApplication(app, ip) {
     isOK = await checkHavenHeight(ip.split(':')[0], 32750);
   } else if (app.name === 'HavenNodeStagenet') {
     isOK = await checkHavenHeight(ip.split(':')[0], 33750);
-  } else if (app.name.startsWith('FuseRPC')) {
-    isOK = await checkFuse(ip.split(':')[0], 38545);
-  } else if (app.name.startsWith('WanchainRpc')) {
-    isOK = await checkWanchain(ip.split(':')[0], 31000);
-  } else if (app.name.startsWith('CeloRPC')) {
-    isOK = await checkCelo(ip.split(':')[0], 35000);
-  } else if (app.name.startsWith('BitgertRPC')) {
-    isOK = await checkBitgert(ip.split(':')[0], 32300);
   } else if (app.name.startsWith('blockbook')) {
     isOK = await checkBlockBook(ip.split(':')[0], app.compose[0].ports[0], app.name);
   } else if (app.name.startsWith('AlgorandRPC'){
     isOK = await algorandCheck(ip.split(':')[0], app.compose[0].ports[0]);             
+  } else {
+    let index = ethersList.findIndex( ({ name, index }) =>  app.name.startsWith(name));
+    if ( index !== -1 ){
+        isOK = await etherscheck(ip.split(':')[0], ethersList[index].port , ethersList[index].providerURL, ethersList[index].cmd);
+    }
   }
   return isOK;
 }

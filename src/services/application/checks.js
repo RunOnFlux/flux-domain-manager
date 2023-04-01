@@ -455,7 +455,6 @@ async function ethersCheck(ip, port, providerURL, cmd ) {
     const isSyncing = await provider.send(cmd);
     if (isSyncing) {
       if (typeof isSyncing?.isSyncing  === "undefined"){
-        console.log(JSON.stringify(isSyncing));
         return false;
       } else if (isSyncing?.isSyncing === true ){
         return false;

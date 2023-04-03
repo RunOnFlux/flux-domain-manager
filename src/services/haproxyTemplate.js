@@ -191,10 +191,7 @@ function createAppsHaproxyConfig(appConfig) {
   acls += '  acl forbiddenacl hdr(host) ecko.finance\n';
   acls += '  acl forbiddenacl hdr(host) www.ecko.finance\n';
   acls += '  acl forbiddenacl hdr(host) dao.ecko.finance\n';
-  usebackends += '  use_backend web_38499apprunonfluxiobackend if newWeb\n';
   usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
-  // usebackends += '  use_backend web_38499apprunonfluxiobackend if newWeb oldWeb\n';
-  // usebackends += '  use_backend web_35389apprunonfluxiobackend if newWeb !oldWeb\n';
   const domains = [];
   const seenApps = {};
   for (const app of appConfig) {
@@ -204,12 +201,7 @@ function createAppsHaproxyConfig(appConfig) {
     }
     if (app.appName in seenApps) {
       domains.push(app.domain);
-      if (app.domain === 'runonflux.io' || app.domain === 'www.runonflux.io') {
-        acls += '  acl oldWeb path_beg /*\n';
-        acls += `  acl newWeb hdr(host) ${app.domain}\n`;
-      } else {
-        acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
-      }
+      acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
     } else {
       const domainUsed = app.domain.split('.').join('');
       if (usebackends.includes(`  use_backend ${domainUsed}backend if ${domainUsed}\n`)) {
@@ -274,12 +266,7 @@ function createAppsHaproxyConfig(appConfig) {
       }
       backends = `${backends + domainBackend}\n\n`;
       domains.push(app.domain);
-      if (app.domain === 'runonflux.io' || app.domain === 'www.runonflux.io') {
-        acls += '  acl oldWeb path_beg /*\n';
-        acls += `  acl newWeb hdr(host) ${app.domain}\n`;
-      } else {
-        acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
-      }
+      acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
       usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
       seenApps[app.appName] = domainUsed;
     }

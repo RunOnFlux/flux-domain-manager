@@ -476,13 +476,13 @@ async function ethersCheck(ip, port, providerURL, cmd) {
 
 async function checkBlockBook(ip, port, appsname) {
   try {
-    const coinList = ['litecoin','flux','ethereumclassic','vertcoin','zcash','dogecoin','digibyte','groestlcoin','dash','firo','sin','ravencoin'];
-    const addressList = ['LVjoCYFESyTbKAEU5VbFYtb9EYyBXx55V5','t1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj','0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf','VbFrQgNEiR8ZxMh9WmkjJu9kkqjJA6imdD',
-          't1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj','DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8','DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8','FfgZPEfmvou5VxZRnTbRjPKhgVsrx7Qjq9',
-          'XmCgmabJL2S8DJ8tmEvB8QDArgBbSSMJea','aBEJgEP2b7DP7tyQukv639qtdhjFhWp2QE','SXoqyAiZ6gQjafKmSnb2pmfwg7qLC8r4Sf','RKo31qpgy9278MuWNXb5NPranc4W6oaUFf'];
-    let coin = appsname.replace("blockbook", "");
-    coin = coin.replace(/\d+/g, '')
-    let index = coinList.indexOf(coin)
+    const coinList = ['litecoin', 'flux', 'ethereumclassic', 'vertcoin', 'zcash', 'dogecoin', 'digibyte', 'groestlcoin', 'dash', 'firo', 'sin', 'ravencoin'];
+    const addressList = ['LVjoCYFESyTbKAEU5VbFYtb9EYyBXx55V5', 't1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj', '0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf', 'VbFrQgNEiR8ZxMh9WmkjJu9kkqjJA6imdD',
+      't1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj', 'DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8', 'DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8', 'FfgZPEfmvou5VxZRnTbRjPKhgVsrx7Qjq9',
+      'XmCgmabJL2S8DJ8tmEvB8QDArgBbSSMJea', 'aBEJgEP2b7DP7tyQukv639qtdhjFhWp2QE', 'SXoqyAiZ6gQjafKmSnb2pmfwg7qLC8r4Sf', 'RKo31qpgy9278MuWNXb5NPranc4W6oaUFf'];
+    let coin = appsname.replace('blockbook', '');
+    coin = coin.replace(/\d+/g, '');
+    const index = coinList.indexOf(coin);
     const response1 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api`, 5000);
     const response2 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, 5000);
     if (response2.data.txids.length > 0 && response1.data.blockbook.inSync === true && response1.data.blockbook.bestHeight > (response1.data.backend.blocks - 100) && response1.data.blockbook.bestHeight > 0 && response1.data.backend.blocks > 0) {
@@ -494,30 +494,29 @@ async function checkBlockBook(ip, port, appsname) {
   }
 }
 
-async function algorandCheck(ip,port){
+async function algorandCheck(ip, port) {
   const axiosConfig = {
     timeout: 13456,
     headers: {
-      'X-Algo-API-Token': '21wh2OBowbkYtRqB0LsprrfZORh7wS9LrsueY5nkxvclVvYclfWOh4zfPL56Uxh7'
-    }
+      'X-Algo-API-Token': '21wh2OBowbkYtRqB0LsprrfZORh7wS9LrsueY5nkxvclVvYclfWOh4zfPL56Uxh7',
+    },
   };
   try {
     const status = await axios.get(`http://${ip}:${port}/v2/status`, axiosConfig);
-    for(var attributename in status.data){
+    // eslint-disable-next-line no-restricted-syntax
+    for (const attributename in status.data) {
       if (attributename === 'catchup-time') {
         if (status.data[attributename] === 0) {
           return true;
-        } else{
-          return false;
         }
+        return false;
       }
     }
-  } catch(e) {
+    return false;
+  } catch (e) {
     return false;
   }
 }
-
-
 
 async function checkApplication(app, ip) {
   let isOK = true;

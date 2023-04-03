@@ -535,9 +535,9 @@ async function checkApplication(app, ip) {
   } else if (app.name.startsWith('AlgorandRPC'){
     isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[0]);             
   } else {
-    let index = ethersList.findIndex( ({ name, index }) =>  app.name.startsWith(name));
-    if (index !== -1){
-        isOK = await checkEthers(ip.split(':')[0], ethersList[index].port , ethersList[index].providerURL, ethersList[index].cmd);
+    const matchIndex = ethersList.findIndex( ({ name, index }) =>  app.name.startsWith(name));
+    if (matchIndex !== -1){
+        isOK = await checkEthers(ip.split(':')[0], ethersList[matchIndex].port , ethersList[matchIndex].providerURL, ethersList[matchIndex].cmd);
     }
   }
   return isOK;

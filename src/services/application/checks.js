@@ -9,12 +9,22 @@ const log = require('../../lib/log');
 const timeout = 3456;
 const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'web'];
 const ethersList = [
-              {name: 'BitgertRPC', providerURL: null, cmd: 'eth_syncing', port: '32300'},
-              {name: 'CeloRPC', providerURL: 'https://forno.celo.org', cmd: 'eth_syncing', port: '35000'},
-              {name: 'WanchainRpc', providerURL: null, cmd: 'eth_syncing', port: '31000'},
-              {name: 'FuseRPC', providerURL: 'https://fuse-mainnet.chainstacklabs.com', cmd: 'eth_syncing', port: '38545'},
-              {name: 'AstarRPC', providerURL: null, cmd: 'system_health', port:'36011'}
-            ];
+  {
+    name: 'BitgertRPC', providerURL: null, cmd: 'eth_syncing', port: '32300',
+  },
+  {
+    name: 'CeloRPC', providerURL: 'https://forno.celo.org', cmd: 'eth_syncing', port: '35000',
+  },
+  {
+    name: 'WanchainRpc', providerURL: null, cmd: 'eth_syncing', port: '31000',
+  },
+  {
+    name: 'FuseRPC', providerURL: 'https://fuse-mainnet.chainstacklabs.com', cmd: 'eth_syncing', port: '38545',
+  },
+  {
+    name: 'AstarRPC', providerURL: null, cmd: 'system_health', port: '36011',
+  },
+];
 let currentFluxBlockheight = 1342772;
 // MAIN
 async function checkLoginPhrase(ip, port) {
@@ -493,18 +503,16 @@ async function checkAlgorand(ip, port) {
 }
 
 async function checkEthers(ip, port, providerURL, cmd) {
- try {
+  try {
     const node = `http://${ip}:${port}`;
     const provider = new ethers.providers.JsonRpcProvider(node);
     const isSyncing = await provider.send(cmd);
     if (isSyncing) {
-      if (typeof isSyncing?.isSyncing  === "undefined"){
-        return false;
-      } else if (isSyncing?.isSyncing === true){
+      if (isSyncing.isSyncing === true || isSyncing.isSyncing === null || isSyncing.isSyncing === undefined) {
         return false;
       }
     }
-    if (providerURL !== null) {
+    if (providerURL) {
       const blockNum = await provider.getBlockNumber();
       const providerB = new ethers.providers.JsonRpcProvider(providerURL);
       const blockNumB = await providerB.getBlockNumber();
@@ -532,12 +540,12 @@ async function checkApplication(app, ip) {
     isOK = await checkHavenHeight(ip.split(':')[0], 33750);
   } else if (app.name.startsWith('blockbook')) {
     isOK = await checkBlockBook(ip.split(':')[0], app.compose[0].ports[0], app.name);
-  } else if (app.name.startsWith('AlgorandRPC'){
-    isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[0]);             
+  } else if (app.name.startsWith('AlgorandRPC')) {
+    isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[0]);
   } else {
-    const matchIndex = ethersList.findIndex( ({ name, index }) =>  app.name.startsWith(name));
-    if (matchIndex !== -1){
-        isOK = await checkEthers(ip.split(':')[0], ethersList[matchIndex].port , ethersList[matchIndex].providerURL, ethersList[matchIndex].cmd);
+    const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
+    if (matchIndex > -1) {
+      isOK = await checkEthers(ip.split(':')[0], ethersList[matchIndex].port, ethersList[matchIndex].providerURL, ethersList[matchIndex].cmd);
     }
   }
   return isOK;
@@ -570,5 +578,5 @@ module.exports = {
   checkApplication,
   checkBlockBook,
   checkAlgorand,
-  checkEthers
+  checkEthers,
 };

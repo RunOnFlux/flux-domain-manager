@@ -2,6 +2,9 @@ const mongodb = require('mongodb');
 const config = require('config');
 const qs = require('qs');
 const axios = require('axios');
+const axiosRateLimit = require('axios-rate-limit');
+
+const axiosRL = axiosRateLimit(axios.create(), { maxRPS: 50 });
 
 const { MongoClient } = mongodb;
 const mongoUrl = `mongodb://${config.database.url}:${config.database.port}/`;
@@ -23,7 +26,7 @@ async function httpGetRequest(url, awaitTime = 30000, headers = {}, httpsAgent) 
   if (httpsAgent) {
     options.httpsAgent = httpsAgent;
   }
-  const response = await axios.get(url, options);
+  const response = await axiosRL.get(url, options);
   isResolved = true;
   return response;
 }
@@ -45,7 +48,7 @@ async function httpPostRequest(url, data, awaitTime = 30000, headers = {}, https
   if (httpsAgent) {
     options.httpsAgent = httpsAgent;
   }
-  const response = await axios.post(url, data, options);
+  const response = await axiosRL.post(url, data, options);
   isResolved = true;
   return response;
 }

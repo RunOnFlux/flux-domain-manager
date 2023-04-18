@@ -1,4 +1,5 @@
 const axios = require('axios');
+const axiosRateLimit = require('axios-rate-limit');
 const config = require('config');
 const log = require('../../lib/log');
 
@@ -7,6 +8,8 @@ const timeout = 13456;
 const axiosConfig = {
   timeout,
 };
+
+const axiosRL = axiosRateLimit(axios.create(), { maxRPS: 50 });
 
 async function getFluxList(fallback) {
   try {
@@ -22,7 +25,7 @@ async function getFluxList(fallback) {
         source.cancel('Operation canceled by the user.');
       }
     }, timeout * 2);
-    const fluxnodeList = await axios.get(url, {
+    const fluxnodeList = await axiosRL.get(url, {
       cancelToken: source.token,
       timeout,
     });
@@ -61,7 +64,7 @@ async function getFluxIPs(tier) {
 // Retrieves application specifications from network api
 async function getAppSpecifications() {
   try {
-    const fluxnodeList = await axios.get('https://api.runonflux.io/apps/globalappsspecifications', axiosConfig);
+    const fluxnodeList = await axiosRL.get('https://api.runonflux.io/apps/globalappsspecifications', axiosConfig);
     if (fluxnodeList.data.status === 'success') {
       return fluxnodeList.data.data || [];
     }
@@ -74,7 +77,7 @@ async function getAppSpecifications() {
 // Retrieves IP's that a given application in running on
 async function getApplicationLocation(appName) {
   try {
-    const fluxnodeList = await axios.get(`https://api.runonflux.io/apps/location/${appName}`, axiosConfig);
+    const fluxnodeList = await axiosRL.get(`https://api.runonflux.io/apps/location/${appName}`, axiosConfig);
     if (fluxnodeList.data.status === 'success') {
       return fluxnodeList.data.data || [];
     }

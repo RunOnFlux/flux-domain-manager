@@ -8,6 +8,20 @@ const axiosConfig = {
   timeout,
 };
 
+async function getFluxPermanentMessages() {
+  try {
+    const url = 'https://api.runonflux.io/apps/permanentmessages';
+    const response = await axios.get(url);
+    if (response.data.status === 'success') {
+      return response.data.data;
+    }
+    throw new Error(response.data.data);
+  } catch (error) {
+    log.error(error);
+    return [];
+  }
+}
+
 async function getFluxList(fallback) {
   try {
     let url = `${config.explorer}/api/fluxnode/listfluxnodes`;
@@ -89,4 +103,5 @@ module.exports = {
   getFluxIPs,
   getApplicationLocation,
   getAppSpecifications,
+  getFluxPermanentMessages,
 };

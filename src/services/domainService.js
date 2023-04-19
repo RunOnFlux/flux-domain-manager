@@ -14,6 +14,30 @@ const { DOMAIN_TYPE } = require('./constants');
 
 let myIP = null;
 let myFDMnameORip = null;
+let permanentMessages = null;
+let globalAppSpecs = null;
+
+async function getPermanentMessages() {
+  try {
+    const messages = await fluxService.getFluxPermanentMessages();
+    if (messages.length) {
+      permanentMessages = messages;
+    }
+  } catch (error) {
+    log.error(error);
+  }
+}
+
+async function getGlobalAppSpecs() {
+  try {
+    const specs = await fluxService.getAppSpecifications();
+    if (specs.length) {
+      globalAppSpecs = specs;
+    }
+  } catch (error) {
+    log.error(error);
+  }
+}
 
 // Generates config file for HAProxy
 async function generateAndReplaceMainHaproxyConfig() {
@@ -89,11 +113,17 @@ function filterMandatoryApps(apps) {
 // periodically keeps HAproxy ans certificates updated every 4 minutes
 async function generateAndReplaceMainApplicationHaproxyConfig() {
   try {
+    // get permanent messages on the network
+    await getPermanentMessages();
     // get applications on the network
-    let applicationSpecifications = await fluxService.getAppSpecifications();
+    await getGlobalAppSpecs();
+
+    if (!permanentMessages || !globalAppSpecs) {
+      throw new Error('Obtained specifications invalid');
+    }
 
     // filter applications based on config
-    applicationSpecifications = getApplicationsToProcess(applicationSpecifications);
+    const applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
 
     // for every application do following
     // get name, ports

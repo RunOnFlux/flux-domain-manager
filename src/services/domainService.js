@@ -71,6 +71,9 @@ async function getGlobalAppSpecs() {
 
 async function checkDomainOwnership(domain, appName) {
   try {
+    if (!domain) {
+      return true;
+    }
     const filteredDomains = unifiedAppsDomains.filter((entry) => entry.domains.includes(domain.toLowerCase()));
     const ourAppExists = filteredDomains.find((existing) => existing.name === appName);
     if (filteredDomains.length >= 2 && ourAppExists) {

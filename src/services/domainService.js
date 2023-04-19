@@ -16,6 +16,7 @@ let myIP = null;
 let myFDMnameORip = null;
 let permanentMessages = null;
 let globalAppSpecs = null;
+const unifiedAppsDomains = [];
 
 async function getPermanentMessages() {
   try {
@@ -33,9 +34,74 @@ async function getGlobalAppSpecs() {
     const specs = await fluxService.getAppSpecifications();
     if (specs.length) {
       globalAppSpecs = specs;
+      specs.forEach((app) => {
+        if (app.version <= 3) {
+          for (let i = 0; i < app.ports.length; i += 1) {
+            if (app.domains[i]) {
+              const portDomains = app.domains[i].split(',');
+              const domains = [];
+              for (let portDomain of portDomains) {
+                portDomain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, '').toLowerCase(); // . is allowed
+                domains.push(portDomain);
+              }
+              unifiedAppsDomains.push({ name: app.name, domains });
+            }
+          }
+        } else {
+          for (const component of app.compose) {
+            const domains = [];
+            for (let i = 0; i < component.ports.length; i += 1) {
+              const portDomains = component.domains[i].split(',');
+              // eslint-disable-next-line no-loop-func
+              for (let portDomain of portDomains) {
+                // eslint-disable-next-line no-param-reassign
+                portDomain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, '').toLowerCase(); // . is allowed
+                domains.push(portDomain);
+              }
+            }
+            unifiedAppsDomains.push({ name: app.name, domains });
+          }
+        }
+      });
     }
   } catch (error) {
     log.error(error);
+  }
+}
+
+async function checkDomainOwnership(domain, appName) {
+  try {
+    const filteredDomains = unifiedAppsDomains.filter((entry) => entry.domains.includes(domain.toLowerCase()));
+    const ourAppExists = filteredDomains.find((existing) => existing.name === appName);
+    if (filteredDomains.length >= 2 && ourAppExists) {
+      // we have multiple apps that has the same domain assigned;
+      // check permanent messages for these apps
+      const appNames = [];
+      filteredDomains.forEach((x) => {
+        appNames.push(x.name);
+      });
+      const filteredPermanentMessages = permanentMessages.filter((mes) => appNames.includes(mes.appSpecifications.name)); // now we have only the messages that touch the apps that have the domain
+      const adjustedFilteredPermMessages = [];
+      filteredPermanentMessages.forEach((message) => {
+        const stringedMessage = JSON.stringify(message).toLowerCase();
+        if (stringedMessage.includes(domain.toLowerCase())) {
+          adjustedFilteredPermMessages.push(message);
+        }
+      });
+      const sortedPermanentFilteredMessages = adjustedFilteredPermMessages.sort((a, b) => {
+        if (a.height < b.height) return -1;
+        if (a.height > b.height) return 1;
+        return 0;
+      });
+      const oldestMessage = sortedPermanentFilteredMessages[0];
+      if (oldestMessage.appSpecifications.name === appName) {
+        return true;
+      }
+      return false;
+    }
+    return true;
+  } catch (error) {
+    return true;
   }
 }
 
@@ -182,6 +248,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               for (let portDomain of portDomains) {
                 // eslint-disable-next-line no-param-reassign
                 portDomain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
+                const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
+                if (isDomainAllowed === false) {
+                  // eslint-disable-next-line no-continue
+                  continue;
+                }
                 // TODO here check on permanent apps if this app name is true owner of the portDomain
                 if (portDomain.includes('www.')) {
                   // eslint-disable-next-line prefer-destructuring, no-param-reassign
@@ -259,7 +330,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               for (let portDomain of portDomains) {
                 // eslint-disable-next-line no-param-reassign
                 portDomain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
-                // TODO here check on permanent apps if this app name is true owner of the portDomain
+                const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
+                if (isDomainAllowed === false) {
+                  // eslint-disable-next-line no-continue
+                  continue;
+                }
                 if (portDomain.includes('www.')) {
                   // eslint-disable-next-line prefer-destructuring, no-param-reassign
                   portDomain = portDomain.split('www.')[1];

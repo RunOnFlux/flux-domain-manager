@@ -149,7 +149,14 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             configuredApps.push(configuredApp);
             if (app.domains[i]) {
               const portDomains = app.domains[i].split(',');
-              portDomains.forEach((portDomain) => {
+              for (let portDomain of portDomains) {
+                // eslint-disable-next-line no-param-reassign
+                portDomain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
+                // TODO here check on permanent apps if this app name is true owner of the portDomain
+                if (portDomain.includes('www.')) {
+                  // eslint-disable-next-line prefer-destructuring, no-param-reassign
+                  portDomain = portDomain.split('www.')[1];
+                }
                 // prevention for double backend on custom domains, can be improved
                 const domainAssigned = configuredApps.find((appThatIsConfigured) => appThatIsConfigured.domain === portDomain);
                 if (portDomain && portDomain.includes('.') && portDomain.length > 3 && !portDomain.toLowerCase().includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`) && !domainAssigned) { // prevent double backend
@@ -157,20 +164,20 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                   if (!domainExists) {
                     const configuredAppCustom = {
                       appName: `${app.name}_${app.ports[i]}`,
-                      domain: portDomain.toLowerCase().replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                      domain: portDomain,
                       port: app.ports[i],
                       ips: appIps,
                       ...customConfigs[i],
                     };
                     configuredApps.push(configuredAppCustom);
                   }
-                  const wwwAdjustedDomain = portDomain.includes('www.') ? portDomain.toLowerCase().split('www.')[1] : `www.${portDomain.toLowerCase()}`;
+                  const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
                   if (wwwAdjustedDomain) {
                     const domainExistsB = configuredApps.find((a) => a.domain === wwwAdjustedDomain);
                     if (!domainExistsB) {
                       const configuredAppCustom = {
                         appName: `${app.name}_${app.ports[i]}`,
-                        domain: wwwAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                        domain: wwwAdjustedDomain,
                         port: app.ports[i],
                         ips: appIps,
                         ...customConfigs[i],
@@ -179,13 +186,13 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     }
                   }
 
-                  const testAdjustedDomain = portDomain.includes('test.') ? portDomain.toLowerCase().split('test.')[1] : `test.${portDomain.toLowerCase()}`;
+                  const testAdjustedDomain = `test.${portDomain.toLowerCase()}`;
                   if (testAdjustedDomain) {
                     const domainExistsB = configuredApps.find((a) => a.domain === testAdjustedDomain);
                     if (!domainExistsB) {
                       const configuredAppCustom = {
                         appName: `${app.name}_${app.ports[i]}`,
-                        domain: testAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                        domain: testAdjustedDomain,
                         port: app.ports[i],
                         ips: appIps,
                         ...customConfigs[i],
@@ -194,7 +201,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     }
                   }
                 }
-              });
+              }
             }
           }
           const mainApp = {
@@ -219,7 +226,14 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               configuredApps.push(configuredApp);
               const portDomains = component.domains[i].split(',');
               // eslint-disable-next-line no-loop-func
-              portDomains.forEach((portDomain) => {
+              for (let portDomain of portDomains) {
+                // eslint-disable-next-line no-param-reassign
+                portDomain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
+                // TODO here check on permanent apps if this app name is true owner of the portDomain
+                if (portDomain.includes('www.')) {
+                  // eslint-disable-next-line prefer-destructuring, no-param-reassign
+                  portDomain = portDomain.split('www.')[1];
+                }
                 // prevention for double backend on custom domains, can be improved
                 const domainAssigned = configuredApps.find((appThatIsConfigured) => appThatIsConfigured.domain === portDomain);
                 if (portDomain && portDomain.includes('.') && portDomain.length >= 3 && !portDomain.toLowerCase().includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`) && !domainAssigned) {
@@ -228,7 +242,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     if (!domainExists) {
                       const configuredAppCustom = {
                         appName: `${app.name}_${component.name}_${component.ports[i]}`,
-                        domain: portDomain.toLowerCase().replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                        domain: portDomain,
                         port: component.ports[i],
                         ips: appIps,
                         ...customConfigs[j],
@@ -236,13 +250,13 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       configuredApps.push(configuredAppCustom);
                     }
 
-                    const wwwAdjustedDomain = portDomain.includes('www.') ? portDomain.toLowerCase().split('www.')[1] : `www.${portDomain.toLowerCase()}`;
+                    const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
                     if (wwwAdjustedDomain) {
                       const domainExistsB = configuredApps.find((a) => a.domain === wwwAdjustedDomain);
                       if (!domainExistsB) {
                         const configuredAppCustom = {
                           appName: `${app.name}_${component.name}_${component.ports[i]}`,
-                          domain: wwwAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                          domain: wwwAdjustedDomain,
                           port: component.ports[i],
                           ips: appIps,
                           ...customConfigs[j],
@@ -251,13 +265,13 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       }
                     }
 
-                    const testAdjustedDomain = portDomain.includes('test.') ? portDomain.toLowerCase().split('test.')[1] : `test.${portDomain.toLowerCase()}`;
+                    const testAdjustedDomain = `test.${portDomain.toLowerCase()}`;
                     if (testAdjustedDomain) {
                       const domainExistsB = configuredApps.find((a) => a.domain === testAdjustedDomain);
                       if (!domainExistsB) {
                         const configuredAppCustom = {
                           appName: `${app.name}_${component.name}_${component.ports[i]}`,
-                          domain: testAdjustedDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''), // . is allowed
+                          domain: testAdjustedDomain,
                           port: component.ports[i],
                           ips: appIps,
                           ...customConfigs[j],
@@ -267,7 +281,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                     }
                   }
                 }
-              });
+              }
               j += 1;
             }
           }

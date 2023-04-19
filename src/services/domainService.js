@@ -97,6 +97,7 @@ async function checkDomainOwnership(domain, appName) {
       if (oldestMessage.appSpecifications.name === appName) {
         return true;
       }
+      log.warn(`Custom domain ${domain} not owned by ${appName}`);
       return false;
     }
     return true;

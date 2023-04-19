@@ -504,9 +504,13 @@ async function checkAlgorand(ip, port) {
 
 async function checkEthers(ip, port, providerURL, cmd) {
   try {
+    const timeoutPromise = new Promise((resolve) => {
+      setTimeout(resolve, 10000, true);
+    });
     const node = `http://${ip}:${port}`;
     const provider = new ethers.providers.JsonRpcProvider(node);
-    const isSyncing = await provider.send(cmd);
+    const syncingPromise = provider.send(cmd);
+    const isSyncing = await Promise.race([syncingPromise, timeoutPromise]);
     if (isSyncing) {
       if (isSyncing.isSyncing === true || isSyncing.isSyncing === null || isSyncing.isSyncing === undefined) {
         return false;

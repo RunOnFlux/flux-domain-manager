@@ -485,8 +485,8 @@ async function checkAlgorand(ip, port) {
   try {
     const status = await axios.get(`http://${ip}:${port}/health`, axiosConfig);
     // eslint-disable-next-line no-restricted-syntax
-    if (status.data.isSynced === true) { 
-      return treu;
+    if (status.data.isSynced === true) {
+      return true;
     }
     return false;
   } catch (e) {

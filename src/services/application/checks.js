@@ -481,20 +481,12 @@ async function checkBlockBook(ip, port, appsname) {
 async function checkAlgorand(ip, port) {
   const axiosConfig = {
     timeout: 13456,
-    headers: {
-      'X-Algo-API-Token': '21wh2OBowbkYtRqB0LsprrfZORh7wS9LrsueY5nkxvclVvYclfWOh4zfPL56Uxh7',
-    },
   };
   try {
-    const status = await axios.get(`http://${ip}:${port}/v2/status`, axiosConfig);
+    const status = await axios.get(`http://${ip}:${port}/health`, axiosConfig);
     // eslint-disable-next-line no-restricted-syntax
-    for (const attributename in status.data) {
-      if (attributename === 'catchup-time') {
-        if (status.data[attributename] === 0) {
-          return true;
-        }
-        return false;
-      }
+    if (status.data.isSynced === true) { 
+      return treu;
     }
     return false;
   } catch (e) {
@@ -545,7 +537,7 @@ async function checkApplication(app, ip) {
   } else if (app.name.startsWith('blockbook')) {
     isOK = await checkBlockBook(ip.split(':')[0], app.compose[0].ports[0], app.name);
   } else if (app.name.startsWith('AlgorandRPC')) {
-    isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[0]);
+    isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[1]);
   } else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
     if (matchIndex > -1) {

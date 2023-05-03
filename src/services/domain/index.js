@@ -100,12 +100,16 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
       for (const component of appSpecs.compose) {
         component.domains = [''];
       }
+      appSpecs.compose[0].domains = ['new.runonflux.io'];
+      appSpecs.compose[1].domains = ['runonflux.io'];
     } else if (appSpecs.name.startsWith('themok')) {
       for (const component of appSpecs.compose) {
         component.domains = [''];
       }
     } else if (appSpecs.name === 'Jetpack2') {
       appSpecs.compose[0].domains = ['cloud.runonflux.io'];
+    } else if (appSpecs.name === 'eckodao') {
+      appSpecs.compose[0].domains = ['', '', '', '', ''];
     }
     const domains = getUnifiedDomains(appSpecs);
     const customDomains = getCustomDomains(appSpecs);

@@ -61,6 +61,9 @@ function getCustomConfigs(specifications) {
       healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
       serverConfig: 'inter 30s fall 2 rise 2',
     },
+    '39185.insightfluxexplorer.explorer': {
+      loadBalance: '\n  balance roundrobin',
+    },
   };
 
   let mainPort = '';

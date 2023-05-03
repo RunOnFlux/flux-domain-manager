@@ -51,8 +51,10 @@ frontend wwwhttp
   http-response add-header Access-Control-Expose-Headers '*'
 
   acl letsencrypt-acl path_beg /.well-known/acme-challenge/
-  redirect scheme https if !letsencrypt-acl
+  acl cloudflare-flux-acl path_beg /.well-known/pki-validation/
+  redirect scheme https if !letsencrypt-acl !cloudflare-flux-acl
   use_backend letsencrypt-backend if letsencrypt-acl
+  use_backend cloudflare-flux-backend if cloudflare-flux-acl
 `;
 
 const httpsPrefix = `
@@ -81,6 +83,14 @@ const letsEncryptBackend = `backend letsencrypt-backend
   server letsencrypt 127.0.0.1:8787
 `;
 
+const cloudflareFluxBackend = `backend cloudflare-flux-backend
+  server cloudflareflux 127.0.0.1:${configGlobal.server.port}
+`;
+
+const forbiddenBackend = `backend forbidden-backend
+  mode http
+  http-request deny deny_status 403
+`;
 // eslint-disable-next-line no-unused-vars
 function createCertificatesPaths(domains) {
   // let path = '';
@@ -94,7 +104,8 @@ function createCertificatesPaths(domains) {
 }
 
 function generateHaproxyConfig(acls, usebackends, domains, backends, redirects) {
-  const config = `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix} ${h2Suffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}`;
+  // eslint-disable-next-line max-len
+  const config = `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix} ${h2Suffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}\n${cloudflareFluxBackend}\n${forbiddenBackend}`;
   return config;
 }
 
@@ -175,6 +186,12 @@ function createAppsHaproxyConfig(appConfig) {
   let backends = '';
   let acls = '';
   let usebackends = '';
+  acls += '  acl forbiddenacl hdr(host) kaddex.com\n';
+  acls += '  acl forbiddenacl hdr(host) www.kaddex.com\n';
+  acls += '  acl forbiddenacl hdr(host) ecko.finance\n';
+  acls += '  acl forbiddenacl hdr(host) www.ecko.finance\n';
+  acls += '  acl forbiddenacl hdr(host) dao.ecko.finance\n';
+  usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
   const domains = [];
   const seenApps = {};
   for (const app of appConfig) {

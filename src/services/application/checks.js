@@ -25,7 +25,7 @@ const ethersList = [
     name: 'AstarRPC', providerURL: null, cmd: 'system_health', port: '36011',
   },
 ];
-let currentFluxBlockheight = 1342772;
+let currentFluxBlockheight = 1379811;
 // MAIN
 async function checkLoginPhrase(ip, port) {
   try {
@@ -75,7 +75,7 @@ async function isVersionOK(ip, port) {
     const url = `http://${ip}:${port}/flux/version`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.replace(/\./g, '');
-    if (version >= 3390) {
+    if (version >= 3400) {
       return true;
     }
     return false;

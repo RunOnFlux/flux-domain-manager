@@ -7,7 +7,7 @@ const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
 
 const timeout = 3456;
-const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'web'];
+const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'web', 'eckodexswap', 'eckodexvault'];
 const ethersList = [
   {
     name: 'BitgertRPC', providerURL: null, cmd: 'eth_syncing', port: '32300',

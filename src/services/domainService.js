@@ -228,7 +228,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         for (const location of appLocations) { // run coded checks for app
           // eslint-disable-next-line no-await-in-loop
           const isOk = await applicationChecks.checkApplication(app, location.ip);
-          if (isOk) {
+          if (isOk && location.ip !== '144.76.73.6') { // hard fix
             appIps.push(location.ip);
           }
         }

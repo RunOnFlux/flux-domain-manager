@@ -95,6 +95,10 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
       for (const component of appSpecs.compose) {
         component.domains = ['themok.io'];
       }
+    } else if (appSpecs.name === 'blockbookflux') {
+      for (const component of appSpecs.compose) {
+        component.domains = ['blockbook.runonflux.io', ''];
+      }
     } else if (appSpecs.name === 'web') {
       // appSpecs.domains = [''];
       for (const component of appSpecs.compose) {

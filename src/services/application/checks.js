@@ -72,11 +72,13 @@ async function isHomeOK(ip, port) {
 
 async function isVersionOK(ip, port) {
   try {
-    const url = `http://${ip}:${port}/flux/version`;
+    const url = `http://${ip}:${port}/flux/info`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
-    const version = response.data.data.replace(/\./g, '');
-    if (version >= 3401) {
-      return true;
+    const version = response.data.data.flux.version.replace(/\./g, '');
+    if (version >= 3401 || version[0] >= 4) {
+      if (!response.data.data.flux.development) {
+        return true;
+      }
     }
     return false;
   } catch (error) {

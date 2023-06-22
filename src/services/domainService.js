@@ -137,7 +137,7 @@ function getUnifiedDomainsForApp(specifications) {
 async function generateAndReplaceKadenaApplicationHaproxyConfig() {
   try {
     // kadena apps on network
-    const kdaNodeApplications = ['Kadena', 'KadenaNode', 'Kadena2', 'KadenaNode2', 'Kadena3', 'KadenaNode3','Kadena4', 'KadenaNode4', 'Kadena5', 'KadenaNode5'];
+    const kdaNodeApplications = ['Kadena', 'Kadena2', 'Kadena3', 'Kadena4', 'Kadena5'];
     const kdaDataApplications = ['Kadena', 'Kadena2', 'Kadena3', 'Kadena4', 'Kadena5'];
     let appLocationsNode = [];
     for (const app of kdaNodeApplications) {
@@ -187,8 +187,8 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
         break;
       }
     }
-    if (appIpsData.length < 20) {
-      throw new Error(`PANIC Chainweb Data not sufficient. Nodes OK: ${appIpsData.length}`);
+    if (appIpsData.length < 10) {
+      log.error(`PANIC Chainweb Data not sufficient. Nodes OK: ${appIpsData.length}`);
     }
     const configuredApps = []; // object of domain, port, ips for backend
     const apps = [

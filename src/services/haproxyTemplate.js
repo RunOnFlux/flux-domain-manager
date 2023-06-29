@@ -186,12 +186,12 @@ function createAppsHaproxyConfig(appConfig) {
   let backends = '';
   let acls = '';
   let usebackends = '';
-  acls += '  acl forbiddenacl hdr(host) kaddex.com\n';
-  acls += '  acl forbiddenacl hdr(host) www.kaddex.com\n';
-  acls += '  acl forbiddenacl hdr(host) ecko.finance\n';
-  acls += '  acl forbiddenacl hdr(host) www.ecko.finance\n';
-  acls += '  acl forbiddenacl hdr(host) dao.ecko.finance\n';
-  usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
+  // acls += '  acl forbiddenacl hdr(host) kaddex.com\n';
+  // acls += '  acl forbiddenacl hdr(host) www.kaddex.com\n';
+  // acls += '  acl forbiddenacl hdr(host) ecko.finance\n';
+  // acls += '  acl forbiddenacl hdr(host) www.ecko.finance\n';
+  // acls += '  acl forbiddenacl hdr(host) dao.ecko.finance\n';
+  // usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
   const domains = [];
   const seenApps = {};
   for (const app of appConfig) {

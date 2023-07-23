@@ -23,7 +23,7 @@ module.exports = {
   domainAppType: 'CNAME',
   emailDomain: 'tessjonesie@gmail.com',
   certFolder: 'fluxapps',
-  manageCertificateOnly: true,
+  manageCertificateOnly: false,
   automateCertificates: false,
   automateCertificatesForFDMdomains: false,
   adjustFDMdomains: false,
@@ -49,9 +49,9 @@ module.exports = {
   blackListedApps: appsConfig.blackListedApps,
   appSubDomain: 'app2',
   fdmAppDomain: 'fdm-lb-2-1.runonflux.io',
-  useSubset: false,
+  useSubset: true,
   subset: {
-    start: '0',
-    end: 'F',
+    start: 'W',
+    end: 'Z',
   },
 };

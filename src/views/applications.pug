@@ -1,0 +1,27 @@
+doctype html
+html(lang="en")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    title Flux Application List
+    style.
+      .card {
+        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+        transition: 0.3s;
+        width: 40%;
+        border-radius: 5px;
+        padding: 10px;
+      }
+      .card:hover {
+        box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+      }
+  body
+    h1 Applications
+    each item in applications
+      div.card
+        h2= item.name
+        each component in item.compose
+          div.component
+            h3= component.name
+            each domain in component.domains
+              h4= domain

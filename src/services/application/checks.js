@@ -75,7 +75,7 @@ async function isVersionOK(ip, port) {
     const url = `http://${ip}:${port}/flux/info`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.flux.version.replace(/\./g, '');
-    if (+version >= 411 && version[0] >= 4) {
+    if (+version >= 440 && version[0] >= 4) {
       if (response.data.data.flux.development === 'false' || !response.data.data.flux.development) {
         return true;
       }
@@ -120,6 +120,23 @@ async function hasManyApps(ip, port) {
   }
 }
 
+async function hasManyMessages(ip, port) {
+  try {
+    const url = `http://${ip}:${port}/apps/hashes`;
+    const response = await serviceHelper.httpGetRequest(url, timeout);
+    const appsAmount = response.data.data.length;
+    if (appsAmount > 23500) {
+      const messageFalse = response.data.data.filter((a) => a.message === false);
+      if (messageFalse.length < 100) {
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkMainFlux(ip, port = 16127) {
   try {
     const versionOK = await isVersionOK(ip, port);
@@ -134,10 +151,13 @@ async function checkMainFlux(ip, port = 16127) {
           if (isSynced) {
             const hasApps = await hasManyApps(ip, port);
             if (hasApps) {
-              // eslint-disable-next-line no-await-in-loop
-              const uiOK = await isHomeOK(ip, +port - 1);
-              if (uiOK) {
-                return true;
+              const hasMessages = await hasManyMessages(ip, port);
+              if (hasMessages) {
+                // eslint-disable-next-line no-await-in-loop
+                const uiOK = await isHomeOK(ip, +port - 1);
+                if (uiOK) {
+                  return true;
+                }
               }
             }
           }

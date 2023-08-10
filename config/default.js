@@ -21,7 +21,7 @@ module.exports = {
   },
   mainDomain: 'runonflux.io',
   domainAppType: 'CNAME',
-  emailDomain: 'tessjonesie@gmail.com',
+  emailDomain: 'tadeas@runonflux.io',
   certFolder: 'fluxapps',
   manageCertificateOnly: true,
   automateCertificates: false,

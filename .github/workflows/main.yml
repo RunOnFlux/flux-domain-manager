@@ -1,0 +1,42 @@
+name: Deploy FDM configuration
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - created
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install Ansible
+      run: pip install ansible
+
+    - name: Set up SSH key
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > private_key
+        chmod 600 private_key
+        echo "Host *" >> ~/.ssh/config
+        echo "  IdentityFile $(pwd)/private_key" >> ~/.ssh/config
+        echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+        echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
+
+    - name: Run Ansible playbook
+      env:
+        DEPLOY_ENV: ${{ github.event_name == 'release' && 'production' || 'staging' }}
+      run: |
+        ansible-playbook -i deployment/hosts.ini -e "DEPLOY_ENV=$DEPLOY_ENV" deployment/fdm_setup.yml

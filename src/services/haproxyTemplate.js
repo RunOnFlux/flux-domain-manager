@@ -120,9 +120,6 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
     http-response set-header FLUXNODE %s
     mode http
     balance source
-    hash-type consistent
-    stick-table type ip size 1m expire 8h
-    stick on src
     server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${apiPort}\n\n`;
 
     acls += `  acl ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}.node.${api}\n`;
@@ -137,9 +134,6 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
     http-response set-header FLUXNODE %s
     mode http
     balance source
-    hash-type consistent
-    stick-table type ip size 1m expire 8h
-    stick on src
     server ${ip.split(':')[0]}:${uiPort} ${ip.split(':')[0]}:${uiPort}\n\n`;
 
     acls += `  acl ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort}.node.${ui}\n`;
@@ -333,7 +327,7 @@ async function writeConfig(configName, data) {
 }
 
 async function checkConfig(configName) {
-  const response = await cmdAsync(`sudo haproxy -f ${configName} -c`);
+  const response = await cmdAsync(`sudo haproxy -f ${configName} -c`, { maxBuffer: 20 * 1024 * 1024 });
   return response.includes('Configuration file is valid');
 }
 

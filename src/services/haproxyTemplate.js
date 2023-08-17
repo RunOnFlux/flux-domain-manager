@@ -125,9 +125,9 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
     stick on src
     server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${apiPort}\n\n`;
 
-    acls += `  acl ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}.${api}\n`;
+    acls += `  acl ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}.node.${api}\n`;
 
-    useBackends += `  use_backend ${ip.split(':')[0]}:${apiPort}.${api}backend if ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}\n`;
+    useBackends += `  use_backend ${ip.split(':')[0]}:${apiPort}.node.${api}backend if ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}\n`;
   }
 
   for (const ip of fluxIPs) {
@@ -142,9 +142,9 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
     stick on src
     server ${ip.split(':')[0]}:${uiPort} ${ip.split(':')[0]}:${uiPort}\n\n`;
 
-    acls += `  acl ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort}.${ui}\n`;
+    acls += `  acl ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort}.node.${ui}\n`;
 
-    useBackends += `  use_backend ${ip.split(':')[0]}:${uiPort}.${ui}backend if ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort}\n`;
+    useBackends += `  use_backend ${ip.split(':')[0]}:${uiPort}.node.${ui}backend if ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort}\n`;
   }
 
   let redirects = '  http-request redirect code 301 location https://home.runonflux.io/ if { hdr(host) -i www.home.runonflux.io }\n';

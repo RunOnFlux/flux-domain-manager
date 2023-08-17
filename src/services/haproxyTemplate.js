@@ -147,7 +147,8 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
     useBackends += `  use_backend ${ip.split(':')[0]}:${uiPort}.${ui}backend if ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort}\n`;
   }
 
-  const redirects = '';
+  let redirects = '  http-request redirect code 301 location https://home.runonflux.io/ if { hdr(host) -i www.home.runonflux.io }\n';
+  redirects += '  http-request redirect code 301 location https://api.runonflux.io/ if { hdr(host) -i www.api.runonflux.io }\n\n';
   const usebackends = useBackends;
 
   const backends = nodesBackends;

@@ -116,7 +116,7 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
 
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || 16127;
-    apiBackends += `backend ${ip.split(':')[0]}:${apiPort}${api}backend
+    apiBackends += `backend ${ip.split(':')[0]}:${apiPort}.${api}backend
     http-response set-header FLUXNODE %s
     mode http
     balance source
@@ -127,7 +127,7 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
 
     acls += `  acl ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}.${api}\n`;
 
-    useBackends += `  use_backend ${ip.split(':')[0]}:${apiPort}${api}backend if ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}\n`;
+    useBackends += `  use_backend ${ip.split(':')[0]}:${apiPort}.${api}backend if ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}\n`;
   }
 
   const redirects = '';

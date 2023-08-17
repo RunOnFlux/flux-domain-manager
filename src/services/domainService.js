@@ -158,6 +158,39 @@ async function generateAndReplaceMainHaproxyConfig() {
   }
 }
 
+// Generates config file for HAProxy
+async function generateNodesHaproxyConfig() {
+  try {
+    const ui = `home.${config.mainDomain}`;
+    const api = `api.${config.mainDomain}`;
+    const fluxIPs = await fluxService.getFluxIPs();
+    if (fluxIPs.length < 1000) {
+      throw new Error('Invalid Flux List');
+    }
+    const fluxIPsForBalancing = fluxIPs;
+
+    if (fluxIPsForBalancing.length < 10) {
+      throw new Error('Not enough ok nodes, probably error');
+    }
+    const hc = await haproxyTemplate.createNodesHaproxyConfig(ui, api, fluxIPsForBalancing);
+    console.log(hc);
+    const dataToWrite = hc;
+    // test haproxy config
+    const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
+    if (!successRestart) {
+      throw new Error('Invalid HAPROXY Config File!');
+    }
+    setTimeout(() => {
+      generateNodesHaproxyConfig();
+    }, 30 * 1000);
+  } catch (error) {
+    log.error(error);
+    setTimeout(() => {
+      generateNodesHaproxyConfig();
+    }, 30 * 1000);
+  }
+}
+
 async function createSSLDirectory() {
   const dir = `/etc/ssl/${config.certFolder}`;
   await fs.mkdir(dir, { recursive: true });
@@ -477,6 +510,7 @@ async function obtainCertificatesMode() {
 
 // services run every 6 mins
 function initializeServices() {
+  const apiNodes = true;
   myIP = ipService.localIP();
   console.log(myIP);
   if (config.domainAppType === 'CNAME') {
@@ -488,6 +522,9 @@ function initializeServices() {
     if (config.manageCertificateOnly) {
       obtainCertificatesMode();
       log.info('FDM Certificate Service initialized.');
+    } else if (apiNodes) {
+      generateNodesHaproxyConfig();
+      log.info('FDM running in API Nodes mode.');
     } else if (config.mainDomain === config.cloudflare.domain && !config.cloudflare.manageapp) {
       generateAndReplaceMainHaproxyConfig();
       log.info('Flux Main Node Domain Service initiated.');

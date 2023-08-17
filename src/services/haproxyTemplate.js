@@ -109,6 +109,36 @@ function generateHaproxyConfig(acls, usebackends, domains, backends, redirects) 
   return config;
 }
 
+function createNodesHaproxyConfig(ui, api, fluxIPs) {
+  let acls = '';
+  let useBackends = '';
+  let apiBackends = '';
+
+  for (const ip of fluxIPs) {
+    const apiPort = ip.split(':')[1] || 16127;
+    apiBackends += `backend ${ip.split(':')[0]}:${apiPort}${api}backend
+    http-response set-header FLUXNODE %s
+    mode http
+    balance source
+    hash-type consistent
+    stick-table type ip size 1m expire 8h
+    stick on src
+    server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${apiPort}\n\n`;
+
+    acls += `  acl ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}.${api}\n`;
+
+    useBackends += `  use_backend ${ip.split(':')[0]}:${apiPort}${api}backend if ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}\n`;
+  }
+
+  const redirects = '';
+  const usebackends = useBackends;
+
+  const backends = apiBackends;
+  const urls = [api];
+
+  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
+}
+
 function createMainHaproxyConfig(ui, api, fluxIPs) {
   const uiB = ui.split('.').join('');
   let uiBackend = `backend ${uiB}backend
@@ -298,6 +328,7 @@ async function restartProxy(dataToWrite) {
 }
 
 module.exports = {
+  createNodesHaproxyConfig,
   createMainHaproxyConfig,
   createAppsHaproxyConfig,
   restartProxy,

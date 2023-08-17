@@ -112,11 +112,11 @@ function generateHaproxyConfig(acls, usebackends, domains, backends, redirects) 
 function createNodesHaproxyConfig(ui, api, fluxIPs) {
   let acls = '';
   let useBackends = '';
-  let apiBackends = '';
+  let nodesBackends = '';
 
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || 16127;
-    apiBackends += `backend ${ip.split(':')[0]}:${apiPort}.${api}backend
+    nodesBackends += `backend ${ip.split(':')[0]}:${apiPort}.${api}backend
     http-response set-header FLUXNODE %s
     mode http
     balance source
@@ -130,11 +130,28 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
     useBackends += `  use_backend ${ip.split(':')[0]}:${apiPort}.${api}backend if ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}\n`;
   }
 
+  for (const ip of fluxIPs) {
+    const apiPort = ip.split(':')[1] || 16126;
+    const uiPort = +apiPort - 1;
+    nodesBackends += `backend ${ip.split(':')[0]}:${uiPort}.${ui}backend
+    http-response set-header FLUXNODE %s
+    mode http
+    balance source
+    hash-type consistent
+    stick-table type ip size 1m expire 8h
+    stick on src
+    server ${ip.split(':')[0]}:${uiPort} ${ip.split(':')[0]}:${uiPort}\n\n`;
+
+    acls += `  acl ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort}.${ui}\n`;
+
+    useBackends += `  use_backend ${ip.split(':')[0]}:${uiPort}.${ui}backend if ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort}\n`;
+  }
+
   const redirects = '';
   const usebackends = useBackends;
 
-  const backends = apiBackends;
-  const urls = [api];
+  const backends = nodesBackends;
+  const urls = [api, ui];
 
   const config = generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
   config.replace('ca-base /etc/ssl/certs', '#ca-base /etc/ssl/certs');

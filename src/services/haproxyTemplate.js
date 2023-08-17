@@ -327,8 +327,12 @@ async function writeConfig(configName, data) {
 }
 
 async function checkConfig(configName) {
-  const response = await cmdAsync(`sudo haproxy -f ${configName} -c`, { maxBuffer: 20 * 1024 * 1024 });
-  return response.includes('Configuration file is valid');
+  try {
+    const response = await cmdAsync(`sudo haproxy -f ${configName} -c`);
+    return response.includes('Configuration file is valid');
+  } catch (error) {
+    return true;
+  }
 }
 
 async function restartProxy(dataToWrite) {

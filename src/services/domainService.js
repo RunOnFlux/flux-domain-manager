@@ -182,12 +182,12 @@ async function generateNodesHaproxyConfig() {
     }
     setTimeout(() => {
       generateNodesHaproxyConfig();
-    }, 30 * 1000);
+    }, 60 * 1000);
   } catch (error) {
     log.error(error);
     setTimeout(() => {
       generateNodesHaproxyConfig();
-    }, 30 * 1000);
+    }, 60 * 1000);
   }
 }
 

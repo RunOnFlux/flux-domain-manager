@@ -136,7 +136,11 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
   const backends = apiBackends;
   const urls = [api];
 
-  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
+  const config = generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
+  config.replace('ca-base /etc/ssl/certs', '#ca-base /etc/ssl/certs');
+  config.replace('crt-base /etc/ssl/private', '#crt-base /etc/ssl/private');
+  config.replace('redirect scheme https', '#redirect scheme https');
+  return config;
 }
 
 function createMainHaproxyConfig(ui, api, fluxIPs) {

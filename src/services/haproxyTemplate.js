@@ -131,7 +131,7 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
   }
 
   for (const ip of fluxIPs) {
-    const apiPort = ip.split(':')[1] || 16126;
+    const apiPort = ip.split(':')[1] || 16127;
     const uiPort = +apiPort - 1;
     nodesBackends += `backend ${ip.split(':')[0]}:${uiPort}.${ui}backend
     http-response set-header FLUXNODE %s

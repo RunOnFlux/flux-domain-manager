@@ -11,6 +11,7 @@ const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
 const { getApplicationsToProcess } = require('./application/subset');
 const { DOMAIN_TYPE } = require('./constants');
+const { startCertRsync } = require('./rsync');
 
 let myIP = null;
 let myFDMnameORip = null;
@@ -466,11 +467,13 @@ async function obtainCertificatesMode() {
     log.info('Certificates obtained');
     setTimeout(() => {
       obtainCertificatesMode();
+      startCertRsync();
     }, 5 * 60 * 1000);
   } catch (error) {
     log.error(error);
     setTimeout(() => {
       obtainCertificatesMode();
+      startCertRsync();
     }, 5 * 60 * 1000);
   }
 }
@@ -487,6 +490,7 @@ function initializeServices() {
   if (myIP) {
     if (config.manageCertificateOnly) {
       obtainCertificatesMode();
+      startCertRsync();
       log.info('FDM Certificate Service initialized.');
     } else if (config.mainDomain === config.cloudflare.domain && !config.cloudflare.manageapp) {
       generateAndReplaceMainHaproxyConfig();

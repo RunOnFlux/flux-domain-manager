@@ -1,0 +1,24 @@
+---
+- name: SSH Setup for FDM servers
+  hosts: "{{ 'app2_fdm_servers' if DEPLOY_ENV == 'staging' else 'app_fdm_servers' }}"
+  become: yes
+  tasks:
+    - name: Generate id_rsa.pub key
+      command: ssh-keygen -t rsa -b 4096 -N "" -C "{{ inventory_hostname }}" -f ~/.ssh/id_rsa
+      args:
+        creates: ~/.ssh/id_rsa.pub  # Only generate if the key doesn't exist
+
+    - name: Fetch the content of id_rsa.pub
+      shell: cat ~/.ssh/id_rsa.pub
+      register: ssh_key_content
+
+
+    - name: Append id_rsa.pub to authorized_keys on remote hosts
+      lineinfile:
+        path: "~/.ssh/authorized_keys"
+        line: "{{ ssh_key_content.stdout }}"
+        create: yes
+        state: present
+      delegate_to: "{{ item }}"
+      when: inventory_hostname != item
+      loop: "{{ groups['app2_fdm_servers' if DEPLOY_ENV == 'staging' else 'app_fdm_servers'] }}"

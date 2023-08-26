@@ -4,18 +4,6 @@
   become: yes
 
   tasks:
-    - name: Create Static Rsync Json File
-      set_fact:
-        static_json:
-          type: "{{ 'app2_fdm_servers' if DEPLOY_ENV == 'staging' else 'app_fdm_servers' }}"
-          host: "{{ inventory_hostname }}"
-
-    - name: Write the static JSON to a file
-      ansible.builtin.copy:
-        content: "{{ static_json | to_nice_json }}"
-        dest: cert-domain-manager/deployment/rsync_config.json
-        force: yes
-    
     - name: Import MongoDB public GPG key
       ansible.builtin.get_url:
         url: "https://www.mongodb.org/static/pgp/server-6.0.asc"
@@ -142,6 +130,18 @@
       command: npm install
       args:
         chdir: cert-domain-manager
+
+    - name: Create Static Rsync Json File
+      set_fact:
+        static_json:
+          type: "{{ 'app2_fdm_servers' if DEPLOY_ENV == 'staging' else 'app_fdm_servers' }}"
+          host: "{{ inventory_hostname }}"
+
+    - name: Write the static JSON to a file
+      ansible.builtin.copy:
+        content: "{{ static_json | to_nice_json }}"
+        dest: cert-domain-manager/deployment/rsync_config.json
+        force: yes
 
     - name: start FDM
       command: sudo pm2 restart FDM

@@ -9,7 +9,8 @@ const hosts = ini.parse(fs.readFileSync(path.resolve(__dirname, '../../../deploy
 
 function getHostsToRsync() {
   const { host, type } = rsyncConfig;
-  const rsyncHosts = Object.keys(hosts[type]).filter((k) => !k.includes(host));
+  const number = host.charAt(6);
+  const rsyncHosts = Object.keys(hosts[type]).filter((k) => !k.includes(host) && k.charAt(6) === number);
   return rsyncHosts.map((rh) => {
     const value = hosts[type][rh];
     return value.substring(0, value.indexOf(' '));

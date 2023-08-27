@@ -109,8 +109,9 @@ function generateMinecraftSettings(minecraftAppsMap) {
     const portConf = minecraftAppsMap[port];
     const tempFrontend = `
 frontend minecraft_${port}
-  bind *:${port}
+  bind 0.0.0.0:${port}
   mode tcp
+  option tcplog
 ${portConf.acls.join('')}${portConf.usebackends.join('')}
 ${portConf.backends.join('\n')}`;
 

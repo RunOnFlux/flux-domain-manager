@@ -197,8 +197,6 @@ backend ${domainUsed}backend
     if (app.ssl) {
       const h2Config = app.enableH2 ? h2Suffix : '';
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
-    } else if (mode === 'tcp') {
-      domainBackend += `\n  server ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}${cookieConfig}`;
     } else {
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}${cookieConfig}`;
     }

@@ -38,6 +38,10 @@ async function obtainDomainCertificate(domain) { // let it throw
 
 async function adjustAutoRenewalScriptForDomain(domain) { // let it throw
   const path = '/opt/update-certs.sh';
+  const header = `#!/usr/bin/env bash
+# Renew the certificate
+certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
+# Concatenate new cert files, with less output (avoiding the use tee and its output to stdout)\n`;
   try {
     await fs.readFile(path);
     const autoRenewScript = await fs.readFile(path, { encoding: 'utf-8' });
@@ -47,6 +51,9 @@ async function adjustAutoRenewalScriptForDomain(domain) { // let it throw
     }
     // split the contents by new line
     const lines = autoRenewScript.split(/\r?\n/);
+    if (!autoRenewScript.startsWith(header)) {
+      lines.splice(0, 0, header);
+    }
     lines.splice(6, 0, cert); // push cert to top behind #Concatenate...
     const file = lines.join('\n');
     await fs.writeFile(path, file, {
@@ -55,16 +62,8 @@ async function adjustAutoRenewalScriptForDomain(domain) { // let it throw
       encoding: 'utf-8',
     });
   } catch (error) {
-    // probably does not exist
-    const beginning = `#!/usr/bin/env bash
-# Renew the certificate
-certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
-# Concatenate new cert files, with less output (avoiding the use tee and its output to stdout)\n`;
-    const ending = `
-# Reload  HAProxy
-service haproxy reload`;
     const cert = `bash -c "cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > /etc/ssl/${config.certFolder}/${domain}.pem"\n`;
-    const file = beginning + cert + ending;
+    const file = header + cert;
     await fs.writeFile(path, file, {
       mode: 0o755,
       flag: 'w',

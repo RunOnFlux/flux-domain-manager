@@ -1,6 +1,7 @@
 const axios = require('axios');
 const config = require('config');
 const log = require('../../lib/log');
+const c = require('config');
 
 const timeout = 13456;
 
@@ -61,7 +62,7 @@ async function getFluxIPs(tier) {
     const correctIps = [];
     const ipvTest = /^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(.(?!$)|$)){4}$/;
     ips.forEach((ip) => {
-      if (ipvTest.test(ip)) {
+      if (ipvTest.test(ip) && correctIps.indexOf(ip) === -1) {
         correctIps.push(ip);
       }
     });

@@ -45,15 +45,22 @@ certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
   try {
     await fs.readFile(path);
     const autoRenewScript = await fs.readFile(path, { encoding: 'utf-8' });
-    const cert = `bash -c "cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > /etc/ssl/${config.certFolder}/${domain}.pem"`;
-    if (autoRenewScript.includes(cert)) {
-      return;
-    }
     // split the contents by new line
     const lines = autoRenewScript.split(/\r?\n/);
     if (!autoRenewScript.startsWith(header)) {
       lines.splice(0, 0, header);
+      await fs.writeFile(path, lines.join('\n'), {
+        mode: 0o755,
+        flag: 'w',
+        encoding: 'utf-8',
+      });
     }
+
+    const cert = `bash -c "cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > /etc/ssl/${config.certFolder}/${domain}.pem"`;
+    if (autoRenewScript.includes(cert)) {
+      return;
+    }
+
     lines.splice(6, 0, cert); // push cert to top behind #Concatenate...
     const file = lines.join('\n');
     await fs.writeFile(path, file, {

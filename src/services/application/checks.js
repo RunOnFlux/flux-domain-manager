@@ -25,7 +25,7 @@ const ethersList = [
     name: 'AstarRPC', providerURL: null, cmd: 'system_health', port: '36011',
   },
 ];
-let currentFluxBlockheight = 1379811;
+let currentFluxBlockheight = 1465361;
 // MAIN
 async function checkLoginPhrase(ip, port) {
   try {
@@ -75,7 +75,7 @@ async function isVersionOK(ip, port) {
     const url = `http://${ip}:${port}/flux/info`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.flux.version.replace(/\./g, '');
-    if (+version >= 440 && version[0] >= 4) {
+    if (+version >= 4110) {
       if (response.data.data.flux.development === 'false' || !response.data.data.flux.development) {
         return true;
       }
@@ -105,7 +105,7 @@ async function hasManyApps(ip, port) {
     const url = `http://${ip}:${port}/apps/globalappsspecifications`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const appsAmount = response.data.data.length;
-    if (appsAmount > 1000) { // we surely have at least 1000 apps on network
+    if (appsAmount > 1500) { // we surely have at least 1500 apps on network
       // eslint-disable-next-line no-restricted-syntax
       for (const app of config.mandatoryApps) {
         const appExists = response.data.data.find((a) => a.name === app);
@@ -125,9 +125,9 @@ async function hasManyMessages(ip, port) {
     const url = `http://${ip}:${port}/apps/hashes`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const appsAmount = response.data.data.length;
-    if (appsAmount > 23500) {
+    if (appsAmount > 25500) {
       const messageFalse = response.data.data.filter((a) => a.message === false);
-      if (messageFalse.length < 100) {
+      if (messageFalse.length < 80) {
         return true;
       }
     }

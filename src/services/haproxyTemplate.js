@@ -4,6 +4,7 @@ const configGlobal = require('config');
 const fs = require('fs').promises;
 const log = require('../lib/log');
 const { cmdAsync, TEMP_HAPROXY_CONFIG, HAPROXY_CONFIG } = require('./constants');
+const { matchRule } = require('./serviceHelper');
 
 const haproxyPrefix = `
 global
@@ -103,10 +104,115 @@ function createCertificatesPaths(domains) {
   return path;
 }
 
-function generateHaproxyConfig(acls, usebackends, domains, backends, redirects) {
+function generateMinecraftSettings(minecraftAppsMap) {
+  let configs = '';
+  for (const port of Object.keys(minecraftAppsMap)) {
+    const portConf = minecraftAppsMap[port];
+    const tempFrontend = `
+frontend minecraft_${port}
+  bind 0.0.0.0:${port}
+  tcp-request inspect-delay 5s
+  tcp-request content accept if { req_ssl_hello_type 1 }
+  mode tcp
+  option tcplog
+  option tcp-check
+${portConf.acls.join('\n')}
+${portConf.usebackends.join('')}
+${portConf.backends.join('\n')}`;
+
+    configs = `${configs}\n\n${tempFrontend}`;
+  }
+
+  return configs;
+}
+
+function generateHaproxyConfig(acls, usebackends, domains, backends, redirects, minecraftAppsMap = {}) {
   // eslint-disable-next-line max-len
-  const config = `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix} ${h2Suffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}\n${cloudflareFluxBackend}\n${forbiddenBackend}`;
+  const minecraftConfig = generateMinecraftSettings(minecraftAppsMap);
+  const config = `
+${haproxyPrefix}
+
+${acls}
+${usebackends}
+${redirects}
+
+${minecraftConfig}
+
+${httpsPrefix}${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix} ${h2Suffix}
+
+${acls}
+${usebackends}
+${redirects}
+
+${backends}
+${letsEncryptBackend}
+${cloudflareFluxBackend}
+${forbiddenBackend}
+`;
   return config;
+}
+
+function generateDomainBackend(app, mode) {
+  const domainUsed = app.domain.split('.').join('');
+  let domainBackend = `
+backend ${domainUsed}backend
+  mode ${mode}`;
+  if (app.loadBalance) {
+    domainBackend += app.loadBalance;
+  } else if (mode !== 'tcp') {
+    domainBackend += '\n  balance roundrobin';
+    domainBackend += '\n  cookie FDMSERVERID insert indirect nocache maxlife 8h';
+  }
+  if (app.headers) {
+    // eslint-disable-next-line no-loop-func
+    app.headers.forEach((header) => {
+      domainBackend += `\n  ${header}`;
+    });
+  }
+  // eslint-disable-next-line no-loop-func
+  app.healthcheck.forEach((hc) => {
+    domainBackend += `\n  ${hc}`;
+  });
+  for (const ip of app.ips) {
+    const a = ip.split(':')[0].split('.');
+    if (!a) {
+      log.error('STRANGE IP');
+      log.error(ip);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    const apiPort = ip.split(':')[1] || 16127;
+    const cookieConfig = app.loadBalance || mode === 'tcp' ? '' : ` cookie ${ip.split(':')[0]}:${app.port}`;
+    if (app.ssl) {
+      const h2Config = app.enableH2 ? h2Suffix : '';
+      domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
+    } else {
+      domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}${cookieConfig}`;
+    }
+    if (app.timeout) {
+      domainBackend += `\n  timeout server ${app.timeout}`;
+    }
+  }
+  return domainBackend;
+}
+
+function generateMinecraftACLs(app) {
+  console.log(app.domain);
+  const aclName = app.domain.split('.').join('');
+  const appName = app.domain.split('.')[0];
+  console.log(appName);
+
+  const nameLength = appName.length + 1;
+  const domainLength = app.domain.length;
+  return [
+    `  acl ${aclName} req.payload(4,${nameLength}) -m sub ${appName}.`,
+    `  acl ${aclName} req.payload(5,${nameLength}) -m sub ${appName}.`,
+    `  acl ${aclName} req.payload(7,${nameLength}) -m sub ${appName}.`,
+    `  acl ${aclName} req.payload(8,${nameLength}) -m sub ${appName}.`,
+    `  acl ${aclName} req.payload(1,${domainLength}) -m sub ${app.domain}`,
+    `  acl ${aclName} req.payload(2,${domainLength}) -m sub ${app.domain}`,
+    `  acl ${aclName} req.payload(3,${domainLength}) -m sub ${app.domain}`,
+  ];
 }
 
 function createMainHaproxyConfig(ui, api, fluxIPs) {
@@ -178,7 +284,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
   const backends = `${uiBackend}\n\n${apiBackend}`;
   const urls = [ui, api, 'dashboard.zel.network'];
 
-  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects);
+  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {});
 }
 
 // appConfig is an array of object of domain, port, ips
@@ -194,6 +300,7 @@ function createAppsHaproxyConfig(appConfig) {
   // usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
   const domains = [];
   const seenApps = {};
+  const minecraftAppsMap = {};
   for (const app of appConfig) {
     if (domains.includes(app.domain)) {
       // eslint-disable-next-line no-continue
@@ -202,68 +309,28 @@ function createAppsHaproxyConfig(appConfig) {
     if (app.appName in seenApps) {
       domains.push(app.domain);
       acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
+    } else if (matchRule(app.name.toLowerCase(), configGlobal.minecraftApps)) {
+      const domainUsed = app.domain.split('.').join('');
+      const { port } = app;
+      if (!(port in minecraftAppsMap)) {
+        minecraftAppsMap[port] = {
+          acls: [],
+          usebackends: [],
+          backends: [],
+        };
+      }
+      const tempMinecraftACLs = generateMinecraftACLs(app);
+      const domainBackend = generateDomainBackend(app, 'tcp');
+      minecraftAppsMap[port].acls = minecraftAppsMap[port].acls.concat(tempMinecraftACLs);
+      minecraftAppsMap[port].usebackends.push(`  use_backend ${domainUsed}backend if ${domainUsed}\n`);
+      minecraftAppsMap[port].backends.push(domainBackend);
     } else {
       const domainUsed = app.domain.split('.').join('');
       if (usebackends.includes(`  use_backend ${domainUsed}backend if ${domainUsed}\n`)) {
         // eslint-disable-next-line no-continue
         continue;
       }
-      let domainBackend = `backend ${domainUsed}backend
-    mode http`;
-      if (app.loadBalance) {
-        domainBackend += app.loadBalance;
-      } else {
-        domainBackend += '\n  balance roundrobin';
-        domainBackend += '\n  cookie FDMSERVERID insert indirect nocache maxlife 8h';
-      }
-      if (app.headers) {
-        // eslint-disable-next-line no-loop-func
-        app.headers.forEach((header) => {
-          domainBackend += `\n  ${header}`;
-        });
-      }
-      // eslint-disable-next-line no-loop-func
-      app.healthcheck.forEach((hc) => {
-        domainBackend += `\n  ${hc}`;
-      });
-      for (const ip of app.ips) {
-        const a = ip.split(':')[0].split('.');
-        if (!a) {
-          log.error('STRANGE IP');
-          log.error(ip);
-          // eslint-disable-next-line no-continue
-          continue;
-        }
-        const apiPort = ip.split(':')[1] || 16127;
-        // let IpString = '';
-        // for (let i = 0; i < 4; i += 1) {
-        //   if (!(a[i])) {
-        //     log.error('STRANGE IP');
-        //     log.error(ip);
-        //     // eslint-disable-next-line no-continue
-        //     continue;
-        //   }
-        //   if (a[i].length === 3) {
-        //     IpString += a[i];
-        //   }
-        //   if (a[i].length === 2) {
-        //     IpString = `${IpString}0${a[i]}`;
-        //   }
-        //   if (a[i].length === 1) {
-        //     IpString = `${IpString}00${a[i]}`;
-        //   }
-        // }
-        const cookieConfig = app.loadBalance ? '' : ` cookie ${ip.split(':')[0]}:${app.port}`;
-        if (app.ssl) {
-          const h2Config = app.enableH2 ? h2Suffix : '';
-          domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
-        } else {
-          domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}${cookieConfig}`;
-        }
-        if (app.timeout) {
-          domainBackend += `\n  timeout server ${app.timeout}`;
-        }
-      }
+      const domainBackend = generateDomainBackend(app, 'http');
       backends = `${backends + domainBackend}\n\n`;
       domains.push(app.domain);
       acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
@@ -273,7 +340,7 @@ function createAppsHaproxyConfig(appConfig) {
   }
   const redirects = '';
 
-  return generateHaproxyConfig(acls, usebackends, domains, backends, redirects);
+  return generateHaproxyConfig(acls, usebackends, domains, backends, redirects, minecraftAppsMap);
 }
 
 async function writeConfig(configName, data) {

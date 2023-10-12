@@ -50,6 +50,7 @@ frontend wwwhttp
   option forwardfor except 127.0.0.0/8
   http-request add-header X-Forwarded-Proto http
   http-response add-header Access-Control-Expose-Headers '*'
+  http-after-response set-header Access-Control-Allow-Origin "*"
 
   acl letsencrypt-acl path_beg /.well-known/acme-challenge/
   acl cloudflare-flux-acl path_beg /.well-known/pki-validation/
@@ -64,6 +65,7 @@ frontend wwwhttps
   option http-server-close
   option forwardfor except 127.0.0.0/8
   http-response add-header Access-Control-Expose-Headers '*'
+  http-after-response set-header Access-Control-Allow-Origin "*"
 
   # stats in /fluxstatistics publicly available
   stats enable

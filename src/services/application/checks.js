@@ -487,13 +487,19 @@ async function checkBlockBook(ip, port, appsname) {
       't1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj', 'DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8', 'DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8', 'FfgZPEfmvou5VxZRnTbRjPKhgVsrx7Qjq9',
       'XmCgmabJL2S8DJ8tmEvB8QDArgBbSSMJea', 'aBEJgEP2b7DP7tyQukv639qtdhjFhWp2QE', 'SXoqyAiZ6gQjafKmSnb2pmfwg7qLC8r4Sf', 'RKo31qpgy9278MuWNXb5NPranc4W6oaUFf',
       'DTVg3KVrPiv9QLPT1cYQ8XYV6SUugMYkZV', 'DsUbTWsJWNzNdfUigTrUqbxmnwntDBJXasi', 'NfXjy71SH9CdC8tNzQjkYGKUCYfMsTPaKS'];
+    const heightList = [2561528, 1489960, 18510512, 2067081, 2260134, 4922428, 18038850, 4796068, 1953740, 764150, 1690368, 3015843, 4085836, 807730, 255116];
     let coin = appsname.replace('blockbook', '');
     coin = coin.replace(/\d+/g, '');
     const index = coinList.indexOf(coin);
     const response1 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api`, 5000);
     const response2 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, 5000);
-    if (response2.data.txids.length > 0 && response1.data.blockbook.inSync === true && response1.data.blockbook.bestHeight > (response1.data.backend.blocks - 100) && response1.data.blockbook.bestHeight > 0 && response1.data.backend.blocks > 0) {
-      return true;
+    const currentTime = new Date().getTime();
+    if (response2.data.txids.length > 0 && response1.data.blockbook.inSync === true && response1.data.blockbook.bestHeight > (response1.data.backend.blocks - 100) && response1.data.blockbook.bestHeight > heightList[index] && response1.data.backend.blocks > heightList[index]) {
+      const lastBlockTmstp = new Date(response1.data.blockbook.lastBlockTime).getTime();
+      const timeDifference = currentTime - lastBlockTmstp;
+      if (timeDifference < 1000 * 60 * 60 * 6) { // 6 hours
+        return true;
+      }
     }
     return false;
   } catch (error) {

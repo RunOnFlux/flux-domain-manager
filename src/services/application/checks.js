@@ -497,8 +497,24 @@ async function checkBlockBook(ip, port, appsname) {
     if (response2.data.txids.length > 0 && response1.data.blockbook.inSync === true && response1.data.blockbook.bestHeight > (response1.data.backend.blocks - 100) && response1.data.blockbook.bestHeight > heightList[index] && response1.data.backend.blocks > heightList[index]) {
       const lastBlockTmstp = new Date(response1.data.blockbook.lastBlockTime).getTime();
       const timeDifference = currentTime - lastBlockTmstp;
-      if (timeDifference < 1000 * 60 * 60 * 6) { // 6 hours
-        return true;
+      if (response2.data.txs <= 50 && response2.data.transactions.length === response2.data.txs) {
+        if (response2.data.transactions.length === response2.data.txs) {
+          if (timeDifference < 1000 * 60 * 60 * 6) { // 6 hours
+            return true;
+          }
+        }
+      } else if (response2.data.txs > 50 && response2.data.totalPages > response2.data.page) {
+        if (response2.data.transactions.length === 50) {
+          if (timeDifference < 1000 * 60 * 60 * 6) { // 6 hours
+            return true;
+          }
+        }
+      } else if (response2.data.txs > 50 && response2.data.totalPages === response2.data.page) {
+        if (response2.data.transactions.length === response2.data.txs % 50) {
+          if (timeDifference < 1000 * 60 * 60 * 6) { // 6 hours
+            return true;
+          }
+        }
       }
     }
     return false;

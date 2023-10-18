@@ -576,10 +576,10 @@ async function getBlockchainInfo(host, port, username, password) {
     parameter: [],
   };
   try {
-    const response = await axios.post(`http://${host}:${port}/`, body, {
+    const response = await axios.post(`http://${host}:${port}`, body, {
       auth: {
-        username: 'user',
-        password: 'vRqrhHwrtz_zqDe9fCqN-r62wsieb_D7KWpiXIXvynM',
+        username,
+        password,
       },
     });
     console.log(response.data);
@@ -595,10 +595,13 @@ async function checkBitcoinNode(ip, port) {
   if (!result) {
     return false;
   }
+  if (result.initialblockdownload) {
+    return false;
+  }
   const currentTime = new Date().getTime();
   const timeDifference = currentTime - (result.time * 1000);
-  if (result.blocks > 12722) { // 812722
-    if (timeDifference < 1000 * 60 * 60 * 60000) { // 6 hours
+  if (result.blocks > 812722) {
+    if (timeDifference < 1000 * 60 * 60 * 6) { // 6 hours
       return true;
     }
   }

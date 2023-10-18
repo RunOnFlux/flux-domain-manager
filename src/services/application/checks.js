@@ -567,12 +567,52 @@ async function checkEthers(ip, port, providerURL, cmd) {
   }
 }
 
+async function getBlockchainInfo(host, port, username, password) {
+  const time = new Date().getTime();
+  const body = {
+    jsonrpc: '1.0',
+    method: 'getblockchaininfo',
+    id: time,
+    parameter: [],
+  };
+  try {
+    const response = await axios.post(`http://${host}:${port}/`, body, {
+      auth: {
+        username: 'user',
+        password: 'vRqrhHwrtz_zqDe9fCqN-r62wsieb_D7KWpiXIXvynM',
+      },
+    });
+    console.log(response.data);
+    return response.data.result;
+  } catch (error) {
+    console.log(error);
+    return false;
+  }
+}
+
+async function checkBitcoinNode(ip, port) {
+  const result = await getBlockchainInfo(ip, port, 'user', 'vRqrhHwrtz_zqDe9fCqN-r62wsieb_D7KWpiXIXvynM');
+  if (!result) {
+    return false;
+  }
+  const currentTime = new Date().getTime();
+  const timeDifference = currentTime - (result.time * 1000);
+  if (result.blocks > 12722) { // 812722
+    if (timeDifference < 1000 * 60 * 60 * 60000) { // 6 hours
+      return true;
+    }
+  }
+  return false;
+}
+
 async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
     isOK = await generalWebsiteCheck(ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0], undefined, app.name);
   } else if (app.name === 'explorer') {
     isOK = await checkFluxExplorer(ip.split(':')[0], 39185);
+  } else if (app.name === 'bitcoinnode') {
+    isOK = await checkBitcoinNode(ip.split(':')[0], app.compose[0].ports[0]);
   } else if (app.name === 'HavenNodeMainnet') {
     isOK = await checkHavenHeight(ip.split(':')[0], 31750);
   } else if (app.name === 'HavenNodeTestnet') {

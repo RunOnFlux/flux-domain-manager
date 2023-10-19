@@ -332,7 +332,7 @@ function createAppsHaproxyConfig(appConfig) {
         // eslint-disable-next-line no-continue
         continue;
       }
-      const domainBackend = generateDomainBackend(app, app.mode || 'http');
+      const domainBackend = generateDomainBackend(app, 'http');
       backends = `${backends + domainBackend}\n\n`;
       domains.push(app.domain);
       acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;

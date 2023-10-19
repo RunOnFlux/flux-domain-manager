@@ -64,7 +64,7 @@ function getCustomConfigs(specifications) {
     '39185.insightfluxexplorer.explorer': {
       loadBalance: '\n  balance roundrobin',
     },
-    '8332.bitcoinnode.btcnode': {
+    '8332.btcnode.bitcoinnode': {
       mode: 'tcp',
     },
   };

@@ -381,9 +381,12 @@ function createAppsHaproxyConfig(appConfig) {
         };
       }
       const domainBackend = generateDomainBackend(app, 'tcp');
-      tcpAppsMap[port].acls = [];
-      tcpAppsMap[port].usebackends.push(`  default_backend ${domainUsed}_tcp_backend\n`);
-      tcpAppsMap[port].backends.push(domainBackend);
+      if (!tcpAppsMap[port].usebackends.length) {
+        tcpAppsMap[port].usebackends.push(`  default_backend ${domainUsed}_tcp_backend\n`);
+      }
+      if (!tcpAppsMap[port].backends.length) {
+        tcpAppsMap[port].backends.push(domainBackend);
+      }
     }
   }
   const redirects = '';

@@ -182,7 +182,7 @@ ${forbiddenBackend}
 function generateDomainBackend(app, mode) {
   let domainUsed = app.domain.split('.').join('');
   if (mode === 'tcp') {
-    domainUsed += '_tcp';
+    domainUsed += '_tcp_';
   }
   let domainBackend = `
 backend ${domainUsed}backend
@@ -341,7 +341,7 @@ function createAppsHaproxyConfig(appConfig) {
       domains.push(app.domain);
       acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
     } else if (matchRule(app.name.toLowerCase(), configGlobal.minecraftApps)) {
-      const domainUsed = `${app.domain.split('.').join('')}_tcp`;
+      const domainUsed = app.domain.split('.').join('');
       const { port } = app;
       if (!(port in minecraftAppsMap)) {
         minecraftAppsMap[port] = {
@@ -353,7 +353,7 @@ function createAppsHaproxyConfig(appConfig) {
       const tempMinecraftACLs = generateMinecraftACLs(app);
       const domainBackend = generateDomainBackend(app, 'tcp');
       minecraftAppsMap[port].acls = minecraftAppsMap[port].acls.concat(tempMinecraftACLs);
-      minecraftAppsMap[port].usebackends.push(`  use_backend ${domainUsed}backend if ${domainUsed}\n`);
+      minecraftAppsMap[port].usebackends.push(`  use_backend ${domainUsed}_tcp_backend if ${domainUsed}\n`);
       minecraftAppsMap[port].backends.push(domainBackend);
     } else {
       const domainUsed = app.domain.split('.').join('');
@@ -368,13 +368,10 @@ function createAppsHaproxyConfig(appConfig) {
       usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
       seenApps[app.appName] = domainUsed;
     }
-    if (app.appName in seenApps) {
-      domains.push(app.domain);
-      acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
-    } else if (app.mode === 'tcp') {
+    if (app.mode === 'tcp') {
       log.info(`TCP APP: ${app.name}`);
       // also configure tcp
-      const domainUsed = `${app.domain.split('.').join('')}_tcp`;
+      const domainUsed = app.domain.split('.').join('');
       const { port } = app;
       if (!(port in tcpAppsMap)) {
         tcpAppsMap[port] = {
@@ -385,7 +382,7 @@ function createAppsHaproxyConfig(appConfig) {
       }
       const domainBackend = generateDomainBackend(app, 'tcp');
       tcpAppsMap[port].acls = [];
-      tcpAppsMap[port].usebackends.push(`  default_backend ${domainUsed}backend\n`);
+      tcpAppsMap[port].usebackends.push(`  default_backend ${domainUsed}_tcp_backend\n`);
       tcpAppsMap[port].backends.push(domainBackend);
     }
   }

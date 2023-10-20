@@ -482,7 +482,7 @@ async function generalWebsiteCheck(ip, port, timeOut = 2500, appname) {
 
 async function checkBlockBook(ip, port, appsname) {
   try {
-    const coinList = ['litecoin', 'flux', 'ethereumclassic', 'vertcoin', 'zcash', 'dogecoin', 'digibyte', 'groestlcoin', 'dash', 'firo', 'sin', 'ravencoin', 'pivx', 'decred', 'neurai', 'bitcoin', 'bitcoin_testnet', 'bitcoin_signet'];
+    const coinList = ['litecoin', 'flux', 'ethereumclassic', 'vertcoin', 'zcash', 'dogecoin', 'digibyte', 'groestlcoin', 'dash', 'firo', 'sin', 'ravencoin', 'pivx', 'decred', 'neurai', 'bitcoin', 'bitcointestnet', 'bitcoinsignet'];
     const addressList = ['LVjoCYFESyTbKAEU5VbFYtb9EYyBXx55V5', 't3fK9bY31MGCqhKw34cg9gg168SHCfcMGHe', '0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf', 'VbFrQgNEiR8ZxMh9WmkjJu9kkqjJA6imdD',
       't1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj', 'DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8', 'DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8', 'FfgZPEfmvou5VxZRnTbRjPKhgVsrx7Qjq9',
       'XmCgmabJL2S8DJ8tmEvB8QDArgBbSSMJea', 'aBEJgEP2b7DP7tyQukv639qtdhjFhWp2QE', 'SXoqyAiZ6gQjafKmSnb2pmfwg7qLC8r4Sf', 'RKo31qpgy9278MuWNXb5NPranc4W6oaUFf',

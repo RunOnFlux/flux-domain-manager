@@ -71,6 +71,9 @@ function getCustomConfigs(specifications) {
     '18332.btcnodetestnet.bitcoinnodetestnet': {
       mode: 'tcp',
     },
+    '38332.btcnodesignet.bitcoinnodesignet': {
+      mode: 'tcp',
+    },
   };
 
   let mainPort = '';

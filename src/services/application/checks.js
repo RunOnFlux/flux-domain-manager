@@ -482,12 +482,12 @@ async function generalWebsiteCheck(ip, port, timeOut = 2500, appname) {
 
 async function checkBlockBook(ip, port, appsname) {
   try {
-    const coinList = ['litecoin', 'flux', 'ethereumclassic', 'vertcoin', 'zcash', 'dogecoin', 'digibyte', 'groestlcoin', 'dash', 'firo', 'sin', 'ravencoin', 'pivx', 'decred', 'neurai', 'bitcoin', 'bitcoin_testnet'];
+    const coinList = ['litecoin', 'flux', 'ethereumclassic', 'vertcoin', 'zcash', 'dogecoin', 'digibyte', 'groestlcoin', 'dash', 'firo', 'sin', 'ravencoin', 'pivx', 'decred', 'neurai', 'bitcoin', 'bitcoin_testnet', 'bitcoin_signet'];
     const addressList = ['LVjoCYFESyTbKAEU5VbFYtb9EYyBXx55V5', 't3fK9bY31MGCqhKw34cg9gg168SHCfcMGHe', '0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf', 'VbFrQgNEiR8ZxMh9WmkjJu9kkqjJA6imdD',
       't1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj', 'DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8', 'DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8', 'FfgZPEfmvou5VxZRnTbRjPKhgVsrx7Qjq9',
       'XmCgmabJL2S8DJ8tmEvB8QDArgBbSSMJea', 'aBEJgEP2b7DP7tyQukv639qtdhjFhWp2QE', 'SXoqyAiZ6gQjafKmSnb2pmfwg7qLC8r4Sf', 'RKo31qpgy9278MuWNXb5NPranc4W6oaUFf',
-      'DTVg3KVrPiv9QLPT1cYQ8XYV6SUugMYkZV', 'DsUbTWsJWNzNdfUigTrUqbxmnwntDBJXasi', 'NfXjy71SH9CdC8tNzQjkYGKUCYfMsTPaKS', '12ib7dApVFvg82TXKycWBNpN8kFyiAN1dr', 'tb1qcq670zweall6zz4f96flfrefhr8myfxz9ll9l2'];
-    const heightList = [2561528, 1489960, 18510512, 2067081, 2260134, 4922428, 18038850, 4796068, 1953740, 764150, 1690368, 3015843, 4085836, 807730, 255116, 812896, 2534408];
+      'DTVg3KVrPiv9QLPT1cYQ8XYV6SUugMYkZV', 'DsUbTWsJWNzNdfUigTrUqbxmnwntDBJXasi', 'NfXjy71SH9CdC8tNzQjkYGKUCYfMsTPaKS', '12ib7dApVFvg82TXKycWBNpN8kFyiAN1dr', 'tb1qcq670zweall6zz4f96flfrefhr8myfxz9ll9l2', 'tb1pwzv7fv35yl7ypwj8w7al2t8apd6yf4568cs772qjwper74xqc99sk8x7tk'];
+    const heightList = [2561528, 1489960, 18510512, 2067081, 2260134, 4922428, 18038850, 4796068, 1953740, 764150, 1690368, 3015843, 4085836, 807730, 255116, 812896, 2534408, 165752];
     let coin = appsname.replace('blockbook', '');
     coin = coin.replace(/\d+/g, '');
     const index = coinList.indexOf(coin);
@@ -590,7 +590,7 @@ async function getBlockchainInfo(host, port, username, password) {
   }
 }
 
-async function checkBitcoinNode(ip, port) {
+async function checkBitcoinNode(ip, port, name) {
   const result = await getBlockchainInfo(ip, port, 'user', 'vRqrhHwrtz_zqDe9fCqN-r62wsieb_D7KWpiXIXvynM');
   if (!result) {
     return false;
@@ -600,7 +600,7 @@ async function checkBitcoinNode(ip, port) {
   }
   const currentTime = new Date().getTime();
   const timeDifference = currentTime - (result.time * 1000);
-  if (result.blocks > 812722) {
+  if (result.blocks > 812722 || name === 'bitcoinnodesignet') {
     if (timeDifference < 1000 * 60 * 60 * 6) { // 6 hours
       return true;
     }
@@ -614,8 +614,8 @@ async function checkApplication(app, ip) {
     isOK = await generalWebsiteCheck(ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0], undefined, app.name);
   } else if (app.name === 'explorer') {
     isOK = await checkFluxExplorer(ip.split(':')[0], 39185);
-  } else if (app.name === 'bitcoinnode' || app.name === 'bitcoinnodetestnet') {
-    isOK = await checkBitcoinNode(ip.split(':')[0], app.compose[0].ports[0]);
+  } else if (app.name === 'bitcoinnode' || app.name === 'bitcoinnodetestnet' || app.name === 'bitcoinnodesignet') {
+    isOK = await checkBitcoinNode(ip.split(':')[0], app.compose[0].ports[0], app.name);
   } else if (app.name === 'HavenNodeMainnet') {
     isOK = await checkHavenHeight(ip.split(':')[0], 31750);
   } else if (app.name === 'HavenNodeTestnet') {

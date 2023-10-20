@@ -8,6 +8,7 @@ function getCustomConfigs(specifications) {
     healthcheck: [],
     serverConfig: '',
     enableH2: false,
+    mode: 'http',
   };
 
   if (specifications.name.toLowerCase().includes('wordpress')) {
@@ -63,6 +64,9 @@ function getCustomConfigs(specifications) {
     },
     '39185.insightfluxexplorer.explorer': {
       loadBalance: '\n  balance roundrobin',
+    },
+    '8332.btcnode.bitcoinnode': {
+      mode: 'tcp',
     },
   };
 

@@ -128,9 +128,32 @@ ${portConf.backends.join('\n')}`;
   return configs;
 }
 
-function generateHaproxyConfig(acls, usebackends, domains, backends, redirects, minecraftAppsMap = {}) {
+function generateAppsTCPSettings(tcpAppsMap) {
+  let configs = '';
+  for (const port of Object.keys(tcpAppsMap)) {
+    const portConf = tcpAppsMap[port];
+    const tempFrontend = `
+frontend tcp_app_${port}
+  bind 0.0.0.0:${port}
+  tcp-request inspect-delay 5s
+  tcp-request content accept if { req_ssl_hello_type 1 }
+  mode tcp
+  option tcplog
+  option tcp-check
+${portConf.acls.join('\n')}
+${portConf.usebackends.join('')}
+${portConf.backends.join('\n')}`;
+
+    configs = `${configs}\n\n${tempFrontend}`;
+  }
+
+  return configs;
+}
+
+function generateHaproxyConfig(acls, usebackends, domains, backends, redirects, minecraftAppsMap = {}, tcpAppsMap = {}) {
   // eslint-disable-next-line max-len
   const minecraftConfig = generateMinecraftSettings(minecraftAppsMap);
+  const tcpConfig = generateAppsTCPSettings(tcpAppsMap);
   const config = `
 ${haproxyPrefix}
 
@@ -139,6 +162,8 @@ ${usebackends}
 ${redirects}
 
 ${minecraftConfig}
+
+${tcpConfig}
 
 ${httpsPrefix}${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix} ${h2Suffix}
 
@@ -155,7 +180,10 @@ ${forbiddenBackend}
 }
 
 function generateDomainBackend(app, mode) {
-  const domainUsed = app.domain.split('.').join('');
+  let domainUsed = app.domain.split('.').join('');
+  if (mode === 'tcp') {
+    domainUsed += '_tcp';
+  }
   let domainBackend = `
 backend ${domainUsed}backend
   mode ${mode}`;
@@ -286,7 +314,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
   const backends = `${uiBackend}\n\n${apiBackend}`;
   const urls = [ui, api, 'dashboard.zel.network'];
 
-  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {});
+  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {}, {});
 }
 
 // appConfig is an array of object of domain, port, ips
@@ -303,6 +331,7 @@ function createAppsHaproxyConfig(appConfig) {
   const domains = [];
   const seenApps = {};
   const minecraftAppsMap = {};
+  const tcpAppsMap = {};
   for (const app of appConfig) {
     if (domains.includes(app.domain)) {
       // eslint-disable-next-line no-continue
@@ -312,7 +341,7 @@ function createAppsHaproxyConfig(appConfig) {
       domains.push(app.domain);
       acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
     } else if (matchRule(app.name.toLowerCase(), configGlobal.minecraftApps)) {
-      const domainUsed = app.domain.split('.').join('');
+      const domainUsed = `${app.domain.split('.').join('')}_tcp`;
       const { port } = app;
       if (!(port in minecraftAppsMap)) {
         minecraftAppsMap[port] = {
@@ -339,10 +368,30 @@ function createAppsHaproxyConfig(appConfig) {
       usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
       seenApps[app.appName] = domainUsed;
     }
+    if (app.appName in seenApps) {
+      domains.push(app.domain);
+      acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
+    } else if (app.mode === 'tcp') {
+      log.info(`TCP APP: ${app.name}`);
+      // also configure tcp
+      const domainUsed = `${app.domain.split('.').join('')}_tcp`;
+      const { port } = app;
+      if (!(port in tcpAppsMap)) {
+        tcpAppsMap[port] = {
+          acls: [],
+          usebackends: [],
+          backends: [],
+        };
+      }
+      const domainBackend = generateDomainBackend(app, 'tcp');
+      tcpAppsMap[port].acls = [];
+      tcpAppsMap[port].usebackends.push(`  default_backend ${domainUsed}backend\n`);
+      tcpAppsMap[port].backends.push(domainBackend);
+    }
   }
   const redirects = '';
 
-  return generateHaproxyConfig(acls, usebackends, domains, backends, redirects, minecraftAppsMap);
+  return generateHaproxyConfig(acls, usebackends, domains, backends, redirects, minecraftAppsMap, tcpAppsMap);
 }
 
 async function writeConfig(configName, data) {

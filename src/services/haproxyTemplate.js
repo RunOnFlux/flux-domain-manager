@@ -215,9 +215,9 @@ backend ${domainUsed}backend
     const cookieConfig = app.loadBalance || mode === 'tcp' ? '' : ` cookie ${ip.split(':')[0]}:${app.port}`;
     if (app.ssl) {
       const h2Config = app.enableH2 ? h2Suffix : '';
-      domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
+      domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}${cookieConfig} inhibit`;
     } else {
-      domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}${cookieConfig}`;
+      domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}${cookieConfig} inhibit`;
     }
     if (app.timeout) {
       domainBackend += `\n  timeout server ${app.timeout}`;

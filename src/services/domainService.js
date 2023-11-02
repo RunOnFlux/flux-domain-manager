@@ -164,7 +164,8 @@ async function generateNodesHaproxyConfig() {
     const ui = `home.${config.mainDomain}`;
     const api = `api.${config.mainDomain}`;
     const fluxnodes = await fluxService.getFluxList();
-    const fluxIPs = fluxnodes.map((fluxnode) => fluxnode.ip);
+    let fluxIPs = fluxnodes.map((fluxnode) => fluxnode.ip);
+    fluxIPs = fluxIPs.filter((ip) => ip && ip.split(':')[0]);
     if (fluxIPs.length < 1000) {
       throw new Error('Invalid Flux List');
     }

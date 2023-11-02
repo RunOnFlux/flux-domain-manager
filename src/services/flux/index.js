@@ -100,6 +100,7 @@ async function getApplicationLocation(appName) {
 }
 
 module.exports = {
+  getFluxList,
   getFluxIPs,
   getApplicationLocation,
   getAppSpecifications,

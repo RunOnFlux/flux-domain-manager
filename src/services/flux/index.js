@@ -1,7 +1,6 @@
 const axios = require('axios');
 const config = require('config');
 const log = require('../../lib/log');
-const c = require('config');
 
 const timeout = 13456;
 

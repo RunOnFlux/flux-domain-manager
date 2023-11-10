@@ -3,6 +3,7 @@ const axios = require('axios');
 const config = require('config');
 const https = require('https');
 const ethers = require('ethers');
+const gamedig = require('gamedig');
 const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
 
@@ -608,6 +609,19 @@ async function checkBitcoinNode(ip, port, name) {
   return false;
 }
 
+async function checkMinecraft(ip, port) {
+  try {
+    const state = await gamedig.query({
+      type: 'minecraft',
+      host: ip,
+      port,
+    });
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
@@ -626,6 +640,9 @@ async function checkApplication(app, ip) {
     isOK = await checkBlockBook(ip.split(':')[0], app.compose[0].ports[0], app.name);
   } else if (app.name.startsWith('AlgorandRPC')) {
     isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[1]);
+  } else if (app.name.startsWith('Minecraft') || app.name.startsWith('minecraft') || app.name === 'mcf') {
+    console.log('here');
+    isOK = await checkMinecraft(ip.split(':')[0], app.compose[0].ports[0]);
   } else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
     if (matchIndex > -1) {

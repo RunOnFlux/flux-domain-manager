@@ -219,7 +219,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       }
     }
     // continue with appsOK
-    const configuredApps = []; // object of domain, port, ips for backend
+    const configuredApps = []; // object of domain, port, ips for backend and isRdata
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
       // eslint-disable-next-line no-await-in-loop
@@ -248,6 +248,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               ips: appIps,
               ...customConfigs[i],
             };
+            if (app.containerData.includes('r:')) {
+              configuredApp.isRdata = true;
+            }
             configuredApps.push(configuredApp);
             if (app.domains[i]) {
               const portDomains = app.domains[i].split(',');
@@ -277,6 +280,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                       ips: appIps,
                       ...customConfigs[i],
                     };
+                    if (app.containerData.includes('r:')) {
+                      configuredAppCustom.isRdata = true;
+                    }
                     configuredApps.push(configuredAppCustom);
                   }
                   const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
@@ -291,6 +297,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         ips: appIps,
                         ...customConfigs[i],
                       };
+                      if (app.containerData.includes('r:')) {
+                        configuredAppCustom.isRdata = true;
+                      }
                       configuredApps.push(configuredAppCustom);
                     }
                   }
@@ -307,6 +316,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         ips: appIps,
                         ...customConfigs[i],
                       };
+                      if (app.containerData.includes('r:')) {
+                        configuredAppCustom.isRdata = true;
+                      }
                       configuredApps.push(configuredAppCustom);
                     }
                   }
@@ -322,6 +334,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             ips: appIps,
             ...customConfigs[customConfigs.length - 1],
           };
+          if (app.containerData.includes('r:')) {
+            mainApp.isRdata = true;
+          }
           configuredApps.push(mainApp);
         } else {
           let j = 0;
@@ -335,6 +350,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                 ips: appIps,
                 ...customConfigs[j],
               };
+              if (component.containerData.includes('r:')) {
+                configuredApp.isRdata = true;
+              }
               configuredApps.push(configuredApp);
               const portDomains = component.domains[i].split(',');
               // eslint-disable-next-line no-loop-func
@@ -364,6 +382,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                         ips: appIps,
                         ...customConfigs[j],
                       };
+                      if (component.containerData.includes('r:')) {
+                        configuredAppCustom.isRdata = true;
+                      }
                       configuredApps.push(configuredAppCustom);
                     }
 
@@ -379,6 +400,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           ips: appIps,
                           ...customConfigs[j],
                         };
+                        if (component.containerData.includes('r:')) {
+                          configuredAppCustom.isRdata = true;
+                        }
                         configuredApps.push(configuredAppCustom);
                       }
                     }
@@ -395,6 +419,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                           ips: appIps,
                           ...customConfigs[j],
                         };
+                        if (component.containerData.includes('r:')) {
+                          configuredAppCustom.isRdata = true;
+                        }
                         configuredApps.push(configuredAppCustom);
                       }
                     }
@@ -417,6 +444,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                   ips: appIps,
                   ...customConfigs[customConfigs.length - 1],
                 };
+                if (app.compose[q].containerData.includes('r:')) {
+                  mainApp.isRdata = true;
+                }
                 configuredApps.push(mainApp);
               }
             }

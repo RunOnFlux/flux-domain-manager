@@ -6,6 +6,8 @@ const log = require('../lib/log');
 const { cmdAsync, TEMP_HAPROXY_CONFIG, HAPROXY_CONFIG } = require('./constants');
 const { matchRule } = require('./serviceHelper');
 
+const mapOfNamesIps = {};
+
 const haproxyPrefix = `
 global
   maxconn 50000
@@ -218,6 +220,20 @@ backend ${domainUsed}backend
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
     } else {
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}${cookieConfig}`;
+    }
+    if (app.isRdata) {
+      if (mapOfNamesIps[app.name] && app.ips.includse(mapOfNamesIps[app.name])) { // use this ip as a main
+        if (mapOfNamesIps[app.name] === ip) {
+          // for the main IP use
+          domainBackend += ' inter 10s fall 3 rise 99999999';
+        } else {
+          // for other IP configure them as backup
+          domainBackend += ' backup';
+        }
+      } else { // set new IP as main
+        mapOfNamesIps[app.name] = ip;
+        domainBackend += ' inter 10s fall 3 rise 99999999';
+      }
     }
     if (app.timeout) {
       domainBackend += `\n  timeout server ${app.timeout}`;

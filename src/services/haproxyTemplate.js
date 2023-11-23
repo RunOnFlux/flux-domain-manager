@@ -222,7 +222,7 @@ backend ${domainUsed}backend
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig}${cookieConfig}`;
     }
     if (app.isRdata) {
-      if (mapOfNamesIps[app.name] && app.ips.includse(mapOfNamesIps[app.name])) { // use this ip as a main
+      if (mapOfNamesIps[app.name] && app.ips.includes(mapOfNamesIps[app.name])) { // use this ip as a main
         if (mapOfNamesIps[app.name] === ip) {
           // for the main IP use
           domainBackend += ' inter 10s fall 3 rise 99999999';

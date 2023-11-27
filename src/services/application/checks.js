@@ -505,7 +505,7 @@ async function checkBlockBook(ip, port, appsname) {
           }
         }
       } else if (response2.data.txs > 50 && response2.data.totalPages > response2.data.page) {
-        if (response2.data.txids.length === 50) {
+        if (response2.data.txids.length >= 50) {
           if (timeDifference < 1000 * 60 * 60 * 6) { // 6 hours
             return true;
           }

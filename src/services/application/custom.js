@@ -15,11 +15,11 @@ function getCustomConfigs(specifications) {
     defaultConfig.headers = ['http-request add-header X-Forwarded-Proto https'];
     defaultConfig.healthcheck = ['option httpchk', 'http-check send meth GET uri /'];
   }
-  
+
   if (specifications.name.toLowerCase().includes('bittensorfn')) {
-    defaultConfig.mode = 'tcp'
+    defaultConfig.mode = 'tcp';
   }
-  
+
   const customConfigs = {
     '31350.kmdsapactapi.kmdsapactapi': {
       ssl: true,
@@ -76,6 +76,15 @@ function getCustomConfigs(specifications) {
       mode: 'tcp',
     },
     '38332.btcnodesignet.bitcoinnodesignet': {
+      mode: 'tcp',
+    },
+    '992.vpn.openvpn': {
+      mode: 'tcp',
+    },
+    '5555.vpn.openvpn': {
+      mode: 'tcp',
+    },
+    '1701.vpn.openvpn': {
       mode: 'tcp',
     },
   };

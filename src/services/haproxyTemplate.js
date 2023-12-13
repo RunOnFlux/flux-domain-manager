@@ -181,6 +181,20 @@ ${forbiddenBackend}
   return config;
 }
 
+function selectIPforR(ips) {
+  // choose the ip address whose sum of digits is the lowest
+  let chosenIp = ips[0];
+  let chosenIpSum = ips[0].split(':')[0].split('.').reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
+  for (const ip of ips) {
+    const sum = ip.split(':')[0].split('.').reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
+    if (sum < chosenIpSum) {
+      chosenIp = ip;
+      chosenIpSum = sum;
+    }
+  }
+  return chosenIp;
+}
+
 function generateDomainBackend(app, mode) {
   let domainUsed = app.domain.split('.').join('');
   if (mode === 'tcp') {
@@ -231,7 +245,7 @@ backend ${domainUsed}backend
           domainBackend += ' backup';
         }
       } else { // set new IP as main
-        mapOfNamesIps[app.name] = ip;
+        mapOfNamesIps[app.name] = selectIPforR(app.ips);
         domainBackend += ' inter 10s fall 3 rise 99999999';
       }
     }

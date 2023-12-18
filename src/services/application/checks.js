@@ -641,8 +641,7 @@ async function checkApplication(app, ip) {
     isOK = await checkBlockBook(ip.split(':')[0], app.compose[0].ports[0], app.name);
   } else if (app.name.startsWith('AlgorandRPC')) {
     isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[1]);
-  } else if (app.name.startsWith('Minecraft') || app.name.startsWith('minecraft') || app.name === 'mcf') {
-    console.log('here');
+  } else if (app.name.toLowerCase().includes('minecraft') || app.name === 'mcf') {
     isOK = await checkMinecraft(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
   } else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));

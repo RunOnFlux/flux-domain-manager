@@ -246,7 +246,11 @@ backend ${domainUsed}backend
         }
       } else { // set new IP as main
         mapOfNamesIps[app.name] = selectIPforR(app.ips);
-        domainBackend += ' inter 10s fall 3 rise 99999999';
+        if (mapOfNamesIps[app.name] === ip) {
+          domainBackend += ' inter 10s fall 3 rise 99999999';
+        } else {
+          domainBackend += ' backup';
+        }
       }
     }
     if (app.timeout) {

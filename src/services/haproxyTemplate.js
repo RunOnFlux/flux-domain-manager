@@ -66,7 +66,21 @@ frontend wwwhttps
   # The SSL CRT file is a combination of the public certificate and the private key
 `;
 
-const certificatePrefix = '  bind :31350,:31351,:443 ssl ';
+const p2pprefix = `
+frontend p2papi
+  mode http
+  bind :31350
+  default_backend akadenachainwebnodeapprunonfluxiobackend
+`;
+
+const servicePrefix = `
+frontend serviceApi
+  mode http
+  bind :31351
+  default_backend bkadenachainwebnodeapprunonfluxiobackend
+`;
+
+const certificatePrefix = '  bind :443 ssl ';
 
 const certificatesSuffix = 'ciphers kEECDH+aRSA+AES:kRSA+AES:+AES256:RC4-SHA:!kEDH:!LOW:!EXP:!MD5:!aNULL:!eNULL no-sslv3';
 
@@ -87,7 +101,7 @@ function createCertificatesPaths(domains) {
 }
 
 function generateHaproxyConfig(acls, usebackends, domains, backends, redirects) {
-  const config = `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}`;
+  const config = `${haproxyPrefix}\n\n${acls}\n${usebackends}\n${redirects}\n${p2pprefix}\n${servicePrefix}\n\n${httpsPrefix}${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix}\n\n${acls}\n${usebackends}\n${redirects}\n\n${backends}\n${letsEncryptBackend}`;
   return config;
 }
 

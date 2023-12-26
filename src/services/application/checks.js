@@ -496,7 +496,7 @@ async function checkBlockBook(ip, port, appsname) {
     const response1 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api`, 5000);
     const response2 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, 5000);
     const currentTime = new Date().getTime();
-    if (response2.data.txids.length > 0 && response1.data.blockbook.bestHeight > (response1.data.backend.blocks - 100) && response1.data.blockbook.bestHeight > heightList[index] && response1.data.backend.blocks > heightList[index]) {
+    if (response2.data.txids.length > 0 && response1.data.blockbook.bestHeight > (response1.data.backend.blocks - 100) && response1.data.blockbook.bestHeight > heightList[index] && response1.data.backend.blocks > heightList[index] && !response1.data.inSync) {
       const lastBlockTmstp = new Date(response1.data.blockbook.lastBlockTime).getTime();
       const timeDifference = currentTime - lastBlockTmstp;
       if (response2.data.txs <= 50 && response2.data.txids.length === response2.data.txs) {

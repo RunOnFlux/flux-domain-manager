@@ -12,6 +12,7 @@ const { getCustomConfigs } = require('./application/custom');
 const { getApplicationsToProcess } = require('./application/subset');
 const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
+const { matchRule } = require('./serviceHelper');
 
 let myIP = null;
 let myFDMnameORip = null;
@@ -181,6 +182,28 @@ function filterMandatoryApps(apps) {
   return appsInBucket;
 }
 
+async function selectIPforMinecraft(ips, app) {
+  // choose the ip address whose sum of digits is the lowest
+  let chosenIp = ips[0];
+  let chosenIpSum = ips[0].split(':')[0].split('.').reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
+  for (const ip of ips) {
+    const sum = ip.split(':')[0].split('.').reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
+    if (sum < chosenIpSum) {
+      chosenIp = ip;
+      chosenIpSum = sum;
+    }
+  }
+  const isOk = await applicationChecks.checkApplication(app, chosenIp);
+  if (isOk) {
+    return chosenIp;
+  }
+  const newIps = ips.filter((ip) => ip !== chosenIp);
+  if (newIps.length) {
+    return selectIPforMinecraft(newIps, app);
+  }
+  return null;
+}
+
 // periodically keeps HAproxy ans certificates updated every 4 minutes
 async function generateAndReplaceMainApplicationHaproxyConfig() {
   try {
@@ -226,11 +249,21 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       const appLocations = await fluxService.getApplicationLocation(app.name);
       if (appLocations.length > 0) {
         const appIps = [];
-        for (const location of appLocations) { // run coded checks for app
+        // hard code fix for minecraft
+        // if its minecraft, do check only on the main app, if ok continue
+        if (matchRule(app.name.toLowerCase(), config.minecraftApps)) {
           // eslint-disable-next-line no-await-in-loop
-          const isOk = await applicationChecks.checkApplication(app, location.ip);
-          if (isOk && location.ip !== '144.76.73.6') { // hard fix
-            appIps.push(location.ip);
+          const selectedIP = await selectIPforMinecraft(appLocations, app);
+          if (selectedIP) { // hard fix
+            appIps.push(selectedIP);
+          }
+        } else {
+          for (const location of appLocations) { // run coded checks for app
+            // eslint-disable-next-line no-await-in-loop
+            const isOk = await applicationChecks.checkApplication(app, location.ip);
+            if (isOk && location.ip !== '144.76.73.6') { // hard fix
+              appIps.push(location.ip);
+            }
           }
         }
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {

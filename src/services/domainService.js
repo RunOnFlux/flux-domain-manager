@@ -185,27 +185,29 @@ function filterMandatoryApps(apps) {
 
 async function selectIPforMinecraft(ips, app) {
   // choose the ip address whose sum of digits is the lowest
-  let chosenIp = ips[0];
-  let chosenIpSum = ips[0].split(':')[0].split('.').reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
-  for (const ip of ips) {
-    const sum = ip.split(':')[0].split('.').reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
-    if (sum < chosenIpSum) {
-      chosenIp = ip;
-      chosenIpSum = sum;
+  if (ips && ips.length) {
+    let chosenIp = ips[0];
+    let chosenIpSum = ips[0].split(':')[0].split('.').reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
+    for (const ip of ips) {
+      const sum = ip.split(':')[0].split('.').reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
+      if (sum < chosenIpSum) {
+        chosenIp = ip;
+        chosenIpSum = sum;
+      }
     }
-  }
-  if (ips.includes(mapOfNamesIps[app.name])) {
-    chosenIp = mapOfNamesIps[app.name];
-  } else {
-    mapOfNamesIps[app.name] = chosenIp;
-  }
-  const isOk = await applicationChecks.checkApplication(app, chosenIp);
-  if (isOk) {
-    return chosenIp;
-  }
-  const newIps = ips.filter((ip) => ip !== chosenIp);
-  if (newIps.length) {
-    return selectIPforMinecraft(newIps, app);
+    if (ips.includes(mapOfNamesIps[app.name])) {
+      chosenIp = mapOfNamesIps[app.name];
+    } else {
+      mapOfNamesIps[app.name] = chosenIp;
+    }
+    const isOk = await applicationChecks.checkApplication(app, chosenIp);
+    if (isOk) {
+      return chosenIp;
+    }
+    const newIps = ips.filter((ip) => ip !== chosenIp);
+    if (newIps.length) {
+      return selectIPforMinecraft(newIps, app);
+    }
   }
   return null;
 }
@@ -258,8 +260,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         // hard code fix for minecraft
         // if its minecraft, do check only on the main app, if ok continue
         if (matchRule(app.name.toLowerCase(), config.minecraftApps)) {
+          const locationIps = [];
+          for (const location of appLocations) {
+            locationIps.push(location.ip);
+          }
           // eslint-disable-next-line no-await-in-loop
-          const selectedIP = await selectIPforMinecraft(appLocations, app);
+          const selectedIP = await selectIPforMinecraft(locationIps, app);
           if (selectedIP) { // hard fix
             appIps.push(selectedIP);
           }

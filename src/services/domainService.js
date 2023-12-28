@@ -19,6 +19,7 @@ let myFDMnameORip = null;
 let permanentMessages = null;
 let globalAppSpecs = null;
 const unifiedAppsDomains = [];
+const mapOfNamesIps = {};
 
 async function getPermanentMessages() {
   try {
@@ -192,6 +193,11 @@ async function selectIPforMinecraft(ips, app) {
       chosenIp = ip;
       chosenIpSum = sum;
     }
+  }
+  if (ips.includes(mapOfNamesIps[app.name])) {
+    chosenIp = mapOfNamesIps[app.name];
+  } else {
+    mapOfNamesIps[app.name] = chosenIp;
   }
   const isOk = await applicationChecks.checkApplication(app, chosenIp);
   if (isOk) {

@@ -87,7 +87,7 @@ function getCustomConfigs(specifications) {
     '1701.vpn.openvpn': {
       mode: 'tcp',
     },
-    '37150.node.HavenNodeMainnet': {
+    '31750.node.HavenNodeMainnet': {
       ssl: true,
     },
   };

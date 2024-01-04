@@ -434,7 +434,8 @@ async function writeConfig(configName, data) {
 
 async function checkConfig(configName) {
   const response = await cmdAsync(`sudo haproxy -f ${configName} -c`);
-  return response.includes('Configuration file is valid');
+  const configOK = (response.includes('Configuration file is valid') || response.includes('Warnings were found.'));
+  return configOK;
 }
 
 async function restartProxy(dataToWrite) {

@@ -12,7 +12,6 @@ const { getCustomConfigs } = require('./application/custom');
 const { getApplicationsToProcess } = require('./application/subset');
 const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
-const { matchRule } = require('./serviceHelper');
 
 let myIP = null;
 let myFDMnameORip = null;
@@ -183,7 +182,7 @@ function filterMandatoryApps(apps) {
   return appsInBucket;
 }
 
-async function selectIPforMinecraft(ips, app) {
+async function selectIPforG(ips, app) {
   // choose the ip address whose sum of digits is the lowest
   if (ips && ips.length) {
     let chosenIp = ips[0];
@@ -206,7 +205,7 @@ async function selectIPforMinecraft(ips, app) {
     }
     const newIps = ips.filter((ip) => ip !== chosenIp);
     if (newIps.length) {
-      return selectIPforMinecraft(newIps, app);
+      return selectIPforG(newIps, app);
     }
   }
   return null;
@@ -257,23 +256,34 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       const appLocations = await fluxService.getApplicationLocation(app.name);
       if (appLocations.length > 0) {
         const appIps = [];
-        // hard code fix for minecraft
-        // if its minecraft, do check only on the main app, if ok continue
-        if (matchRule(app.name.toLowerCase(), config.minecraftApps)) {
+        let isG = false;
+        if (app.version <= 3) {
+          if (app.containerData.includes('g:')) {
+            isG = true;
+          }
+        } else {
+          for (const component of app.compose) {
+            if (component.containerData.includes('g:')) {
+              isG = true;
+            }
+          }
+        }
+        // if its G data application, use just one IP
+        if (isG) {
           const locationIps = [];
           for (const location of appLocations) {
             locationIps.push(location.ip);
           }
           // eslint-disable-next-line no-await-in-loop
-          const selectedIP = await selectIPforMinecraft(locationIps, app);
-          if (selectedIP) { // hard fix
+          const selectedIP = await selectIPforG(locationIps, app);
+          if (selectedIP) {
             appIps.push(selectedIP);
           }
         } else {
           for (const location of appLocations) { // run coded checks for app
             // eslint-disable-next-line no-await-in-loop
             const isOk = await applicationChecks.checkApplication(app, location.ip);
-            if (isOk && location.ip !== '144.76.73.6') { // hard fix
+            if (isOk) {
               appIps.push(location.ip);
             }
           }

@@ -8,6 +8,8 @@ const { matchRule } = require('./serviceHelper');
 
 const mapOfNamesIps = {};
 
+let lastHaproxyConfig;
+
 const haproxyPrefix = `
 global
   maxconn 50000
@@ -444,6 +446,11 @@ async function restartProxy(dataToWrite) {
   if (!isConfigOk) {
     return false;
   }
+  if (lastHaproxyConfig === dataToWrite) {
+    log.info('Haproxy config is the same as last time. Not restarting.');
+    return true;
+  }
+  lastHaproxyConfig = dataToWrite;
   await writeConfig(HAPROXY_CONFIG, dataToWrite);
   const execHAreload = 'sudo service haproxy reload';
   await cmdAsync(execHAreload);

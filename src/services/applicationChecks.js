@@ -280,9 +280,6 @@ async function checkKadenaApplication(ip) {
 // KADENA CHAINWEB DATA
 async function kadenaRecentTxs(ip) {
   try {
-    const agent = new https.Agent({
-      rejectUnauthorized: false,
-    });
     const { CancelToken } = axios;
     const source = CancelToken.source();
     let isResolved = false;
@@ -291,7 +288,7 @@ async function kadenaRecentTxs(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, timeout * 2);
-    const kadenaData = await axios.get(`http://${ip}:31352/txs/recent`, { httpsAgent: agent, timeout, cancelToken: source.token });
+    const kadenaData = await axios.get(`http://${ip}:31352/txs/recent`, { timeout, cancelToken: source.token });
     isResolved = true;
     return kadenaData.data;
   } catch (e) {
@@ -310,7 +307,7 @@ async function kadenaSearchTxs(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, 12000 * 2);
-    const kadenaData = await axios.get(`http://${ip}:31352/txs/accounts/fluxswap`, { timeout: 11000, cancelToken: source.token });
+    const kadenaData = await axios.get(`http://${ip}:31352/txs/account/fluxswap`, { timeout: 11000, cancelToken: source.token });
     isResolved = true;
     return kadenaData.data;
   } catch (e) {

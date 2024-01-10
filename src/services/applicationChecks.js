@@ -310,7 +310,7 @@ async function kadenaSearchTxs(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, 12000 * 2);
-    const kadenaData = await axios.get(`http://${ip}:31352/txs/search?search=2a3c8b18323ef7be8e28ec585d065a47925202330036a17867d85528f6720a05&offset=0&limit=100`, { timeout: 11000, cancelToken: source.token });
+    const kadenaData = await axios.get(`http://${ip}:31352/txs/accounts/fluxswap`, { timeout: 11000, cancelToken: source.token });
     isResolved = true;
     return kadenaData.data;
   } catch (e) {
@@ -328,7 +328,9 @@ async function checkKadenaDataApplication(ip) {
     const diffTen = 10 * 24 * 60 * 60 * 1000;
     if (currentTime - diffTen < lastTimeTx) {
       const searchTxsAcc = await kadenaSearchTxs(ip);
-      if (searchTxsAcc.length === 100) {
+      const lastTxB = new Date(searchTxsAcc[0].blockTime);
+      const lastTimeTxB = lastTxB.getTime();
+      if (currentTime - diffTen < lastTimeTxB) {
         return true;
       }
       return false;

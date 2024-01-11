@@ -62,7 +62,7 @@ async function isHomeOK(ip, port) {
   try {
     const url = `http://${ip}:${port}`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
-    if (response.data.startsWith('<!DOCTYPE html><html')) {
+    if (response.data.toLowerCase().startsWith('<!doctype html><html')) {
       return true;
     }
     return false;
@@ -126,7 +126,7 @@ async function hasManyMessages(ip, port) {
     const url = `http://${ip}:${port}/apps/hashes`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const appsAmount = response.data.data.length;
-    if (appsAmount > 25500) {
+    if (appsAmount > 29000) {
       const messageFalse = response.data.data.filter((a) => a.message === false);
       if (messageFalse.length < 80) {
         return true;

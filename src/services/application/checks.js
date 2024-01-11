@@ -106,7 +106,7 @@ async function hasManyApps(ip, port) {
     const url = `http://${ip}:${port}/apps/globalappsspecifications`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const appsAmount = response.data.data.length;
-    if (appsAmount > 1500) { // we surely have at least 1500 apps on network
+    if (appsAmount > 1000) { // we surely have at least 1000 apps on network
       // eslint-disable-next-line no-restricted-syntax
       for (const app of config.mandatoryApps) {
         const appExists = response.data.data.find((a) => a.name === app);

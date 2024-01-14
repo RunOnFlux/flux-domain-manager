@@ -616,6 +616,7 @@ async function checkMinecraft(ip, port) {
       type: 'minecraft',
       host: ip,
       port,
+      attemptTimeout: 5000,
     });
     return true;
   } catch (error) {

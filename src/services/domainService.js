@@ -213,7 +213,7 @@ async function selectIPforG(ips, app) {
 }
 
 // periodically keeps HAproxy ans certificates updated every 4 minutes
-async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false) {
+async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, timeout = 30) {
   try {
     if (isGmode) {
       if (!recentlyConfiguredApps) {
@@ -601,12 +601,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false) {
     }
     setTimeout(() => {
       generateAndReplaceMainApplicationHaproxyConfig(isGmode);
-    }, 30 * 1000);
+    }, timeout * 1000);
   } catch (error) {
     log.error(error);
     setTimeout(() => {
       generateAndReplaceMainApplicationHaproxyConfig(isGmode);
-    }, 30 * 1000);
+    }, timeout * 1000);
   }
 }
 
@@ -666,9 +666,9 @@ function initializeServices() {
       log.info('Flux Main Node Domain Service initiated.');
     } else if (config.mainDomain === config.cloudflare.domain && config.cloudflare.manageapp) {
       // only runs on main FDM handles X.APP.runonflux.io
-      generateAndReplaceMainApplicationHaproxyConfig();
+      generateAndReplaceMainApplicationHaproxyConfig(24 * 60 * 60); // intentionally slow down for test
       setTimeout(() => {
-        generateAndReplaceMainApplicationHaproxyConfig(true);
+        generateAndReplaceMainApplicationHaproxyConfig(true, 5);
       }, 5 * 60 * 1000);
       log.info('Flux Main Application Domain Service initiated.');
     } else if (config.mainDomain === config.pDNS.domain && config.pDNS.manageapp) {

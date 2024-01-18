@@ -139,7 +139,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
     // kadena apps on network
     const kdaNodeApplications = ['Kadena', 'Kadena2', 'Kadena3'];
     const kdaDataApplications = ['KadenaData', 'KadenaData2'];
-    let appLocationsNode = [];
+    let appLocationsNode = [{ ip: '54.39.237.205' }, { ip: '54.39.237.206' }, { ip: '54.39.237.207' }]; // zelcore nodes
     for (const app of kdaNodeApplications) {
       // eslint-disable-next-line no-await-in-loop
       const appLocationsNodeApp = await getApplicationLocation(app);
@@ -148,7 +148,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
     if (!appLocationsNode.length) {
       throw new Error('Kadena Node is not running properly. PANIC');
     }
-    let appLocationsData = [];
+    let appLocationsData = [{ ip: '54.39.237.205' }, { ip: '54.39.237.206' }, { ip: '54.39.237.207' }]; // zelcore nodes
     for (const app of kdaDataApplications) {
       // eslint-disable-next-line no-await-in-loop
       const appLocationsDataApp = await getApplicationLocation(app);

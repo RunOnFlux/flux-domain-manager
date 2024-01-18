@@ -316,6 +316,25 @@ async function kadenaSearchTxs(ip) {
   }
 }
 
+async function kadenaSearchTxsB(ip) {
+  try {
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, 12000 * 2);
+    const kadenaData = await axios.get(`http://${ip}:31352/txs/account/fluxteam?limit=200000&token=coin`, { timeout: 11000, cancelToken: source.token });
+    isResolved = true;
+    return kadenaData.data;
+  } catch (e) {
+    // log.error(e);
+    return [];
+  }
+}
+
 async function checkKadenaDataApplication(ip) {
   try {
     const currentTime = new Date().getTime();
@@ -324,6 +343,10 @@ async function checkKadenaDataApplication(ip) {
     const lastTimeTx = lastTx.getTime();
     const diffTen = 10 * 24 * 60 * 60 * 1000;
     if (currentTime - diffTen < lastTimeTx) {
+      const searchTxsB = await kadenaSearchTxsB(ip);
+      if (searchTxsB.length < 229) {
+        return false;
+      }
       const searchTxsAcc = await kadenaSearchTxs(ip);
       const lastTxB = new Date(searchTxsAcc[0].blockTime);
       const lastTimeTxB = lastTxB.getTime();

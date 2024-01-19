@@ -154,7 +154,10 @@ function createKadenaHaproxyConfig(appConfig) {
   hash-type consistent
   stick-table type ip size 1m expire 1h
   stick on src
-  server kdatxs 127.0.0.1:9876 check`;
+  server kdatxs 127.0.0.1:9876 check
+  server kdatxs1 54.39.237.205:9876 check
+  server kdatxs2 54.39.237.206:9876 check
+  server kdatxs3 54.39.237.207:9876 check`;
   backends = `${backends + kdaTxsBackend}\n\n`;
 
   domains.push('kadena.dapp.runonflux.io');

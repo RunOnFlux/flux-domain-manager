@@ -7,7 +7,7 @@ const gamedig = require('gamedig');
 const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
 
-const timeout = 3456;
+const timeout = 5456;
 const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'web', 'eckodexswap', 'eckodexvault'];
 const ethersList = [
   {

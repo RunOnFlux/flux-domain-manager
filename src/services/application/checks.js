@@ -167,6 +167,7 @@ async function checkMainFlux(ip, port = 16127) {
     }
     return false;
   } catch (error) {
+    console.log(error);
     return false;
   }
 }

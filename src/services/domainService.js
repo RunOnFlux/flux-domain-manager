@@ -138,7 +138,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
   try {
     // kadena apps on network
     const kdaNodeApplications = ['Kadena', 'Kadena2', 'Kadena3'];
-    const kdaDataApplications = ['KadenaData', 'KadenaData2'];
+    const kdaDataApplications = ['KadenaData', 'KadenaData2', 'KadenaData3'];
     let appLocationsNode = [{ ip: '54.39.237.205' }, { ip: '54.39.237.206' }, { ip: '54.39.237.207' }]; // zelcore nodes
     for (const app of kdaNodeApplications) {
       // eslint-disable-next-line no-await-in-loop

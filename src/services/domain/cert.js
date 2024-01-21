@@ -12,6 +12,9 @@ const {
 
 async function checkCertificatePresetForDomain(domain) {
   try {
+    if (domain.endsWith(`${config.appSubDomain}.${config.mainDomain}`) || domain.endsWith('app.runonflux.io') || domain.endsWith('app2.runonflux.io')) {
+      return true;
+    }
     const path = `/etc/ssl/fluxapps/${domain}.pem`;
     const pathB = `/etc/letsencrypt/live/${domain}/fullchain.pem`;
     await fs.access(path); // only check if file exists. Does not check permissions

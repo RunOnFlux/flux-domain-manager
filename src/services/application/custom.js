@@ -90,6 +90,12 @@ function getCustomConfigs(specifications) {
     '31750.node.HavenNodeMainnet': {
       ssl: true,
     },
+    '27015.Palworld.Palworld': {
+      mode: 'tcp',
+    },
+    '8211.Palworld.Palworld': {
+      mode: 'tcp',
+    },
   };
 
   let mainPort = '';

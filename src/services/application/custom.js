@@ -1,5 +1,3 @@
-const log = require('../../lib/log');
-
 function getCustomConfigs(specifications) {
   const configs = [];
   const defaultConfig = {
@@ -19,9 +17,7 @@ function getCustomConfigs(specifications) {
   }
 
   if (specifications.name.toLowerCase().includes('bittensor')) {
-    log.info('bittensor app detected');
     defaultConfig.mode = 'tcp';
-    log.info(defaultConfig);
   }
 
   const customConfigs = {

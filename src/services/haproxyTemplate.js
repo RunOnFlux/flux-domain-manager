@@ -416,6 +416,8 @@ function createAppsHaproxyConfig(appConfig) {
           backends: [],
         };
       }
+
+      const tempMinecraftACLs = generateMinecraftACLs(app);
       const domainBackend = generateDomainBackend(app, 'tcp');
       if (!tcpAppsMap[port].usebackends.length) {
         tcpAppsMap[port].usebackends.push(`  default_backend ${domainUsed}_tcp_backend\n`);
@@ -423,6 +425,11 @@ function createAppsHaproxyConfig(appConfig) {
       if (!tcpAppsMap[port].backends.length) {
         tcpAppsMap[port].backends.push(domainBackend);
       }
+      tcpAppsMap[port].acls = tcpAppsMap[port].acls.concat(tempMinecraftACLs);
+      const aclName = app.domain.split('.').join('');
+      tcpAppsMap[port].acls.push(`  acl ${aclName} req.ssl_sni -i ${app.domain}`);
+      tcpAppsMap[port].usebackends.push(`  use_backend ${domainUsed}_tcp_backend if ${domainUsed}\n`);
+      tcpAppsMap[port].backends.push(domainBackend);
     }
   }
   const redirects = '';

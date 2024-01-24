@@ -429,7 +429,9 @@ function createAppsHaproxyConfig(appConfig) {
       const aclName = app.domain.split('.').join('');
       tcpAppsMap[port].acls.push(`  acl ${aclName} req.ssl_sni -i ${app.domain}`);
       tcpAppsMap[port].usebackends.push(`  use_backend ${domainUsed}_tcp_backend if ${domainUsed}\n`);
-      tcpAppsMap[port].backends.push(domainBackend);
+      if (!tcpAppsMap[port].backends.includes(domainBackend)) {
+        tcpAppsMap[port].backends.push(domainBackend);
+      }
     }
   }
   const redirects = '';

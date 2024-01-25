@@ -9,6 +9,7 @@ function getCustomConfigs(specifications) {
     serverConfig: '',
     enableH2: false,
     mode: 'http',
+    check: true,
   };
 
   if (specifications.name.toLowerCase().includes('wordpress')) {
@@ -18,6 +19,10 @@ function getCustomConfigs(specifications) {
 
   if (specifications.name.toLowerCase().includes('bittensor')) {
     defaultConfig.mode = 'tcp';
+  }
+  if (specifications.name.toLowerCase().includes('palworld')) {
+    defaultConfig.mode = 'tcp';
+    defaultConfig.check = false;
   }
 
   const customConfigs = {

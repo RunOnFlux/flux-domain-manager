@@ -231,11 +231,12 @@ backend ${domainUsed}backend
     }
     const apiPort = ip.split(':')[1] || 16127;
     const cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split(':')[0]}:${app.port}`;
+    const isCheck = app.check ? 'check ' : '';
     if (app.ssl) {
       const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
-      domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
+      domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
     } else {
-      domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} check ${app.serverConfig} ${cookieConfig}`;
+      domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} ${isCheck}${app.serverConfig} ${cookieConfig}`;
     }
     if (app.isRdata) {
       if (mapOfNamesIps[app.name] && app.ips.includes(mapOfNamesIps[app.name])) { // use this ip as a main

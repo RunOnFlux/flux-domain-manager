@@ -625,6 +625,20 @@ async function checkMinecraft(ip, port) {
   }
 }
 
+async function checkPalworld(ip, port) {
+  try {
+    const state = await gamedig.query({
+      type: 'palworld',
+      host: ip,
+      port,
+      attemptTimeout: 5000,
+    });
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
@@ -645,6 +659,8 @@ async function checkApplication(app, ip) {
     isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[1]);
   } else if (app.name.toLowerCase().includes('minecraft') || app.name === 'mcf') {
     isOK = await checkMinecraft(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
+  } else if (app.name.toLowerCase().includes('palworld')) {
+    isOK = await checkPalworld(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
   } else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
     if (matchIndex > -1) {

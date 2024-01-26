@@ -1,9 +1,10 @@
 /* eslint-disable no-unused-vars */
+const gamedig = import('gamedig');
+
 const axios = require('axios');
 const config = require('config');
 const https = require('https');
 const ethers = require('ethers');
-const gamedig = require('gamedig');
 const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
 
@@ -613,7 +614,8 @@ async function checkBitcoinNode(ip, port, name) {
 
 async function checkMinecraft(ip, port) {
   try {
-    const state = await gamedig.query({
+    const gg = await gamedig;
+    const state = await gg.GameDig.query({
       type: 'minecraft',
       host: ip,
       port,
@@ -627,7 +629,8 @@ async function checkMinecraft(ip, port) {
 
 async function checkPalworld(ip, port) {
   try {
-    const state = await gamedig.query({
+    const gg = await gamedig;
+    const state = await gg.GameDig.query({
       type: 'palworld',
       host: ip,
       port,

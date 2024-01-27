@@ -569,7 +569,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
     if (isGmode) {
       const updatingConfig = JSON.parse(JSON.stringify(recentlyConfiguredApps));
       // merge recentlyConfiguredApps with currently configuredApps
-      for (const app of updatingConfig) {
+      for (const app of configuredApps) {
         let appExists = recentlyConfiguredApps.find((a) => a.appName === app.appName);
         if (!appExists) {
           updatingConfig.push(app);

@@ -666,16 +666,16 @@ function initializeServices() {
       log.info('Flux Main Node Domain Service initiated.');
     } else if (config.mainDomain === config.cloudflare.domain && config.cloudflare.manageapp) {
       // only runs on main FDM handles X.APP.runonflux.io
-      generateAndReplaceMainApplicationHaproxyConfig();
+      generateAndReplaceMainApplicationHaproxyConfig(60 * 60 * 24);
       setTimeout(() => {
         generateAndReplaceMainApplicationHaproxyConfig(true, 5);
       }, 5 * 60 * 1000);
       log.info('Flux Main Application Domain Service initiated.');
     } else if (config.mainDomain === config.pDNS.domain && config.pDNS.manageapp) {
       // only runs on main FDM handles X.APP.runonflux.io
-      generateAndReplaceMainApplicationHaproxyConfig();
+      generateAndReplaceMainApplicationHaproxyConfig(60 * 60 * 24);
       setTimeout(() => {
-        generateAndReplaceMainApplicationHaproxyConfig(true);
+        generateAndReplaceMainApplicationHaproxyConfig(true, 5);
       }, 5 * 60 * 1000);
       log.info('Flux Main Application Domain Service initiated.');
     } else {

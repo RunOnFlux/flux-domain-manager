@@ -600,12 +600,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
       throw new Error('Invalid HAPROXY Config File!');
     }
     setTimeout(() => {
-      generateAndReplaceMainApplicationHaproxyConfig(isGmode);
+      generateAndReplaceMainApplicationHaproxyConfig(isGmode, timeout);
     }, timeout * 1000);
   } catch (error) {
     log.error(error);
     setTimeout(() => {
-      generateAndReplaceMainApplicationHaproxyConfig(isGmode);
+      generateAndReplaceMainApplicationHaproxyConfig(isGmode, timeout);
     }, timeout * 1000);
   }
 }

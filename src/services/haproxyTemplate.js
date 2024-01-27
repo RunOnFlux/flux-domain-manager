@@ -391,7 +391,9 @@ function createAppsHaproxyConfig(appConfig) {
       const domainBackend = generateDomainBackend(app, 'tcp');
       minecraftAppsMap[port].acls = minecraftAppsMap[port].acls.concat(tempMinecraftACLs);
       minecraftAppsMap[port].usebackends.push(`  use_backend ${domainUsed}_tcp_backend if ${domainUsed}\n`);
-      minecraftAppsMap[port].backends.push(domainBackend);
+      if (!minecraftAppsMap[port].backends.includes(domainBackend)) {
+        minecraftAppsMap[port].backends.push(domainBackend);
+      }
     } else {
       const domainUsed = app.domain.split('.').join('');
       if (usebackends.includes(`  use_backend ${domainUsed}backend if ${domainUsed}\n`)) {

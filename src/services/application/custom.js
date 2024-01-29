@@ -24,6 +24,10 @@ function getCustomConfigs(specifications) {
     defaultConfig.mode = 'tcp';
     defaultConfig.check = false;
   }
+  if (specifications.name.toLowerCase().includes('enshrouded')) {
+    defaultConfig.mode = 'tcp';
+    defaultConfig.check = false;
+  }
 
   const customConfigs = {
     '31350.kmdsapactapi.kmdsapactapi': {

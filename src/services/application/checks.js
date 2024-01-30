@@ -654,6 +654,7 @@ async function checkEnshrouded(ip, port) {
       host: ip,
       port,
       attemptTimeout: 5000,
+      socketTimeout: 5000,
       givenPortOnly: true,
       maxRetries: 3,
     });

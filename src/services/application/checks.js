@@ -77,7 +77,7 @@ async function isVersionOK(ip, port) {
     const url = `http://${ip}:${port}/flux/info`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.flux.version.replace(/\./g, '');
-    if (+version >= 4272) {
+    if (+version >= 4280) {
       if (response.data.data.flux.development === 'false' || !response.data.data.flux.development) {
         return true;
       }
@@ -620,7 +620,6 @@ async function checkMinecraft(ip, port) {
       host: ip,
       port,
       attemptTimeout: 5000,
-      givenPortOnly: true,
       maxRetries: 3
     });
     return true;
@@ -637,7 +636,6 @@ async function checkPalworld(ip, port) {
       host: ip,
       port,
       attemptTimeout: 5000,
-      givenPortOnly: true,
       maxRetries: 3
     });
     return true;

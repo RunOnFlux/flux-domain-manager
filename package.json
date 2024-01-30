@@ -33,7 +33,7 @@
     "cors": "^2.8.5",
     "ethers": "^5.7.2",
     "express": "^4.17.3",
-    "gamedig": "^5.0.0-beta.0",
+    "gamedig": "^5.0.0-beta.2",
     "ini": "^4.1.1",
     "mocha": "^9.2.2",
     "mongodb": "^4.4.1",

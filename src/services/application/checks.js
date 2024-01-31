@@ -660,6 +660,22 @@ async function checkEnshrouded(ip, port) {
   }
 }
 
+async function checkBittensor(ip, port) {
+  const url = `http://${ip}:${port}/`;
+  const data = {
+    id: 1,
+    jsonrpc: '2.0',
+    method: 'getinfo',
+    params: [],
+  };
+  try {
+    await axios.post(url, data, { timeout: 5000 });
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
@@ -684,6 +700,8 @@ async function checkApplication(app, ip) {
     isOK = await checkPalworld(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
   } else if (app.name.toLowerCase().includes('enshrouded')) {
     isOK = await checkEnshrouded(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
+  } else if (app.name.toLowerCase.includse('bittensor')) {
+    isOK = await checkBittensor(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
   } else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
     if (matchIndex > -1) {

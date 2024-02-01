@@ -700,7 +700,7 @@ async function checkApplication(app, ip) {
     isOK = await checkPalworld(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
   } else if (app.name.toLowerCase().includes('enshrouded')) {
     isOK = await checkEnshrouded(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
-  } else if (app.name.toLowerCase().includse('bittensor')) {
+  } else if (app.name.toLowerCase().includes('bittensor')) {
     isOK = await checkBittensor(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
   } else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));

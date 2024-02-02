@@ -696,7 +696,7 @@ async function checkApplication(app, ip) {
     isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[1]);
   } else if (app.name.toLowerCase().includes('minecraft') || app.name === 'mcf') {
     isOK = await checkMinecraft(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
-  } else if (app.name.toLowerCase().includes('palworld')) {
+  } else if (app.name.toLowerCase().includes('palworld') && !app.name.toLowerCase().includes('palworldoverview')) {
     isOK = await checkPalworld(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
   } else if (app.name.toLowerCase().includes('enshrouded')) {
     isOK = await checkEnshrouded(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);

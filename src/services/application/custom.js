@@ -20,7 +20,7 @@ function getCustomConfigs(specifications) {
   if (specifications.name.toLowerCase().includes('bittensor')) {
     defaultConfig.mode = 'tcp';
   }
-  if (specifications.name.toLowerCase().includes('palworld')) {
+  if (specifications.name.toLowerCase().includes('palworld') && !specifications.name.toLowerCase().includes('palworldoverview')) {
     defaultConfig.mode = 'tcp';
     defaultConfig.check = false;
   }

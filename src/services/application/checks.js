@@ -676,7 +676,22 @@ async function checkBittensor(ip, port) {
   }
 }
 
-async function checkApplication(app, ip) {
+async function checkAppRunning(url, appName) {
+  try {
+    const ip = url.split(':')[0];
+    const port = url.split(':')[1] || 16127;
+    const response = await axios.get(`http://${ip}:${port}/apps/listrunningapps`);
+    const appsRunning = response.data.data;
+    if (appsRunning.find((app) => app.Names[0].includes(appName))) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function checkApplication(app, ip, gSyncthing) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
     isOK = await generalWebsiteCheck(ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0], undefined, app.name);
@@ -702,6 +717,8 @@ async function checkApplication(app, ip) {
     isOK = await checkEnshrouded(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
   } else if (app.name.toLowerCase().includes('bittensor')) {
     isOK = await checkBittensor(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
+  } else if (gSyncthing) {
+    isOK = await checkAppRunning(ip, app.name);
   } else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
     if (matchIndex > -1) {

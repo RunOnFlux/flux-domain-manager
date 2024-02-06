@@ -200,7 +200,7 @@ async function selectIPforG(ips, app) {
     } else {
       mapOfNamesIps[app.name] = chosenIp;
     }
-    const isOk = await applicationChecks.checkApplication(app, chosenIp);
+    const isOk = await applicationChecks.checkApplication(app, chosenIp, true);
     if (isOk) {
       return chosenIp;
     }

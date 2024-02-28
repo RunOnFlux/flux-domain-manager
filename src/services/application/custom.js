@@ -105,6 +105,9 @@ function getCustomConfigs(specifications) {
     '8211.Palworld.Palworld': {
       mode: 'tcp',
     },
+    '35432.rakkupgbouncer.rakkupgbouncer': {
+      mode: 'tcp',
+    }
   };
 
   let mainPort = '';

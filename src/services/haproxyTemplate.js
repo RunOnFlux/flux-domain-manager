@@ -50,7 +50,7 @@ defaults
   errorfile 504 /etc/haproxy/errors/504.http
 
 frontend wwwhttp
-  bind *:80 proto h2
+  bind *:80
   option forwardfor except 127.0.0.0/8
   http-request add-header X-Forwarded-Proto http
   http-response add-header Access-Control-Expose-Headers '*'
@@ -307,7 +307,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
     //     IpString = `${IpString}00${a[i]}`;
     //   }
     // }
-    uiBackend += `\n  server ${ip.split(':')[0]}:${uiPort} ${ip.split(':')[0]}:${uiPort} check proto h2`;
+    uiBackend += `\n  server ${ip.split(':')[0]}:${uiPort} ${ip.split(':')[0]}:${uiPort} check`;
   }
   // console.log(uiBackend);
 
@@ -335,7 +335,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
     //     IpString = `${IpString}00${a[i]}`;
     //   }
     // }
-    apiBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${apiPort} check proto h2`;
+    apiBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${apiPort} check`;
   }
   // console.log(apiBackend);
 

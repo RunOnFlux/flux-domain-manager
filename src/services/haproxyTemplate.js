@@ -45,7 +45,7 @@ defaults
   errorfile 504 /etc/haproxy/errors/504.http
 
 frontend wwwhttp
-  bind *:80 proto h2
+  bind *:80
   option forwardfor except 127.0.0.0/8
   http-request add-header X-Forwarded-Proto http
   http-response add-header Access-Control-Expose-Headers '*'
@@ -120,7 +120,7 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
     http-response set-header FLUXNODE %s
     mode http
     balance source
-    server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${apiPort} proto h2\n\n`;
+    server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${apiPort}\n\n`;
 
     acls += `  acl ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}.node.${api}\n`;
 
@@ -134,7 +134,7 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
     http-response set-header FLUXNODE %s
     mode http
     balance source
-    server ${ip.split(':')[0]}:${uiPort} ${ip.split(':')[0]}:${uiPort} proto h2\n\n`;
+    server ${ip.split(':')[0]}:${uiPort} ${ip.split(':')[0]}:${uiPort}\n\n`;
 
     acls += `  acl ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort}.node.${ui}\n`;
 

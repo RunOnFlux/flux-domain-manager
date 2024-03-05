@@ -116,6 +116,10 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
 
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || 16127;
+    if (acls.includes(`  acl ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}.node.${api}\n`)) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     nodesBackends += `backend ${ip.split(':')[0]}:${apiPort}.node.${api}backend
     http-response set-header FLUXNODE %s
     mode http
@@ -130,6 +134,10 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || 16127;
     const uiPort = +apiPort - 1;
+    if (acls.includes(`  acl ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${uiPort}.node.${ui}\n`)) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     nodesBackends += `backend ${ip.split(':')[0]}:${uiPort}.node.${ui}backend
     http-response set-header FLUXNODE %s
     mode http

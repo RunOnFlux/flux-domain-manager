@@ -107,7 +107,7 @@ function getCustomConfigs(specifications) {
     },
     '35432.rakkupgbouncer.rakkupgbouncer': {
       mode: 'tcp',
-    }
+    },
   };
 
   let mainPort = '';

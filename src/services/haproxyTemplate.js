@@ -77,7 +77,7 @@ const certificatePrefix = '  bind *:443 ssl ';
 
 const certificatesSuffix = 'ciphers kEECDH+aRSA+AES:kRSA+AES:+AES256:RC4-SHA:!kEDH:!LOW:!EXP:!MD5:!aNULL:!eNULL no-sslv3';
 
-const h2Suffix = 'alpn h2,http/1.1';
+const h2Suffix = 'alpn http/1.1';
 
 const letsEncryptBackend = `backend letsencrypt-backend
   server letsencrypt 127.0.0.1:8787

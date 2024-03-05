@@ -120,7 +120,7 @@ function createNodesHaproxyConfig(ui, api, fluxIPs) {
     http-response set-header FLUXNODE %s
     mode http
     balance source
-    server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${apiPort + 1} ssl verify none\n\n`;
+    server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${+apiPort + 1} ssl verify none\n\n`;
 
     acls += `  acl ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort} hdr(host) ${ip.split(':')[0].replace(/\./g, '-')}-${apiPort}.node.${api}\n`;
 

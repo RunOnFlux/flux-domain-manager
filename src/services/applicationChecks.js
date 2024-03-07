@@ -188,8 +188,8 @@ function checkRosettaheightOK(height) {
 function kadenaCheckHeight(height, ip) {
   console.log(height);
   const currentTime = new Date().getTime();
-  const baseTime = 1705568722000;
-  const baseHeight = 88750921;
+  const baseTime = 1709791736000;
+  const baseHeight = 91563547;
   const timeDifference = currentTime - baseTime;
   const blocksPassedInDifference = (timeDifference / 30000) * 20; // 20 chains with blocktime 30 seconds
   const currentBlockEstimation = baseHeight + blocksPassedInDifference;

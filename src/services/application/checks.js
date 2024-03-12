@@ -72,12 +72,46 @@ async function isHomeOK(ip, port) {
   }
 }
 
+/**
+ * Check if semantic version is bigger or equal to minimum version
+ * @param {string} version Version to check
+ * @param {string} minimumVersion minimum version that version must meet
+ * @returns {boolean} True if version is equal or higher to minimum version otherwise false.
+ */
+function minVersionSatisfy(version, minimumVersion) {
+  const splittedVersion = version.split('.');
+  const major = Number(splittedVersion[0]);
+  const minor = Number(splittedVersion[1]);
+  const patch = Number(splittedVersion[2]);
+
+  const splittedVersionMinimum = minimumVersion.split('.');
+  const majorMinimum = Number(splittedVersionMinimum[0]);
+  const minorMinimum = Number(splittedVersionMinimum[1]);
+  const patchMinimum = Number(splittedVersionMinimum[2]);
+  if (major < majorMinimum) {
+    return false;
+  }
+  if (major > majorMinimum) {
+    return true;
+  }
+  if (minor < minorMinimum) {
+    return false;
+  }
+  if (minor > minorMinimum) {
+    return true;
+  }
+  if (patch < patchMinimum) {
+    return false;
+  }
+  return true;
+}
+
 async function isVersionOK(ip, port) {
   try {
     const url = `http://${ip}:${port}/flux/info`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.flux.version.replace(/\./g, '');
-    if (+version >= 4330) {
+    if (minVersionSatisfy(version, '5.0.0')) {
       if (response.data.data.flux.development === 'false' || !response.data.data.flux.development) {
         return true;
       }

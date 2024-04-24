@@ -1,0 +1,93 @@
+---
+- name: Deploy rsync user and setup ssh for FDM servers
+  hosts: "{{ 'app_fdm_servers' if DEPLOY_ENV == 'production' else 'app2_fdm_servers' }}"
+  become: yes
+
+  vars:
+    thirty_days_in_s: "{{ 86400 * 30 }}"
+    homedir: /home/rsync
+    keygen_cmd: /usr/bin/ssh-keygen -t ed25519 -N "" -C "{{ inventory_hostname }}" -f
+    current_keyfile: "{{ homedir }}/.ssh/id_ed25519"
+    next_keyfile: "{{ homedir }}/.ssh/id_ed25519_next"
+
+  tasks:
+    - name: Ensure group "ssl-cert" exists
+      ansible.builtin.group:
+        state: present
+        name: ssl-cert
+
+    # removed the key management here, if it gets deleted,
+    # this would recreate it, but it wouldn't propagate
+    - name: Ensure "rsync" user is present
+      ansible.builtin.user:
+        state: present
+        name: rsync
+        password: "!"
+        system: true
+        # generate_ssh_key: yes
+        # ssh_key_file: "{{ current_keyfile }}"
+        # ssh_key_type: ed25519
+        groups: ssl-cert
+        append: yes
+
+    - name: Get last modified time of id_ed25519_current
+      ansible.builtin.stat:
+        path: "{{ current_keyfile }}"
+      register: key_file
+
+    - name: Create keys
+      include_tasks: ./keys/create.yml
+      when: not key_file.stat.exists
+
+    - name: Rotate keys
+      include_tasks: ./keys/rotate.yml
+      when: >
+        key_file.stat.mtime is defined and
+        key_file.stat.mtime | int + thirty_days_in_s | int <
+        ansible_date_time.epoch | int
+
+- name: Store ssh server pubkeys of relevant hosts in known_hosts file
+  hosts: localhost
+  connection: local
+
+  vars:
+    ssh_known_hosts_command: "ssh-keyscan -t ed25519 -T 10"
+    fdm_server_group: "{{ 'app_fdm_servers' if DEPLOY_ENV == 'production' else 'app2_fdm_servers' }}"
+    fdm_servers: "{{ groups[fdm_server_group] | map('extract', hostvars, ['ansible_host']) }}"
+
+  tasks:
+    - name: Scan fdm_servers ssh public-key
+      ansible.builtin.shell: "{{ ssh_known_hosts_command }} {{ item }}"
+      with_items: "{{ fdm_servers }}"
+      register: ssh_known_host_data
+      changed_when: False
+
+    - set_fact:
+        known_hosts_file={{ ssh_known_host_data.results }}
+
+- name: Update known hosts for FDM servers
+  hosts: "{{ 'app_fdm_servers' if DEPLOY_ENV == 'production' else 'app2_fdm_servers' }}"
+  become: yes
+
+  vars:
+    homedir: /home/rsync
+    ssh_known_hosts_file: "{{ homedir }}/.ssh/known_hosts"
+
+  tasks:
+    - name: Ensure known_hosts exists and is owned by rsync
+      ansible.builtin.file:
+        name: "{{ ssh_known_hosts_file }}"
+        owner: rsync
+        group: rsync
+        state: touch
+        access_time: preserve
+        modification_time: preserve
+
+    - name: fdm_servers update known hosts
+      no_log: True
+      ansible.builtin.known_hosts:
+        name: "{{ item.item }}"
+        key: "{{ item.stdout }}"
+        path: "{{ ssh_known_hosts_file }}"
+      when: ansible_host != item.item
+      loop: "{{ hostvars['localhost']['known_hosts_file'] }}"

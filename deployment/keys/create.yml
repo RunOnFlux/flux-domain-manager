@@ -1,0 +1,37 @@
+---
+- name: Generate current ed25519 keypair
+  ansible.builtin.command: "{{ keygen_cmd }} {{ current_keyfile }}"
+
+- name: Ensure rsync ownership of keys
+  ansible.builtin.file:
+    name: "{{ homedir }}/.ssh"
+    state: directory
+    recurse: true
+    owner: rsync
+    group: rsync
+
+- name: "Fetch the content of {{ current_keyfile }}.pub"
+  shell: "cat {{ current_keyfile }}.pub"
+  register: ssh_key_content
+
+- name: "Remove any other authorized_keys for {{ inventory_hostname }}"
+  ansible.builtin.lineinfile:
+    path: "{{ homedir }}/.ssh/authorized_keys"
+    create: yes
+    state: absent
+    regexp: "^ssh-ed25519.*{{ inventory_hostname }}"
+  delegate_to: "{{ item }}"
+  when: inventory_hostname != item
+  loop: "{{ groups['app_fdm_servers' if DEPLOY_ENV == 'production' else 'app2_fdm_servers'] }}"
+
+- name: "Append {{ current_keyfile }}.pub to authorized_keys on remote hosts"
+  ansible.builtin.lineinfile:
+    path: "{{ homedir }}/.ssh/authorized_keys"
+    line: "{{ ssh_key_content.stdout }}"
+    create: yes
+    state: present
+    owner: rsync
+    group: rsync
+  delegate_to: "{{ item }}"
+  when: inventory_hostname != item
+  loop: "{{ groups['app_fdm_servers' if DEPLOY_ENV == 'production' else 'app2_fdm_servers'] }}"

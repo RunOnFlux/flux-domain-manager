@@ -1,0 +1,67 @@
+---
+- name: Generate next ed25519 keypair
+  ansible.builtin.command: "{{ keygen_cmd }} {{ next_keyfile }}"
+
+- name: "Fetch the content of {{ current_keyfile }}.pub"
+  shell: "cat {{ current_keyfile }}.pub"
+  register: ssh_current_key_content
+
+- name: "Fetch the content of {{ next_keyfile }}.pub"
+  shell: "cat {{ next_keyfile }}.pub"
+  register: ssh_next_key_content
+
+- name: "Append {{ next_keyfile }}.pub to authorized_keys on remote hosts"
+  ansible.builtin.lineinfile:
+    path: "{{ homedir }}/.ssh/authorized_keys"
+    line: "{{ ssh_next_key_content.stdout }}"
+    create: yes
+    state: present
+    owner: rsync
+    group: rsync
+  delegate_to: "{{ item }}"
+  when: inventory_hostname != item
+  loop: "{{ groups['app_fdm_servers' if DEPLOY_ENV == 'production' else 'app2_fdm_servers'] }}"
+
+- name: Ensure rsync ownership of keys
+  ansible.builtin.file:
+    name: "{{ homedir }}/.ssh"
+    state: directory
+    recurse: true
+    owner: rsync
+    group: rsync
+
+- name: "Copy {{ next_keyfile }} to current"
+  ansible.builtin.copy:
+    remote_src: true
+    src: "{{ next_keyfile }}"
+    dest: "{{ current_keyfile }}"
+    force: true
+
+- name: "Copy {{ next_keyfile }}.pub to current"
+  ansible.builtin.copy:
+    remote_src: true
+    src: "{{ next_keyfile }}.pub"
+    dest: "{{ current_keyfile }}.pub"
+    force: true
+
+- name: "Remove {{ next_keyfile }}"
+  ansible.builtin.file:
+    name: "{{ next_keyfile }}"
+    state: absent
+
+- name: "Remove {{ next_keyfile }}.pub"
+  ansible.builtin.file:
+    name: "{{ next_keyfile }}.pub"
+    state: absent
+
+- name: "Remove {{ current_keyfile }}.pub from authorized_keys on remote hosts"
+  ansible.builtin.lineinfile:
+    path: "{{ homedir }}/.ssh/authorized_keys"
+    line: "{{ ssh_current_key_content.stdout }}"
+    create: yes
+    state: absent
+    owner: rsync
+    group: rsync
+  delegate_to: "{{ item }}"
+  when: inventory_hostname != item
+  loop: "{{ groups['app_fdm_servers' if DEPLOY_ENV == 'production' else 'app2_fdm_servers'] }}"

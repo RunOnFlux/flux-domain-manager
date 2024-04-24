@@ -16,7 +16,7 @@
         repo: "deb [signed-by=/etc/apt/keyrings/mongo.asc] https://repo.mongodb.org/apt/ubuntu {{ ansible_distribution_release }}/mongodb-org/6.0 multiverse"
         state: present
         filename: mongodb-org-6.0
-    
+
     - name: Update apt package list
       ansible.builtin.apt:
         update_cache: yes
@@ -35,7 +35,13 @@
           - build-essential
           - libssl-dev
           - curl
+          - python3-pip
         state: present
+
+    - name: Install jc via python
+      ansible.builtin.pip:
+        name: jc
+        version: 1.25.2
 
     - name: Install Node.js 18.x repository
       shell: "curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -"
@@ -48,13 +54,13 @@
 
     - name: Install PM2 globally using NPM
       command: npm install -g pm2
-      
+
     - name: Enable and start MongoDB service
       ansible.builtin.systemd:
         name: mongod
         state: started
         enabled: yes
-      
+
     - name: Ensure directory exists
       ansible.builtin.file:
         path: /etc/ssl/fluxapps
@@ -70,7 +76,7 @@
         owner: root
         group: root
         mode: '0775'
-  
+
     - name: Copy new certbot-cron
       ansible.builtin.copy:
         src: certbot-cron
@@ -78,7 +84,7 @@
         owner: root
         group: root
         mode: '0644'
-    
+
     - name: Clone FDM
       ansible.builtin.git:
         repo: https://github.com/RunOnFlux/flux-domain-manager.git
@@ -125,7 +131,7 @@
       command: npm install
       args:
         chdir: flux-domain-manager
-    
+
     - name: Install Dependencies CDM
       command: npm install
       args:

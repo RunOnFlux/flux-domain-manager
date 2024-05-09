@@ -304,6 +304,14 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
         appLocations.push({ ip: '54.39.237.198' });
         appLocations.push({ ip: '54.39.237.199' });
       }
+      if (app.name === 'blockbookzcash') {
+        appLocations.push({ ip: '66.70.144.175' });
+        appLocations.push({ ip: '66.70.144.176' });
+      }
+      if (app.name === 'blockbookbitcoincash') {
+        appLocations.push({ ip: '167.114.217.137' });
+        appLocations.push({ ip: '167.114.217.138' });
+      }
       if (appLocations.length > 0) {
         const appIps = [];
         let isG = false;

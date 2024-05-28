@@ -111,7 +111,7 @@ async function isVersionOK(ip, port) {
     const url = `http://${ip}:${port}/flux/info`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.flux.version;
-    if (minVersionSatisfy(version, '5.9.0')) {
+    if (minVersionSatisfy(version, '5.10.0')) {
       if (response.data.data.flux.development === 'false' || !response.data.data.flux.development) {
         return true;
       }

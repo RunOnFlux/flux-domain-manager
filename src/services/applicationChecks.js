@@ -307,7 +307,7 @@ async function kadenaSearchTxs(ip) {
         source.cancel('Operation canceled by the user.');
       }
     }, 12000 * 2);
-    const kadenaData = await axios.get(`http://${ip}:31352/txs/account/fluxswap`, { timeout: 11000, cancelToken: source.token });
+    const kadenaData = await axios.get(`http://${ip}:31352/txs/account/fluxswap?token=runonflux.flux`, { timeout: 11000, cancelToken: source.token });
     isResolved = true;
     return kadenaData.data;
   } catch (e) {

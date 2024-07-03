@@ -110,6 +110,7 @@ function createCertificatesPaths(domains) {
   return path;
 }
 
+/*
 function generateMinecraftSettings(minecraftAppsMap) {
   let configs = '';
   for (const port of Object.keys(minecraftAppsMap)) {
@@ -131,6 +132,7 @@ ${portConf.backends.join('\n')}`;
 
   return configs;
 }
+*/
 
 function generateAppsTCPSettings(tcpAppsMap) {
   let configs = '';
@@ -156,7 +158,7 @@ ${portConf.backends.join('\n')}`;
 
 function generateHaproxyConfig(acls, usebackends, domains, backends, redirects, minecraftAppsMap = {}, tcpAppsMap = {}) {
   // eslint-disable-next-line max-len
-  const minecraftConfig = generateMinecraftSettings(minecraftAppsMap);
+  // const minecraftConfig = generateMinecraftSettings(minecraftAppsMap);
   const tcpConfig = generateAppsTCPSettings(tcpAppsMap);
   const config = `
 ${haproxyPrefix}
@@ -164,8 +166,6 @@ ${haproxyPrefix}
 ${acls}
 ${usebackends}
 ${redirects}
-
-${minecraftConfig}
 
 ${tcpConfig}
 

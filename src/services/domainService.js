@@ -350,7 +350,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         const domains = getUnifiedDomains(app);
-        const customConfigs = getCustomConfigs(app);
+        const customConfigs = getCustomConfigs(app, isG);
         if (app.version <= 3) {
           for (let i = 0; i < app.ports.length; i += 1) {
             const configuredApp = {

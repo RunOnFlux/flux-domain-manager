@@ -1,4 +1,4 @@
-function getCustomConfigs(specifications) {
+function getCustomConfigs(specifications, isGsyncthingApp) {
   const configs = [];
   const defaultConfig = {
     ssl: false,
@@ -20,11 +20,7 @@ function getCustomConfigs(specifications) {
   if (specifications.name.toLowerCase().includes('bittensor')) {
     defaultConfig.mode = 'tcp';
   }
-  if (specifications.name.toLowerCase().includes('palworld') && !specifications.name.toLowerCase().includes('palworldoverview')) {
-    defaultConfig.mode = 'tcp';
-    defaultConfig.check = false;
-  }
-  if (specifications.name.toLowerCase().includes('enshrouded')) {
+  if (isGsyncthingApp) {
     defaultConfig.mode = 'tcp';
     defaultConfig.check = false;
   }

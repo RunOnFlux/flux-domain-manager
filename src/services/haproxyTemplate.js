@@ -137,6 +137,10 @@ ${portConf.backends.join('\n')}`;
 function generateAppsTCPSettings(tcpAppsMap) {
   let configs = '';
   for (const port of Object.keys(tcpAppsMap)) {
+    if (+port === 443 || +port === 80) { // hot fix do not forward 80 and 443
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     const portConf = tcpAppsMap[port];
     const tempFrontend = `
 frontend tcp_app_${port}

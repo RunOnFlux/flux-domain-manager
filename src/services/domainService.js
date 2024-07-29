@@ -333,8 +333,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
           for (const location of appLocations) {
             locationIps.push(location.ip);
           }
+          log.info(`Mode G Location IPs for ${app.name} are ${JSON.stringify(locationIps)}`);
           // eslint-disable-next-line no-await-in-loop
           const selectedIP = await selectIPforG(locationIps, app);
+          log.info(`Mode G Selected IP for ${app.name} is ${selectedIP}`);
           if (selectedIP) {
             appIps.push(selectedIP);
           }

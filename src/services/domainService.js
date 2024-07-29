@@ -216,6 +216,7 @@ async function selectIPforG(ips, app) {
 async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, timeout = 30) {
   try {
     if (isGmode) {
+      log.info('G Mode STARTED at' + new Date());
       if (!recentlyConfiguredApps) {
         throw new Error('G Mode is awaiting processing');
       }
@@ -608,11 +609,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
     if (!successRestart) {
       throw new Error('Invalid HAPROXY Config File!');
     }
-    setTimeout(() => {
-      generateAndReplaceMainApplicationHaproxyConfig(isGmode, timeout);
-    }, timeout * 1000);
   } catch (error) {
     log.error(error);
+  } finally {
+    if (isGmode) {
+      log.info('G Mode ENDED at' + new Date());
+    }
     setTimeout(() => {
       generateAndReplaceMainApplicationHaproxyConfig(isGmode, timeout);
     }, timeout * 1000);

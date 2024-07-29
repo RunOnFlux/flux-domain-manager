@@ -460,6 +460,7 @@ async function restartProxy(dataToWrite) {
   await writeConfig(TEMP_HAPROXY_CONFIG, dataToWrite);
   const isConfigOk = await checkConfig(TEMP_HAPROXY_CONFIG);
   if (!isConfigOk) {
+    log.info('Haproxy config is invalid. Not restarting');
     return false;
   }
   if (lastHaproxyConfig === dataToWrite) {
@@ -470,6 +471,7 @@ async function restartProxy(dataToWrite) {
   await writeConfig(HAPROXY_CONFIG, dataToWrite);
   const execHAreload = 'sudo service haproxy reload';
   await cmdAsync(execHAreload);
+  log.info('Haproxy reloaded');
   return true;
 }
 

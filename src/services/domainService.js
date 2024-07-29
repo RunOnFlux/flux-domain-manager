@@ -585,7 +585,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
         const appExists = updatingConfig.find((a) => a.appName === app.appName);
         if (!appExists) {
           updatingConfig.push(app);
-        } else if (!app.ips) {
+        } else if (!app.ips.length) {
           // replace this element with new
           updatingConfig.splice(updatingConfig.indexOf(appExists), 1);
         } else {

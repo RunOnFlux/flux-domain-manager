@@ -215,7 +215,6 @@ async function selectIPforG(ips, app) {
 }
 
 // periodically keeps HAproxy ans certificates updated every 4 minutes
-let firstRun = true;
 async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, timeout = 30) {
   try {
     if (isGmode) {
@@ -258,9 +257,6 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
           nonGApps.push(app);
         }
       }
-    }
-    if (firstRun) {
-      applicationSpecifications = nonGApps.concat(gApps);
     }
     if (isGmode) {
       applicationSpecifications = gApps;
@@ -635,7 +631,6 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
     } else {
       log.info(`Non G Mode ENDED at${new Date()}`);
     }
-    firstRun = false;
     setTimeout(() => {
       generateAndReplaceMainApplicationHaproxyConfig(isGmode, timeout);
     }, timeout * 1000);

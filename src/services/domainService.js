@@ -22,6 +22,8 @@ const mapOfNamesIps = {};
 let recentlyConfiguredApps = null;
 let recentlyConfiguredGApps = null;
 let lastHaproxyAppsConfig = [];
+let gAppsProcessingFinishedOnce = false;
+let nonGAppsProcessingFinishedOnce = false;
 
 async function getPermanentMessages() {
   try {
@@ -606,17 +608,19 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
     let haproxyAppsConfig = [];
     if (isGmode) {
       recentlyConfiguredGApps = configuredApps;
-      if (recentlyConfiguredApps) {
+      gAppsProcessingFinishedOnce = true;
+      if (nonGAppsProcessingFinishedOnce) {
         haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
       }
     } else {
       recentlyConfiguredApps = configuredApps;
-      if (recentlyConfiguredGApps) {
+      nonGAppsProcessingFinishedOnce = true;
+      if (gAppsProcessingFinishedOnce) {
         haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps); // we need to put always in same order to avoid. non g first g at end
       }
     }
 
-    if (recentlyConfiguredGApps && recentlyConfiguredGApps && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
+    if (nonGAppsProcessingFinishedOnce && gAppsProcessingFinishedOnce && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
       lastHaproxyAppsConfig = haproxyAppsConfig;
       const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
       console.log(hc);

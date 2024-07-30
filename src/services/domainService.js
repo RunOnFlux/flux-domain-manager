@@ -292,7 +292,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
       }
     }
     // continue with appsOK
-    const configuredApps = []; // object of domain, port, ips for backend and isRdata
+    let configuredApps = []; // object of domain, port, ips for backend and isRdata
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
       // eslint-disable-next-line no-await-in-loop
@@ -587,6 +587,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
       }
+    }
+
+    if (isGmode) {
+      // remove from configuration apps without ips
+      configuredApps = configuredApps.filter((app) => app.ips.length > 0);
     }
 
     if (!isGmode && configuredApps.length < 10) {

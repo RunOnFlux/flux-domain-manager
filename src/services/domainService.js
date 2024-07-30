@@ -606,10 +606,14 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
     let haproxyAppsConfig = [];
     if (isGmode) {
       recentlyConfiguredGApps = configuredApps;
-      haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
+      if (recentlyConfiguredApps) {
+        haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
+      }
     } else {
       recentlyConfiguredApps = configuredApps;
-      haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps); // we need to put always in same order to avoid. non g first g at end
+      if (recentlyConfiguredGApps) {
+        haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps); // we need to put always in same order to avoid. non g first g at end
+      }
     }
 
     if (recentlyConfiguredGApps && recentlyConfiguredGApps && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {

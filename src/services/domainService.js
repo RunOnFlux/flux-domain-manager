@@ -19,8 +19,8 @@ let permanentMessages = null;
 let globalAppSpecs = null;
 const unifiedAppsDomains = [];
 const mapOfNamesIps = {};
-let recentlyConfiguredApps;
-let recentlyConfiguredGApps;
+let recentlyConfiguredApps = null;
+let recentlyConfiguredGApps = null;
 let lastHaproxyAppsConfig = [];
 
 async function getPermanentMessages() {

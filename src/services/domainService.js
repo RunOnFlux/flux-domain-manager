@@ -218,6 +218,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
   try {
     if (isGmode) {
       log.info(`G Mode STARTED at${new Date()}`);
+    } else {
+      log.info(`Non G Mode STARTED at${new Date()}`);
     }
     // get permanent messages on the network
     await getPermanentMessages();
@@ -641,6 +643,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
   } finally {
     if (isGmode) {
       log.info(`G Mode ENDED at${new Date()}`);
+    } else {
+      log.info(`Non G Mode ENDED at${new Date()}`);
     }
     setTimeout(() => {
       generateAndReplaceMainApplicationHaproxyConfig(isGmode, timeout);

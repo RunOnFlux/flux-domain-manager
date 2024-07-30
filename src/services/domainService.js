@@ -20,6 +20,7 @@ let globalAppSpecs = null;
 const unifiedAppsDomains = [];
 const mapOfNamesIps = {};
 let recentlyConfiguredApps;
+let recentlyConfiguredGApps;
 
 async function getPermanentMessages() {
   try {
@@ -232,29 +233,36 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
 
     // filter applications based on config
     let applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
-    if (isGmode) {
-      const gApps = [];
-      // in G mode we process only apps that do have g: in containerData
-      for (const app of applicationSpecifications) {
-        if (app.version <= 3) {
-          if (app.containerData.includes('g:')) {
-            gApps.push(app);
-          }
+
+    const gApps = [];
+    const nonGApps = [];
+    // in G mode we process only apps that do have g: in containerData
+    for (const app of applicationSpecifications) {
+      if (app.version <= 3) {
+        if (app.containerData.includes('g:')) {
+          gApps.push(app);
         } else {
-          let isG = false;
-          for (const component of app.compose) {
-            if (component.containerData.includes('g:')) {
-              isG = true;
-            }
-          }
-          if (isG) {
-            gApps.push(app);
+          nonGApps.push(app);
+        }
+      } else {
+        let isG = false;
+        for (const component of app.compose) {
+          if (component.containerData.includes('g:')) {
+            isG = true;
           }
         }
+        if (isG) {
+          gApps.push(app);
+        } else {
+          nonGApps.push(app);
+        }
       }
-      applicationSpecifications = gApps;
     }
-
+    if (isGmode) {
+      applicationSpecifications = gApps;
+    } else {
+      applicationSpecifications = nonGApps;
+    }
     // for every application do following
     // get name, ports
     // main application domain is name.app.domain, for every port we have name-port.app.domain
@@ -600,21 +608,36 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
     if (configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');
     }
-    if (JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)) {
+    let updateHaproxy = true;
+    if (isGmode && JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredGApps)) {
+      log.info('No changes in Gmode configuration detected');
+      updateHaproxy = false;
+    } else if (!isGmode && JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)) {
       log.info('No changes in configuration detected');
+      updateHaproxy = false;
     } else if (isGmode) {
       log.info('Changes in configuration detected in G mode');
     } else {
       log.info('Changes in configuration detected');
     }
-    recentlyConfiguredApps = configuredApps;
-    const hc = await haproxyTemplate.createAppsHaproxyConfig(configuredApps);
-    console.log(hc);
-    const dataToWrite = hc;
-    // test haproxy config
-    const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
-    if (!successRestart) {
-      throw new Error('Invalid HAPROXY Config File!');
+    let haproxyAppsConfig = [];
+    if (isGmode) {
+      recentlyConfiguredGApps = configuredApps;
+      haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
+    } else {
+      recentlyConfiguredApps = configuredApps;
+      haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps); // we need to put always in same order to avoid. non g first g at end
+    }
+
+    if (updateHaproxy) {
+      const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
+      console.log(hc);
+      const dataToWrite = hc;
+      // test haproxy config
+      const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
+      if (!successRestart) {
+        throw new Error('Invalid HAPROXY Config File!');
+      }
     }
   } catch (error) {
     log.error(error);

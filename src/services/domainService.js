@@ -21,6 +21,7 @@ const unifiedAppsDomains = [];
 const mapOfNamesIps = {};
 let recentlyConfiguredApps;
 let recentlyConfiguredGApps;
+let lastHaproxyAppsConfig = [];
 
 async function getPermanentMessages() {
   try {
@@ -607,13 +608,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
     if (configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');
     }
-    let updateHaproxy = true;
+
     if (isGmode && JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredGApps)) {
       log.info('No changes in Gmode configuration detected');
-      updateHaproxy = false;
     } else if (!isGmode && JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)) {
       log.info('No changes in configuration detected');
-      updateHaproxy = false;
     } else if (isGmode) {
       log.info('Changes in configuration detected in G mode');
     } else {
@@ -628,7 +627,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
       haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps); // we need to put always in same order to avoid. non g first g at end
     }
 
-    if (updateHaproxy) {
+    if (JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
+      lastHaproxyAppsConfig = haproxyAppsConfig;
       const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
       console.log(hc);
       const dataToWrite = hc;

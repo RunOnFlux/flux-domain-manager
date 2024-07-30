@@ -218,9 +218,6 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
   try {
     if (isGmode) {
       log.info(`G Mode STARTED at${new Date()}`);
-      if (!recentlyConfiguredApps) {
-        throw new Error('G Mode is awaiting processing');
-      }
     }
     // get permanent messages on the network
     await getPermanentMessages();
@@ -710,14 +707,14 @@ function initializeServices() {
       generateAndReplaceMainApplicationHaproxyConfig(false);
       setTimeout(() => {
         generateAndReplaceMainApplicationHaproxyConfig(true, 5);
-      }, 5 * 60 * 1000);
+      }, 10 * 1000);
       log.info('Flux Main Application Domain Service initiated.');
     } else if (config.mainDomain === config.pDNS.domain && config.pDNS.manageapp) {
       // only runs on main FDM handles X.APP.runonflux.io
       generateAndReplaceMainApplicationHaproxyConfig(false);
       setTimeout(() => {
         generateAndReplaceMainApplicationHaproxyConfig(true, 5);
-      }, 5 * 60 * 1000);
+      }, 10 * 1000);
       log.info('Flux Main Application Domain Service initiated.');
     } else {
       log.info('CUSTOM DOMAIN SERVICE UNAVAILABLE');

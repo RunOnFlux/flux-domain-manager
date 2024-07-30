@@ -19,7 +19,9 @@ let permanentMessages = null;
 let globalAppSpecs = null;
 const unifiedAppsDomains = [];
 const mapOfNamesIps = {};
-let recentlyConfiguredApps;
+let recentlyConfiguredApps = null;
+let recentlyConfiguredGApps = null;
+let lastHaproxyAppsConfig = [];
 
 async function getPermanentMessages() {
   try {
@@ -217,9 +219,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
   try {
     if (isGmode) {
       log.info(`G Mode STARTED at${new Date()}`);
-      if (!recentlyConfiguredApps) {
-        throw new Error('G Mode is awaiting processing');
-      }
+    } else {
+      log.info(`Non G Mode STARTED at${new Date()}`);
     }
     // get permanent messages on the network
     await getPermanentMessages();
@@ -232,29 +233,36 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
 
     // filter applications based on config
     let applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
-    if (isGmode) {
-      const gApps = [];
-      // in G mode we process only apps that do have g: in containerData
-      for (const app of applicationSpecifications) {
-        if (app.version <= 3) {
-          if (app.containerData.includes('g:')) {
-            gApps.push(app);
-          }
+
+    const gApps = [];
+    const nonGApps = [];
+    // in G mode we process only apps that do have g: in containerData
+    for (const app of applicationSpecifications) {
+      if (app.version <= 3) {
+        if (app.containerData.includes('g:')) {
+          gApps.push(app);
         } else {
-          let isG = false;
-          for (const component of app.compose) {
-            if (component.containerData.includes('g:')) {
-              isG = true;
-            }
-          }
-          if (isG) {
-            gApps.push(app);
+          nonGApps.push(app);
+        }
+      } else {
+        let isG = false;
+        for (const component of app.compose) {
+          if (component.containerData.includes('g:')) {
+            isG = true;
           }
         }
+        if (isG) {
+          gApps.push(app);
+        } else {
+          nonGApps.push(app);
+        }
       }
-      applicationSpecifications = gApps;
     }
-
+    if (isGmode) {
+      applicationSpecifications = gApps;
+    } else {
+      applicationSpecifications = nonGApps;
+    }
     // for every application do following
     // get name, ports
     // main application domain is name.app.domain, for every port we have name-port.app.domain
@@ -578,49 +586,54 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
     }
 
     if (isGmode) {
-      const updatingConfig = JSON.parse(JSON.stringify(recentlyConfiguredApps));
-      // merge recentlyConfiguredApps with currently configuredApps
-      for (const app of configuredApps) {
-        log.info(`G Updating ${app.appName} of ${app.name} with IPs ${JSON.stringify(app.ips)}`);
-        const appExists = updatingConfig.find((a) => a.appName === app.appName);
-        log.info(`Exists ${JSON.stringify(appExists)}`);
-        if (!appExists) {
-          updatingConfig.push(app);
-        } else if (!app.ips.length) {
-          // replace this element with new
-          updatingConfig.splice(updatingConfig.indexOf(appExists), 1);
-        } else {
-          // replace this element with new
-          updatingConfig.splice(updatingConfig.indexOf(appExists), 1, app);
-        }
-      }
-      configuredApps = updatingConfig;
+      // remove from configuration apps without ips
+      configuredApps = configuredApps.filter((app) => app.ips.length > 0);
     }
 
-    if (configuredApps.length < 10) {
+    if (!isGmode && configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');
     }
-    if (JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)) {
+
+    if (isGmode && JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredGApps)) {
+      log.info('No changes in Gmode configuration detected');
+    } else if (!isGmode && JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)) {
       log.info('No changes in configuration detected');
     } else if (isGmode) {
       log.info('Changes in configuration detected in G mode');
     } else {
       log.info('Changes in configuration detected');
     }
-    recentlyConfiguredApps = configuredApps;
-    const hc = await haproxyTemplate.createAppsHaproxyConfig(configuredApps);
-    console.log(hc);
-    const dataToWrite = hc;
-    // test haproxy config
-    const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
-    if (!successRestart) {
-      throw new Error('Invalid HAPROXY Config File!');
+    let haproxyAppsConfig = [];
+    if (isGmode) {
+      recentlyConfiguredGApps = configuredApps;
+      if (recentlyConfiguredApps) {
+        haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
+      }
+    } else {
+      recentlyConfiguredApps = configuredApps;
+      if (recentlyConfiguredGApps) {
+        haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps); // we need to put always in same order to avoid. non g first g at end
+      }
+    }
+
+    if (recentlyConfiguredGApps && recentlyConfiguredGApps && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
+      lastHaproxyAppsConfig = haproxyAppsConfig;
+      const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
+      console.log(hc);
+      const dataToWrite = hc;
+      // test haproxy config
+      const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
+      if (!successRestart) {
+        throw new Error('Invalid HAPROXY Config File!');
+      }
     }
   } catch (error) {
     log.error(error);
   } finally {
     if (isGmode) {
       log.info(`G Mode ENDED at${new Date()}`);
+    } else {
+      log.info(`Non G Mode ENDED at${new Date()}`);
     }
     setTimeout(() => {
       generateAndReplaceMainApplicationHaproxyConfig(isGmode, timeout);
@@ -687,14 +700,14 @@ function initializeServices() {
       generateAndReplaceMainApplicationHaproxyConfig(false);
       setTimeout(() => {
         generateAndReplaceMainApplicationHaproxyConfig(true, 5);
-      }, 5 * 60 * 1000);
+      }, 2 * 60 * 1000);
       log.info('Flux Main Application Domain Service initiated.');
     } else if (config.mainDomain === config.pDNS.domain && config.pDNS.manageapp) {
       // only runs on main FDM handles X.APP.runonflux.io
       generateAndReplaceMainApplicationHaproxyConfig(false);
       setTimeout(() => {
         generateAndReplaceMainApplicationHaproxyConfig(true, 5);
-      }, 5 * 60 * 1000);
+      }, 2 * 60 * 1000);
       log.info('Flux Main Application Domain Service initiated.');
     } else {
       log.info('CUSTOM DOMAIN SERVICE UNAVAILABLE');

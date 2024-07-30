@@ -215,6 +215,7 @@ async function selectIPforG(ips, app) {
 }
 
 // periodically keeps HAproxy ans certificates updated every 4 minutes
+let firstRun = true;
 async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, timeout = 30) {
   try {
     if (isGmode) {
@@ -258,6 +259,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
         }
       }
     }
+    if (firstRun) {
+      applicationSpecifications = nonGApps.concat(gApps);
+    }
     if (isGmode) {
       applicationSpecifications = gApps;
     } else {
@@ -288,7 +292,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
       }
     }
     // continue with appsOK
-    let configuredApps = []; // object of domain, port, ips for backend and isRdata
+    const configuredApps = []; // object of domain, port, ips for backend and isRdata
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
       // eslint-disable-next-line no-await-in-loop
@@ -585,27 +589,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
       }
     }
 
-    if (isGmode) {
-      const updatingConfig = JSON.parse(JSON.stringify(recentlyConfiguredApps));
-      // merge recentlyConfiguredApps with currently configuredApps
-      for (const app of configuredApps) {
-        log.info(`G Updating ${app.appName} of ${app.name} with IPs ${JSON.stringify(app.ips)}`);
-        const appExists = updatingConfig.find((a) => a.appName === app.appName);
-        log.info(`Exists ${JSON.stringify(appExists)}`);
-        if (!appExists) {
-          updatingConfig.push(app);
-        } else if (!app.ips.length) {
-          // replace this element with new
-          updatingConfig.splice(updatingConfig.indexOf(appExists), 1);
-        } else {
-          // replace this element with new
-          updatingConfig.splice(updatingConfig.indexOf(appExists), 1, app);
-        }
-      }
-      configuredApps = updatingConfig;
-    }
-
-    if (configuredApps.length < 10) {
+    if (!isGmode && configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');
     }
 
@@ -627,7 +611,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
       haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps); // we need to put always in same order to avoid. non g first g at end
     }
 
-    if (JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
+    if (recentlyConfiguredGApps && recentlyConfiguredGApps && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
       lastHaproxyAppsConfig = haproxyAppsConfig;
       const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
       console.log(hc);
@@ -646,6 +630,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
     } else {
       log.info(`Non G Mode ENDED at${new Date()}`);
     }
+    firstRun = false;
     setTimeout(() => {
       generateAndReplaceMainApplicationHaproxyConfig(isGmode, timeout);
     }, timeout * 1000);

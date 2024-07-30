@@ -136,6 +136,19 @@ async function isSyncedOK(ip, port) {
   }
 }
 
+async function isDaemonSyncedOK(ip, port) {
+  try {
+    const url = `http://${ip}:${port}/daemon/getblockchaininfo`;
+    const response = await serviceHelper.httpGetRequest(url, timeout);
+    if (response.data.data.blocks + 3 >= response.data.data.headers) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function hasManyApps(ip, port) {
   try {
     const url = `http://${ip}:${port}/apps/globalappsspecifications`;
@@ -185,14 +198,17 @@ async function checkMainFlux(ip, port = 16127) {
         if (communicationOK) {
           const isSynced = await isSyncedOK(ip, port);
           if (isSynced) {
-            const hasApps = await hasManyApps(ip, port);
-            if (hasApps) {
-              const hasMessages = await hasManyMessages(ip, port);
-              if (hasMessages) {
-                // eslint-disable-next-line no-await-in-loop
-                const uiOK = await isHomeOK(ip, +port - 1);
-                if (uiOK) {
-                  return true;
+            const isDaemonSynced = isDaemonSyncedOK(ip, port);
+            if (isDaemonSynced) {
+              const hasApps = await hasManyApps(ip, port);
+              if (hasApps) {
+                const hasMessages = await hasManyMessages(ip, port);
+                if (hasMessages) {
+                  // eslint-disable-next-line no-await-in-loop
+                  const uiOK = await isHomeOK(ip, +port - 1);
+                  if (uiOK) {
+                    return true;
+                  }
                 }
               }
             }

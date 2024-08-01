@@ -217,8 +217,9 @@ async function selectIPforG(ips, app) {
 }
 
 let appIps = [];
-function addAppIp(ip) {
-  appIps.push(ip);
+async function addAppIps(app, location) {
+  await applicationChecks.checkApplication(app, location.ip);
+  appIps.push(location.ip);
 }
 // periodically keeps HAproxy ans certificates updated every 4 minutes
 async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, timeout = 30) {
@@ -357,7 +358,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
           if (applicationWithChecks) {
             let promiseArray = [];
             for (const [i, location] of appLocations.entries()) { // run coded checks for app
-              promiseArray.push(applicationChecks.checkApplication(app, location.ip));
+              promiseArray.push(addAppIps(app, location.ip));
               if ((i + 1) % 25 === 0) {
                 // eslint-disable-next-line no-await-in-loop
                 await Promise.allSettled(promiseArray);

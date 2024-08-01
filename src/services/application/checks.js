@@ -796,9 +796,7 @@ async function checkApplication(app, ip) {
       isOK = await checkEthers(ip.split(':')[0], ethersList[matchIndex].port, ethersList[matchIndex].providerURL, ethersList[matchIndex].cmd);
     }
   }
-  if(isOK) {
-    domainService.addAppIp(ip);
-  }
+  return isOK;
 }
 
 setInterval(async () => {

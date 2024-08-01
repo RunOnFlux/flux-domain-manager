@@ -360,6 +360,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
           if (applicationWithChecks) {
             let promiseArray = [];
             for (const [i, location] of appLocations.entries()) { // run coded checks for app
+              log.info(`Application ${app.name} adding to promiseArray ip: ${location.ip}`);
               promiseArray.push(addAppIps(app, location.ip));
               if ((i + 1) % 25 === 0) {
                 // eslint-disable-next-line no-await-in-loop

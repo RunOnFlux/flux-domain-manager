@@ -348,7 +348,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
             appIps.push(selectedIP);
           }
         } else {
-          const applicationWithChecks = applicationChecks.applicationWithChecks();
+          const applicationWithChecks = applicationChecks.applicationWithChecks(app);
           if (applicationWithChecks) {
             log.info(`Application ${app.name} have specific checks.`);
             for (const location of appLocations) { // run coded checks for app

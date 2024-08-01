@@ -742,6 +742,7 @@ async function checkAppRunning(url, appName) {
 }
 
 function applicationWithChecks(app) {
+  log.info(`Checking if ${app.name} have specific checks.`);
   if (generalWebsiteApps.includes(app.name)) {
     return true;
   } else if (app.name === 'explorer') {
@@ -759,8 +760,6 @@ function applicationWithChecks(app) {
   } else if (app.name.startsWith('AlgorandRPC')) {
     return true;
   } else if (app.name.toLowerCase().includes('bittensor')) {
-    return true;
-  } else if (gSyncthing) {
     return true;
   } else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));

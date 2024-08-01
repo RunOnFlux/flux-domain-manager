@@ -741,6 +741,36 @@ async function checkAppRunning(url, appName) {
   }
 }
 
+function applicationWithChecks(app) {
+  if (generalWebsiteApps.includes(app.name)) {
+    return true;
+  } else if (app.name === 'explorer') {
+    return true;
+  } else if (app.name === 'bitcoinnode' || app.name === 'bitcoinnodetestnet' || app.name === 'bitcoinnodesignet') {
+    return true;
+  } else if (app.name === 'HavenNodeMainnet') {
+    return true;
+  } else if (app.name === 'HavenNodeTestnet') {
+    return true;
+  } else if (app.name === 'HavenNodeStagenet') {
+    return true;
+  } else if (app.name.startsWith('blockbook')) {
+    return true;
+  } else if (app.name.startsWith('AlgorandRPC')) {
+    return true;
+  } else if (app.name.toLowerCase().includes('bittensor')) {
+    return true;
+  } else if (gSyncthing) {
+    return true;
+  } else {
+    const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
+    if (matchIndex > -1) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function checkApplication(app, ip, gSyncthing) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
@@ -797,6 +827,7 @@ module.exports = {
   checkHavenValut,
   generalWebsiteCheck,
   checkApplication,
+  applicationWithChecks,
   checkBlockBook,
   checkAlgorand,
   checkEthers,

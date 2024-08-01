@@ -324,7 +324,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
         appLocations.push({ ip: '167.114.217.138' });
       }
       if (appLocations.length > 0) {
-        const appIps = [];
+        let appIps = [];
         let isG = false;
         if (app.version <= 3) {
           if (app.containerData.includes('g:')) {
@@ -339,10 +339,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
         }
         // if its G data application, use just one IP
         if (isG) {
-          const locationIps = [];
-          for (const location of appLocations) {
-            locationIps.push(location.ip);
-          }
+          const locationIps = appLocations.map((location) => location.ip);
           log.info(`Mode G Location IPs for ${app.name} are ${JSON.stringify(locationIps)}`);
           // eslint-disable-next-line no-await-in-loop
           const selectedIP = await selectIPforG(locationIps, app);
@@ -351,12 +348,17 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
             appIps.push(selectedIP);
           }
         } else {
-          for (const location of appLocations) { // run coded checks for app
-            // eslint-disable-next-line no-await-in-loop
-            const isOk = await applicationChecks.checkApplication(app, location.ip);
-            if (isOk) {
-              appIps.push(location.ip);
+          const applicationWithChecks = applicationChecks.applicationWithChecks();
+          if (applicationWithChecks) {
+            for (const location of appLocations) { // run coded checks for app
+              // eslint-disable-next-line no-await-in-loop
+              const isOk = await applicationChecks.checkApplication(app, location.ip);
+              if (isOk) {
+                appIps.push(location.ip);
+              }
             }
+          } else {
+            appIps = appLocations.map((location) => location.ip);
           }
         }
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {

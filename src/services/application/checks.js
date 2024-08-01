@@ -828,4 +828,5 @@ module.exports = {
   checkBlockBook,
   checkAlgorand,
   checkEthers,
+  checkAppRunning,
 };

@@ -216,11 +216,11 @@ async function selectIPforG(ips, app) {
   return null;
 }
 
-let appIps = [];
+let appIpsOnAppsChecks = [];
 async function addAppIps(app, ip) {
   const isCheckOK = await applicationChecks.checkApplication(app, ip);
   if (isCheckOK) {
-    appIps.push(ip);
+    appIpsOnAppsChecks.push(ip);
   }
 }
 // periodically keeps HAproxy ans certificates updated every 4 minutes
@@ -331,7 +331,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
         appLocations.push({ ip: '167.114.217.138' });
       }
       if (appLocations.length > 0) {
-        appIps = [];
+        let appIps = [];
         let isG = false;
         if (app.version <= 3) {
           if (app.containerData.includes('g:')) {
@@ -361,16 +361,20 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
             let promiseArray = [];
             for (const [i, location] of appLocations.entries()) { // run coded checks for app
               promiseArray.push(addAppIps(app, location.ip));
-              if ((i + 1) % 25 === 0) {
+              if ((i + 1) % 10 === 0) {
                 // eslint-disable-next-line no-await-in-loop
                 await Promise.allSettled(promiseArray);
                 promiseArray = [];
+                appIps = appIpsOnAppsChecks.map((ip) => ip);
+                appIpsOnAppsChecks = [];
               }
             }
             if (promiseArray.length > 0) {
               // eslint-disable-next-line no-await-in-loop
               await Promise.allSettled(promiseArray);
               promiseArray = [];
+              appIps = appIpsOnAppsChecks.map((ip) => ip);
+              appIpsOnAppsChecks = [];
             }
           } else {
             appIps = appLocations.map((location) => location.ip);

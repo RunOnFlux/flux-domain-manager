@@ -217,10 +217,10 @@ async function selectIPforG(ips, app) {
 }
 
 let appIps = [];
-async function addAppIps(app, location) {
-  const isCheckOK = await applicationChecks.checkApplication(app, location.ip);
+async function addAppIps(app, ip) {
+  const isCheckOK = await applicationChecks.checkApplication(app, ip);
   if (isCheckOK) {
-    appIps.push(location.ip);
+    appIps.push(ip);
   }
 }
 // periodically keeps HAproxy ans certificates updated every 4 minutes

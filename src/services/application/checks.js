@@ -6,6 +6,7 @@ const config = require('config');
 const https = require('https');
 const ethers = require('ethers');
 const serviceHelper = require('../serviceHelper');
+const domainService = require('../domainService');
 const log = require('../../lib/log');
 
 const timeout = 5456;
@@ -795,7 +796,9 @@ async function checkApplication(app, ip) {
       isOK = await checkEthers(ip.split(':')[0], ethersList[matchIndex].port, ethersList[matchIndex].providerURL, ethersList[matchIndex].cmd);
     }
   }
-  return isOK;
+  if(isOK) {
+    domainService.addAppIp(ip);
+  }
 }
 
 setInterval(async () => {

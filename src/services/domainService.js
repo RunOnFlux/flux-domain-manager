@@ -754,5 +754,4 @@ async function start() {
 
 module.exports = {
   start,
-  addAppIp,
 };

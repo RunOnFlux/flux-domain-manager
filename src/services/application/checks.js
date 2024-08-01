@@ -769,7 +769,7 @@ function applicationWithChecks(app) {
   return false;
 }
 
-async function checkApplication(app, ip, gSyncthing) {
+async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
     isOK = await generalWebsiteCheck(ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0], undefined, app.name);
@@ -789,8 +789,6 @@ async function checkApplication(app, ip, gSyncthing) {
     isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[1]);
   } else if (app.name.toLowerCase().includes('bittensor')) {
     isOK = await checkBittensor(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
-  } else if (gSyncthing) {
-    isOK = await checkAppRunning(ip, app.name);
   } else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
     if (matchIndex > -1) {

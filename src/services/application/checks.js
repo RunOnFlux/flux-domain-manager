@@ -742,7 +742,6 @@ async function checkAppRunning(url, appName) {
 }
 
 function applicationWithChecks(app) {
-  log.info(`Checking if ${app.name} have specific checks.`);
   if (generalWebsiteApps.includes(app.name)) {
     return true;
   } else if (app.name === 'explorer') {

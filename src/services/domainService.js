@@ -349,8 +349,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
           }
         } else {
           const applicationWithChecks = applicationChecks.applicationWithChecks(app);
+          log.info(`Application ${app.name} have specific checks: ${applicationWithChecks}`);
           if (applicationWithChecks) {
-            log.info(`Application ${app.name} have specific checks.`);
             for (const location of appLocations) { // run coded checks for app
               // eslint-disable-next-line no-await-in-loop
               const isOk = await applicationChecks.checkApplication(app, location.ip);

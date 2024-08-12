@@ -258,9 +258,9 @@ async function updateHaproxy(haproxyAppsConfig) {
   }
 }
 
-function addConfigurations(configuredApps, app, appIps) {
+function addConfigurations(configuredApps, app, appIps, gMode) {
   const domains = getUnifiedDomains(app);
-  const customConfigs = getCustomConfigs(app, false);
+  const customConfigs = getCustomConfigs(app, gMode);
   if (app.version <= 3) {
     for (let i = 0; i < app.ports.length; i += 1) {
       const configuredApp = {
@@ -598,7 +598,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
-        addConfigurations(configuredApps, app, appIps);
+        addConfigurations(configuredApps, app, appIps, false);
         log.info(`Application ${app.name} is OK. Proceeding to FDM`);
       } else {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);
@@ -708,7 +708,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
         if (selectedIP) {
           appIps.push(selectedIP);
         }
-        addConfigurations(configuredApps, app, appIps);
+        addConfigurations(configuredApps, app, appIps, true);
 
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);

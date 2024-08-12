@@ -537,7 +537,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
       }
     }
     // continue with appsOK
-    const configuredApps = []; // object of domain, port, ips for backend and isRdata
+    let configuredApps = []; // object of domain, port, ips for backend and isRdata
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
       // eslint-disable-next-line no-await-in-loop
@@ -599,7 +599,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
-        configuredApps.push(addConfigurations(app, appIps));
+        configuredApps = configuredApps.concat(addConfigurations(app, appIps));
         log.info(`Application ${app.name} is OK. Proceeding to FDM`);
       } else {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);
@@ -706,7 +706,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
         log.info(`Mode G Selected IP for ${app.name} is ${selectedIP}`);
         if (selectedIP) {
           appIps.push(selectedIP);
-          configuredApps.push(addConfigurations(app, appIps));
+          configuredApps = configuredApps.concat(addConfigurations(app, appIps));
         }
 
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {

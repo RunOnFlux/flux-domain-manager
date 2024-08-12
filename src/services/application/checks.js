@@ -729,9 +729,18 @@ async function checkBittensor(ip, port) {
 
 async function checkAppRunning(url, appName) {
   try {
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
+
     const ip = url.split(':')[0];
     const port = url.split(':')[1] || 16127;
-    const response = await axios.get(`http://${ip}:${port}/apps/listrunningapps`);
+    const response = await axios.get(`http://${ip}:${port}/apps/listrunningapps`, { timeout, cancelToken: source.token });
     const appsRunning = response.data.data;
     if (appsRunning.find((app) => app.Names[0].includes(appName))) {
       return true;

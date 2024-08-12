@@ -223,14 +223,10 @@ async function addAppIps(app, ip) {
     appIpsOnAppsChecks.push(ip);
   }
 }
-// periodically keeps HAproxy ans certificates updated every 4 minutes
-async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, timeout = 30) {
+
+async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
   try {
-    if (isGmode) {
-      log.info(`G Mode STARTED at${new Date()}`);
-    } else {
-      log.info(`Non G Mode STARTED at${new Date()}`);
-    }
+    log.info(`Non G Mode STARTED at${new Date()}`);
     // get permanent messages on the network
     await getPermanentMessages();
     // get applications on the network
@@ -243,14 +239,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
     // filter applications based on config
     let applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
 
-    const gApps = [];
     const nonGApps = [];
     // in G mode we process only apps that do have g: in containerData
     for (const app of applicationSpecifications) {
       if (app.version <= 3) {
-        if (app.containerData.includes('g:')) {
-          gApps.push(app);
-        } else {
+        if (!app.containerData.includes('g:')) {
           nonGApps.push(app);
         }
       } else {
@@ -260,18 +253,13 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
             isG = true;
           }
         }
-        if (isG) {
-          gApps.push(app);
-        } else {
+        if (!isG) {
           nonGApps.push(app);
         }
       }
     }
-    if (isGmode) {
-      applicationSpecifications = gApps;
-    } else {
-      applicationSpecifications = nonGApps;
-    }
+
+    applicationSpecifications = nonGApps;
     // for every application do following
     // get name, ports
     // main application domain is name.app.domain, for every port we have name-port.app.domain
@@ -288,16 +276,14 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
     if (config.useSubset) {
       mandatoryApps = filterMandatoryApps(mandatoryApps);
     }
-    if (!isGmode) {
-      for (const mandatoryApp of mandatoryApps) {
-        const appExists = appsOK.find((app) => app.name === mandatoryApp);
-        if (!appExists) {
-          throw new Error(`Mandatory app ${mandatoryApp} does not exist. PANIC`);
-        }
+    for (const mandatoryApp of mandatoryApps) {
+      const appExists = appsOK.find((app) => app.name === mandatoryApp);
+      if (!appExists) {
+        throw new Error(`Mandatory app ${mandatoryApp} does not exist. PANIC`);
       }
     }
     // continue with appsOK
-    let configuredApps = []; // object of domain, port, ips for backend and isRdata
+    const configuredApps = []; // object of domain, port, ips for backend and isRdata
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
       // eslint-disable-next-line no-await-in-loop
@@ -332,59 +318,35 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
       }
       if (appLocations.length > 0) {
         let appIps = [];
-        let isG = false;
-        if (app.version <= 3) {
-          if (app.containerData.includes('g:')) {
-            isG = true;
-          }
-        } else {
-          for (const component of app.compose) {
-            if (component.containerData.includes('g:')) {
-              isG = true;
-            }
-          }
-        }
-        // if its G data application, use just one IP
-        if (isG) {
-          const locationIps = appLocations.map((location) => location.ip);
-          log.info(`Mode G Location IPs for ${app.name} are ${JSON.stringify(locationIps)}`);
-          // eslint-disable-next-line no-await-in-loop
-          const selectedIP = await selectIPforG(locationIps, app);
-          log.info(`Mode G Selected IP for ${app.name} is ${selectedIP}`);
-          if (selectedIP) {
-            appIps.push(selectedIP);
-          }
-        } else {
-          const applicationWithChecks = applicationChecks.applicationWithChecks(app);
-          log.info(`Application ${app.name} have specific checks: ${applicationWithChecks}`);
-          if (applicationWithChecks) {
-            let promiseArray = [];
-            for (const [i, location] of appLocations.entries()) { // run coded checks for app
-              promiseArray.push(addAppIps(app, location.ip));
-              if ((i + 1) % 10 === 0) {
-                // eslint-disable-next-line no-await-in-loop
-                await Promise.allSettled(promiseArray);
-                promiseArray = [];
-                appIps = appIpsOnAppsChecks.map((ip) => ip);
-                appIpsOnAppsChecks = [];
-              }
-            }
-            if (promiseArray.length > 0) {
+        const applicationWithChecks = applicationChecks.applicationWithChecks(app);
+        log.info(`Application ${app.name} have specific checks: ${applicationWithChecks}`);
+        if (applicationWithChecks) {
+          let promiseArray = [];
+          for (const [i, location] of appLocations.entries()) { // run coded checks for app
+            promiseArray.push(addAppIps(app, location.ip));
+            if ((i + 1) % 10 === 0) {
               // eslint-disable-next-line no-await-in-loop
               await Promise.allSettled(promiseArray);
               promiseArray = [];
               appIps = appIpsOnAppsChecks.map((ip) => ip);
               appIpsOnAppsChecks = [];
             }
-          } else {
-            appIps = appLocations.map((location) => location.ip);
           }
+          if (promiseArray.length > 0) {
+            // eslint-disable-next-line no-await-in-loop
+            await Promise.allSettled(promiseArray);
+            promiseArray = [];
+            appIps = appIpsOnAppsChecks.map((ip) => ip);
+            appIpsOnAppsChecks = [];
+          }
+        } else {
+          appIps = appLocations.map((location) => location.ip);
         }
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         const domains = getUnifiedDomains(app);
-        const customConfigs = getCustomConfigs(app, isG);
+        const customConfigs = getCustomConfigs(app, false);
         if (app.version <= 3) {
           for (let i = 0; i < app.ports.length; i += 1) {
             const configuredApp = {
@@ -608,37 +570,20 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
       }
     }
 
-    if (isGmode) {
-      // remove from configuration apps without ips
-      configuredApps = configuredApps.filter((app) => app.ips.length > 0);
-    }
-
-    if (!isGmode && configuredApps.length < 10) {
+    if (configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');
     }
 
-    if (isGmode && JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredGApps)) {
-      log.info('No changes in Gmode configuration detected');
-    } else if (!isGmode && JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)) {
+    if (JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)) {
       log.info('No changes in configuration detected');
-    } else if (isGmode) {
-      log.info('Changes in configuration detected in G mode');
     } else {
       log.info('Changes in configuration detected');
     }
     let haproxyAppsConfig = [];
-    if (isGmode) {
-      recentlyConfiguredGApps = configuredApps;
-      gAppsProcessingFinishedOnce = true;
-      if (nonGAppsProcessingFinishedOnce) {
-        haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
-      }
-    } else {
-      recentlyConfiguredApps = configuredApps;
-      nonGAppsProcessingFinishedOnce = true;
-      if (gAppsProcessingFinishedOnce) {
-        haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps); // we need to put always in same order to avoid. non g first g at end
-      }
+    recentlyConfiguredApps = configuredApps;
+    nonGAppsProcessingFinishedOnce = true;
+    if (gAppsProcessingFinishedOnce) {
+      haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps); // we need to put always in same order to avoid. non g first g at end
     }
 
     if (nonGAppsProcessingFinishedOnce && gAppsProcessingFinishedOnce && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
@@ -655,13 +600,371 @@ async function generateAndReplaceMainApplicationHaproxyConfig(isGmode = false, t
   } catch (error) {
     log.error(error);
   } finally {
-    if (isGmode) {
-      log.info(`G Mode ENDED at${new Date()}`);
-    } else {
-      log.info(`Non G Mode ENDED at${new Date()}`);
-    }
+    log.info(`Non G Mode ENDED at${new Date()}`);
     setTimeout(() => {
-      generateAndReplaceMainApplicationHaproxyConfig(isGmode, timeout);
+      generateAndReplaceMainApplicationHaproxyConfig();
+    }, timeout * 1000);
+  }
+}
+
+async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) {
+  try {
+    log.info(`G Mode STARTED at${new Date()}`);
+    // get permanent messages on the network
+    await getPermanentMessages();
+    // get applications on the network
+    await getGlobalAppSpecs();
+
+    if (!permanentMessages || !globalAppSpecs) {
+      throw new Error('Obtained specifications invalid');
+    }
+
+    // filter applications based on config
+    let applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
+
+    const gApps = [];
+    // in G mode we process only apps that do have g: in containerData
+    for (const app of applicationSpecifications) {
+      if (app.version <= 3) {
+        if (app.containerData.includes('g:')) {
+          gApps.push(app);
+        }
+      } else {
+        let isG = false;
+        for (const component of app.compose) {
+          if (component.containerData.includes('g:')) {
+            isG = true;
+          }
+        }
+        if (isG) {
+          gApps.push(app);
+        }
+      }
+    }
+
+    applicationSpecifications = gApps;
+
+    // for every application do following
+    // get name, ports
+    // main application domain is name.app.domain, for every port we have name-port.app.domain
+    // check and adjust dns record for missing domains
+    // obtain certificate
+    // add to renewal script
+    // check if certificate exist
+    // if all ok, add for creation of domain
+    await createSSLDirectory();
+    log.info('SSL directory checked');
+    const appsOK = await processApplications(applicationSpecifications, myFDMnameORip, myIP);
+
+    // continue with appsOK
+    let configuredApps = []; // object of domain, port, ips for backend and isRdata
+    for (const app of appsOK) {
+      log.info(`Configuring ${app.name}`);
+      // eslint-disable-next-line no-await-in-loop
+      const appLocations = await fluxService.getApplicationLocation(app.name);
+      if (app.name === 'blockbookbitcoin') {
+        appLocations.push({ ip: '66.70.144.171' });
+        appLocations.push({ ip: '66.70.144.172' });
+      }
+      if (app.name === 'blockbooklitecoin') {
+        appLocations.push({ ip: '66.70.144.173' });
+        appLocations.push({ ip: '66.70.144.174' });
+      }
+      if (app.name === 'blockbookdogecoin') {
+        appLocations.push({ ip: '66.70.144.186' });
+        appLocations.push({ ip: '66.70.144.187' });
+      }
+      if (app.name === 'blockbookravencoin') {
+        appLocations.push({ ip: '54.39.237.202' });
+        appLocations.push({ ip: '54.39.237.203' });
+      }
+      if (app.name === 'blockbookbitcointestnet') {
+        appLocations.push({ ip: '54.39.237.198' });
+        appLocations.push({ ip: '54.39.237.199' });
+      }
+      if (app.name === 'blockbookzcash') {
+        appLocations.push({ ip: '66.70.144.175' });
+        appLocations.push({ ip: '66.70.144.176' });
+      }
+      if (app.name === 'blockbookbitcoincash') {
+        appLocations.push({ ip: '167.114.217.137' });
+        appLocations.push({ ip: '167.114.217.138' });
+      }
+      if (appLocations.length > 0) {
+        const appIps = [];
+
+        // if its G data application, use just one IP
+        const locationIps = appLocations.map((location) => location.ip);
+        log.info(`Mode G Location IPs for ${app.name} are ${JSON.stringify(locationIps)}`);
+        // eslint-disable-next-line no-await-in-loop
+        const selectedIP = await selectIPforG(locationIps, app);
+        log.info(`Mode G Selected IP for ${app.name} is ${selectedIP}`);
+        if (selectedIP) {
+          appIps.push(selectedIP);
+        }
+
+        if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
+          throw new Error(`Application ${app.name} checks not ok. PANIC.`);
+        }
+        const domains = getUnifiedDomains(app);
+        const customConfigs = getCustomConfigs(app, true);
+        if (app.version <= 3) {
+          for (let i = 0; i < app.ports.length; i += 1) {
+            const configuredApp = {
+              name: app.name,
+              appName: `${app.name}_${app.ports[i]}`,
+              domain: domains[i],
+              port: app.ports[i],
+              ips: appIps,
+              ...customConfigs[i],
+            };
+            if (app.containerData.includes('r:')) {
+              configuredApp.isRdata = true;
+            }
+            configuredApps.push(configuredApp);
+            if (app.domains[i]) {
+              const portDomains = app.domains[i].split(',');
+              for (let portDomain of portDomains) {
+                // eslint-disable-next-line no-param-reassign
+                portDomain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
+                const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
+                if (isDomainAllowed === false) {
+                  // eslint-disable-next-line no-continue
+                  continue;
+                }
+                // TODO here check on permanent apps if this app name is true owner of the portDomain
+                if (portDomain.includes('www.')) {
+                  // eslint-disable-next-line prefer-destructuring, no-param-reassign
+                  portDomain = portDomain.split('www.')[1];
+                }
+                // prevention for double backend on custom domains, can be improved
+                const domainAssigned = configuredApps.find((appThatIsConfigured) => appThatIsConfigured.domain === portDomain);
+                if (portDomain && portDomain.includes('.') && portDomain.length > 3 && !portDomain.toLowerCase().includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`) && !domainAssigned) { // prevent double backend
+                  const domainExists = configuredApps.find((a) => a.domain === portDomain.toLowerCase());
+                  if (!domainExists) {
+                    const configuredAppCustom = {
+                      name: app.name,
+                      appName: `${app.name}_${app.ports[i]}`,
+                      domain: portDomain,
+                      port: app.ports[i],
+                      ips: appIps,
+                      ...customConfigs[i],
+                    };
+                    if (app.containerData.includes('r:')) {
+                      configuredAppCustom.isRdata = true;
+                    }
+                    configuredApps.push(configuredAppCustom);
+                  }
+                  const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
+                  if (wwwAdjustedDomain) {
+                    const domainExistsB = configuredApps.find((a) => a.domain === wwwAdjustedDomain);
+                    if (!domainExistsB) {
+                      const configuredAppCustom = {
+                        name: app.name,
+                        appName: `${app.name}_${app.ports[i]}`,
+                        domain: wwwAdjustedDomain,
+                        port: app.ports[i],
+                        ips: appIps,
+                        ...customConfigs[i],
+                      };
+                      if (app.containerData.includes('r:')) {
+                        configuredAppCustom.isRdata = true;
+                      }
+                      configuredApps.push(configuredAppCustom);
+                    }
+                  }
+
+                  const testAdjustedDomain = `test.${portDomain.toLowerCase()}`;
+                  if (testAdjustedDomain) {
+                    const domainExistsB = configuredApps.find((a) => a.domain === testAdjustedDomain);
+                    if (!domainExistsB) {
+                      const configuredAppCustom = {
+                        name: app.name,
+                        appName: `${app.name}_${app.ports[i]}`,
+                        domain: testAdjustedDomain,
+                        port: app.ports[i],
+                        ips: appIps,
+                        ...customConfigs[i],
+                      };
+                      if (app.containerData.includes('r:')) {
+                        configuredAppCustom.isRdata = true;
+                      }
+                      configuredApps.push(configuredAppCustom);
+                    }
+                  }
+                }
+              }
+            }
+          }
+          const mainApp = {
+            name: app.name,
+            appName: `${app.name}_${app.ports[0]}`,
+            domain: domains[domains.length - 1],
+            port: app.ports[0],
+            ips: appIps,
+            ...customConfigs[customConfigs.length - 1],
+          };
+          if (app.containerData.includes('r:')) {
+            mainApp.isRdata = true;
+          }
+          configuredApps.push(mainApp);
+        } else {
+          let j = 0;
+          for (const component of app.compose) {
+            for (let i = 0; i < component.ports.length; i += 1) {
+              const configuredApp = {
+                name: app.name,
+                appName: `${app.name}_${component.name}_${component.ports[i]}`,
+                domain: domains[j],
+                port: component.ports[i],
+                ips: appIps,
+                ...customConfigs[j],
+              };
+              if (component.containerData.includes('r:')) {
+                configuredApp.isRdata = true;
+              }
+              configuredApps.push(configuredApp);
+              const portDomains = component.domains[i].split(',');
+              // eslint-disable-next-line no-loop-func
+              for (let portDomain of portDomains) {
+                // eslint-disable-next-line no-param-reassign
+                portDomain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
+                const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
+                if (isDomainAllowed === false) {
+                  // eslint-disable-next-line no-continue
+                  continue;
+                }
+                if (portDomain.includes('www.')) {
+                  // eslint-disable-next-line prefer-destructuring, no-param-reassign
+                  portDomain = portDomain.split('www.')[1];
+                }
+                // prevention for double backend on custom domains, can be improved
+                const domainAssigned = configuredApps.find((appThatIsConfigured) => appThatIsConfigured.domain === portDomain);
+                if (portDomain && portDomain.includes('.') && portDomain.length >= 3 && !portDomain.toLowerCase().includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`) && !domainAssigned) {
+                  if (!portDomain.includes(`${config.appSubDomain}${config.mainDomain.split('.')[0]}`)) { // prevent double backend
+                    const domainExists = configuredApps.find((a) => a.domain === portDomain.toLowerCase());
+                    if (!domainExists) {
+                      const configuredAppCustom = {
+                        name: app.name,
+                        appName: `${app.name}_${component.name}_${component.ports[i]}`,
+                        domain: portDomain,
+                        port: component.ports[i],
+                        ips: appIps,
+                        ...customConfigs[j],
+                      };
+                      if (component.containerData.includes('r:')) {
+                        configuredAppCustom.isRdata = true;
+                      }
+                      configuredApps.push(configuredAppCustom);
+                    }
+
+                    const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
+                    if (wwwAdjustedDomain) {
+                      const domainExistsB = configuredApps.find((a) => a.domain === wwwAdjustedDomain);
+                      if (!domainExistsB) {
+                        const configuredAppCustom = {
+                          name: app.name,
+                          appName: `${app.name}_${component.name}_${component.ports[i]}`,
+                          domain: wwwAdjustedDomain,
+                          port: component.ports[i],
+                          ips: appIps,
+                          ...customConfigs[j],
+                        };
+                        if (component.containerData.includes('r:')) {
+                          configuredAppCustom.isRdata = true;
+                        }
+                        configuredApps.push(configuredAppCustom);
+                      }
+                    }
+
+                    const testAdjustedDomain = `test.${portDomain.toLowerCase()}`;
+                    if (testAdjustedDomain) {
+                      const domainExistsB = configuredApps.find((a) => a.domain === testAdjustedDomain);
+                      if (!domainExistsB) {
+                        const configuredAppCustom = {
+                          name: app.name,
+                          appName: `${app.name}_${component.name}_${component.ports[i]}`,
+                          domain: testAdjustedDomain,
+                          port: component.ports[i],
+                          ips: appIps,
+                          ...customConfigs[j],
+                        };
+                        if (component.containerData.includes('r:')) {
+                          configuredAppCustom.isRdata = true;
+                        }
+                        configuredApps.push(configuredAppCustom);
+                      }
+                    }
+                  }
+                }
+              }
+              j += 1;
+            }
+          }
+          // push main domain
+          for (let q = 0; q < app.compose.length; q += 1) {
+            for (let w = 0; w < app.compose[q].ports.length; w += 1) {
+              const mainDomainExists = configuredApps.find((qw) => qw.domain === domains[domains.length - 1]);
+              if (!mainDomainExists) {
+                const mainApp = {
+                  name: app.name,
+                  appName: `${app.name}_${app.compose[q].name}_${app.compose[q].ports[w]}`,
+                  domain: domains[domains.length - 1],
+                  port: app.compose[q].ports[w],
+                  ips: appIps,
+                  ...customConfigs[customConfigs.length - 1],
+                };
+                if (app.compose[q].containerData.includes('r:')) {
+                  mainApp.isRdata = true;
+                }
+                configuredApps.push(mainApp);
+              }
+            }
+          }
+        }
+        log.info(`Application ${app.name} is OK. Proceeding to FDM`);
+      } else {
+        log.warn(`Application ${app.name} is excluded. Not running properly?`);
+        if (config.mandatoryApps.includes(app.name)) {
+          throw new Error(`Application ${app.name} is not running well PANIC.`);
+        }
+      }
+    }
+
+    // remove from configuration apps without ips
+    configuredApps = configuredApps.filter((app) => app.ips.length > 0);
+
+    if (JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredGApps)) {
+      log.info('No changes in Gmode configuration detected');
+    } else {
+      log.info('Changes in configuration detected in G mode');
+    }
+    let haproxyAppsConfig = [];
+
+    recentlyConfiguredGApps = configuredApps;
+    gAppsProcessingFinishedOnce = true;
+    if (nonGAppsProcessingFinishedOnce) {
+      haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
+    }
+
+    if (nonGAppsProcessingFinishedOnce && gAppsProcessingFinishedOnce && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
+      lastHaproxyAppsConfig = haproxyAppsConfig;
+      const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
+      console.log(hc);
+      const dataToWrite = hc;
+      // test haproxy config
+      const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
+      if (!successRestart) {
+        throw new Error('Invalid HAPROXY Config File!');
+      }
+    }
+  } catch (error) {
+    log.error(error);
+  } finally {
+    log.info(`G Mode ENDED at${new Date()}`);
+
+    setTimeout(() => {
+      generateAndReplaceMainApplicationHaproxyGAppsConfig();
     }, timeout * 1000);
   }
 }
@@ -722,16 +1025,16 @@ function initializeServices() {
       log.info('Flux Main Node Domain Service initiated.');
     } else if (config.mainDomain === config.cloudflare.domain && config.cloudflare.manageapp) {
       // only runs on main FDM handles X.APP.runonflux.io
-      generateAndReplaceMainApplicationHaproxyConfig(false);
+      generateAndReplaceMainApplicationHaproxyConfig();
       setTimeout(() => {
-        generateAndReplaceMainApplicationHaproxyConfig(true, 5);
+        generateAndReplaceMainApplicationHaproxyGAppsConfig();
       }, 60 * 1000);
       log.info('Flux Main Application Domain Service initiated.');
     } else if (config.mainDomain === config.pDNS.domain && config.pDNS.manageapp) {
       // only runs on main FDM handles X.APP.runonflux.io
-      generateAndReplaceMainApplicationHaproxyConfig(false);
+      generateAndReplaceMainApplicationHaproxyConfig();
       setTimeout(() => {
-        generateAndReplaceMainApplicationHaproxyConfig(true, 5);
+        generateAndReplaceMainApplicationHaproxyGAppsConfig();
       }, 60 * 1000);
       log.info('Flux Main Application Domain Service initiated.');
     } else {

@@ -252,7 +252,7 @@ async function updateHaproxy(haproxyAppsConfig) {
     if (!successRestart) {
       throw new Error('Invalid HAPROXY Config File!');
     }
-    log.info('HAPROXY restarted with new configuration');
+    log.info(`HAPROXY restarted with new configuration: ${JSON.stringify(haproxyAppsConfig)}`);
   } finally {
     updateHaproxyRunning = false;
   }

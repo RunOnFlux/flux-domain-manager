@@ -612,7 +612,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
     if (configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');
     }
-
+    log.info(`Non G Mode configuredApps lenght: ${configuredApps.lenght}`);
     if (JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)) {
       log.info('No changes in Non G Mode configuration detected');
     } else {
@@ -724,11 +724,11 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
 
     // remove from configuration apps without ips
     configuredApps = configuredApps.filter((app) => app.ips.length > 0);
-
+    log.info(`G Mode configuredApps lenght: ${configuredApps.lenght}`);
     if (JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredGApps)) {
-      log.info('No changes in Gmode configuration detected');
+      log.info('No changes in G Mode configuration detected');
     } else {
-      log.info('Changes in configuration detected in G mode');
+      log.info('Changes in G Mode configuration detected');
     }
     let haproxyAppsConfig = [];
 

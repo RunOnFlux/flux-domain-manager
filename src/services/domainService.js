@@ -252,7 +252,6 @@ async function updateHaproxy(haproxyAppsConfig) {
     if (!successRestart) {
       throw new Error('Invalid HAPROXY Config File!');
     }
-    log.info('HAPROXY restarted with new configuration');
   } finally {
     updateHaproxyRunning = false;
   }
@@ -572,7 +571,6 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
       if (appLocations.length > 0) {
         let appIps = [];
         const applicationWithChecks = applicationChecks.applicationWithChecks(app);
-        log.info(`Application ${app.name} have specific checks: ${applicationWithChecks}`);
         if (applicationWithChecks) {
           let promiseArray = [];
           for (const [i, location] of appLocations.entries()) { // run coded checks for app
@@ -599,7 +597,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         addConfigurations(configuredApps, app, appIps, false);
-        log.info(`Application ${app.name} is OK. Proceeding to FDM`);
+        log.info(`Application ${app.name} with specific checks: ${applicationWithChecks} is OK. Proceeding to FDM`);
       } else {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);
         if (config.mandatoryApps.includes(app.name)) {
@@ -611,7 +609,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
     if (configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');
     }
-    log.info(`Non G Mode configuredApps lenght: ${configuredApps.length}`);
+
     if (JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)) {
       log.info('No changes in Non G Mode configuration detected');
     } else {
@@ -627,7 +625,6 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
     if (nonGAppsProcessingFinishedOnce && gAppsProcessingFinishedOnce && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
       log.info(`Non G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`);
       lastHaproxyAppsConfig = haproxyAppsConfig;
-      log.info(`Minecraft Config: ${JSON.stringify(haproxyAppsConfig.find((app) => app.name === 'Minecraft'))}`);
       await updateHaproxy(haproxyAppsConfig);
     }
   } catch (error) {
@@ -690,7 +687,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
     const appsOK = await processApplications(applicationSpecifications, myFDMnameORip, myIP);
 
     // continue with appsOK
-    let configuredApps = []; // object of domain, port, ips for backend and isRdata
+    const configuredApps = []; // object of domain, port, ips for backend and isRdata
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
       // eslint-disable-next-line no-await-in-loop
@@ -701,31 +698,25 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
 
         // if its G data application, use just one IP
         const locationIps = appLocations.map((location) => location.ip);
-        log.info(`Mode G Location IPs for ${app.name} are ${JSON.stringify(locationIps)}`);
         // eslint-disable-next-line no-await-in-loop
         const selectedIP = await selectIPforG(locationIps, app);
-        log.info(`Mode G Selected IP for ${app.name} is ${selectedIP}`);
         if (selectedIP) {
           appIps.push(selectedIP);
+          addConfigurations(configuredApps, app, appIps, true);
+          log.info(`G Application ${app.name} is OK selected IP is ${selectedIP}. Proceeding to FDM`);
         }
-        addConfigurations(configuredApps, app, appIps, true);
 
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
-
-        log.info(`Application ${app.name} is OK. Proceeding to FDM`);
       } else {
-        log.warn(`Application ${app.name} is excluded. Not running properly?`);
+        log.warn(`G Application ${app.name} is excluded. Not running properly?`);
         if (config.mandatoryApps.includes(app.name)) {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
       }
     }
 
-    // remove from configuration apps without ips
-    configuredApps = configuredApps.filter((app) => app.ips.length > 0);
-    log.info(`G Mode configuredApps lenght: ${configuredApps.length}`);
     if (JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredGApps)) {
       log.info('No changes in G Mode configuration detected');
     } else {
@@ -742,7 +733,6 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
     if (nonGAppsProcessingFinishedOnce && gAppsProcessingFinishedOnce && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
       log.info(`G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`);
       lastHaproxyAppsConfig = haproxyAppsConfig;
-      log.info(`Minecraft Config: ${JSON.stringify(haproxyAppsConfig.find((app) => app.name === 'Minecraft'))}`);
       await updateHaproxy(haproxyAppsConfig);
     }
   } catch (error) {

@@ -257,8 +257,7 @@ async function updateHaproxy(haproxyAppsConfig) {
   }
 }
 
-function addConfigurations(app, appIps) {
-  const configuredApps = [];
+function addConfigurations(configuredApps, app, appIps) {
   const domains = getUnifiedDomains(app);
   const customConfigs = getCustomConfigs(app, false);
   if (app.version <= 3) {
@@ -475,7 +474,6 @@ function addConfigurations(app, appIps) {
       }
     }
   }
-  return configuredApps;
 }
 
 async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
@@ -537,7 +535,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
       }
     }
     // continue with appsOK
-    let configuredApps = []; // object of domain, port, ips for backend and isRdata
+    const configuredApps = []; // object of domain, port, ips for backend and isRdata
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
       // eslint-disable-next-line no-await-in-loop
@@ -599,7 +597,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
-        configuredApps = configuredApps.concat(addConfigurations(app, appIps));
+        addConfigurations(configuredApps, app, appIps);
         log.info(`Application ${app.name} is OK. Proceeding to FDM`);
       } else {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);
@@ -626,6 +624,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
     }
 
     if (nonGAppsProcessingFinishedOnce && gAppsProcessingFinishedOnce && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
+      log.info('Non G Mode updating haproxy');
       lastHaproxyAppsConfig = haproxyAppsConfig;
       await updateHaproxy(haproxyAppsConfig);
     }
@@ -706,8 +705,8 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
         log.info(`Mode G Selected IP for ${app.name} is ${selectedIP}`);
         if (selectedIP) {
           appIps.push(selectedIP);
-          configuredApps = configuredApps.concat(addConfigurations(app, appIps));
         }
+        addConfigurations(configuredApps, app, appIps);
 
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
@@ -739,6 +738,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
     }
 
     if (nonGAppsProcessingFinishedOnce && gAppsProcessingFinishedOnce && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
+      log.info('G Mode updating haproxy');
       lastHaproxyAppsConfig = haproxyAppsConfig;
       await updateHaproxy(haproxyAppsConfig);
     }

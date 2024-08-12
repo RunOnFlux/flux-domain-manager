@@ -536,13 +536,13 @@ async function generalWebsiteCheck(ip, port, timeOut = 2500, appname) {
 
 async function checkBlockBook(ip, port, appsname) {
   try {
-    const coinList = ['litecoin', 'flux', 'ethereumclassic', 'vertcoin', 'zcash', 'dogecoin', 'digibyte', 'groestlcoin', 'dash', 'firo', 'sin', 'ravencoin', 'pivx', 'decred', 'neurai', 'bitcoin', 'bitcointestnet', 'bitcoinsignet', 'clore', 'bitcoincash'];
+    const coinList = ['litecoin', 'flux', 'ethereumclassic', 'vertcoin', 'zcash', 'dogecoin', 'digibyte', 'groestlcoin', 'dash', 'firo', 'sin', 'ravencoin', 'pivx', 'decred', 'neurai', 'bitcoin', 'bitcointestnet', 'bitcoinsignet', 'clore', 'bitcoincash', 'bitcoingold'];
     const addressList = ['LVjoCYFESyTbKAEU5VbFYtb9EYyBXx55V5', 't3fK9bY31MGCqhKw34cg9gg168SHCfcMGHe', '0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf', 'VbFrQgNEiR8ZxMh9WmkjJu9kkqjJA6imdD',
       't1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj', 'DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8', 'DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8', 'FfgZPEfmvou5VxZRnTbRjPKhgVsrx7Qjq9',
       'XmCgmabJL2S8DJ8tmEvB8QDArgBbSSMJea', 'aBEJgEP2b7DP7tyQukv639qtdhjFhWp2QE', 'SXoqyAiZ6gQjafKmSnb2pmfwg7qLC8r4Sf', 'RKo31qpgy9278MuWNXb5NPranc4W6oaUFf',
       'DTVg3KVrPiv9QLPT1cYQ8XYV6SUugMYkZV', 'DsUbTWsJWNzNdfUigTrUqbxmnwntDBJXasi', 'NfXjy71SH9CdC8tNzQjkYGKUCYfMsTPaKS', '12ib7dApVFvg82TXKycWBNpN8kFyiAN1dr', 'tb1qcq670zweall6zz4f96flfrefhr8myfxz9ll9l2', 'tb1pwzv7fv35yl7ypwj8w7al2t8apd6yf4568cs772qjwper74xqc99sk8x7tk',
-      'AMq8KfE2iJtMbKNMtHp3VmJFFKmyLoMwuG', '12ib7dApVFvg82TXKycWBNpN8kFyiAN1dr'];
-    const heightList = [2561528, 1489960, 18510512, 2067081, 2260134, 4922428, 18038850, 4796068, 1953740, 764150, 1690368, 3015843, 4085836, 807730, 255116, 812896, 2534408, 165752, 516509, 845000];
+      'AMq8KfE2iJtMbKNMtHp3VmJFFKmyLoMwuG', '12ib7dApVFvg82TXKycWBNpN8kFyiAN1dr', 'GLTodZWWjuMWmXhu2fAtPM4e4Sv6Z2oZYP'];
+    const heightList = [2561528, 1489960, 18510512, 2067081, 2260134, 4922428, 18038850, 4796068, 1953740, 764150, 1690368, 3015843, 4085836, 807730, 255116, 812896, 2534408, 165752, 516509, 845000, 850000];
     let coin = appsname.replace('blockbook', '');
     coin = coin.replace(/\d+/g, '');
     const index = coinList.indexOf(coin);

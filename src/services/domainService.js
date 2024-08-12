@@ -224,6 +224,39 @@ async function addAppIps(app, ip) {
   }
 }
 
+/**
+ * To delay by a number of milliseconds.
+ * @param {number} ms Number of milliseconds.
+ * @returns {Promise} Promise object.
+ */
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+let updateHaproxyRunning = false;
+async function updateHaproxy(haproxyAppsConfig) {
+  try {
+    if (updateHaproxyRunning) {
+      await delay(1000);
+      await updateHaproxy(haproxyAppsConfig);
+      return;
+    }
+    updateHaproxyRunning = true;
+    const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
+    console.log(hc);
+    const dataToWrite = hc;
+    // test haproxy config
+    const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
+    if (!successRestart) {
+      throw new Error('Invalid HAPROXY Config File!');
+    }
+  } finally {
+    updateHaproxyRunning = false;
+  }
+}
+
 async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
   try {
     log.info(`Non G Mode STARTED at${new Date()}`);
@@ -588,14 +621,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
 
     if (nonGAppsProcessingFinishedOnce && gAppsProcessingFinishedOnce && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
       lastHaproxyAppsConfig = haproxyAppsConfig;
-      const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
-      console.log(hc);
-      const dataToWrite = hc;
-      // test haproxy config
-      const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
-      if (!successRestart) {
-        throw new Error('Invalid HAPROXY Config File!');
-      }
+      await updateHaproxy(haproxyAppsConfig);
     }
   } catch (error) {
     log.error(error);
@@ -923,14 +949,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
 
     if (nonGAppsProcessingFinishedOnce && gAppsProcessingFinishedOnce && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
       lastHaproxyAppsConfig = haproxyAppsConfig;
-      const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
-      console.log(hc);
-      const dataToWrite = hc;
-      // test haproxy config
-      const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
-      if (!successRestart) {
-        throw new Error('Invalid HAPROXY Config File!');
-      }
+      await updateHaproxy(haproxyAppsConfig);
     }
   } catch (error) {
     log.error(error);

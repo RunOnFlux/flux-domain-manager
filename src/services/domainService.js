@@ -575,9 +575,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
     }
 
     if (JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)) {
-      log.info('No changes in configuration detected');
+      log.info('No changes in Non G Mode configuration detected');
     } else {
-      log.info('Changes in configuration detected');
+      log.info('Changes in Non G Mode configuration detected');
     }
     let haproxyAppsConfig = [];
     recentlyConfiguredApps = configuredApps;

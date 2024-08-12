@@ -252,6 +252,7 @@ async function updateHaproxy(haproxyAppsConfig) {
     if (!successRestart) {
       throw new Error('Invalid HAPROXY Config File!');
     }
+    log.info('HAPROXY restarted with new configuration');
   } finally {
     updateHaproxyRunning = false;
   }
@@ -624,7 +625,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
     }
 
     if (nonGAppsProcessingFinishedOnce && gAppsProcessingFinishedOnce && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
-      log.info('Non G Mode updating haproxy');
+      log.info(`Non G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`);
       lastHaproxyAppsConfig = haproxyAppsConfig;
       await updateHaproxy(haproxyAppsConfig);
     }
@@ -738,7 +739,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
     }
 
     if (nonGAppsProcessingFinishedOnce && gAppsProcessingFinishedOnce && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
-      log.info('G Mode updating haproxy');
+      log.info(`G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`);
       lastHaproxyAppsConfig = haproxyAppsConfig;
       await updateHaproxy(haproxyAppsConfig);
     }

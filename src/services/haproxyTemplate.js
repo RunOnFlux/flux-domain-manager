@@ -213,7 +213,7 @@ backend ${domainUsed}backend
     domainBackend += app.loadBalance;
   } else if (mode !== 'tcp') {
     domainBackend += '\n  balance roundrobin';
-    domainBackend += '\n  cookie FDMSERVERID insert indirect nocache maxlife 8h';
+    domainBackend += '\n  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h';
   }
   if (app.headers) {
     // eslint-disable-next-line no-loop-func

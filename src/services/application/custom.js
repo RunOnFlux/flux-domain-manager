@@ -98,6 +98,9 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     '35432.rakkupgbouncer.rakkupgbouncer': {
       mode: 'tcp',
     },
+    '34443.friendica.friendica': {
+      ssl: true,
+    },
   };
 
   let mainPort = '';

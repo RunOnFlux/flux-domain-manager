@@ -101,7 +101,7 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     '34443.friendica.friendica': {
       ssl: true,
     },
-    '34328.wordpress1677413615318.wordpress': {
+    '34328.wordpress1677413615318.wordpress1677413615318': {
        mode: 'tcp',
     },
   };

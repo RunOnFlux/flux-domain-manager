@@ -161,6 +161,7 @@ function createKadenaHaproxyConfig(appConfig) {
   backends = `${backends + kdaTxsBackend}\n\n`;
 
   domains.push('kadena.dapp.runonflux.io');
+  domains.push('chainweb.ecko.finance');
 
   const chainwebAcl1 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/0/pact\n';
   const chainwebAcl2 = '  acl chainwebB path_beg /chainweb/0.0/mainnet01/chain/1/pact\n';

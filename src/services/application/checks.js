@@ -741,6 +741,7 @@ async function checkAppRunning(url, appName) {
     const ip = url.split(':')[0];
     const port = url.split(':')[1] || 16127;
     const response = await axios.get(`http://${ip}:${port}/apps/listrunningapps`, { timeout, cancelToken: source.token });
+    isResolved = true;
     const appsRunning = response.data.data;
     if (appsRunning.find((app) => app.Names[0].includes(appName))) {
       return true;

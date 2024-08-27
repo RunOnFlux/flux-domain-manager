@@ -98,11 +98,9 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     '35432.rakkupgbouncer.rakkupgbouncer': {
       mode: 'tcp',
     },
-    '34443.friendica.friendica': {
+    '34443.friendica.frendica': {
       ssl: true,
-    },
-    '34328.wordpress1677413615318.wordpress1677413615318': {
-       mode: 'tcp',
+      mode: 'tcp',
     },
   };
 

@@ -286,7 +286,7 @@ function generateMinecraftACLs(app) {
   ];
 }
 
-function createMainHaproxyConfig(ui, api, fluxIPs) {
+function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   const uiB = ui.split('.').join('');
   let uiBackend = `backend ${uiB}backend
   http-response set-header FLUXNODE %s
@@ -346,14 +346,22 @@ function createMainHaproxyConfig(ui, api, fluxIPs) {
   const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n';
   const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;
   const apiAcl = `  acl ${apiB} hdr(host) ${api}\n`;
+  let acls = uiAcl + apiAcl;
+  if (uiPrimary) {
+    const uiPrimaryAcl = `  acl ${uiB} hdr(host) ${uiPrimary}\n`;
+    acls += uiPrimaryAcl
+  }
+  if (apiPrimary) {
+    const apiPrimaryAcl = `  acl ${apiB} hdr(host) ${apiPrimary}\n`;
+    acls += apiPrimaryAcl
+  }
   const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;
   const apiBackendUse = `  use_backend ${apiB}backend if ${apiB}\n`;
 
-  const acls = uiAcl + apiAcl;
   const usebackends = uiBackendUse + apiBackendUse;
 
   const backends = `${uiBackend}\n\n${apiBackend}`;
-  const urls = [ui, api, 'dashboard.zel.network'];
+  const urls = [ui, api, 'dashboard.zel.network', uiPrimary, apiPrimary];
 
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {}, {});
 }

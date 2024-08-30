@@ -121,6 +121,11 @@ async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `home.${config.mainDomain}`;
     const api = `api.${config.mainDomain}`;
+    let uiPrimary, apiPrimary;
+    if (config.primaryDomain) {
+      uiPrimary = `home.${config.primaryDomain}`;
+      apiPrimary = `api.${config.primaryDomain}`;
+    }
     const fluxIPs = await fluxService.getFluxIPs('STRATUS'); // use only stratus for home
     if (fluxIPs.length < 1000) {
       throw new Error('Invalid Flux List');
@@ -146,7 +151,7 @@ async function generateAndReplaceMainHaproxyConfig() {
     if (fluxIPsForBalancing.length < 10) {
       throw new Error('Not enough ok nodes, probably error');
     }
-    const hc = await haproxyTemplate.createMainHaproxyConfig(ui, api, fluxIPsForBalancing);
+    const hc = await haproxyTemplate.createMainHaproxyConfig(ui, api, fluxIPsForBalancing, uiPrimary, apiPrimary);
     console.log(hc);
     const dataToWrite = hc;
     // test haproxy config

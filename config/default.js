@@ -20,6 +20,7 @@ module.exports = {
     },
   },
   mainDomain: 'runonflux.io',
+  primaryDomain: 'runonflux.com',
   domainAppType: 'CNAME',
   emailDomain: 'tadeas@runonflux.io',
   certFolder: 'fluxapps',

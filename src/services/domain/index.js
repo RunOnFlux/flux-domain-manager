@@ -58,7 +58,7 @@ function getCustomDomains(app) {
           if (portDomain && portDomain.includes('.') && portDomain.length >= 3 && !portDomain.toLowerCase().endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
             let domain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
             if (domain.includes('www.')) {
-            // eslint-disable-next-line prefer-destructuring
+              // eslint-disable-next-line prefer-destructuring
               domain = domain.split('www.')[1];
             }
             domains.push(domain.toLowerCase());
@@ -83,9 +83,9 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
       }
     }
     if (config.blackListedApps.length) {
-    // exclude blacklisted apps
+      // exclude blacklisted apps
       if (serviceHelper.matchRule(appSpecs.name, config.blackListedApps)) {
-      // eslint-disable-next-line no-continue
+        // eslint-disable-next-line no-continue
         continue;
       }
     }
@@ -110,8 +110,14 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
       for (const component of appSpecs.compose) {
         component.domains = [''];
       }
-    } else if (appSpecs.name === 'Jetpack2') {
-      appSpecs.compose[0].domains = ['cloud.runonflux.io'];
+    } else if (appSpecs.name === 'cloud') { // cloud is one component and we want to have cloud available on both cloud.runonflux.com and cloud.runonflux.io
+      for (const component of appSpecs.compose) {
+        component.domains = ['cloud.runonflux.io,cloud.runonflux.com'];
+      }
+    } else if (appSpecs.name === 'clouddev') { // clouddev is one component and we want to have cloud available on both dev.cloud.runonflux.com and dev.cloud.runonflux.io
+      for (const component of appSpecs.compose) {
+        component.domains = ['dev.cloud.runonflux.io,dev.cloud.runonflux.com'];
+      }
     }
     // else if (appSpecs.name === 'eckodao') {
     //   appSpecs.compose[0].domains = ['', '', '', '', ''];

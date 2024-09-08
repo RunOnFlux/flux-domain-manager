@@ -116,6 +116,7 @@
         manageCertificateOnly: "false"
         appSubDomain: "{{ 'app2' if DEPLOY_ENV == 'staging' else 'app' }}"
         useSubset: "true"
+        manageApps: "true"
 
     - name: Copy default.js config to CDM
       ansible.builtin.template:
@@ -126,6 +127,7 @@
         manageCertificateOnly: "true"
         appSubDomain: "{{ 'app2' if DEPLOY_ENV == 'staging' else 'app' }}"
         useSubset: "false"
+        manageApps: "true"
 
     - name: Install Dependencies FDM
       command: npm install

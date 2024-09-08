@@ -20,6 +20,7 @@ module.exports = {
     },
   },
   mainDomain: 'runonflux.io',
+  primaryDomain: 'runonflux.com',
   domainAppType: 'CNAME',
   emailDomain: 'tadeas@runonflux.io',
   certFolder: 'fluxapps',
@@ -32,7 +33,7 @@ module.exports = {
     apiKey: cloudflareConfig.apiKey,
     zone: cloudflareConfig.zoneID,
     domain: cloudflareConfig.domain,
-    manageapp: true,
+    manageapp: {{ manageApps }},
     enabled: true,
   },
   pDNS: {

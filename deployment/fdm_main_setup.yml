@@ -1,0 +1,109 @@
+---
+- name: Install and configure FDM
+  hosts: "main_fdm_servers"
+  become: yes
+
+  tasks:
+    - name: Import MongoDB public GPG key
+      ansible.builtin.get_url:
+        url: "https://www.mongodb.org/static/pgp/server-6.0.asc"
+        dest: /etc/apt/keyrings/mongo.asc
+        mode: '0644'
+        force: true
+
+    - name: Add MongoDB repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/mongo.asc] https://repo.mongodb.org/apt/ubuntu {{ ansible_distribution_release }}/mongodb-org/6.0 multiverse"
+        state: present
+        filename: mongodb-org-6.0
+
+    - name: Update apt package list
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install required packages
+      ansible.builtin.package:
+        name:
+          - software-properties-common
+          - certbot
+          - haproxy
+          - dirmngr
+          - gnupg
+          - apt-transport-https
+          - ca-certificates
+          - mongodb-org
+          - build-essential
+          - libssl-dev
+          - curl
+          - python3-pip
+        state: present
+
+    - name: Install jc via python
+      ansible.builtin.pip:
+        name: jc
+        version: 1.25.2
+
+    - name: Install Node.js 18.x repository
+      shell: "curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -"
+
+    - name: Install Node.js
+      apt:
+        name: nodejs
+        state: latest
+        update_cache: yes
+
+    - name: Install PM2 globally using NPM
+      command: npm install -g pm2
+
+    - name: Enable and start MongoDB service
+      ansible.builtin.systemd:
+        name: mongod
+        state: started
+        enabled: yes
+
+    - name: Ensure directory exists
+      ansible.builtin.file:
+        path: /etc/ssl/fluxapps
+        owner: root
+        group: root
+        state: directory
+        mode: '0755'
+
+    - name: Clone FDM
+      ansible.builtin.git:
+        repo: https://github.com/RunOnFlux/flux-domain-manager.git
+        dest: flux-domain-manager
+        version: main
+        force: yes
+        update: yes
+        clone: yes
+        depth: 1
+        accept_hostkey: yes
+
+    - name: Copy default.js config to FDM
+      ansible.builtin.template:
+        src: default.js.j2
+        dest: flux-domain-manager/config/default-0.js
+        mode: '0644'
+      vars:
+        manageCertificateOnly: "false"
+        appSubDomain: "app2"
+        useSubset: "false"
+        manageApps: "false"
+        fdmAppDomain: "fdm-lb-2-1.runonflux.io"
+        startSubset: "0"
+        endSubset: "F"
+
+    - name: Install Dependencies FDM
+      command: npm install
+      args:
+        chdir: flux-domain-manager
+
+    - name: start FDM
+      command: sudo pm2 restart FDM
+      args:
+        chdir: flux-domain-manager
+      environment:
+        NODE_ENV: production
+        NODE_CONFIG_DIR: flux-domain-manager/config
+

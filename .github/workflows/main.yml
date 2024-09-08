@@ -35,8 +35,13 @@ jobs:
         echo "  StrictHostKeyChecking no" >> ~/.ssh/config
         echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
 
-    - name: Run Ansible playbook
+    - name: Run Ansible playbook APPS
       env:
         DEPLOY_ENV: ${{ github.event_name == 'release' && 'production' || 'staging' }}
       run: |
         ansible-playbook -i deployment/hosts.ini -e "DEPLOY_ENV=$DEPLOY_ENV" deployment/fdm_setup.yml
+    
+    - name: Run Ansible playbook MAIN
+      if: github.event_name == 'release'
+      run: |
+        ansible-playbook -i deployment/hosts.ini deployment/fdm_main_setup.yml

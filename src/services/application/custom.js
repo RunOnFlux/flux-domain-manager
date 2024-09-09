@@ -98,7 +98,7 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     '35432.rakkupgbouncer.rakkupgbouncer': {
       mode: 'tcp',
     },
-    '34443.friendica.frendica': {
+    '34443.onlyoffice.onlyoffice': {
       ssl: true,
       mode: 'tcp',
     },

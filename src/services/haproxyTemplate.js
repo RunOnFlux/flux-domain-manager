@@ -151,9 +151,9 @@ frontend tcp_app_${port}
   option tcp-check
   tcp-request inspect-delay 5s
   ${+port ===25565 ? `tcp-request content lua.mc_handshake
-  tcp-request content reject if { var(txn.mc_proto) -m int 0 }
+  # tcp-request content reject if { var(txn.mc_proto) -m int 0 }
   tcp-request content accept if { var(txn.mc_proto) -m found }
-  tcp-request content reject if WAIT_END` : `tcp-request content accept if { req_ssl_hello_type 1 }`}
+  # tcp-request content reject if WAIT_END` : `tcp-request content accept if { req_ssl_hello_type 1 }`}
 ${portConf.acls.join('\n')}
 ${portConf.usebackends.join('')}
 ${portConf.backends.join('\n')}`;

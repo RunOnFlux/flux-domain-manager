@@ -12,6 +12,7 @@ let lastHaproxyConfig;
 
 const haproxyPrefix = `
 global
+  ${configGlobal.cloudflare.manageapp ? 'lua-load /path/to/haproxy_minecraft.lua' : ''}
   maxconn 50000
   log /dev/log    local0 info warning
   log /dev/log    local1 notice err
@@ -118,9 +119,9 @@ function generateMinecraftSettings(minecraftAppsMap) {
     const tempFrontend = `
 frontend minecraft_${port}
   bind 0.0.0.0:${port}
+  mode tcp
   tcp-request inspect-delay 5s
   tcp-request content accept if { req_ssl_hello_type 1 }
-  mode tcp
   option tcplog
   option tcp-check
 ${portConf.acls.join('\n')}
@@ -145,11 +146,14 @@ function generateAppsTCPSettings(tcpAppsMap) {
     const tempFrontend = `
 frontend tcp_app_${port}
   bind 0.0.0.0:${port}
-  tcp-request inspect-delay 5s
-  tcp-request content accept if { req_ssl_hello_type 1 }
   mode tcp
   option tcplog
   option tcp-check
+  tcp-request inspect-delay 5s
+  ${+port ===25565 ? `tcp-request content lua.mc_handshake
+    tcp-request content reject if { var(txn.mc_proto) -m int 0 }
+    tcp-request content accept if { var(txn.mc_proto) -m found }
+    tcp-request content reject if WAIT_END}` : `tcp-request content accept if { req_ssl_hello_type 1 }`}
 ${portConf.acls.join('\n')}
 ${portConf.usebackends.join('')}
 ${portConf.backends.join('\n')}`;
@@ -276,6 +280,8 @@ function generateMinecraftACLs(app) {
   const nameLength = appName.length + 1;
   const domainLength = app.domain.length;
   return [
+    `  acl ${aclName} var(txn.mc_host) -i -m dom ${appName}`
+    `  acl ${aclName} var(txn.mc_host) -i -m dom ${app.domain}`
     `  acl ${aclName} req.payload(4,${nameLength}) -m sub ${appName}.`,
     `  acl ${aclName} req.payload(5,${nameLength}) -m sub ${appName}.`,
     `  acl ${aclName} req.payload(7,${nameLength}) -m sub ${appName}.`,

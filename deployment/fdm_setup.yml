@@ -85,6 +85,14 @@
         group: root
         mode: '0644'
 
+    - name: Copy Minecraft LUA file
+      ansible.builtin.copy:
+        src: haproxy_minecraft.lua
+        dest: /etc/haproxy/haproxy_minecraft.lua
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Clone FDM
       ansible.builtin.git:
         repo: https://github.com/RunOnFlux/flux-domain-manager.git

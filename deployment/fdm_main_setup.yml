@@ -4,19 +4,6 @@
   become: yes
 
   tasks:
-    - name: Import MongoDB public GPG key
-      ansible.builtin.get_url:
-        url: "https://www.mongodb.org/static/pgp/server-6.0.asc"
-        dest: /etc/apt/keyrings/mongo.asc
-        mode: '0644'
-        force: true
-
-    - name: Add MongoDB repository
-      ansible.builtin.apt_repository:
-        repo: "deb [signed-by=/etc/apt/keyrings/mongo.asc] https://repo.mongodb.org/apt/ubuntu {{ ansible_distribution_release }}/mongodb-org/6.0 multiverse"
-        state: present
-        filename: mongodb-org-6.0
-
     - name: Update apt package list
       ansible.builtin.apt:
         update_cache: yes
@@ -31,17 +18,11 @@
           - gnupg
           - apt-transport-https
           - ca-certificates
-          - mongodb-org
           - build-essential
           - libssl-dev
           - curl
           - python3-pip
         state: present
-
-    - name: Install jc via python
-      ansible.builtin.pip:
-        name: jc
-        version: 1.25.2
 
     - name: Install Node.js 18.x repository
       shell: "curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -"
@@ -54,12 +35,6 @@
 
     - name: Install PM2 globally using NPM
       command: npm install -g pm2
-
-    - name: Enable and start MongoDB service
-      ansible.builtin.systemd:
-        name: mongod
-        state: started
-        enabled: yes
 
     - name: Ensure directory exists
       ansible.builtin.file:

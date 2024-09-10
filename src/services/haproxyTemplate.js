@@ -12,7 +12,7 @@ let lastHaproxyConfig;
 
 const haproxyPrefix = `
 global
-  ${configGlobal.cloudflare.manageapp ? 'lua-load /path/to/haproxy_minecraft.lua' : ''}
+  ${configGlobal.cloudflare.manageapp ? 'lua-load /etc/haproxy/haproxy_minecraft.lua' : ''}
   maxconn 50000
   log /dev/log    local0 info warning
   log /dev/log    local1 notice err

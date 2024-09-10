@@ -280,7 +280,6 @@ function generateMinecraftACLs(app) {
   const nameLength = appName.length + 1;
   const domainLength = app.domain.length;
   return [
-    `  acl ${aclName} var(txn.mc_host) -i -m dom ${appName}`,
     `  acl ${aclName} var(txn.mc_host) -i -m dom ${app.domain}`,
     `  acl ${aclName} req.payload(4,${nameLength}) -m sub ${appName}.`,
     `  acl ${aclName} req.payload(5,${nameLength}) -m sub ${appName}.`,

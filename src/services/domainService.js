@@ -171,7 +171,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
         break;
       }
     }
-    if (appIpsNode.length < 10) {
+    if (appIpsNode.length < 2) {
       throw new Error(`PANIC Chainweb Node not sufficient. Nodes OK: ${appIpsData.length}`);
     }
     for (const kdaNode of appLocationsData) {
@@ -187,7 +187,7 @@ async function generateAndReplaceKadenaApplicationHaproxyConfig() {
         break;
       }
     }
-    if (appIpsData.length < 3) {
+    if (appIpsData.length < 2) {
       log.error(`PANIC Chainweb Data not sufficient. Nodes OK: ${appIpsData.length}`);
     }
     const configuredApps = []; // object of domain, port, ips for backend

@@ -102,6 +102,9 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
       ssl: true,
       mode: 'tcp',
     },
+    '33443.alephiumexplorer.alephiumexplorer': {
+      ssl: true,
+    },
   };
 
   let mainPort = '';

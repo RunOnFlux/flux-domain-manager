@@ -104,6 +104,11 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     },
     '33443.alephiumexplorer.alephiumexplorer': {
       ssl: true,
+      mode: 'tcp',
+    },
+    '33443.alephiumexplorer2.alephiumexplorer2': {
+      ssl: true,
+      mode: 'tcp',
     },
   };
 

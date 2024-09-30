@@ -108,6 +108,9 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     '33443.nginx.alephiumexplorer2': {
       ssl: true,
     },
+    '38888.nginx.owncloudssl': {
+      ssl: true,
+    },
   };
 
   let mainPort = '';

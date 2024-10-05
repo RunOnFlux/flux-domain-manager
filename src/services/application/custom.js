@@ -111,6 +111,9 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     '38888.nginx.owncloudssl': {
       ssl: true,
     },
+    '38443.nginx.whoogleflux': {
+      ssl: true,
+    },
   };
 
   let mainPort = '';

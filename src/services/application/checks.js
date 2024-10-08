@@ -428,6 +428,19 @@ async function checkKadenaApplication(ip) {
   }
 }
 
+async function checkALPHexplorer(ip, port) {
+  try {
+    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}/blocks`, 8888);
+    const minTime = new Date().getTime() - 1 * 60 * 60 * 1000
+    if (websiteResponse.data.blocks[0].timestamp > minTime) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkRunOnFluxWebsite(ip, port) {
   try {
     const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 8888);
@@ -801,7 +814,9 @@ async function checkApplication(app, ip) {
     isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[1]);
   } else if (app.name.toLowerCase().includes('bittensor')) {
     isOK = await checkBittensor(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
-  } else {
+  } else if (app.name === 'alphexplorer') {
+    isOK = await checkALPHexplorer(ip.split(':')[0], 9090);
+  }else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
     if (matchIndex > -1) {
       isOK = await checkEthers(ip.split(':')[0], ethersList[matchIndex].port, ethersList[matchIndex].providerURL, ethersList[matchIndex].cmd);
@@ -840,4 +855,5 @@ module.exports = {
   checkAlgorand,
   checkEthers,
   checkAppRunning,
+  checkALPHexplorer,
 };

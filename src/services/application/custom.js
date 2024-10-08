@@ -110,6 +110,7 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     },
     '38888.nginx.owncloudssl': {
       ssl: true,
+      headers: ['http-response set-header X-Frame-Options SAMEORIGIN', 'http-response set-header X-XSS-Protection "0"', 'http-response set-header X-Content-Type-Options nosniff'],
     },
     '38443.nginx.whoogleflux': {
       ssl: true,

@@ -115,6 +115,10 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     '38443.nginx.whoogleflux': {
       ssl: true,
     },
+    '34044.mesh.meshcentral': {
+      ssl: true,
+      mode: 'tcp',
+    },
   };
 
   let mainPort = '';

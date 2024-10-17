@@ -430,8 +430,11 @@ async function checkKadenaApplication(ip) {
 
 async function checkALPHexplorer(ip, port) {
   try {
-    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}/blocks`, 8888);
-    const minTime = new Date().getTime() - 1 * 60 * 60 * 1000
+    log.info(`Checking ALPH explorer on: http://${ip}:${port}/blocks`);
+    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}/blocks`, 14888);
+    log.info('Response');
+    loh.info(websiteResponse.data.blocks[0]);
+    const minTime = new Date().getTime() - 2 * 60 * 60 * 1000
     if (websiteResponse.data.blocks[0].timestamp > minTime) {
       return true;
     }
@@ -818,7 +821,7 @@ async function checkApplication(app, ip) {
     isOK = await checkBittensor(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
   } else if (app.name === 'alphexplorer') {
     isOK = await checkALPHexplorer(ip.split(':')[0], 9090);
-  }else {
+  } else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
     if (matchIndex > -1) {
       isOK = await checkEthers(ip.split(':')[0], ethersList[matchIndex].port, ethersList[matchIndex].providerURL, ethersList[matchIndex].cmd);

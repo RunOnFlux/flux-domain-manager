@@ -434,7 +434,7 @@ async function checkALPHexplorer(ip, port) {
     const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}/blocks`, 14888);
     log.info('Response');
     log.info(websiteResponse.data);
-    loh.info(websiteResponse.data.blocks[0]);
+    log.info(websiteResponse.data.blocks[0]);
     const minTime = new Date().getTime() - 2 * 60 * 60 * 1000;
     if (websiteResponse.data.blocks[0].timestamp > minTime) {
       return true;
@@ -485,16 +485,9 @@ async function checkCloudAtlasWebsite(ip, port) {
 
 async function checkFluxExplorer(ip, port) {
   try {
-    log.info(`Checking http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih http://${ip}:${port}/api/sync http://${ip}:${port}/api/circulation`);
     const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`, 8888);
     const responseB = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/sync`, 8888);
     const responseC = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/circulation`, 8888);
-    log.info(response.data);
-    log.info(responseB.data);
-    log.info(responseC.data);
-    log.info(response.data.transactions.length > 0);
-    log.info(responseB.data.blockChainHeight >= currentFluxBlockheight);
-    log.info(responseC.data.circulationsupply > 372000000);
     // eslint-disable-next-line no-use-before-define
     if (response.data.transactions.length > 0 && responseB.data.blockChainHeight >= currentFluxBlockheight && responseC.data.circulationsupply > 372000000) {
       return true;

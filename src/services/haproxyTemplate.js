@@ -230,6 +230,18 @@ backend ${domainUsed}backend
     domainBackend += `\n  ${hc}`;
   });
   for (const ip of app.ips) {
+    if (!ip) {
+      log.error('MISSING IP');
+      log.error(ip);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    if (!ip.split(':')[0]) {
+      log.error('INTERESTING IP');
+      log.error(ip);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     const a = ip.split(':')[0].split('.');
     if (!a) {
       log.error('STRANGE IP');

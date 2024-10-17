@@ -585,7 +585,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
               await Promise.allSettled(promiseArray);
               promiseArray = [];
               appIpsOnAppsChecks.forEach((loc) => {
-                appIps.push(ip);
+                appIps.push(loc.ip);
               })
               appIpsOnAppsChecks = [];
             }
@@ -595,7 +595,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
             await Promise.allSettled(promiseArray);
             promiseArray = [];
             appIpsOnAppsChecks.forEach((loc) => {
-              appIps.push(ip);
+              appIps.push(loc.ip);
             })
             appIpsOnAppsChecks = [];
           }

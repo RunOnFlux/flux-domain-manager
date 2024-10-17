@@ -489,6 +489,9 @@ async function checkFluxExplorer(ip, port) {
     const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`, 8888);
     const responseB = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/sync`, 8888);
     const responseC = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/circulation`, 8888);
+    log.info(response.data);
+    log.info(responseB.data);
+    log.info(responseC.data);
     // eslint-disable-next-line no-use-before-define
     if (response.data.transactions.length > 0 && responseB.data.blockChainHeight >= currentFluxBlockheight && responseC.data.circulationsupply > 372000000) {
       return true;

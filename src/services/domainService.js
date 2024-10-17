@@ -584,7 +584,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
               // eslint-disable-next-line no-await-in-loop
               await Promise.allSettled(promiseArray);
               promiseArray = [];
-              appIps = appIpsOnAppsChecks.map((ip) => ip);
+              appIpsOnAppsChecks.forEach((loc) => {
+                appIps.push(ip);
+              })
               appIpsOnAppsChecks = [];
             }
           }
@@ -592,7 +594,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
             // eslint-disable-next-line no-await-in-loop
             await Promise.allSettled(promiseArray);
             promiseArray = [];
-            appIps = appIpsOnAppsChecks.map((ip) => ip);
+            appIpsOnAppsChecks.forEach((loc) => {
+              appIps.push(ip);
+            })
             appIpsOnAppsChecks = [];
           }
         } else {

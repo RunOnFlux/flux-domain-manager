@@ -785,6 +785,8 @@ function applicationWithChecks(app) {
     return true;
   } else if (app.name.toLowerCase().includes('bittensor')) {
     return true;
+  } else if (app.name === 'alphexplorer') {
+    return true;
   } else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
     if (matchIndex > -1) {

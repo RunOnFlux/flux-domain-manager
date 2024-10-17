@@ -588,7 +588,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
                 log.info(appIpsOnAppsChecks);
               }
               appIpsOnAppsChecks.forEach((loc) => {
-                appIps.push(loc.ip);
+                appIps.push(loc);
               })
               appIpsOnAppsChecks = [];
             }
@@ -601,7 +601,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
               log.info(appIpsOnAppsChecks);
             }
             appIpsOnAppsChecks.forEach((loc) => {
-              appIps.push(loc.ip);
+              appIps.push(loc);
             })
             appIpsOnAppsChecks = [];
           }

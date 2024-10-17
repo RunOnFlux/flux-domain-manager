@@ -485,6 +485,7 @@ async function checkCloudAtlasWebsite(ip, port) {
 
 async function checkFluxExplorer(ip, port) {
   try {
+    log.info(`Checking http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih http://${ip}:${port}/api/sync http://${ip}:${port}/api/circulation`)
     const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`, 8888);
     const responseB = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/sync`, 8888);
     const responseC = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/circulation`, 8888);

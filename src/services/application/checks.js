@@ -433,6 +433,7 @@ async function checkALPHexplorer(ip, port) {
     log.info(`Checking ALPH explorer on: http://${ip}:${port}/blocks`);
     const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}/blocks`, 14888);
     log.info('Response');
+    log.info(websiteResponse.data);
     loh.info(websiteResponse.data.blocks[0]);
     const minTime = new Date().getTime() - 2 * 60 * 60 * 1000
     if (websiteResponse.data.blocks[0].timestamp > minTime) {
@@ -440,6 +441,8 @@ async function checkALPHexplorer(ip, port) {
     }
     return false;
   } catch (error) {
+    log.info('e');
+    log.info(error);
     return false;
   }
 }

@@ -584,6 +584,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
               // eslint-disable-next-line no-await-in-loop
               await Promise.allSettled(promiseArray);
               promiseArray = [];
+              if (app.name === 'explorer') {
+                log.info(appIpsOnAppsChecks);
+              }
               appIpsOnAppsChecks.forEach((loc) => {
                 appIps.push(loc.ip);
               })
@@ -594,6 +597,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
             // eslint-disable-next-line no-await-in-loop
             await Promise.allSettled(promiseArray);
             promiseArray = [];
+            if (app.name === 'explorer') {
+              log.info(appIpsOnAppsChecks);
+            }
             appIpsOnAppsChecks.forEach((loc) => {
               appIps.push(loc.ip);
             })
@@ -601,6 +607,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
           }
         } else {
           appIps = appLocations.map((location) => location.ip);
+        }
+        if (app.name === 'explorer') {
+          log.info(appIps);
         }
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);

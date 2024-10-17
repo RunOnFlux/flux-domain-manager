@@ -28,7 +28,7 @@ const ethersList = [
     name: 'AstarRPC', providerURL: null, cmd: 'system_health', port: '36011',
   },
 ];
-let currentFluxBlockheight = 1494860;
+let currentFluxBlockheight = 1753857;
 // MAIN
 async function checkLoginPhrase(ip, port) {
   try {

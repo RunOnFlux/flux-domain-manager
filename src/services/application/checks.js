@@ -447,6 +447,20 @@ async function checkALPHexplorer(ip, port) {
   }
 }
 
+async function checkErgoHeight(ip, port) {
+  try {
+    const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/info`, 5000);
+    const { fullHeight, parameters } = response.data;
+
+    if (parameters.height >= fullHeight && parameters.height > 1) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkRunOnFluxWebsite(ip, port) {
   try {
     const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 8888);

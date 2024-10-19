@@ -447,6 +447,20 @@ async function checkALPHexplorer(ip, port) {
   }
 }
 
+async function checkErgoHeight(ip, port) {
+  try {
+    const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/info`, 5000);
+    const { fullHeight, parameters } = response.data;
+
+    if (parameters.height >= fullHeight && parameters.height > 1) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function checkRunOnFluxWebsite(ip, port) {
   try {
     const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 8888);
@@ -793,6 +807,8 @@ function applicationWithChecks(app) {
     return true;
   } else if (app.name === 'alphexplorer') {
     return true;
+  } else if (app.name === 'ergo') {
+    return true;
   } else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
     if (matchIndex > -1) {
@@ -824,6 +840,8 @@ async function checkApplication(app, ip) {
     isOK = await checkBittensor(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
   } else if (app.name === 'alphexplorer') {
     isOK = await checkALPHexplorer(ip.split(':')[0], 9090);
+  } else if (app.name === 'ergo') {
+    isOK = await checkErgoHeight(ip.split(':')[0], 9053);
   } else {
     const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
     if (matchIndex > -1) {
@@ -864,4 +882,5 @@ module.exports = {
   checkEthers,
   checkAppRunning,
   checkALPHexplorer,
+  checkErgoHeight,
 };

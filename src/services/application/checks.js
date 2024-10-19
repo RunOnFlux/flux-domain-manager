@@ -450,9 +450,10 @@ async function checkALPHexplorer(ip, port) {
 async function checkErgoHeight(ip, port) {
   try {
     const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/info`, 5000);
-    const { fullHeight, parameters } = response.data;
+    const { fullHeight, maxPeerHeight, headersHeight } = response.data;
 
-    if (parameters.height >= fullHeight && parameters.height > 1) {
+    // Check if fullHeight matches maxPeerHeight and headersHeight
+    if (fullHeight === maxPeerHeight && headersHeight === maxPeerHeight) {
       return true;
     }
     return false;

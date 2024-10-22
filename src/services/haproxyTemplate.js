@@ -138,6 +138,8 @@ function createKadenaHaproxyConfig(appConfig) {
       }
       if (app.port === 31350) {
         domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check ssl verify none`;
+      } else if (ip === '54.39.237.207' && app.port === 31352) {
+        domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port + 1} check`;
       } else {
         domainBackend += `\n  server ${IpString}${b} ${ip.split(':')[0]}:${app.port} check`;
       }

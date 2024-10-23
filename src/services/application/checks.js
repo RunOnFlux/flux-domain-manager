@@ -515,11 +515,26 @@ async function checkFluxExplorer(ip, port) {
 
 async function checkHavenHeight(ip, port) {
   try {
-    const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/get_info`, 5000);
+    const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/get_info`, 1500);
     if (response.data.height > response.data.target_height && response.data.height > 1) {
       return true;
     }
     return false;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function checkHavenRPC(ip, port) {
+  try {
+    const data = {
+      "jsonrpc": "2.0",
+      "id": "0",
+      "method": "get_last_block_header"
+    }
+    await serviceHelper.httpPostRequest(`http://${ip}:${port}/json_rpc`, data, 1500);
+    // if code 200 all ok
+    return true;
   } catch (error) {
     return false;
   }
@@ -829,10 +844,19 @@ async function checkApplication(app, ip) {
     isOK = await checkBitcoinNode(ip.split(':')[0], app.compose[0].ports[0], app.name);
   } else if (app.name === 'HavenNodeMainnet') {
     isOK = await checkHavenHeight(ip.split(':')[0], 31750);
+    if (isOK) {
+      isOK = await checkHavenRPC(ip.split(':')[0], 31750);
+    }
   } else if (app.name === 'HavenNodeTestnet') {
     isOK = await checkHavenHeight(ip.split(':')[0], 32750);
+    if (isOK) {
+      isOK = await checkHavenRPC(ip.split(':')[0], 32750);
+    }
   } else if (app.name === 'HavenNodeStagenet') {
     isOK = await checkHavenHeight(ip.split(':')[0], 33750);
+    if (isOK) {
+      isOK = await checkHavenRPC(ip.split(':')[0], 33750);
+    }
   } else if (app.name.startsWith('blockbook')) {
     isOK = await checkBlockBook(ip.split(':')[0], app.compose[0].ports[0], app.name);
   } else if (app.name.startsWith('AlgorandRPC')) {
@@ -872,6 +896,7 @@ module.exports = {
   checkFluxExplorer,
   checkCloudAtlasWebsite,
   checkHavenHeight,
+  checkHavenRPC,
   checkKDLaunch,
   checkMOKWebsite,
   checkHavenValut,

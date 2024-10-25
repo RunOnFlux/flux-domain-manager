@@ -20,6 +20,11 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
   if (specifications.name.toLowerCase().includes('bittensor')) {
     defaultConfig.mode = 'tcp';
   }
+
+  if (specifications.name.toLowerCase().includes('trilium')) {
+    defaultConfig.ssl = true;
+  }
+  
   if (isGsyncthingApp) {
     defaultConfig.mode = 'tcp';
     defaultConfig.check = false;

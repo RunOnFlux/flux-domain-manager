@@ -107,12 +107,6 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
       ssl: true,
       mode: 'tcp',
     },
-    '33443.nginx.alephiumexplorer': {
-      ssl: true,
-    },
-    '33443.nginx.alephiumexplorer2': {
-      ssl: true,
-    },
     '38888.nginx.owncloudssl': {
       ssl: true,
       headers: ['http-response set-header X-Frame-Options SAMEORIGIN', 'http-response set-header X-XSS-Protection "0"', 'http-response set-header X-Content-Type-Options nosniff'],
@@ -121,8 +115,22 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
       ssl: true,
     },
     '34044.mesh.meshcentral': {
-      ssl: true,
       mode: 'tcp',
+    },
+    '38443.nginx.listmonkflux': {
+      ssl: true,
+    },
+    '39443.nginx.budibasemysql': {
+      ssl: true,
+    }, 
+    '33443.nginx.formbricks': {
+      ssl: true,
+    },
+    '3000.adguard.adguard': {
+      ssl: true,
+    },
+    '31443.nginx.ghostflux': {
+      ssl: true,
     },
   };
 

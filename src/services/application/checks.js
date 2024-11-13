@@ -500,12 +500,12 @@ async function checkCloudAtlasWebsite(ip, port) {
 
 async function extendedInsightTest(url, blockUlr, txUrl) {
   const response = await getRequest(url);
-  const blockUrlAdjusted = blockUlr + response.blocks[0].hash;
+  const blockUrlAdjusted = blockUlr + response.data.blocks[0].hash;
   const responseB = await getRequest(blockUrlAdjusted);
-  const { txid } = responseB.txs[0];
+  const { txid } = responseB.data.txs[0];
   const adjustedUrlTx = txUrl + txid;
   const responseC = await getRequest(adjustedUrlTx);
-  if (responseC.confirmations < -2) {
+  if (responseC.data.confirmations < -2) {
     return false
   }
   return true;

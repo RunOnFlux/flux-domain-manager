@@ -128,6 +128,7 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     },
     '3000.adguard.adguard': {
       ssl: true,
+      mode: 'tcp',
     },
     '31443.nginx.ghostflux': {
       ssl: true,

@@ -24,6 +24,10 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
   if (specifications.name.toLowerCase().includes('trilium')) {
     defaultConfig.ssl = true;
   }
+
+  if (specifications.name.toLowerCase().includes('whooglessl')) {
+    defaultConfig.ssl = true;
+  }
   
   if (isGsyncthingApp) {
     defaultConfig.mode = 'tcp';

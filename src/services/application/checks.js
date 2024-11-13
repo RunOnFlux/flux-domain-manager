@@ -498,6 +498,19 @@ async function checkCloudAtlasWebsite(ip, port) {
   }
 }
 
+async function extendedInsightTest(url, blockUlr, txUrl) {
+  const response = await getRequest(url);
+  const blockUrlAdjusted = blockUlr + response.blocks[0].hash;
+  const responseB = await getRequest(blockUrlAdjusted);
+  const { txid } = responseB.txs[0];
+  const adjustedUrlTx = txUrl + txid;
+  const responseC = await getRequest(adjustedUrlTx);
+  if (responseC.confirmations < -2) {
+    return false
+  }
+  return true;
+}
+
 async function checkFluxExplorer(ip, port) {
   try {
     const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`, 8888);
@@ -505,7 +518,11 @@ async function checkFluxExplorer(ip, port) {
     const responseC = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/circulation`, 8888);
     // eslint-disable-next-line no-use-before-define
     if (response.data.transactions.length > 0 && responseB.data.blockChainHeight >= currentFluxBlockheight && responseC.data.circulationsupply > 372000000) {
-      return true;
+      const urls = [`http://${ip}:${port}/api/blocks?limit=1`, `http://${ip}:${port}/api/txs/?block=`, `http://${ip}:${port}/api/tx/`];
+      const result = await extendedInsightTest(urls[0], urls[1], urls[2]);
+      if (result) {
+        return true;
+      }
     }
     return false;
   } catch (error) {

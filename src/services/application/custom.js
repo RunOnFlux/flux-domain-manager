@@ -24,6 +24,10 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
   if (specifications.name.toLowerCase().includes('trilium')) {
     defaultConfig.ssl = true;
   }
+
+  if (specifications.name.toLowerCase().includes('whooglessl')) {
+    defaultConfig.ssl = true;
+  }
   
   if (isGsyncthingApp) {
     defaultConfig.mode = 'tcp';
@@ -128,9 +132,11 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     },
     '3000.adguard.adguard': {
       ssl: true,
+      mode: 'tcp',
     },
     '31443.nginx.ghostflux': {
       ssl: true,
+      headers: ['http-request set-header X-Forwarded-For %[src]', 'http-request set-header X-Forwarded-Proto %[ssl]', 'http-request set-header X-Real-IP %[src]', 'http-request set-header Host %[hdr(host)]'],
     },
   };
 

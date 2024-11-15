@@ -136,7 +136,7 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     },
     '31443.nginx.ghostflux': {
       ssl: true,
-      headers: ['http-request set-header X-Forwarded-For %[src]', 'http-request set-header X-Forwarded-Proto %[ssl]', 'http-request set-header X-Real-IP %[src]', 'http-request set-header Host %[hdr(host)]'],
+      headers: ['http-request set-header X-Forwarded-For %[src]', 'http-request set-header X-Forwarded-Proto https', 'http-request set-header X-Real-IP %[src]', 'http-request set-header Host %[hdr(host)]'],
     },
   };
 

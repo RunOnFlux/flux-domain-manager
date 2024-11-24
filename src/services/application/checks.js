@@ -639,8 +639,10 @@ async function checkBlockBook(ip, port, appsname) {
         }
       }
     }
+    log.error(`Bad IP ${ip}:${port} blockbook ${appsname}`);
     return false;
   } catch (error) {
+    log.error(error);
     return false;
   }
 }

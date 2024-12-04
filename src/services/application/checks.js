@@ -10,7 +10,7 @@ const domainService = require('../domainService');
 const log = require('../../lib/log');
 
 const timeout = 5456;
-const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'Jetpack2', 'jetpack', 'web', 'eckodexswap', 'eckodexvault'];
+const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'web', 'eckodexswap', 'eckodexvault'];
 const ethersList = [
   {
     name: 'BitgertRPC', providerURL: null, cmd: 'eth_syncing', port: '32300',

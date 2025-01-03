@@ -14,8 +14,8 @@ const haproxyPrefix = `
 global
   ${configGlobal.cloudflare.manageapp ? 'lua-load /etc/haproxy/haproxy_minecraft.lua' : ''}
   maxconn 50000
-  log /dev/log    local0 info warning
-  log /dev/log    local1 notice err
+  log /dev/log    local0 info
+  log /dev/log    local1 warning
   chroot /var/lib/haproxy
   stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
   stats timeout 30s
@@ -36,7 +36,7 @@ global
 defaults
   log     global
   mode    http
-  option  httplog
+#  option  httplog
   option  dontlognull
   timeout connect 10000
   timeout client  120000
@@ -66,7 +66,7 @@ frontend wwwhttp
 
 const httpsPrefix = `
 frontend wwwhttps
-  option httplog
+#  option httplog
   option http-server-close
   option forwardfor except 127.0.0.0/8
   http-response add-header Access-Control-Expose-Headers '*'

@@ -218,7 +218,7 @@ backend ${domainUsed}backend
   } else if (mode !== 'tcp') {
     domainBackend += '\n  balance roundrobin';
     if (app.isRdata || app.ips.length <= 1) {
-      domainBackend += '\n  cookie FDMSERVERID insert preserve indirect nocache maxlife 30s';
+      domainBackend += '\n  cookie FDMSERVERID insert preserve indirect nocache maxlife 1s';
     } else {
       domainBackend += '\n  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h';
     }

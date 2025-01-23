@@ -217,7 +217,11 @@ backend ${domainUsed}backend
     domainBackend += app.loadBalance;
   } else if (mode !== 'tcp') {
     domainBackend += '\n  balance roundrobin';
-    domainBackend += '\n  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h';
+    if (app.isRdata || app.ips.length <= 1) {
+      domainBackend += '\n  cookie FDMSERVERID insert preserve indirect nocache maxlife 30s';
+    } else {
+      domainBackend += '\n  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h';
+    }
   }
   if (app.headers) {
     // eslint-disable-next-line no-loop-func

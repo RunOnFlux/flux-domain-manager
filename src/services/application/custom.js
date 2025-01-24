@@ -70,7 +70,10 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
       serverConfig: 'inter 30s fall 2 rise 2',
     },
     '33952.wp.wordpressonflux': {
+      timeout: 3000,
       headers: ['http-request add-header X-Forwarded-Proto https'],
+      healthcheck: ['option httpchk', 'http-check send meth GET uri /', 'http-check expect status 200'],
+      serverConfig: 'inter 3s fall 2 rise 1',
     },
     '36117.KadefiMoneyUDFServer.KadefiMoneyUDFServer': {
       healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],

@@ -22,6 +22,8 @@ global
   user haproxy
   group haproxy
   daemon
+  server-state-file /etc/haproxy/server-state             # State file path
+  stats socket /var/lib/haproxy/stats                     # Enable runtime API
 
   # Default SSL material locations
   ca-base /etc/ssl/certs
@@ -34,6 +36,7 @@ global
   ssl-default-bind-options no-sslv3
 
 defaults
+  load-server-state-from-file global
   log     global
   mode    http
 #  option  httplog
@@ -218,6 +221,8 @@ backend ${domainUsed}backend
   } else if (mode !== 'tcp') {
     domainBackend += '\n  balance roundrobin';
     if (!(app.isRdata || app.ips.length <= 1)) {
+      domainBackend += '\n  cookie FDMSERVERID insert preserve indirect nocache maxlife 1s';
+    } else {
       domainBackend += '\n  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h';
     }
   }
@@ -496,6 +501,8 @@ async function restartProxy(dataToWrite) {
   }
   lastHaproxyConfig = dataToWrite;
   await writeConfig(HAPROXY_CONFIG, dataToWrite);
+  const execCreateStateFile = 'echo "show servers state" | sudo socat /var/lib/haproxy/stats - > /etc/haproxy/server-state';
+  await cmdAsync(execCreateStateFile);
   const execHAreload = 'sudo service haproxy reload';
   await cmdAsync(execHAreload);
   log.info('Haproxy reloaded');

@@ -22,6 +22,7 @@ global
   user haproxy
   group haproxy
   daemon
+  server-state-file /tmp/server-state             # State file path
 
   # Default SSL material locations
   ca-base /etc/ssl/certs
@@ -496,6 +497,8 @@ async function restartProxy(dataToWrite) {
   }
   lastHaproxyConfig = dataToWrite;
   await writeConfig(HAPROXY_CONFIG, dataToWrite);
+  const execCreateStateFile = 'echo "show servers state" | sudo socat /run/haproxy/admin.sock - > /tmp/server-state';
+  await cmdAsync(execCreateStateFile);
   const execHAreload = 'sudo service haproxy reload';
   await cmdAsync(execHAreload);
   log.info('Haproxy reloaded');

@@ -35,7 +35,6 @@ global
   ssl-default-bind-options no-sslv3
 
 defaults
-  load-server-state-from-file global
   log     global
   mode    http
 #  option  httplog

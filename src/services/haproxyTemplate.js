@@ -266,7 +266,7 @@ backend ${domainUsed}backend
       if (mapOfNamesIps[app.name] && app.ips.includes(mapOfNamesIps[app.name])) { // use this ip as a main
         if (mapOfNamesIps[app.name] === ip) {
           // for the main IP use
-          domainBackend += ' inter 3s fall 3 rise 2 fastinter 1s';
+          domainBackend += ' inter 3s fall 10 rise 2 fastinter 1s';
         } else {
           // for other IP configure them as backup
           domainBackend += ' backup';
@@ -274,7 +274,7 @@ backend ${domainUsed}backend
       } else { // set new IP as main
         mapOfNamesIps[app.name] = selectIPforR(app.ips);
         if (mapOfNamesIps[app.name] === ip) {
-          domainBackend += ' inter 3s fall 3 rise 2 fastinter 1s';
+          domainBackend += ' inter 3s fall 10 rise 2 fastinter 1s';
         } else {
           domainBackend += ' backup';
         }

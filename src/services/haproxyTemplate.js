@@ -152,7 +152,7 @@ frontend tcp_app_${port}
   option tcplog
   option tcp-check
   tcp-request inspect-delay 5s
-  ${+port ===25565 ? `tcp-request content lua.mc_handshake
+  ${+port === 25565 ? `tcp-request content lua.mc_handshake
   # tcp-request content reject if { var(txn.mc_proto) -m int 0 }
   tcp-request content accept if { var(txn.mc_proto) -m found }
   # tcp-request content reject if WAIT_END` : `tcp-request content accept if { req_ssl_hello_type 1 }`}
@@ -266,7 +266,7 @@ backend ${domainUsed}backend
       if (mapOfNamesIps[app.name] && app.ips.includes(mapOfNamesIps[app.name])) { // use this ip as a main
         if (mapOfNamesIps[app.name] === ip) {
           // for the main IP use
-          domainBackend += ' inter 10s fall 3 rise 99999999';
+          domainBackend += ' inter 5s fall 10 rise 2 fastinter 1s';
         } else {
           // for other IP configure them as backup
           domainBackend += ' backup';
@@ -274,7 +274,7 @@ backend ${domainUsed}backend
       } else { // set new IP as main
         mapOfNamesIps[app.name] = selectIPforR(app.ips);
         if (mapOfNamesIps[app.name] === ip) {
-          domainBackend += ' inter 10s fall 3 rise 99999999';
+          domainBackend += ' inter 5s fall 10 rise 2 fastinter 1s';
         } else {
           domainBackend += ' backup';
         }

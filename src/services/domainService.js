@@ -633,7 +633,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
               log.info(`sharedDBApps: ${app.name} going to check operator status on url ${url}`);
               // eslint-disable-next-line no-await-in-loop
               const operatorStatus = await serviceHelper.httpGetRequest(url, httpTimeout).catch((error) => log.error(`sharedDBApps: ${app.name} operatorStatus error: ${error}`));
-              if (operatorStatus.data && operatorStatus.data.status === 'OK') {
+              if (operatorStatus && operatorStatus.data && operatorStatus.data.status === 'OK') {
                 operatorClusterStatus = operatorStatus.data.clusterStatus.map((cluster) => cluster.ip);
                 break;
               }

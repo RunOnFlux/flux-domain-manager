@@ -12,6 +12,7 @@ const { getCustomConfigs } = require('./application/custom');
 const { getApplicationsToProcess } = require('./application/subset');
 const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
+const serviceHelper = require('./serviceHelper');
 
 let myIP = null;
 let myFDMnameORip = null;
@@ -121,7 +122,8 @@ async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `home.${config.mainDomain}`;
     const api = `api.${config.mainDomain}`;
-    let uiPrimary, apiPrimary;
+    let uiPrimary; let
+      apiPrimary;
     if (config.primaryDomain) {
       uiPrimary = `home.${config.primaryDomain}`;
       apiPrimary = `api.${config.primaryDomain}`;
@@ -273,6 +275,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
         domain: domains[i],
         port: app.ports[i],
         ips: appIps,
+        isSharedDBApp: app.isSharedDBApp,
         ...customConfigs[i],
       };
       if (app.containerData.includes('r:')) {
@@ -305,6 +308,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                 domain: portDomain,
                 port: app.ports[i],
                 ips: appIps,
+                isSharedDBApp: app.isSharedDBApp,
                 ...customConfigs[i],
               };
               if (app.containerData.includes('r:')) {
@@ -322,6 +326,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                   domain: wwwAdjustedDomain,
                   port: app.ports[i],
                   ips: appIps,
+                  isSharedDBApp: app.isSharedDBApp,
                   ...customConfigs[i],
                 };
                 if (app.containerData.includes('r:')) {
@@ -341,6 +346,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                   domain: testAdjustedDomain,
                   port: app.ports[i],
                   ips: appIps,
+                  isSharedDBApp: app.isSharedDBApp,
                   ...customConfigs[i],
                 };
                 if (app.containerData.includes('r:')) {
@@ -359,6 +365,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
       domain: domains[domains.length - 1],
       port: app.ports[0],
       ips: appIps,
+      isSharedDBApp: app.isSharedDBApp,
       ...customConfigs[customConfigs.length - 1],
     };
     if (app.containerData.includes('r:')) {
@@ -375,6 +382,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
           domain: domains[j],
           port: component.ports[i],
           ips: appIps,
+          isSharedDBApp: app.isSharedDBApp,
           ...customConfigs[j],
         };
         if (component.containerData.includes('r:')) {
@@ -407,6 +415,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                   domain: portDomain,
                   port: component.ports[i],
                   ips: appIps,
+                  isSharedDBApp: app.isSharedDBApp,
                   ...customConfigs[j],
                 };
                 if (component.containerData.includes('r:')) {
@@ -425,6 +434,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                     domain: wwwAdjustedDomain,
                     port: component.ports[i],
                     ips: appIps,
+                    isSharedDBApp: app.isSharedDBApp,
                     ...customConfigs[j],
                   };
                   if (component.containerData.includes('r:')) {
@@ -444,6 +454,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                     domain: testAdjustedDomain,
                     port: component.ports[i],
                     ips: appIps,
+                    isSharedDBApp: app.isSharedDBApp,
                     ...customConfigs[j],
                   };
                   if (component.containerData.includes('r:')) {
@@ -469,6 +480,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
             domain: domains[domains.length - 1],
             port: app.compose[q].ports[w],
             ips: appIps,
+            isSharedDBApp: app.isSharedDBApp,
             ...customConfigs[customConfigs.length - 1],
           };
           if (app.compose[q].containerData.includes('r:')) {
@@ -575,6 +587,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
       }
       if (appLocations.length > 0) {
         let appIps = [];
+        app.isSharedDBApp = false;
         const applicationWithChecks = applicationChecks.applicationWithChecks(app);
         if (applicationWithChecks) {
           let promiseArray = [];
@@ -589,7 +602,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
               }
               appIpsOnAppsChecks.forEach((loc) => {
                 appIps.push(loc);
-              })
+              });
               appIpsOnAppsChecks = [];
             }
           }
@@ -602,8 +615,34 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
             }
             appIpsOnAppsChecks.forEach((loc) => {
               appIps.push(loc);
-            })
+            });
             appIpsOnAppsChecks = [];
+          }
+        } else if (app.compose && app.compose.find((comp) => comp.repotag.includes('runonflux/shared-db'))) {
+          // app using sharedDB project
+          appIps = appLocations.map((location) => location.ip);
+          const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.includes('runonflux/shared-db'));
+          log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
+          if (componentUsingSharedDB.ports && componentUsingSharedDB.ports.length > 0) {
+            const apiPort = componentUsingSharedDB.ports[componentUsingSharedDB.ports.length - 1]; // it's the last port from the shareddb that is the api port
+            let operatorClusterStatus = null;
+            const httpTimeout = 5000;
+            // eslint-disable-next-line no-await-in-loop
+            for (const ip of appIps) {
+              const url = `http://${ip.split(':')[0]}:${apiPort}/status`;
+              log.info(`sharedDBApps: ${app.name} going to check operator status on url ${url}`);
+              // eslint-disable-next-line no-await-in-loop
+              const operatorStatus = await serviceHelper.httpGetRequest(url, httpTimeout).catch((error) => log.error(`sharedDBApps: ${app.name} operatorStatus error: ${error}`));
+              if (operatorStatus.data && operatorStatus.data.status === 'OK') {
+                operatorClusterStatus = operatorStatus.data.clusterStatus.map((cluster) => cluster.ip);
+                break;
+              }
+            }
+            if (operatorClusterStatus) {
+              appIps.sort((a, b) => operatorClusterStatus.indexOf(a) - operatorClusterStatus.indexOf(b));
+              app.isSharedDBApp = true;
+              log.info(`Application ${app.name} was setup as a SharedDBApp`);
+            }
           }
         } else {
           appIps = appLocations.map((location) => location.ip);

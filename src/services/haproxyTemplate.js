@@ -155,7 +155,7 @@ frontend tcp_app_${port}
   ${+port === 25565 ? `tcp-request content lua.mc_handshake
   # tcp-request content reject if { var(txn.mc_proto) -m int 0 }
   tcp-request content accept if { var(txn.mc_proto) -m found }
-  # tcp-request content reject if WAIT_END` : `tcp-request content accept if { req_ssl_hello_type 1 }`}
+  # tcp-request content reject if WAIT_END` : 'tcp-request content accept if { req_ssl_hello_type 1 }'}
 ${portConf.acls.join('\n')}
 ${portConf.usebackends.join('')}
 ${portConf.backends.join('\n')}`;
@@ -263,7 +263,13 @@ backend ${domainUsed}backend
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} ${isCheck}${app.serverConfig} ${cookieConfig}`;
     }
     if (app.isRdata) {
-      if (mapOfNamesIps[app.name] && app.ips.includes(mapOfNamesIps[app.name])) { // use this ip as a main
+      if (app.isSharedDBApp) {
+        if (app.ips[0] === ip) {
+          domainBackend += ' inter 5s fall 10 rise 2 fastinter 1s';
+        } else {
+          domainBackend += ' backup';
+        }
+      } else if (mapOfNamesIps[app.name] && app.ips.includes(mapOfNamesIps[app.name])) { // use this ip as a main
         if (mapOfNamesIps[app.name] === ip) {
           // for the main IP use
           domainBackend += ' inter 5s fall 10 rise 2 fastinter 1s';
@@ -370,11 +376,11 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   let acls = uiAcl + apiAcl;
   if (uiPrimary) {
     const uiPrimaryAcl = `  acl ${uiB} hdr(host) ${uiPrimary}\n`;
-    acls += uiPrimaryAcl
+    acls += uiPrimaryAcl;
   }
   if (apiPrimary) {
     const apiPrimaryAcl = `  acl ${apiB} hdr(host) ${apiPrimary}\n`;
-    acls += apiPrimaryAcl
+    acls += apiPrimaryAcl;
   }
   const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;
   const apiBackendUse = `  use_backend ${apiB}backend if ${apiB}\n`;

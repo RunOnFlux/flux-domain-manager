@@ -641,7 +641,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
             if (operatorClusterStatus) {
               appIps.sort((a, b) => operatorClusterStatus.indexOf(a) - operatorClusterStatus.indexOf(b));
               app.isSharedDBApp = true;
-              log.info(`Application ${app.name} was setup as a SharedDBApp`);
+              log.info(`Application ${app.name} was setup as a sharedDBApps`);
+              log.info(`Application ${app.name} ips was sorted to: ${JSON.stringify(appIps)}`);
             }
           }
         } else {

@@ -618,10 +618,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
             });
             appIpsOnAppsChecks = [];
           }
-        } else if (app.compose && app.compose.find((comp) => comp.repotag.includes('runonflux/shared-db'))) {
+        } else if (app.compose && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'))) {
           // app using sharedDB project
           appIps = appLocations.map((location) => location.ip);
-          const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.includes('runonflux/shared-db'));
+          const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
           log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
           if (componentUsingSharedDB.ports && componentUsingSharedDB.ports.length > 0) {
             const apiPort = componentUsingSharedDB.ports[componentUsingSharedDB.ports.length - 1]; // it's the last port from the shareddb that is the api port
@@ -642,7 +642,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
               appIps.sort((a, b) => operatorClusterStatus.indexOf(a) - operatorClusterStatus.indexOf(b));
               app.isSharedDBApp = true;
               log.info(`Application ${app.name} was setup as a sharedDBApps`);
-              log.info(`Application ${app.name} ips was sorted to: ${JSON.stringify(appIps)}`);
+              log.info(`Application ${app.name} sharedDBApps ips was sorted to: ${JSON.stringify(appIps)}`);
             }
           }
         } else {

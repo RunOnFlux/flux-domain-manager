@@ -403,7 +403,8 @@ function createAppsHaproxyConfig(appConfig) {
   // acls += '  acl forbiddenacl hdr(host) ecko.finance\n';
   // acls += '  acl forbiddenacl hdr(host) www.ecko.finance\n';
   // acls += '  acl forbiddenacl hdr(host) dao.ecko.finance\n';
-  // usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
+  acls += '  acl forbiddenacl path_beg -i /product/litty-cat-thc-bars-1000mg\n';
+  usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
   const domains = [];
   const seenApps = {};
   const minecraftAppsMap = {};

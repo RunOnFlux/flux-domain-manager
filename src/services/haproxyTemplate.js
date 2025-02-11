@@ -265,7 +265,7 @@ backend ${domainUsed}backend
     if (app.isRdata) {
       if (app.isSharedDBApp) {
         if (app.ips[0] === ip) {
-          domainBackend += ' inter 5s fall 10 rise 2 fastinter 1s';
+          domainBackend += ' inter 5s fall 10 rise 2 fastinter 1s retry-on 502 response-timeout conn-failure';
         } else {
           domainBackend += ' backup';
         }

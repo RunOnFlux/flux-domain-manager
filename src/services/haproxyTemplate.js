@@ -219,7 +219,7 @@ backend ${domainUsed}backend
     domainBackend += app.loadBalance;
   } else if (mode !== 'tcp') {
     domainBackend += '\n  balance roundrobin';
-    if (!(app.isRdata || app.ips.length <= 1)) {
+    if (app.ips.length > 1) {
       domainBackend += '\n  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h';
     }
   }
@@ -262,32 +262,28 @@ backend ${domainUsed}backend
     } else {
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} ${isCheck}${app.serverConfig} ${cookieConfig}`;
     }
+    domainBackend += '\n inter 5s fall 3 rise 2 fastinter 1s\n retries 1\n retry-on response-timeout conn-failure empty-response\n option redispatch\n timeout connect 5s';
     if (app.isRdata) {
       if (app.isSharedDBApp) {
-        if (app.ips[0] === ip) {
-          domainBackend += ' inter 5s fall 3 rise 2 fastinter 1s\n retries 1\n retry-on response-timeout conn-failure empty-response\n option redispatch\n timeout connect 5s\n timeout server 20s';
-        } else {
-          domainBackend += ' backup';
+        if (app.ips[0] !== ip) {
+          domainBackend += '\n backup';
         }
       } else if (mapOfNamesIps[app.name] && app.ips.includes(mapOfNamesIps[app.name])) { // use this ip as a main
-        if (mapOfNamesIps[app.name] === ip) {
-          // for the main IP use
-          domainBackend += ' inter 5s fall 10 rise 2 fastinter 1s';
-        } else {
+        if (mapOfNamesIps[app.name] !== ip) {
           // for other IP configure them as backup
-          domainBackend += ' backup';
+          domainBackend += '\n backup';
         }
       } else { // set new IP as main
         mapOfNamesIps[app.name] = selectIPforR(app.ips);
-        if (mapOfNamesIps[app.name] === ip) {
-          domainBackend += ' inter 5s fall 10 rise 2 fastinter 1s';
-        } else {
+        if (mapOfNamesIps[app.name] !== ip) {
           domainBackend += ' backup';
         }
       }
     }
     if (app.timeout) {
       domainBackend += `\n  timeout server ${app.timeout}`;
+    } else {
+      domainBackend += '\n timeout server 20s';
     }
   }
   return domainBackend;

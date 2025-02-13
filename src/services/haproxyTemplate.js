@@ -262,7 +262,7 @@ backend ${domainUsed}backend
     } else {
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} ${isCheck}${app.serverConfig} ${cookieConfig}`;
     }
-    domainBackend += '\n inter 5s fall 3 rise 2 fastinter 1s\n retries 1\n retry-on response-timeout conn-failure empty-response\n option redispatch\n timeout connect 5s';
+    domainBackend += ' inter 5s fall 3 rise 2 fastinter 1s\n retries 1\n retry-on response-timeout conn-failure empty-response\n option redispatch\n timeout connect 5s';
     if (app.isRdata) {
       if (app.ips[0] !== ip) {
         domainBackend += '\n backup';

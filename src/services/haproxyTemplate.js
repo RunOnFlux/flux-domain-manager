@@ -267,6 +267,7 @@ backend ${domainUsed}backend
     if (app.isRdata) {
       if (app.ips[0] !== ip) {
         domainBackend += ' backup';
+      }
     }
     domainBackend += '\n retries 1\n retry-on response-timeout conn-failure empty-response\n option redispatch\n timeout connect 5s';
     if (app.timeout) {

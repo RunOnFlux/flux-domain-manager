@@ -275,12 +275,10 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
         domain: domains[i],
         port: app.ports[i],
         ips: appIps,
-        isSharedDBApp: app.isSharedDBApp,
+        isRdata: app.isRdata,
         ...customConfigs[i],
       };
-      if (app.containerData.includes('r:')) {
-        configuredApp.isRdata = true;
-      }
+
       configuredApps.push(configuredApp);
       if (app.domains[i]) {
         const portDomains = app.domains[i].split(',');
@@ -308,12 +306,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                 domain: portDomain,
                 port: app.ports[i],
                 ips: appIps,
-                isSharedDBApp: app.isSharedDBApp,
+                isRdata: app.isRdata,
                 ...customConfigs[i],
               };
-              if (app.containerData.includes('r:')) {
-                configuredAppCustom.isRdata = true;
-              }
               configuredApps.push(configuredAppCustom);
             }
             const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
@@ -326,12 +321,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                   domain: wwwAdjustedDomain,
                   port: app.ports[i],
                   ips: appIps,
-                  isSharedDBApp: app.isSharedDBApp,
+                  isRdata: app.isRdata,
                   ...customConfigs[i],
                 };
-                if (app.containerData.includes('r:')) {
-                  configuredAppCustom.isRdata = true;
-                }
                 configuredApps.push(configuredAppCustom);
               }
             }
@@ -346,12 +338,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                   domain: testAdjustedDomain,
                   port: app.ports[i],
                   ips: appIps,
-                  isSharedDBApp: app.isSharedDBApp,
+                  isRdata: app.isRdata,
                   ...customConfigs[i],
                 };
-                if (app.containerData.includes('r:')) {
-                  configuredAppCustom.isRdata = true;
-                }
                 configuredApps.push(configuredAppCustom);
               }
             }
@@ -365,12 +354,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
       domain: domains[domains.length - 1],
       port: app.ports[0],
       ips: appIps,
-      isSharedDBApp: app.isSharedDBApp,
+      isRdata: app.isRdata,
       ...customConfigs[customConfigs.length - 1],
     };
-    if (app.containerData.includes('r:')) {
-      mainApp.isRdata = true;
-    }
     configuredApps.push(mainApp);
   } else {
     let j = 0;
@@ -382,12 +368,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
           domain: domains[j],
           port: component.ports[i],
           ips: appIps,
-          isSharedDBApp: app.isSharedDBApp,
+          isRdata: app.isRdata,
           ...customConfigs[j],
         };
-        if (component.containerData.includes('r:')) {
-          configuredApp.isRdata = true;
-        }
         configuredApps.push(configuredApp);
         const portDomains = component.domains[i].split(',');
         // eslint-disable-next-line no-loop-func
@@ -415,12 +398,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                   domain: portDomain,
                   port: component.ports[i],
                   ips: appIps,
-                  isSharedDBApp: app.isSharedDBApp,
+                  isRdata: app.isRdata,
                   ...customConfigs[j],
                 };
-                if (component.containerData.includes('r:')) {
-                  configuredAppCustom.isRdata = true;
-                }
                 configuredApps.push(configuredAppCustom);
               }
 
@@ -434,12 +414,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                     domain: wwwAdjustedDomain,
                     port: component.ports[i],
                     ips: appIps,
-                    isSharedDBApp: app.isSharedDBApp,
+                    isRdata: app.isRdata,
                     ...customConfigs[j],
                   };
-                  if (component.containerData.includes('r:')) {
-                    configuredAppCustom.isRdata = true;
-                  }
                   configuredApps.push(configuredAppCustom);
                 }
               }
@@ -454,12 +431,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                     domain: testAdjustedDomain,
                     port: component.ports[i],
                     ips: appIps,
-                    isSharedDBApp: app.isSharedDBApp,
+                    isRdata: app.isRdata,
                     ...customConfigs[j],
                   };
-                  if (component.containerData.includes('r:')) {
-                    configuredAppCustom.isRdata = true;
-                  }
                   configuredApps.push(configuredAppCustom);
                 }
               }
@@ -480,12 +454,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
             domain: domains[domains.length - 1],
             port: app.compose[q].ports[w],
             ips: appIps,
-            isSharedDBApp: app.isSharedDBApp,
+            isRdata: app.isRdata,
             ...customConfigs[customConfigs.length - 1],
           };
-          if (app.compose[q].containerData.includes('r:')) {
-            mainApp.isRdata = true;
-          }
           configuredApps.push(mainApp);
         }
       }
@@ -587,7 +558,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
       }
       if (appLocations.length > 0) {
         let appIps = [];
-        app.isSharedDBApp = false;
+        app.isRdata = false;
         const applicationWithChecks = applicationChecks.applicationWithChecks(app);
         if (applicationWithChecks) {
           let promiseArray = [];
@@ -620,6 +591,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
           }
         } else if (app.compose && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'))) {
           // app using sharedDB project
+          app.isRdata = true;
           appIps = appLocations.map((location) => location.ip);
           const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
           log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
@@ -640,9 +612,53 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
             }
             if (operatorClusterStatus) {
               appIps.sort((a, b) => operatorClusterStatus.indexOf(a) - operatorClusterStatus.indexOf(b));
-              app.isSharedDBApp = true;
               log.info(`Application ${app.name} was setup as a sharedDBApps`);
+            } else {
+              appIps.sort((a, b) => {
+                if (!a.runningSince && b.runningSince) {
+                  return -1;
+                }
+                if (a.runningSince && !b.runningSince) {
+                  return 1;
+                }
+                if (a.runningSince < b.runningSince) {
+                  return -1;
+                }
+                if (a.runningSince > b.runningSince) {
+                  return 1;
+                }
+                if (a.ip < b.ip) {
+                  return -1;
+                }
+                if (a.ip > b.ip) {
+                  return 1;
+                }
+                return 0;
+              });
             }
+          } else if ((app.version <= 3 && app.containerData.includes('r:')) || (app.compose && app.compose.find((comp) => comp.containerData.includes('r:')))) {
+            app.isRdata = true;
+            appIps.sort((a, b) => {
+              if (!a.runningSince && b.runningSince) {
+                return -1;
+              }
+              if (a.runningSince && !b.runningSince) {
+                return 1;
+              }
+              if (a.runningSince < b.runningSince) {
+                return -1;
+              }
+              if (a.runningSince > b.runningSince) {
+                return 1;
+              }
+              if (a.ip < b.ip) {
+                return -1;
+              }
+              if (a.ip > b.ip) {
+                return 1;
+              }
+              return 0;
+            });
           }
         } else {
           appIps = appLocations.map((location) => location.ip);

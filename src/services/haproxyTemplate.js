@@ -264,20 +264,8 @@ backend ${domainUsed}backend
     }
     domainBackend += '\n inter 5s fall 3 rise 2 fastinter 1s\n retries 1\n retry-on response-timeout conn-failure empty-response\n option redispatch\n timeout connect 5s';
     if (app.isRdata) {
-      if (app.isSharedDBApp) {
-        if (app.ips[0] !== ip) {
-          domainBackend += '\n backup';
-        }
-      } else if (mapOfNamesIps[app.name] && app.ips.includes(mapOfNamesIps[app.name])) { // use this ip as a main
-        if (mapOfNamesIps[app.name] !== ip) {
-          // for other IP configure them as backup
-          domainBackend += '\n backup';
-        }
-      } else { // set new IP as main
-        mapOfNamesIps[app.name] = selectIPforR(app.ips);
-        if (mapOfNamesIps[app.name] !== ip) {
-          domainBackend += ' backup';
-        }
+      if (app.ips[0] !== ip) {
+        domainBackend += '\n backup';
       }
     }
     if (app.timeout) {

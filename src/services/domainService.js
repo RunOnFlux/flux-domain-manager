@@ -639,10 +639,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
             // lets remove db and operator from haproxy
             const componentUsingSharedDBIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
             const componentMySQLIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('mysql'));
-            if (componentUsingSharedDBIndex > 0) {
+            if (componentUsingSharedDBIndex >= 0) {
               app.compose.splice(componentUsingSharedDBIndex, 1);
             }
-            if (componentMySQLIndex > 0) {
+            if (componentMySQLIndex >= 0) {
               app.compose.splice(componentMySQLIndex, 1);
             }
           } else if ((app.version <= 3 && app.containerData.includes('r:')) || (app.compose && app.compose.find((comp) => comp.containerData.includes('r:')))) {

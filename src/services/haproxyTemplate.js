@@ -269,11 +269,13 @@ backend ${domainUsed}backend
         domainBackend += ' backup';
       }
     }
-    domainBackend += '\n retries 1\n retry-on response-timeout conn-failure empty-response\n option redispatch\n timeout connect 5s';
-    if (app.timeout) {
-      domainBackend += `\n timeout server ${app.timeout}`;
-    } else {
-      domainBackend += '\n timeout server 20s';
+    if (app.ips[0] === ip) {
+      domainBackend += '\n retries 1\n retry-on response-timeout conn-failure empty-response\n option redispatch\n timeout connect 5s';
+      if (app.timeout) {
+        domainBackend += `\n timeout server ${app.timeout}`;
+      } else {
+        domainBackend += '\n timeout server 20s';
+      }
     }
   }
   return domainBackend;

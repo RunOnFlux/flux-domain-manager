@@ -255,7 +255,7 @@ backend ${domainUsed}backend
     }
 
     if (app.ips[0] === ip) {
-      domainBackend += '\n  retries 1\n  retry-on response-timeout conn-failure empty-response 500\n option redispatch\n  timeout connect 5s';
+      domainBackend += '\n  retries 1\n  retry-on response-timeout conn-failure empty-response 500\n  option redispatch\n  timeout connect 5s';
       if (app.isRdata) {
         domainBackend += '\n  timeout server 8s';
       } else if (app.timeout) {

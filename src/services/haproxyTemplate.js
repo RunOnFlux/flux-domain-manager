@@ -253,6 +253,18 @@ backend ${domainUsed}backend
       // eslint-disable-next-line no-continue
       continue;
     }
+
+    if (app.ips[0] === ip) {
+      domainBackend += '\n  retries 1\n  retry-on response-timeout conn-failure empty-response\n option redispatch\n  timeout connect 5s';
+      if (app.isRdata) {
+        domainBackend += '\n  timeout server 8s';
+      } else if (app.timeout) {
+        domainBackend += `\n  timeout server ${app.timeout}`;
+      } else {
+        domainBackend += '\n  timeout server 20s';
+      }
+    }
+
     const apiPort = ip.split(':')[1] || 16127;
     const cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split(':')[0]}:${app.port}`;
     const isCheck = app.check ? 'check ' : '';
@@ -267,16 +279,6 @@ backend ${domainUsed}backend
     if (app.isRdata) {
       if (app.ips[0] !== ip) {
         domainBackend += ' backup';
-      }
-    }
-    if (app.ips[0] === ip) {
-      domainBackend += '\n  retries 1\n  retry-on response-timeout conn-failure empty-response\n option redispatch\n  timeout connect 5s';
-      if (app.isRdata) {
-        domainBackend += '\n  timeout server 8s';
-      } else if (app.timeout) {
-        domainBackend += `\n  timeout server ${app.timeout}`;
-      } else {
-        domainBackend += '\n  timeout server 20s';
       }
     }
   }

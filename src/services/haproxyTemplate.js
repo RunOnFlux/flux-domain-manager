@@ -255,7 +255,7 @@ backend ${domainUsed}backend
     }
 
     if (app.ips[0] === ip) {
-      domainBackend += '\n  retries 2\n  retry-on response-timeout conn-failure empty-response 500\n  option redispatch 1\n  timeout http-request 3s\n  timeout connect 3s';
+      domainBackend += '\n  timeout http-request 3s\n  timeout connect 3s';
       if (app.isRdata) {
         domainBackend += '\n  timeout server 4s';
       } else if (app.timeout) {
@@ -263,6 +263,7 @@ backend ${domainUsed}backend
       } else {
         domainBackend += '\n  timeout server 20s';
       }
+      domainBackend += '\n  retries 2\n  retry-on conn-failure response-timeout empty-response 500\n  option redispatch 1';
     }
 
     const apiPort = ip.split(':')[1] || 16127;

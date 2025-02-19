@@ -255,7 +255,7 @@ backend ${domainUsed}backend
     }
 
     if (app.ips[0] === ip) {
-      domainBackend += '\n  timeout http-request 3s\n  timeout connect 3s';
+      domainBackend += '\n  timeout http-request 3s'; //  timeout connect 3s
       if (app.isRdata) {
         domainBackend += '\n  timeout server 4s';
       } else if (app.timeout) {

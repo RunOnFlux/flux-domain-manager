@@ -255,9 +255,9 @@ backend ${domainUsed}backend
     }
 
     if (app.ips[0] === ip) {
-      domainBackend += '\n  retries 1\n  retry-on response-timeout conn-failure empty-response 500\n  option redispatch\n  timeout connect 5s';
+      domainBackend += '\n  retries 2\n  retry-on response-timeout conn-failure empty-response 500\n  option redispatch 1\n  timeout http-request 3s\n  timeout connect 3s';
       if (app.isRdata) {
-        domainBackend += '\n  timeout server 8s';
+        domainBackend += '\n  timeout server 4s';
       } else if (app.timeout) {
         domainBackend += `\n  timeout server ${app.timeout}`;
       } else {
@@ -275,7 +275,7 @@ backend ${domainUsed}backend
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} ${isCheck}${app.serverConfig} ${cookieConfig}`;
     }
 
-    domainBackend += ' inter 5s fall 3 rise 2 fastinter 1s';
+    domainBackend += ' inter 3s fall 2 rise 2 fastinter 500';
     if (app.isRdata) {
       if (app.ips[0] !== ip) {
         domainBackend += ' backup';

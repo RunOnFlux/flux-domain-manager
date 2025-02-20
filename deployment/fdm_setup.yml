@@ -13,7 +13,7 @@
 
     - name: Add MongoDB repository
       ansible.builtin.apt_repository:
-        repo: "deb [signed-by=/etc/apt/keyrings/mongo.asc] https://repo.mongodb.org/apt/ubuntu {{ ansible_distribution_release }}/mongodb-org/6.0 multiverse"
+        repo: "deb [signed-by=/etc/apt/keyrings/mongo.asc] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse"
         state: present
         filename: mongodb-org-6.0
 

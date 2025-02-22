@@ -263,7 +263,7 @@ backend ${domainUsed}backend
       } else {
         domainBackend += '\n  timeout server 20s';
       }
-      domainBackend += '\n  retries 4\n  retry-on conn-failure response-timeout empty-response 500\n  option redispatch 1';
+      domainBackend += '\n  retries 5\n  retry-on conn-failure response-timeout empty-response 500\n  option redispatch 1';
     }
 
     const apiPort = ip.split(':')[1] || 16127;

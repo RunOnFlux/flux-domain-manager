@@ -6,8 +6,6 @@ const log = require('../lib/log');
 const { cmdAsync, TEMP_HAPROXY_CONFIG, HAPROXY_CONFIG } = require('./constants');
 const { matchRule } = require('./serviceHelper');
 
-const mapOfNamesIps = {};
-
 let lastHaproxyConfig;
 
 const haproxyPrefix = `
@@ -191,20 +189,6 @@ ${cloudflareFluxBackend}
 ${forbiddenBackend}
 `;
   return config;
-}
-
-function selectIPforR(ips) {
-  // choose the ip address whose sum of digits is the lowest
-  let chosenIp = ips[0];
-  let chosenIpSum = ips[0].split(':')[0].split('.').reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
-  for (const ip of ips) {
-    const sum = ip.split(':')[0].split('.').reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
-    if (sum < chosenIpSum) {
-      chosenIp = ip;
-      chosenIpSum = sum;
-    }
-  }
-  return chosenIp;
 }
 
 function generateDomainBackend(app, mode) {

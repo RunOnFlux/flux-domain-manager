@@ -111,7 +111,7 @@ async function isUptimeOK(ip, port) {
   try {
     const url = `http://${ip}:${port}/flux/uptime`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
-    if (response.data.data.uptime > 3600) {
+    if (response.data.data > 3600) {
       return true;
     }
     return false;

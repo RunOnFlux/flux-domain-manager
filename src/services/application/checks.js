@@ -107,6 +107,19 @@ function minVersionSatisfy(version, minimumVersion) {
   return true;
 }
 
+async function isUptimeOK(ip, port) {
+  try {
+    const url = `http://${ip}:${port}/flux/uptime`;
+    const response = await serviceHelper.httpGetRequest(url, timeout);
+    if (response.data.data.uptime > 3600) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function isVersionOK(ip, port) {
   try {
     const url = `http://${ip}:${port}/flux/info`;
@@ -192,23 +205,27 @@ async function checkMainFlux(ip, port = 16127) {
     const versionOK = await isVersionOK(ip, port);
     if (versionOK) {
       // eslint-disable-next-line no-await-in-loop
-      const loginPhraseOK = await checkLoginPhrase(ip, port);
-      if (loginPhraseOK) {
+      const uptimeOK = await isUptimeOK(ip, port);
+      if (uptimeOK) {
         // eslint-disable-next-line no-await-in-loop
-        const communicationOK = await isCommunicationOK(ip, port);
-        if (communicationOK) {
-          const isSynced = await isSyncedOK(ip, port);
-          if (isSynced) {
-            const isDaemonSynced = isDaemonSyncedOK(ip, port);
-            if (isDaemonSynced) {
-              const hasApps = await hasManyApps(ip, port);
-              if (hasApps) {
-                const hasMessages = await hasManyMessages(ip, port);
-                if (hasMessages) {
-                  // eslint-disable-next-line no-await-in-loop
-                  const uiOK = await isHomeOK(ip, +port - 1);
-                  if (uiOK) {
-                    return true;
+        const loginPhraseOK = await checkLoginPhrase(ip, port);
+        if (loginPhraseOK) {
+          // eslint-disable-next-line no-await-in-loop
+          const communicationOK = await isCommunicationOK(ip, port);
+          if (communicationOK) {
+            const isSynced = await isSyncedOK(ip, port);
+            if (isSynced) {
+              const isDaemonSynced = isDaemonSyncedOK(ip, port);
+              if (isDaemonSynced) {
+                const hasApps = await hasManyApps(ip, port);
+                if (hasApps) {
+                  const hasMessages = await hasManyMessages(ip, port);
+                  if (hasMessages) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const uiOK = await isHomeOK(ip, +port - 1);
+                    if (uiOK) {
+                      return true;
+                    }
                   }
                 }
               }

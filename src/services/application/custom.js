@@ -28,7 +28,7 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
   if (specifications.name.toLowerCase().includes('whooglessl')) {
     defaultConfig.ssl = true;
   }
-  
+
   if (isGsyncthingApp) {
     defaultConfig.mode = 'tcp';
     defaultConfig.check = false;
@@ -129,7 +129,7 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     },
     '39443.nginx.budibasemysql': {
       ssl: true,
-    }, 
+    },
     '33443.nginx.formbricks': {
       ssl: true,
     },

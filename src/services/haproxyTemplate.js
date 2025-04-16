@@ -239,13 +239,13 @@ backend ${domainUsed}backend
     }
 
     if (app.ips[0] === ip) {
-      domainBackend += '\n  timeout http-request 10s'; //  timeout connect 10s
+      domainBackend += '\n  timeout http-request 120s'; //  timeout connect 10s
       if (app.isRdata) {
-        domainBackend += '\n  timeout server 15s';
+        domainBackend += '\n  timeout server 120s';
       } else if (app.timeout) {
         domainBackend += `\n  timeout server ${app.timeout}`;
       } else {
-        domainBackend += '\n  timeout server 20s';
+        domainBackend += '\n  timeout server 120s';
       }
       domainBackend += '\n  retries 3\n  retry-on conn-failure response-timeout empty-response 500\n  option redispatch 1';
     }

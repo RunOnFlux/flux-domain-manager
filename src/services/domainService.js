@@ -270,7 +270,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
   const customConfigs = getCustomConfigs(app, gMode);
   let timeout = null;
   if (app.version <= 3) {
-    const timeoutConfig = app.environmentParameters.find((att) => att.toLowerCase().startsWith('timeout='));
+    const timeoutConfig = app.enviromentParameters.find((att) => att.toLowerCase().startsWith('timeout='));
     if (timeoutConfig) {
       timeout = timeoutConfig.split('=')[1];
     }

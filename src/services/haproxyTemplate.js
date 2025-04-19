@@ -240,18 +240,16 @@ backend ${domainUsed}backend
 
     if (app.ips[0] === ip) {
       if (app.timeout) {
-        const appName = app.domain.split('.')[0];
-        log.info(`Custom timeout defined for ${appName} timeout=${app.timeout}`);
         domainBackend += `\n  timeout http-request ${app.timeout}`;
       } else {
-        domainBackend += '\n  timeout http-request 10s'; //  timeout connect 10s
+        domainBackend += '\n  timeout http-request 15s'; //  timeout connect 15s
       }
       if (app.timeout) {
         domainBackend += `\n  timeout server ${app.timeout}`;
       } else if (app.isRdata) {
-        domainBackend += '\n  timeout server 15s';
-      } else {
         domainBackend += '\n  timeout server 20s';
+      } else {
+        domainBackend += '\n  timeout server 25s';
       }
       domainBackend += '\n  retries 3\n  retry-on conn-failure response-timeout empty-response 500\n  option redispatch 1';
     }

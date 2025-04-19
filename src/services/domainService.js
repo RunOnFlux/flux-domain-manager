@@ -315,6 +315,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                 ips: appIps,
                 isRdata: app.isRdata,
                 ...customConfigs[i],
+                timeout,
               };
               configuredApps.push(configuredAppCustom);
             }
@@ -330,6 +331,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                   ips: appIps,
                   isRdata: app.isRdata,
                   ...customConfigs[i],
+                  timeout,
                 };
                 configuredApps.push(configuredAppCustom);
               }
@@ -347,6 +349,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                   ips: appIps,
                   isRdata: app.isRdata,
                   ...customConfigs[i],
+                  timeout,
                 };
                 configuredApps.push(configuredAppCustom);
               }
@@ -363,6 +366,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
       ips: appIps,
       isRdata: app.isRdata,
       ...customConfigs[customConfigs.length - 1],
+      timeout,
     };
     configuredApps.push(mainApp);
   } else {
@@ -413,6 +417,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                   ips: appIps,
                   isRdata: app.isRdata,
                   ...customConfigs[j],
+                  timeout,
                 };
                 configuredApps.push(configuredAppCustom);
               }
@@ -429,6 +434,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                     ips: appIps,
                     isRdata: app.isRdata,
                     ...customConfigs[j],
+                    timeout,
                   };
                   configuredApps.push(configuredAppCustom);
                 }
@@ -446,6 +452,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                     ips: appIps,
                     isRdata: app.isRdata,
                     ...customConfigs[j],
+                    timeout,
                   };
                   configuredApps.push(configuredAppCustom);
                 }

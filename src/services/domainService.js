@@ -1,3 +1,4 @@
+/* eslint-disable prefer-destructuring */
 /* eslint-disable no-restricted-syntax */
 const config = require('config');
 const fs = require('fs').promises;
@@ -267,7 +268,12 @@ async function updateHaproxy(haproxyAppsConfig) {
 function addConfigurations(configuredApps, app, appIps, gMode) {
   const domains = getUnifiedDomains(app);
   const customConfigs = getCustomConfigs(app, gMode);
+  let timeout = null;
   if (app.version <= 3) {
+    const timeoutConfig = app.environmentParameters.find((att) => att.toLowerCase().startsWith('timeout='));
+    if (timeoutConfig) {
+      timeout = timeoutConfig.split('=')[1];
+    }
     for (let i = 0; i < app.ports.length; i += 1) {
       const configuredApp = {
         name: app.name,
@@ -277,6 +283,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
         ips: appIps,
         isRdata: app.isRdata,
         ...customConfigs[i],
+        timeout,
       };
 
       configuredApps.push(configuredApp);
@@ -361,6 +368,11 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
   } else {
     let j = 0;
     for (const component of app.compose) {
+      timeout = null;
+      const timeoutConfig = component.environmentParameters.find((att) => att.toLowerCase().startsWith('timeout='));
+      if (timeoutConfig) {
+        timeout = timeoutConfig.split('=')[1];
+      }
       for (let i = 0; i < component.ports.length; i += 1) {
         const configuredApp = {
           name: app.name,
@@ -370,6 +382,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
           ips: appIps,
           isRdata: app.isRdata,
           ...customConfigs[j],
+          timeout,
         };
         configuredApps.push(configuredApp);
         const portDomains = component.domains[i].split(',');

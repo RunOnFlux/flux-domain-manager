@@ -240,6 +240,8 @@ backend ${domainUsed}backend
 
     if (app.ips[0] === ip) {
       if (app.timeout) {
+        const appName = app.domain.split('.')[0];
+        log.info(`Custom timeout defined for ${appName} timeout=${app.timeout}`);
         domainBackend += `\n  timeout http-request ${app.timeout}`;
       } else {
         domainBackend += '\n  timeout http-request 10s'; //  timeout connect 10s

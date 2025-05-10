@@ -159,7 +159,10 @@ function createKadenaHaproxyConfig(appConfig) {
   server kdatxs 127.0.0.1:9876 check
   server kdatxs1 54.39.237.205:9876 check
   server kdatxs2 54.39.237.206:9876 check
-  server kdatxs3 54.39.237.207:9876 check`;
+  server kdatxs3 54.39.237.207:9876 check
+  server kdatxs4 5.39.57.12:9876 check
+  server kdatxs5 5.39.57.13:9876 check
+  server kdatxs6 5.39.57.14:9876 check`;
   backends = `${backends + kdaTxsBackend}\n\n`;
 
   domains.push('kadena.dapp.runonflux.io');

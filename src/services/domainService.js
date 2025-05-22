@@ -551,6 +551,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
       if (app.name === 'blockbookbitcoin') {
         appLocations.push({ ip: '66.70.144.171' });
         appLocations.push({ ip: '66.70.144.172' });
+        appLocations.push({ ip: '[2001:41d0:d00:b800::20]:9130' });
+        appLocations.push({ ip: '[2001:41d0:d00:b800::21]:9130' });
       }
       if (app.name === 'blockbooklitecoin') {
         appLocations.push({ ip: '66.70.144.173' });
@@ -567,6 +569,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
       if (app.name === 'blockbookbitcointestnet') {
         appLocations.push({ ip: '54.39.237.198' });
         appLocations.push({ ip: '54.39.237.199' });
+      }
+      if (app.name === 'blockbookbitcoinsignet') {
+        appLocations.push({ ip: '[2001:41d0:d00:b800::97]:191120' });
+        appLocations.push({ ip: '[2001:41d0:d00:b800::98]:19120' });
       }
       if (app.name === 'blockbookzcash') {
         appLocations.push({ ip: '66.70.144.175' });

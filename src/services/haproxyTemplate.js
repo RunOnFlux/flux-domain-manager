@@ -255,11 +255,12 @@ backend ${domainUsed}backend
     }
 
     const apiPort = ip.split(':')[1] || 16127;
-    const cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split(':')[0]}:${app.port}`;
+    let cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split(':')[0]}:${app.port}`;
     const isCheck = app.check ? 'check ' : '';
     if (ip.includes('[') && ip.includes(']')) { // ipv6 hardcoded
       const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
-      domainBackend += `\n  server ${ip.split(']')[0]}] ${ip.split(']')[0]}]:${ip.split(']')[1]} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
+      cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split(']')[0]}]${ip.split(']')[1]}`;
+      domainBackend += `\n  server ${ip.split(']')[0]}] ${ip.split(']')[0]}]${ip.split(']')[1]} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
     } else  if (app.ssl) {
       const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;

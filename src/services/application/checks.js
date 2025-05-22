@@ -636,7 +636,7 @@ async function checkBlockBook(ip, port, appsname) {
     });
     if (ip.includes(':')) {
       response1 = await axios.get(`https://${ip}:${port}/api`, { httpsAgent: agent, timeout });
-      response1 = await axios.get(`https://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, { httpsAgent: agent, timeout });
+      response2 = await axios.get(`https://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, { httpsAgent: agent, timeout });
     } else {
       response1 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api`, 5000);
       response2 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, 5000);

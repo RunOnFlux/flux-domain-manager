@@ -630,8 +630,17 @@ async function checkBlockBook(ip, port, appsname) {
     let coin = appsname.replace('blockbook', '');
     coin = coin.replace(/\d+/g, '');
     const index = coinList.indexOf(coin);
-    const response1 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api`, 5000);
-    const response2 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, 5000);
+    let response1, response2;
+    const agent = new https.Agent({
+      rejectUnauthorized: false,
+    });
+    if (ip.includes(':')) {
+      response1 = await axios.get(`https://${ip}:${port}/api`, { httpsAgent: agent, timeout });
+      response1 = await axios.get(`https://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, { httpsAgent: agent, timeout });
+    } else {
+      response1 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api`, 5000);
+      response2 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, 5000);
+    }
     const currentTime = new Date().getTime();
     if (response2.data.txids.length > 0 && response1.data.blockbook.bestHeight > (response1.data.backend.blocks - 100) && response1.data.blockbook.bestHeight > heightList[index] && response1.data.backend.blocks > heightList[index]) {
       const lastBlockTmstp = new Date(response1.data.blockbook.lastBlockTime).getTime();

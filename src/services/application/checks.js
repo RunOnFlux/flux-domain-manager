@@ -894,7 +894,7 @@ async function checkApplication(app, ip) {
       isOK = await checkHavenRPC(ip.split(':')[0], 33750);
     }
   } else if (app.name.startsWith('blockbook')) {
-    isOK = await checkBlockBook(ip.split(':')[0], app.compose[0].ports[0], app.name);
+    isOK = await checkBlockBook(ip.includes('[') ? ip.split(']')[0] + ']' : ip.split(':')[0], ip.includes('[') ? ip.split(']')[1] : app.compose[0].ports[0], app.name);
   } else if (app.name.startsWith('AlgorandRPC')) {
     isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[1]);
   } else if (app.name.toLowerCase().includes('bittensor')) {

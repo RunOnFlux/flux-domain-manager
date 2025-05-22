@@ -571,7 +571,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
         appLocations.push({ ip: '54.39.237.199' });
       }
       if (app.name === 'blockbookbitcoinsignet') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::97]:191120' });
+        appLocations.push({ ip: '[2001:41d0:d00:b800::97]:19120' });
         appLocations.push({ ip: '[2001:41d0:d00:b800::98]:19120' });
       }
       if (app.name === 'blockbookzcash') {

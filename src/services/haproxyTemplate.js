@@ -26,11 +26,19 @@ global
   ca-base /etc/ssl/certs
   crt-base /etc/ssl/private
 
-  # Default ciphers to use on SSL-enabled listening sockets.
-  # For more onlinermation, see ciphers(1SSL). This list is from:
-  #  https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
-  ssl-default-bind-ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS
-  ssl-default-bind-options no-sslv3
+  # intermediate configuration
+  ssl-default-bind-curves X25519:prime256v1:secp384r1
+  ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+  ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+  ssl-default-bind-options prefer-client-ciphers ssl-min-ver TLSv1.2 no-tls-tickets
+
+  ssl-default-server-curves X25519:prime256v1:secp384r1
+  ssl-default-server-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+  ssl-default-server-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+  ssl-default-server-options ssl-min-ver TLSv1.2 no-tls-tickets
+
+  # curl https://ssl-config.mozilla.org/ffdhe4096.txt > /etc/haproxy/dhparam
+  ssl-dh-param-file /etc/haproxy/dhparam
 
 defaults
   load-server-state-from-file global
@@ -83,7 +91,7 @@ frontend wwwhttps
 
 const certificatePrefix = '  bind *:443 ssl ';
 
-const certificatesSuffix = 'ciphers kEECDH+aRSA+AES:kRSA+AES:+AES256:RC4-SHA:!kEDH:!LOW:!EXP:!MD5:!aNULL:!eNULL no-sslv3';
+const certificatesSuffix = ''; // 'ciphers kEECDH+aRSA+AES:kRSA+AES:+AES256:RC4-SHA:!kEDH:!LOW:!EXP:!MD5:!aNULL:!eNULL no-sslv3';
 
 const h2Suffix = 'alpn h2,http/1.1';
 

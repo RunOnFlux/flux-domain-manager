@@ -93,6 +93,12 @@
         owner: root
         group: root
         mode: '0644'
+    
+    - name: Get dhparam
+      ansible.builtin.get_url:
+        url: https://ssl-config.mozilla.org/ffdhe4096.txt
+        dest: /etc/haproxy/dhparam
+        mode: '0644'
 
     - name: Clone FDM
       ansible.builtin.git:

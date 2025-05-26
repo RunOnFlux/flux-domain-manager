@@ -125,7 +125,7 @@ async function isVersionOK(ip, port) {
     const url = `http://${ip}:${port}/flux/info`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.flux.version;
-    if (minVersionSatisfy(version, '5.50.0')) {
+    if (minVersionSatisfy(version, '5.52.0')) {
       if (response.data.data.flux.development === 'false' || !response.data.data.flux.development) {
         return true;
       }
@@ -141,7 +141,7 @@ async function isSyncedOK(ip, port) {
     const url = `http://${ip}:${port}/explorer/scannedheight`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const height = response.data.data.generalScannedHeight;
-    if (height >= currentFluxBlockheight) {
+    if (height + 3 >= currentFluxBlockheight) {
       return true;
     }
     return false;
@@ -168,7 +168,7 @@ async function hasManyApps(ip, port) {
     const url = `http://${ip}:${port}/apps/globalappsspecifications`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const appsAmount = response.data.data.length;
-    if (appsAmount > 1000) { // we surely have at least 1000 apps on network
+    if (appsAmount > 500) { // we surely have at least 1000 apps on network
       // eslint-disable-next-line no-restricted-syntax
       for (const app of config.mandatoryApps) {
         const appExists = response.data.data.find((a) => a.name === app);
@@ -188,7 +188,7 @@ async function hasManyMessages(ip, port) {
     const url = `http://${ip}:${port}/apps/hashes`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const appsAmount = response.data.data.length;
-    if (appsAmount > 29000) {
+    if (appsAmount > 48000) {
       const messageFalse = response.data.data.filter((a) => a.message === false);
       if (messageFalse.length < 80) {
         return true;

@@ -138,9 +138,9 @@ async function isVersionOK(ip, port) {
 
 async function isArcaneOS(ip, port) {
   try {
-    const url = `http://${ip}:${port}/flux/isarcaneos`;
+    const url = `http://${ip}:${port}/benchmark/getbenchmarks`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
-    if (response.data.data) {
+    if (response.data.data.systemsecure) {
       return true
     }
     return false;

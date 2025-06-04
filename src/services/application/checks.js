@@ -230,7 +230,7 @@ async function checkMainFlux(ip, port = 16127) {
             if (communicationOK) {
               const isSynced = await isSyncedOK(ip, port);
               if (isSynced) {
-                const isDaemonSynced = isDaemonSyncedOK(ip, port);
+                const isDaemonSynced = await isDaemonSyncedOK(ip, port);
                 if (isDaemonSynced) {
                   const hasApps = await hasManyApps(ip, port);
                   if (hasApps) {

@@ -125,7 +125,7 @@ async function isVersionOK(ip, port) {
     const url = `http://${ip}:${port}/flux/info`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.flux.version;
-    if (minVersionSatisfy(version, '5.52.0')) {
+    if (minVersionSatisfy(version, '6.0.0')) {
       if (response.data.data.flux.development === 'false' || !response.data.data.flux.development) {
         return true;
       }
@@ -138,9 +138,9 @@ async function isVersionOK(ip, port) {
 
 async function isArcaneOS(ip, port) {
   try {
-    const url = `http://${ip}:${port}/benchmark/getbenchmarks`;
+    const url = `http://${ip}:${port}/flux/isarcaneos`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
-    if (response.data.data.systemsecure) {
+    if (response.data.data) {
       return true
     }
     return false;

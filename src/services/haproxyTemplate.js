@@ -269,7 +269,7 @@ backend ${domainUsed}backend
       const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
       cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split('[')[1].split(']')[0]}${ip.split(']')[1]}`;
       domainBackend += `\n  server ${ip.split('[')[1].split(']')[0]} ${ip.split(']')[0]}]${ip.split(']')[1]} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
-    } else  if (app.ssl) {
+    } else if (app.ssl) {
       const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
     } else {
@@ -312,6 +312,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   http-response set-header FLUXNODE %s
   mode http
   balance source
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   hash-type consistent
   stick-table type ip size 1m expire 8h
   stick on src`;
@@ -340,6 +341,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   http-response set-header FLUXNODE %s
   mode http
   balance source
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   hash-type consistent
   stick-table type ip size 1m expire 8h
   stick on src`;

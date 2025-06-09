@@ -312,7 +312,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   http-response set-header FLUXNODE %s
   mode http
   balance source
-  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  cookie FDMUISERVERID insert preserve indirect nocache maxlife 8h
   hash-type consistent
   stick-table type ip size 1m expire 8h
   stick on src`;
@@ -341,7 +341,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   http-response set-header FLUXNODE %s
   mode http
   balance source
-  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  cookie FDMSAPIERVERID insert preserve indirect nocache maxlife 8h
   hash-type consistent
   stick-table type ip size 1m expire 8h
   stick on src`;

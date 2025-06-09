@@ -332,7 +332,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     //     IpString = `${IpString}00${a[i]}`;
     //   }
     // }
-    uiBackend += `\n  server ${ip.split(':')[0]}:${uiPort} ${ip.split(':')[0]}:${uiPort} check`;
+    uiBackend += `\n  server ${ip.split(':')[0]}:${uiPort} ${ip.split(':')[0]}:${uiPort} cookie ${ip.split(':')[0]}:${uiPort} check`;
   }
   // console.log(uiBackend);
 
@@ -361,7 +361,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     //     IpString = `${IpString}00${a[i]}`;
     //   }
     // }
-    apiBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${apiPort} check`;
+    apiBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${apiPort} cookie ${ip.split(':')[0]}:${apiPort} check`;
   }
   // console.log(apiBackend);
 

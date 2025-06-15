@@ -315,8 +315,8 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     cookie FDMUISERVERID insert preserve indirect nocache maxlife 8h`;
 
   for (const ip of fluxIPs) {
-    const uiPort = ip.split(':')[1] || 16126;
-    const serverName = ip.split(':')[0].replace(/\./g, '_'); // Convert IP to valid server name
+    const uiPort = ip.split(':')[1] || '16126';
+    const serverName = (ip.split(':')[0] + uiPort).replace(/\./g, '_'); // Convert IP to valid server name
     uiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${uiPort} cookie ${serverName} check`;
   }
   // console.log(uiBackend);
@@ -330,8 +330,8 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     stick on src`;
 
   for (const ip of fluxIPs) {
-    const apiPort = ip.split(':')[1] || 16127;
-    const serverName = ip.split(':')[0].replace(/\./g, '_');
+    const apiPort = ip.split(':')[1] || '16127';
+    const serverName = (ip.split(':')[0] + apiPort).replace(/\./g, '_');
     apiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check`;
   }
   // console.log(apiBackend);

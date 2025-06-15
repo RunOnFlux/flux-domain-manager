@@ -316,10 +316,9 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     stick on src`;
 
   for (const ip of fluxIPs) {
-    let uiPort = ip.split(':')[1] || '16127';
-    uiPort = Number(uiPort) - 1;
-    const serverName = (`${ip.split(':')[0]}.${uiPort}`).replace(/\./g, '_'); // Convert IP to valid server name
-    uiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${uiPort} check`;
+    const apiPort = ip.split(':')[1] || '16127';
+    const serverName = (`${ip.split(':')[0]}.${apiPort}`).replace(/\./g, '_'); // Convert IP to valid server name
+    uiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check`;
   }
   // console.log(uiBackend);
 

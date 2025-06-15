@@ -312,13 +312,14 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     http-response set-header FLUXNODE %s
     mode http
     balance roundrobin
-    cookie FDMUISERVERID insert preserve indirect nocache maxlife 8h`;
+    stick-table type ip size 1m expire 8h
+    stick on src`;
 
   for (const ip of fluxIPs) {
     let uiPort = ip.split(':')[1] || '16127';
     uiPort = Number(uiPort) - 1;
     const serverName = (`${ip.split(':')[0]}.${uiPort}`).replace(/\./g, '_'); // Convert IP to valid server name
-    uiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${uiPort} cookie ${serverName} check`;
+    uiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${uiPort} check`;
   }
   // console.log(uiBackend);
 

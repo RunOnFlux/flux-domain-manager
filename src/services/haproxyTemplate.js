@@ -307,61 +307,32 @@ function generateMinecraftACLs(app) {
 }
 
 function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
-  const uiB = ui.split('.').join('');
   let uiBackend = `backend ${uiB}backend
-  http-response set-header FLUXNODE %s
-  mode http
-  balance source
-  cookie FDMUISERVERID insert preserve indirect nocache maxlife 8h
-  hash-type consistent
-  stick-table type ip size 1m expire 8h
-  stick on src`;
-  for (const ip of fluxIPs) {
-    const uiPort = ip.split(':')[1] || 16126;
-    // const a = ip.split(':')[0].split('.');
-    // const b = ip.split(':')[1] || '';
-    // let IpString = '';
-    // for (let i = 0; i < 4; i += 1) {
-    //   if (a[i].length === 3) {
-    //     IpString += a[i];
-    //   }
-    //   if (a[i].length === 2) {
-    //     IpString = `${IpString}0${a[i]}`;
-    //   }
-    //   if (a[i].length === 1) {
-    //     IpString = `${IpString}00${a[i]}`;
-    //   }
-    // }
-    uiBackend += `\n  server ${ip.split(':')[0]}:${uiPort} ${ip.split(':')[0]}:${uiPort} cookie ${ip.split(':')[0]}:${uiPort} check`;
+    http-response set-header FLUXNODE %s
+    mode http
+    balance roundrobin
+    cookie FDMUISERVERID insert preserve indirect nocache maxlife 8h`;
+
+    for (const ip of fluxIPs) {
+      const uiPort = ip.split(':')[1] || 16126;
+      const serverName = ip.split(':')[0].replace(/\./g, '_'); // Convert IP to valid server name
+      uiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${uiPort} cookie ${serverName} check`;
+    }
   }
   // console.log(uiBackend);
 
   const apiB = api.split('.').join('');
   let apiBackend = `backend ${apiB}backend
-  http-response set-header FLUXNODE %s
-  mode http
-  balance source
-  cookie FDMAPISERVERID insert preserve indirect nocache maxlife 8h
-  hash-type consistent
-  stick-table type ip size 1m expire 8h
-  stick on src`;
+    http-response set-header FLUXNODE %s
+    mode http
+    balance roundrobin
+    stick-table type ip size 1m expire 8h
+    stick on src`;
+
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || 16127;
-    // const a = ip.split(':')[0].split('.');
-    // const b = ip.split(':')[1] || '';
-    // let IpString = '';
-    // for (let i = 0; i < 4; i += 1) {
-    //   if (a[i].length === 3) {
-    //     IpString += a[i];
-    //   }
-    //   if (a[i].length === 2) {
-    //     IpString = `${IpString}0${a[i]}`;
-    //   }
-    //   if (a[i].length === 1) {
-    //     IpString = `${IpString}00${a[i]}`;
-    //   }
-    // }
-    apiBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${apiPort} cookie ${ip.split(':')[0]}:${apiPort} check`;
+    const serverName = ip.split(':')[0].replace(/\./g, '_');
+    apiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check`;
   }
   // console.log(apiBackend);
 

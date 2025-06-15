@@ -315,7 +315,8 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     cookie FDMUISERVERID insert preserve indirect nocache maxlife 8h`;
 
   for (const ip of fluxIPs) {
-    const uiPort = ip.split(':')[1] || '16126';
+    let uiPort = ip.split(':')[1] || '16127';
+    uiPort = Number(uiPort) - 1;
     const serverName = (`${ip.split(':')[0]}.${uiPort}`).replace(/\./g, '_'); // Convert IP to valid server name
     uiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${uiPort} cookie ${serverName} check`;
   }

@@ -307,6 +307,7 @@ function generateMinecraftACLs(app) {
 }
 
 function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
+  const uiB = ui.split('.').join('');
   let uiBackend = `backend ${uiB}backend
     http-response set-header FLUXNODE %s
     mode http

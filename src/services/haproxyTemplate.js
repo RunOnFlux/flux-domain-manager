@@ -307,16 +307,13 @@ function generateMinecraftACLs(app) {
 }
 
 function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
-  // Use the same stick-table name for both backends
-  const stickTable = 'type ip size 1m expire 8h peers mypeers';
-  const stickOn = 'stick on src table shared_sessions';
   const uiB = ui.split('.').join('');
   let uiBackend = `backend ${uiB}backend
     http-response set-header FLUXNODE %s
     mode http
     balance roundrobin
-    stick-table ${stickTable}
-    ${stickOn}`;
+    stick-table type ip size 1m expire 8h
+    stick on src`;
 
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || '16127';
@@ -331,8 +328,8 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     http-response set-header FLUXNODE %s
     mode http
     balance roundrobin
-    stick-table ${stickTable}
-    ${stickOn}`;
+    stick-table type ip size 1m expire 8h
+    stick on src`;
 
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || '16127';

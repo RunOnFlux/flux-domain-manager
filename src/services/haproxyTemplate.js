@@ -326,7 +326,6 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     http-response set-header FLUXNODE %s
     mode http
     balance source
-    option httpchk GET /health
     # Only add WebSocket timeout support to existing config
     timeout tunnel 3600s
     timeout server 3600s`;

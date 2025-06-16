@@ -325,7 +325,14 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance source`;
+    balance source
+    option httpchk GET /health
+    # Enable WebSocket support
+    timeout tunnel 3600s
+    timeout server 3600s
+    # Ensure WebSocket upgrades are handled properly
+    http-request set-header Connection "upgrade" if { hdr(connection) -m str "upgrade" }
+    http-request set-header Upgrade "websocket" if { hdr(upgrade) -m str "websocket" }`;
 
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || '16127';

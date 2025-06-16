@@ -87,7 +87,7 @@
     - name: Start FDM with PM2
       shell: |
         if pm2 describe FDM > /dev/null 2>&1; then
-          pm2 restart FDM --update-env
+          pm2 restart FDM
         else
           pm2 start index.js --name FDM
         fi

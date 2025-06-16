@@ -170,16 +170,26 @@
         dest: cert-domain-manager/deployment/rsync_config.json
         force: yes
 
-    - name: start FDM
-      command: sudo pm2 restart FDM
+    - name: Start FDM with PM2
+      shell: |
+        if pm2 describe FDM > /dev/null 2>&1; then
+          pm2 restart FDM --update-env
+        else
+          pm2 start index.js --name FDM
+        fi
       args:
         chdir: flux-domain-manager
       environment:
         NODE_ENV: production
         NODE_CONFIG_DIR: flux-domain-manager/config
 
-    - name: start CDM
-      command: sudo pm2 restart CDM
+    - name: Start CDM with PM2
+      shell: |
+        if pm2 describe CDM > /dev/null 2>&1; then
+          pm2 restart CDM --update-env
+        else
+          pm2 start index.js --name CDM
+        fi
       args:
         chdir: cert-domain-manager
       environment:

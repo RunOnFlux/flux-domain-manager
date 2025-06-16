@@ -84,8 +84,13 @@
       args:
         chdir: flux-domain-manager
 
-    - name: start FDM
-      command: sudo pm2 restart FDM
+    - name: Start FDM with PM2
+      shell: |
+        if pm2 describe FDM > /dev/null 2>&1; then
+          pm2 restart FDM --update-env
+        else
+          pm2 start index.js --name FDM
+        fi
       args:
         chdir: flux-domain-manager
       environment:

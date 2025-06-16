@@ -308,49 +308,49 @@ function generateMinecraftACLs(app) {
 
 function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   const uiB = ui.split('.').join('');
+  const apiB = api.split('.').join('');
+
+  const sortedFluxIPs = [...fluxIPs].sort();
+
   let uiBackend = `backend ${uiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance source`;
+    balance source
+    hash-type consistent`;
 
-  for (const ip of fluxIPs) {
-    const apiPort = ip.split(':')[1] || '16127';
-    const uiPort = Number(apiPort) - 1;
-    const serverName = (`${ip.split(':')[0]}.${uiPort}`).replace(/\./g, '_');
-    uiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${uiPort} check`;
-  }
-
-  const apiB = api.split('.').join('');
-
-  // API backend with the master stick table
+  // Enhanced API backend with better WebSocket support
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance roundrobin
-    # Master stick table to remember which server each IP used
-    stick-table type ip size 10k expire 1h
-    stick on src`;
-
-  // WebSocket backend with minimal interference
-  let wsBackend = `backend ${apiB}wsbackend
-    http-response set-header FLUXNODE %s
-    mode http
-    balance roundrobin
+    balance source
+    hash-type consistent
+    # Enhanced WebSocket support
     timeout tunnel 3600s
     timeout server 3600s
-    # Reference the API backend's stick table for shared IP affinity
-    stick match src table ${apiB}backend`;
+    timeout client 3600s
+    # Ensure WebSocket connections aren't terminated
+    option http-keep-alive
+    # Don't insert connection close headers
+    no option httpclose`;
 
-  for (const ip of fluxIPs) {
+  for (const ip of sortedFluxIPs) {
     const apiPort = ip.split(':')[1] || '16127';
-    const serverName = (`${ip.split(':')[0]}.${apiPort}`).replace(/\./g, '_');
-    apiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check`;
-    wsBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check inter 30s`;
+    const uiPort = Number(apiPort) - 1;
+    const baseHost = ip.split(':')[0];
+
+    const uiServerName = `ui_${baseHost.replace(/\./g, '_')}_${uiPort}`;
+    const apiServerName = `api_${baseHost.replace(/\./g, '_')}_${apiPort}`;
+
+    uiBackend += `\n  server ${uiServerName} ${baseHost}:${uiPort} check`;
+    apiBackend += `\n  server ${apiServerName} ${baseHost}:${apiPort} check`;
   }
 
   const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n';
 
-  const webSocketAcl = '  acl is_websocket hdr(connection) -i upgrade\n';
+  // Enhanced ACLs with WebSocket detection
+  const webSocketAcl = `  acl is_websocket hdr(connection) -i upgrade
+  acl is_websocket_upgrade hdr(upgrade) -i websocket\n`;
+
   const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;
   const apiAcl = `  acl ${apiB} hdr(host) ${api}\n`;
   let acls = webSocketAcl + uiAcl + apiAcl;
@@ -364,12 +364,14 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     acls += apiPrimaryAcl;
   }
 
-  const wsBackendUse = `  use_backend ${apiB}wsbackend if is_websocket ${apiB}\n`;
+  // Enhanced routing with WebSocket handling
+  const wsBackendUse = `  # Route WebSocket connections to API backend with special handling
+  use_backend ${apiB}backend if is_websocket ${apiB}\n`;
   const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;
   const apiBackendUse = `  use_backend ${apiB}backend if ${apiB}\n`;
 
   const usebackends = wsBackendUse + uiBackendUse + apiBackendUse;
-  const backends = `${uiBackend}\n\n${apiBackend}\n\n${wsBackend}`;
+  const backends = `${uiBackend}\n\n${apiBackend}`;
   const urls = [ui, api, 'dashboard.zel.network', uiPrimary, apiPrimary];
 
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {}, {});

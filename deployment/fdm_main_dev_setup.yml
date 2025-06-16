@@ -27,16 +27,19 @@
     - name: Install NVM
       shell: "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash"
 
-    - name: Source NVM
+    - name: Source NVM and Install Node.js 22.x
       shell: |
         export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
-
-    - name: Install Node.js 22.x 
-      shell: "nvm install 22"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        nvm install 22
+        nvm use 22
 
     - name: Install PM2 globally using NPM
-      command: npm install -g pm2
+      shell: |
+        export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        nvm use 22
+        npm install -g pm2
 
     - name: Ensure directory exists
       ansible.builtin.file:
@@ -80,7 +83,11 @@
         apiName: "devapi"
 
     - name: Install Dependencies FDM
-      command: npm install
+      shell: |
+        export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        nvm use 22
+        npm install
       args:
         chdir: flux-domain-manager
 

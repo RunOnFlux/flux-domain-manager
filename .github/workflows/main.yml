@@ -10,7 +10,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: runonflux
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
@@ -45,3 +45,7 @@ jobs:
       if: github.event_name == 'release'
       run: |
         ansible-playbook -i deployment/hosts.ini deployment/fdm_main_setup.yml
+    
+    - name: Run Ansible playbook MAIN DEV
+      run: |
+        ansible-playbook -i deployment/hosts.ini deployment/fdm_main_dev_setup.yml

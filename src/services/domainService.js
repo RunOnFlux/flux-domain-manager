@@ -121,13 +121,13 @@ async function checkDomainOwnership(domain, appName) {
 // Generates config file for HAProxy
 async function generateAndReplaceMainHaproxyConfig() {
   try {
-    const ui = `home.${config.mainDomain}`;
-    const api = `api.${config.mainDomain}`;
+    const ui = `${config.uiName}.${config.mainDomain}`;
+    const api = `${config.apiName}.${config.mainDomain}`;
     let uiPrimary; let
       apiPrimary;
     if (config.primaryDomain) {
-      uiPrimary = `home.${config.primaryDomain}`;
-      apiPrimary = `api.${config.primaryDomain}`;
+      uiPrimary = `${config.uiName}.${config.primaryDomain}`;
+      apiPrimary = `${config.apiName}.${config.primaryDomain}`;
     }
     const fluxIPs = await fluxService.getFluxIPs('STRATUS'); // use only stratus for home
     if (fluxIPs.length < 1000) {

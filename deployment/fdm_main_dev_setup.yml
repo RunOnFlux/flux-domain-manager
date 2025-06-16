@@ -1,6 +1,6 @@
 ---
 - name: Install and configure FDM
-  hosts: "main_fdm_servers"
+  hosts: "main_dev_fdm_servers"
   become: yes
 
   tasks:
@@ -24,14 +24,16 @@
           - python3-pip
         state: present
 
-    - name: Install Node.js 18.x repository
-      shell: "curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -"
+    - name: Install NVM
+      shell: "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash"
 
-    - name: Install Node.js
-      apt:
-        name: nodejs
-        state: latest
-        update_cache: yes
+    - name: Source NVM
+      shell: |
+        export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+
+    - name: Install Node.js 22.x 
+      shell: "nvm install 22"
 
     - name: Install PM2 globally using NPM
       command: npm install -g pm2
@@ -74,8 +76,8 @@
         fdmAppDomain: "fdm-lb-2-1.runonflux.io"
         startSubset: "0"
         endSubset: "F"
-        uiName: "home"
-        apiName: "api"
+        uiName: "devhome"
+        apiName: "devapi"
 
     - name: Install Dependencies FDM
       command: npm install

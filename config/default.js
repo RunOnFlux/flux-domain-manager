@@ -51,6 +51,8 @@ module.exports = {
   minecraftApps: appsConfig.minecraftApps,
   appSubDomain: 'app2',
   fdmAppDomain: 'fdm-lb-2-1.runonflux.io',
+  uiName: 'home',
+  apiName: 'api',
   useSubset: false,
   subset: {
     start: '0',

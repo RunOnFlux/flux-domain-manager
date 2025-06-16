@@ -36,6 +36,7 @@
           - libssl-dev
           - curl
           - python3-pip
+          - socat
         state: present
 
     - name: Install jc via python

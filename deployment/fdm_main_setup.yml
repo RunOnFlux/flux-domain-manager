@@ -22,6 +22,7 @@
           - libssl-dev
           - curl
           - python3-pip
+          - socat
         state: present
 
     - name: Install Node.js 18.x repository

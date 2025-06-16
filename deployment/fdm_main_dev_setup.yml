@@ -79,6 +79,15 @@
         uiName: "devhome"
         apiName: "devapi"
 
+    - name: Ensure config files exist (they should already be there from git clone)
+      ansible.builtin.file:
+        path: "flux-domain-manager/config/{{ item }}"
+        state: file
+      loop:
+        - cloudflareConfig.js
+        - PDNSConfig.js
+        - appsConfig.js
+
     - name: Install Dependencies FDM
       command: npm install
       args:
@@ -87,7 +96,7 @@
     - name: Start FDM with PM2
       shell: |
         if pm2 describe FDM > /dev/null 2>&1; then
-          ppm2 restart FDM --update-env
+          pm2 restart FDM --update-env
         else
           pm2 start index.js --name FDM
         fi

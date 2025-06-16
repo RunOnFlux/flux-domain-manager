@@ -316,28 +316,46 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || '16127';
     const uiPort = Number(apiPort) - 1;
-    const serverName = (`${ip.split(':')[0]}.${uiPort}`).replace(/\./g, '_'); // Convert IP to valid server name
+    const serverName = (`${ip.split(':')[0]}.${uiPort}`).replace(/\./g, '_');
     uiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${uiPort} check`;
   }
-  // console.log(uiBackend);
 
   const apiB = api.split('.').join('');
+
+  // Stick table for IP to server mapping
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance source`;
+    balance source
+    option httpchk GET /health
+    # Stick table to remember which server each IP used
+    stick-table type ip size 10k expire 1h
+    stick on src`;
+
+  let wsBackend = `backend ${apiB}wsbackend
+    http-response set-header FLUXNODE %s
+    mode http
+    balance source
+    timeout tunnel 3600s
+    timeout server 3600s
+    # Use same stick table as API backend for IP affinity
+    stick-table type ip size 10k expire 1h
+    stick on src`;
 
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || '16127';
     const serverName = (`${ip.split(':')[0]}.${apiPort}`).replace(/\./g, '_');
     apiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check`;
+    wsBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check`;
   }
-  // console.log(apiBackend);
 
   const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n';
+
+  const webSocketAcl = '  acl is_websocket hdr(connection) -i upgrade\n';
   const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;
   const apiAcl = `  acl ${apiB} hdr(host) ${api}\n`;
-  let acls = uiAcl + apiAcl;
+  let acls = webSocketAcl + uiAcl + apiAcl;
+
   if (uiPrimary) {
     const uiPrimaryAcl = `  acl ${uiB} hdr(host) ${uiPrimary}\n`;
     acls += uiPrimaryAcl;
@@ -346,12 +364,13 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     const apiPrimaryAcl = `  acl ${apiB} hdr(host) ${apiPrimary}\n`;
     acls += apiPrimaryAcl;
   }
+
+  const wsBackendUse = `  use_backend ${apiB}wsbackend if is_websocket ${apiB}\n`;
   const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;
   const apiBackendUse = `  use_backend ${apiB}backend if ${apiB}\n`;
 
-  const usebackends = uiBackendUse + apiBackendUse;
-
-  const backends = `${uiBackend}\n\n${apiBackend}`;
+  const usebackends = wsBackendUse + uiBackendUse + apiBackendUse;
+  const backends = `${uiBackend}\n\n${apiBackend}\n\n${wsBackend}`;
   const urls = [ui, api, 'dashboard.zel.network', uiPrimary, apiPrimary];
 
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {}, {});

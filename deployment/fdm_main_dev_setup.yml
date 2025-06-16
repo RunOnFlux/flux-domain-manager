@@ -24,15 +24,11 @@
           - python3-pip
         state: present
 
-    - name: Add NodeSource repository key
-      ansible.builtin.apt_key:
-        url: https://deb.nodesource.com/gpgkey/nodesource.gpg.key
-        state: present
-
-    - name: Add NodeSource repository
-      ansible.builtin.apt_repository:
-        repo: "deb https://deb.nodesource.com/node_22.x {{ ansible_distribution_release }} main"
-        state: present
+    - name: Download and run NodeSource setup script
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+      args:
+        creates: /etc/apt/sources.list.d/nodesource.list
 
     - name: Install Node.js 22.x
       ansible.builtin.package:

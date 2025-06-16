@@ -100,6 +100,18 @@
         dest: /etc/haproxy/dhparam
         mode: '0644'
 
+    - name: Reset config file to HEAD before git operations (FDM)
+      shell: git checkout HEAD -- config/default.js
+      args:
+        chdir: flux-domain-manager
+      ignore_errors: yes
+
+    - name: Reset config file to HEAD before git operations (CDM)
+      shell: git checkout HEAD -- config/default.js
+      args:
+        chdir: cert-domain-manager
+      ignore_errors: yes
+
     - name: Clone FDM
       ansible.builtin.git:
         repo: https://github.com/RunOnFlux/flux-domain-manager.git

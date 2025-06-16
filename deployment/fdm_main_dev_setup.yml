@@ -26,11 +26,11 @@
 
     - name: Download and run NodeSource setup script
       shell: |
-        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
       args:
         creates: /etc/apt/sources.list.d/nodesource.list
 
-    - name: Install Node.js 22.x
+    - name: Install Node.js 18.x
       ansible.builtin.package:
         name: nodejs
         state: present

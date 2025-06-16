@@ -64,7 +64,7 @@
     - name: Copy default.js config to FDM
       ansible.builtin.template:
         src: default.js.j2
-        dest: flux-domain-manager/config/default-0.js
+        dest: flux-domain-manager/config/default.js
         mode: '0644'
       vars:
         manageCertificateOnly: "false"
@@ -85,7 +85,7 @@
     - name: Start FDM with PM2
       shell: |
         if pm2 describe FDM > /dev/null 2>&1; then
-          pm2 restart FDM
+          ppm2 restart FDM --update-env
         else
           pm2 start index.js --name FDM
         fi

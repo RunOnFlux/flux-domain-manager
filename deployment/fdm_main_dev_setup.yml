@@ -24,22 +24,23 @@
           - python3-pip
         state: present
 
-    - name: Install NVM
-      shell: "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash"
+    - name: Add NodeSource repository key
+      ansible.builtin.apt_key:
+        url: https://deb.nodesource.com/gpgkey/nodesource.gpg.key
+        state: present
 
-    - name: Source NVM and Install Node.js 22.x
-      shell: |
-        export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        nvm install 22
-        nvm use 22
+    - name: Add NodeSource repository
+      ansible.builtin.apt_repository:
+        repo: "deb https://deb.nodesource.com/node_22.x {{ ansible_distribution_release }} main"
+        state: present
+
+    - name: Install Node.js 22.x
+      ansible.builtin.package:
+        name: nodejs
+        state: present
 
     - name: Install PM2 globally using NPM
-      shell: |
-        export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        nvm use 22
-        npm install -g pm2
+      command: npm install -g pm2
 
     - name: Ensure directory exists
       ansible.builtin.file:
@@ -83,11 +84,7 @@
         apiName: "devapi"
 
     - name: Install Dependencies FDM
-      shell: |
-        export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        nvm use 22
-        npm install
+      command: npm install
       args:
         chdir: flux-domain-manager
 

@@ -104,5 +104,5 @@
         chdir: flux-domain-manager
       environment:
         NODE_ENV: production
-        NODE_CONFIG_DIR: flux-domain-manager/config
+        NODE_CONFIG_DIR: /root/flux-domain-manager/config
 

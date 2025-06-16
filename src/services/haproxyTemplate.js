@@ -322,19 +322,24 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
 
   const apiB = api.split('.').join('');
 
-  // Regular API backend
+  // Stick table for IP to server mapping
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance source`;
+    balance source
+    # Stick table to remember which server each IP used
+    stick-table type ip size 10k expire 1h
+    stick on src`;
 
-  // WebSocket backend with same source balancing
   let wsBackend = `backend ${apiB}wsbackend
     http-response set-header FLUXNODE %s
     mode http
     balance source
     timeout tunnel 3600s
-    timeout server 3600s`;
+    timeout server 3600s
+    # Use same stick table as API backend for IP affinity
+    stick-table type ip size 10k expire 1h
+    stick on src`;
 
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || '16127';

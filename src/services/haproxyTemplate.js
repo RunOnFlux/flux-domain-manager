@@ -311,9 +311,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   let uiBackend = `backend ${uiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance roundrobin
-    stick-table type ip size 1m expire 8h
-    stick on src`;
+    balance source`;
 
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || '16127';
@@ -327,9 +325,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance roundrobin
-    stick-table type ip size 1m expire 8h
-    stick on src`;
+    balance source`;
 
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || '16127';

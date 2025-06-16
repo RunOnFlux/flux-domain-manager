@@ -132,6 +132,8 @@
         appSubDomain: "{{ 'app2' if DEPLOY_ENV == 'staging' else 'app' }}"
         useSubset: "true"
         manageApps: "true"
+        uiName: "home"
+        apiName: "api"
 
     - name: Copy default.js config to CDM
       ansible.builtin.template:
@@ -143,6 +145,8 @@
         appSubDomain: "{{ 'app2' if DEPLOY_ENV == 'staging' else 'app' }}"
         useSubset: "false"
         manageApps: "true"
+        uiName: "home"
+        apiName: "api"
 
     - name: Install Dependencies FDM
       command: npm install

@@ -138,6 +138,7 @@ async function generateAndReplaceMainHaproxyConfig() {
     // 1st check is loginphrase
     // 2nd check is communication
     // 3rd is ui
+    console.log(`Found ${fluxIPs.length} STRATUS`);
     for (const ip of fluxIPs) {
       if (ip.split(':')[1] === 16127 || ip.split(':')[1] === '16127' || !ip.split(':')[1]) {
         // eslint-disable-next-line no-await-in-loop

@@ -322,11 +322,17 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
 
   const apiB = api.split('.').join('');
 
+  // Regular API backend
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
+    balance source`;
+
+  // WebSocket backend with same source balancing
+  let wsBackend = `backend ${apiB}wsbackend
+    http-response set-header FLUXNODE %s
+    mode http
     balance source
-    # Only add WebSocket timeout support to existing config
     timeout tunnel 3600s
     timeout server 3600s`;
 
@@ -334,13 +340,15 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     const apiPort = ip.split(':')[1] || '16127';
     const serverName = (`${ip.split(':')[0]}.${apiPort}`).replace(/\./g, '_');
     apiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check`;
+    wsBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check`;
   }
 
-  // Keep your original redirects and ACLs
   const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n';
+
+  const webSocketAcl = '  acl is_websocket hdr(connection) -i upgrade\n';
   const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;
   const apiAcl = `  acl ${apiB} hdr(host) ${api}\n`;
-  let acls = uiAcl + apiAcl;
+  let acls = webSocketAcl + uiAcl + apiAcl;
 
   if (uiPrimary) {
     const uiPrimaryAcl = `  acl ${uiB} hdr(host) ${uiPrimary}\n`;
@@ -351,13 +359,12 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     acls += apiPrimaryAcl;
   }
 
-  // Keep your original backend routing
+  const wsBackendUse = `  use_backend ${apiB}wsbackend if is_websocket ${apiB}\n`;
   const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;
   const apiBackendUse = `  use_backend ${apiB}backend if ${apiB}\n`;
-  const usebackends = uiBackendUse + apiBackendUse;
 
-  // Only the working backends
-  const backends = `${uiBackend}\n\n${apiBackend}`;
+  const usebackends = wsBackendUse + uiBackendUse + apiBackendUse;
+  const backends = `${uiBackend}\n\n${apiBackend}\n\n${wsBackend}`;
   const urls = [ui, api, 'dashboard.zel.network', uiPrimary, apiPrimary];
 
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {}, {});

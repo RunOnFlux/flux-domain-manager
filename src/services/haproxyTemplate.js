@@ -322,30 +322,30 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
 
   const apiB = api.split('.').join('');
 
-  // Stick table for IP to server mapping
+  // API backend with the master stick table
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance source
-    # Stick table to remember which server each IP used
+    balance roundrobin
+    # Master stick table to remember which server each IP used
     stick-table type ip size 10k expire 1h
     stick on src`;
 
+  // WebSocket backend with minimal interference
   let wsBackend = `backend ${apiB}wsbackend
     http-response set-header FLUXNODE %s
     mode http
-    balance source
+    balance roundrobin
     timeout tunnel 3600s
     timeout server 3600s
-    # Use same stick table as API backend for IP affinity
-    stick-table type ip size 10k expire 1h
-    stick on src`;
+    # Reference the API backend's stick table for shared IP affinity
+    stick match src table ${apiB}backend`;
 
   for (const ip of fluxIPs) {
     const apiPort = ip.split(':')[1] || '16127';
     const serverName = (`${ip.split(':')[0]}.${apiPort}`).replace(/\./g, '_');
     apiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check`;
-    wsBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check`;
+    wsBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check inter 30s`;
   }
 
   const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n';

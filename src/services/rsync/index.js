@@ -8,6 +8,7 @@ const cmdAsync = util.promisify(cmd.run);
 async function startCertRsync() {
   log.info('starting rsync');
   const ips = getHostsToRsync();
+  log.info(`Rsyncing to ${ips}`);
   try {
     // eslint-disable-next-line no-restricted-syntax
     for (const ip of ips) {

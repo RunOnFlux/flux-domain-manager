@@ -12,9 +12,20 @@ function getHostsToRsync() {
   const { host, type } = rsyncConfig;
   const number = host.charAt(6);
   const rsyncHosts = Object.keys(hosts[type]).filter((k) => !k.includes(host) && k.charAt(6) === number);
+
   return rsyncHosts.map((rh) => {
     const value = hosts[type][rh];
-    return value.substring(0, value.indexOf(' '));
+    // Parse the host configuration line to extract rsyncIP
+    const hostConfig = value.split(' ').reduce((acc, item) => {
+      const [key, val] = item.split('=');
+      if (key && val) {
+        acc[key] = val;
+      }
+      return acc;
+    }, {});
+
+    // Use rsyncIP if available, otherwise fall back to ansible_host
+    return hostConfig.rsyncIP || hostConfig.ansible_host;
   });
 }
 

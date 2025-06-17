@@ -45,8 +45,8 @@
         version: 1.25.2
         break_system_packages: true
 
-    - name: Install Node.js 18.x repository
-      shell: "curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -"
+    - name: Install Node.js 22.x repository
+      shell: "curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -"
 
     - name: Install Node.js
       apt:

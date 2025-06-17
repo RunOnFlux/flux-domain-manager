@@ -310,39 +310,57 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   const uiB = ui.split('.').join('');
   const apiB = api.split('.').join('');
 
+  // Sort IPs for consistent ordering
   const sortedFluxIPs = [...fluxIPs].sort();
+
+  // Create server mapping with IDENTICAL order and count
+  const serverMapping = sortedFluxIPs.map((ip, index) => {
+    const apiPort = ip.split(':')[1] || '16127';
+    const uiPort = Number(apiPort) - 1;
+    const baseHost = ip.split(':')[0];
+
+    return {
+      index: index + 1, // Same server ID for both backends
+      baseHost,
+      uiPort,
+      apiPort,
+      // Use SAME server name with different endpoints
+      serverName: `server${index + 1}_${baseHost}`,
+    };
+  });
+
+  // API backend with master stick table
+  let apiBackend = `backend ${apiB}backend
+    http-response set-header FLUXNODE %s
+    mode http
+    balance source
+    # Master stick table for client persistence (24h expiry)
+    stick-table type ip size 20k expire 24h
+    stick on src
+    # Enhanced WebSocket support
+    timeout tunnel 7200s
+    timeout server 7200s
+    # WebSocket connection handling
+    option http-keep-alive
+    no option httpclose
+    default-server check inter 30s fall 3 rise 2`;
 
   let uiBackend = `backend ${uiB}backend
     http-response set-header FLUXNODE %s
     mode http
     balance source
-    hash-type consistent`;
+    # Share stick table with API backend for consistent routing
+    stick match src table ${apiB}backend
+    # Standard HTTP timeouts
+    timeout server 30s
+    # Health check
+    default-server check inter 30s fall 3 rise 2`;
 
-  // Enhanced API backend with better WebSocket support
-  let apiBackend = `backend ${apiB}backend
-    http-response set-header FLUXNODE %s
-    mode http
-    balance source
-    hash-type consistent
-    # Enhanced WebSocket support
-    timeout tunnel 3600s
-    timeout server 3600s
-    timeout client 3600s
-    # Ensure WebSocket connections aren't terminated
-    option http-keep-alive
-    # Don't insert connection close headers
-    no option httpclose`;
-
-  for (const ip of sortedFluxIPs) {
-    const apiPort = ip.split(':')[1] || '16127';
-    const uiPort = Number(apiPort) - 1;
-    const baseHost = ip.split(':')[0];
-
-    const uiServerName = `ui_${baseHost.replace(/\./g, '_')}_${uiPort}`;
-    const apiServerName = `api_${baseHost.replace(/\./g, '_')}_${apiPort}`;
-
-    uiBackend += `\n  server ${uiServerName} ${baseHost}:${uiPort} check`;
-    apiBackend += `\n  server ${apiServerName} ${baseHost}:${apiPort} check`;
+  for (const server of serverMapping) {
+    // CRITICAL: Use same server name but different endpoints
+    // This ensures stick table maps to the same logical server
+    uiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.uiPort} check`;
+    apiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.apiPort} check`;
   }
 
   const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n';
@@ -364,9 +382,8 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     acls += apiPrimaryAcl;
   }
 
-  // Enhanced routing with WebSocket handling
-  const wsBackendUse = `  # Route WebSocket connections to API backend with special handling
-  use_backend ${apiB}backend if is_websocket ${apiB}\n`;
+  // Routing with WebSocket priority
+  const wsBackendUse = `  use_backend ${apiB}backend if is_websocket ${apiB}\n`;
   const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;
   const apiBackendUse = `  use_backend ${apiB}backend if ${apiB}\n`;
 

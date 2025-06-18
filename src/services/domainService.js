@@ -119,6 +119,7 @@ async function checkDomainOwnership(domain, appName) {
 }
 
 // Generates config file for HAProxy
+const fluxIPsForBalancing = [];
 async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `${config.uiName}.${config.mainDomain}`;
@@ -133,25 +134,47 @@ async function generateAndReplaceMainHaproxyConfig() {
     if (fluxIPs.length < 1000) {
       throw new Error('Invalid Flux List');
     }
-    const fluxIPsForBalancing = [];
+
+    for (const ip of fluxIPsForBalancing) {
+      if (ip.split(':')[1] === 16127 || ip.split(':')[1] === '16127' || !ip.split(':')[1]) {
+        // eslint-disable-next-line no-await-in-loop
+        const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
+        if (!isOK) {
+          const index = fluxIPsForBalancing.indexOf(fluxIPsForBalancing);
+          if (index > -1) { // only splice array when item is found
+            fluxIPsForBalancing.splice(index, 1); // 2nd parameter means remove one item only
+            console.log(`removing ${ip} as backend`);
+          }
+        }
+      }
+    }
+
+    console.log(`Current Ips on backend ${fluxIPsForBalancing.length}`);
     // we want to do some checks on UI and API to verify functionality
     // 1st check is loginphrase
     // 2nd check is communication
     // 3rd is ui
-    console.log(`Found ${fluxIPs.length} STRATUS`);
-    for (const ip of fluxIPs) {
-      if (ip.split(':')[1] === 16127 || ip.split(':')[1] === '16127' || !ip.split(':')[1]) {
+    if (fluxIPsForBalancing.length <= 10) {
+      console.log(`Found ${fluxIPs.length} STRATUS`);
+      for (const ip of fluxIPs) {
+        if (fluxIPsForBalancing.indexOf(ip)) {
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        if (ip.split(':')[1] === 16127 || ip.split(':')[1] === '16127' || !ip.split(':')[1]) {
         // eslint-disable-next-line no-await-in-loop
-        const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
-        if (isOK) {
-          fluxIPsForBalancing.push(ip);
-          console.log(`adding ${ip} as backend`);
+          const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
+          if (isOK) {
+            fluxIPsForBalancing.push(ip);
+            console.log(`adding ${ip} as backend`);
+          }
+        }
+        if (fluxIPsForBalancing.length > 14) { // maximum of 15 for load balancing
+          break;
         }
       }
-      if (fluxIPsForBalancing.length > 50) { // maximum of 50 for load balancing
-        break;
-      }
     }
+
     if (fluxIPsForBalancing.length < 10) {
       throw new Error('Not enough ok nodes, probably error');
     }
@@ -163,9 +186,7 @@ async function generateAndReplaceMainHaproxyConfig() {
     if (!successRestart) {
       throw new Error('Invalid HAPROXY Config File!');
     }
-    setTimeout(() => {
-      generateAndReplaceMainHaproxyConfig();
-    }, 30 * 1000);
+    generateAndReplaceMainHaproxyConfig();
   } catch (error) {
     log.error(error);
     setTimeout(() => {

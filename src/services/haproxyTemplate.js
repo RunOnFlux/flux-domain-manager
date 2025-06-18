@@ -320,47 +320,59 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     const baseHost = ip.split(':')[0];
 
     return {
-      index: index + 1, // Same server ID for both backends
+      index: index + 1,
       baseHost,
       uiPort,
       apiPort,
-      // Use SAME server name with different endpoints
       serverName: `server${index + 1}_${baseHost}`,
     };
   });
 
-  // API backend with master stick table
+  // API backend with enhanced failover and retry logic
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
     balance source
-    # Master stick table for client persistence (24h expiry)
-    stick-table type ip size 20k expire 24h
+    # Master stick table with failover capability
+    stick-table type ip size 20k expire 1h
     stick on src
+    # FAILOVER: Allow fallback to other servers if primary fails
+    option redispatch
+    # RETRY: Retry failed requests automatically
+    retries 3
     # Enhanced WebSocket support
     timeout tunnel 7200s
-    timeout server 7200s
+    timeout server 30s
+    timeout connect 5s
     # WebSocket connection handling
     option http-keep-alive
     no option httpclose
-    default-server check inter 30s fall 3 rise 2`;
+    # Health check with faster detection of failed servers
+    default-server check inter 10s fall 2 rise 3 maxconn 100`;
 
+  // UI backend with same failover capabilities
   let uiBackend = `backend ${uiB}backend
     http-response set-header FLUXNODE %s
     mode http
     balance source
     # Share stick table with API backend for consistent routing
     stick match src table ${apiB}backend
+    # FAILOVER: Allow fallback when primary server fails
+    option redispatch
+    # RETRY: Retry failed requests
+    retries 3
     # Standard HTTP timeouts
     timeout server 30s
-    # Health check
-    default-server check inter 30s fall 3 rise 2`;
+    timeout connect 5s
+    # Health check with faster failure detection
+    default-server check inter 10s fall 2 rise 3 maxconn 100`;
 
+  const serversSize = serverMapping.length;
   for (const server of serverMapping) {
-    // CRITICAL: Use same server name but different endpoints
-    // This ensures stick table maps to the same logical server
-    uiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.uiPort} check`;
-    apiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.apiPort} check`;
+    // Add servers with backup capability
+    const isBackup = server.index > serversSize / 2 ? 'backup' : '';
+    uiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.uiPort} ${isBackup} check`;
+    apiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.apiPort} ${isBackup} check`;
   }
 
   const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n';

@@ -196,6 +196,28 @@ async function hasManyApps(ip, port) {
   }
 }
 
+async function hasManyLocations(ip, port) {
+  try {
+    const url = `http://${ip}:${port}/apps/locations`;
+    const response = await serviceHelper.httpGetRequest(url, timeout);
+    const appsLocationsAmount = response.data.data.length;
+    if (appsLocationsAmount > 2000) { 
+      for (const app of config.mandatoryApps) {
+        const appExists = response.data.data.find((a) => a.name === app);
+        if (!appExists) {
+          log.warn(`FluxNode ${ip} is excluded from backend. Mandatory app ${app} has no locations`);
+          return false;
+        }
+      }
+    } else {
+      log.warn(`FluxNode ip:${ip} is excluded from backend. Low amount of app locations: ${appsLocationsAmount}`);
+    }
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function hasManyMessages(ip, port) {
   try {
     const url = `http://${ip}:${port}/apps/hashes`;
@@ -236,10 +258,13 @@ async function checkMainFlux(ip, port = 16127) {
                   if (hasApps) {
                     const hasMessages = await hasManyMessages(ip, port);
                     if (hasMessages) {
-                      // eslint-disable-next-line no-await-in-loop
-                      const uiOK = await isHomeOK(ip, +port - 1);
-                      if (uiOK) {
-                        return true;
+                      const hasLocations = await hasManyLocations(ip, port);
+                      if (hasLocations) {
+                        // eslint-disable-next-line no-await-in-loop
+                        const uiOK = await isHomeOK(ip, +port - 1);
+                        if (uiOK) {
+                          return true;
+                        }
                       }
                     }
                   }

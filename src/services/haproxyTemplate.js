@@ -309,31 +309,29 @@ function generateMinecraftACLs(app) {
 function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   const uiB = ui.split('.').join('');
   let uiBackend = `backend ${uiB}backend
-    http-response set-header FLUXNODE %s
-    mode http
-    balance roundrobin
-    cookie FDMUISERVERID insert preserve indirect nocache maxlife 8h`;
-
+  http-response set-header FLUXNODE %s
+  mode http
+  balance source
+  hash-type consistent
+  stick-table type ip size 1m expire 8h
+  stick on src`;
   for (const ip of fluxIPs) {
-    let uiPort = ip.split(':')[1] || '16127';
-    uiPort = Number(uiPort) - 1;
-    const serverName = (`${ip.split(':')[0]}.${uiPort}`).replace(/\./g, '_'); // Convert IP to valid server name
-    uiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${uiPort} cookie ${serverName} check`;
+    const uiPort = ip.split(':')[1] || 16126;
+    uiBackend += `\n  server ${ip.split(':')[0]}:${uiPort} ${ip.split(':')[0]}:${uiPort} check`;
   }
   // console.log(uiBackend);
 
   const apiB = api.split('.').join('');
   let apiBackend = `backend ${apiB}backend
-    http-response set-header FLUXNODE %s
-    mode http
-    balance source
-    stick-table type ip size 1m expire 8h
-    stick on src`;
-
+  http-response set-header FLUXNODE %s
+  mode http
+  balance source
+  hash-type consistent
+  stick-table type ip size 1m expire 8h
+  stick on src`;
   for (const ip of fluxIPs) {
-    const apiPort = ip.split(':')[1] || '16127';
-    const serverName = (`${ip.split(':')[0]}.${apiPort}`).replace(/\./g, '_');
-    apiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check`;
+    const apiPort = ip.split(':')[1] || 16127;
+    apiBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${apiPort} check`;
   }
   // console.log(apiBackend);
 

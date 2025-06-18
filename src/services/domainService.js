@@ -157,7 +157,7 @@ async function generateAndReplaceMainHaproxyConfig() {
     if (fluxIPsForBalancing.length <= 10) {
       console.log(`Found ${fluxIPs.length} STRATUS`);
       for (const ip of fluxIPs) {
-        if (fluxIPsForBalancing.indexOf(ip)) {
+        if (fluxIPsForBalancing.indexOf(ip) >= 0) {
           // eslint-disable-next-line no-continue
           continue;
         }

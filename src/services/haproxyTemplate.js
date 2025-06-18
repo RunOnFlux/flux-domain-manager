@@ -308,83 +308,39 @@ function generateMinecraftACLs(app) {
 
 function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   const uiB = ui.split('.').join('');
+  let uiBackend = `backend ${uiB}backend
+    http-response set-header FLUXNODE %s
+    mode http
+    balance roundrobin
+    cookie FDMUISERVERID insert preserve indirect nocache maxlife 8h`;
+
+  for (const ip of fluxIPs) {
+    let uiPort = ip.split(':')[1] || '16127';
+    uiPort = Number(uiPort) - 1;
+    const serverName = (`${ip.split(':')[0]}.${uiPort}`).replace(/\./g, '_'); // Convert IP to valid server name
+    uiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${uiPort} cookie ${serverName} check`;
+  }
+  // console.log(uiBackend);
+
   const apiB = api.split('.').join('');
-
-  // Sort IPs for consistent ordering
-  const sortedFluxIPs = [...fluxIPs].sort();
-
-  // Create server mapping with IDENTICAL order and count
-  const serverMapping = sortedFluxIPs.map((ip, index) => {
-    const apiPort = ip.split(':')[1] || '16127';
-    const uiPort = Number(apiPort) - 1;
-    const baseHost = ip.split(':')[0];
-
-    return {
-      index: index + 1,
-      baseHost,
-      uiPort,
-      apiPort,
-      serverName: `server${index + 1}_${baseHost}`,
-    };
-  });
-
-  // API backend with enhanced failover and retry logic
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
     balance source
-    # Master stick table with failover capability
-    stick-table type ip size 20k expire 1h
-    stick on src
-    # FAILOVER: Allow fallback to other servers if primary fails
-    option redispatch
-    # RETRY: Retry failed requests automatically
-    retries 3
-    # Enhanced WebSocket support
-    timeout tunnel 7200s
-    timeout server 30s
-    timeout connect 5s
-    # WebSocket connection handling
-    option http-keep-alive
-    no option httpclose
-    # Health check with faster detection of failed servers
-    default-server check inter 10s fall 2 rise 3 maxconn 100`;
+    stick-table type ip size 1m expire 8h
+    stick on src`;
 
-  // UI backend with same failover capabilities
-  let uiBackend = `backend ${uiB}backend
-    http-response set-header FLUXNODE %s
-    mode http
-    balance source
-    # Share stick table with API backend for consistent routing
-    stick match src table ${apiB}backend
-    # FAILOVER: Allow fallback when primary server fails
-    option redispatch
-    # RETRY: Retry failed requests
-    retries 3
-    # Standard HTTP timeouts
-    timeout server 30s
-    timeout connect 5s
-    # Health check with faster failure detection
-    default-server check inter 10s fall 2 rise 3 maxconn 100`;
-
-  const serversSize = serverMapping.length;
-  for (const server of serverMapping) {
-    // Add servers with backup capability
-    const isBackup = server.index > serversSize / 2 ? 'backup' : '';
-    uiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.uiPort} ${isBackup} check`;
-    apiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.apiPort} ${isBackup} check`;
+  for (const ip of fluxIPs) {
+    const apiPort = ip.split(':')[1] || '16127';
+    const serverName = (`${ip.split(':')[0]}.${apiPort}`).replace(/\./g, '_');
+    apiBackend += `\n  server ${serverName} ${ip.split(':')[0]}:${apiPort} check`;
   }
+  // console.log(apiBackend);
 
   const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n';
-
-  // Enhanced ACLs with WebSocket detection
-  const webSocketAcl = `  acl is_websocket hdr(connection) -i upgrade
-  acl is_websocket_upgrade hdr(upgrade) -i websocket\n`;
-
   const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;
   const apiAcl = `  acl ${apiB} hdr(host) ${api}\n`;
-  let acls = webSocketAcl + uiAcl + apiAcl;
-
+  let acls = uiAcl + apiAcl;
   if (uiPrimary) {
     const uiPrimaryAcl = `  acl ${uiB} hdr(host) ${uiPrimary}\n`;
     acls += uiPrimaryAcl;
@@ -393,13 +349,11 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     const apiPrimaryAcl = `  acl ${apiB} hdr(host) ${apiPrimary}\n`;
     acls += apiPrimaryAcl;
   }
-
-  // Routing with WebSocket priority
-  const wsBackendUse = `  use_backend ${apiB}backend if is_websocket ${apiB}\n`;
   const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;
   const apiBackendUse = `  use_backend ${apiB}backend if ${apiB}\n`;
 
-  const usebackends = wsBackendUse + uiBackendUse + apiBackendUse;
+  const usebackends = uiBackendUse + apiBackendUse;
+
   const backends = `${uiBackend}\n\n${apiBackend}`;
   const urls = [ui, api, 'dashboard.zel.network', uiPrimary, apiPrimary];
 

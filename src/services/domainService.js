@@ -186,7 +186,9 @@ async function generateAndReplaceMainHaproxyConfig() {
     if (!successRestart) {
       throw new Error('Invalid HAPROXY Config File!');
     }
-    generateAndReplaceMainHaproxyConfig();
+    setTimeout(() => {
+      generateAndReplaceMainHaproxyConfig();
+    }, 30 * 1000);
   } catch (error) {
     log.error(error);
     setTimeout(() => {

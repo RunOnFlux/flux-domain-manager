@@ -333,9 +333,8 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     http-response set-header FLUXNODE %s
     mode http
     balance source
-    # Master stick table with failover capability
-    stick-table type ip size 20k expire 1h
-    stick on src
+     # SELECTIVE STICK: Only use stick table for authentication endpoints
+    stick on src if { path_beg /id/loginphrase } or { path_beg /id/emergencyphrase } or { path_beg /id/verifylogin }
     # FAILOVER: Allow fallback to other servers if primary fails
     option redispatch
     # RETRY: Retry failed requests automatically
@@ -355,8 +354,6 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     http-response set-header FLUXNODE %s
     mode http
     balance source
-    # Share stick table with API backend for consistent routing
-    stick match src table ${apiB}backend
     # FAILOVER: Allow fallback when primary server fails
     option redispatch
     # RETRY: Retry failed requests

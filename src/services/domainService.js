@@ -151,7 +151,7 @@ async function generateAndReplaceMainHaproxyConfig() {
       }
     }
 
-    if (aux !== fluxIPsForBalancing.length && fluxIPsForBalancing.length > 10) {
+    if (aux !== fluxIPsForBalancing.length && fluxIPsForBalancing.length > 0) {
       // lets remove already the nodes not ok before looking for new ones
       console.log(`Removing some nodes from backend that are no longer ok: ${aux - fluxIPsForBalancing.length}`);
       const hc = await haproxyTemplate.createMainHaproxyConfig(ui, api, fluxIPsForBalancing, uiPrimary, apiPrimary);
@@ -169,7 +169,7 @@ async function generateAndReplaceMainHaproxyConfig() {
     // 1st check is loginphrase
     // 2nd check is communication
     // 3rd is ui
-    if (fluxIPsForBalancing.length <= 50) {
+    if (fluxIPsForBalancing.length <= 100) {
       console.log(`Found ${fluxIPs.length} STRATUS`);
       for (const ip of fluxIPs) {
         if (fluxIPsForBalancing.indexOf(ip) >= 0) {
@@ -184,7 +184,7 @@ async function generateAndReplaceMainHaproxyConfig() {
             console.log(`adding ${ip} as backend`);
           }
         }
-        if (fluxIPsForBalancing.length > 50) { // maximum of 50 for load balancing
+        if (fluxIPsForBalancing.length > 100) { // maximum of 100 for load balancing
           break;
         }
       }

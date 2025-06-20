@@ -154,7 +154,7 @@ async function generateAndReplaceMainHaproxyConfig() {
     // 1st check is loginphrase
     // 2nd check is communication
     // 3rd is ui
-    if (fluxIPsForBalancing.length <= 10) {
+    if (fluxIPsForBalancing.length <= 50) {
       console.log(`Found ${fluxIPs.length} STRATUS`);
       for (const ip of fluxIPs) {
         if (fluxIPsForBalancing.indexOf(ip) >= 0) {
@@ -169,7 +169,7 @@ async function generateAndReplaceMainHaproxyConfig() {
             console.log(`adding ${ip} as backend`);
           }
         }
-        if (fluxIPsForBalancing.length > 14) { // maximum of 15 for load balancing
+        if (fluxIPsForBalancing.length > 50) { // maximum of 50 for load balancing
           break;
         }
       }

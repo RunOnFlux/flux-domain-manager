@@ -236,11 +236,11 @@ async function checkMainFlux(ip, port = 16127) {
   try {
     const isArcane = await isArcaneOS(ip, port);
     if (isArcane) {
-      const versionOK = await isVersionOK(ip, port);
-      if (versionOK) {
+      const uptimeOK = await isUptimeOK(ip, port);
+      if (uptimeOK) {
         // eslint-disable-next-line no-await-in-loop
-        const uptimeOK = await isUptimeOK(ip, port);
-        if (uptimeOK) {
+        const versionOK = await isVersionOK(ip, port);
+        if (versionOK) {
           // eslint-disable-next-line no-await-in-loop
           const loginPhraseOK = await checkLoginPhrase(ip, port);
           if (loginPhraseOK) {

@@ -328,14 +328,14 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     };
   });
 
-  // API backend with enhanced failover and retry logic
+  // API backend with RANDOM distribution by default, STICK only for specific endpoints
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance source
+    balance roundrobin
     # Master stick table for client persistence (24h expiry)
     stick-table type ip size 20k expire 24h
-    # SELECTIVE STICK: Only use stick table for authentication endpoints
+    # SELECTIVE STICK: Only use stick table for specific endpoints that need persistence
     stick on src if { path_beg /id/loginphrase } or { path_beg /id/emergencyphrase } or { path_beg /id/verifylogin }
     # FAILOVER: Allow fallback to other servers if primary fails
     option redispatch
@@ -351,11 +351,12 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     # Health check with faster detection of failed servers
     default-server check inter 10s fall 2 rise 3 maxconn 100`;
 
-  // UI backend with same failover capabilities
+  // UI backend with random distribution (no stick table for UI)
   let uiBackend = `backend ${uiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance source
+    balance roundrobin
+    # NO stick table - UI gets random distribution
     # FAILOVER: Allow fallback when primary server fails
     option redispatch
     # RETRY: Retry failed requests
@@ -366,23 +367,24 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     # Health check with faster failure detection
     default-server check inter 10s fall 2 rise 3 maxconn 100`;
 
-  const serversSize = serverMapping.length;
   for (const server of serverMapping) {
-    // Add servers with backup capability
-    const isBackup = server.index > serversSize - 3 ? 'backup' : '';
-    uiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.uiPort} ${isBackup} check`;
-    apiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.apiPort} ${isBackup} check`;
+    uiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.uiPort} check`;
+    apiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.apiPort} check`;
   }
 
   const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n';
 
-  // Enhanced ACLs with WebSocket detection
+  // Enhanced ACLs with WebSocket detection and specific endpoint detection
+  const specificEndpointsAcl = `  acl is_sticky_endpoint path_beg /id/loginphrase
+  acl is_sticky_endpoint path_beg /id/emergencyphrase  
+  acl is_sticky_endpoint path_beg /id/verifylogin\n`;
+
   const webSocketAcl = `  acl is_websocket hdr(connection) -i upgrade
   acl is_websocket_upgrade hdr(upgrade) -i websocket\n`;
 
   const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;
   const apiAcl = `  acl ${apiB} hdr(host) ${api}\n`;
-  let acls = webSocketAcl + uiAcl + apiAcl;
+  let acls = specificEndpointsAcl + webSocketAcl + uiAcl + apiAcl;
 
   if (uiPrimary) {
     const uiPrimaryAcl = `  acl ${uiB} hdr(host) ${uiPrimary}\n`;
@@ -393,7 +395,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     acls += apiPrimaryAcl;
   }
 
-  // Routing with WebSocket priority
+  // Routing with WebSocket priority (WebSocket should use stick table for consistency)
   const wsBackendUse = `  use_backend ${apiB}backend if is_websocket ${apiB}\n`;
   const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;
   const apiBackendUse = `  use_backend ${apiB}backend if ${apiB}\n`;

@@ -355,8 +355,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   let uiBackend = `backend ${uiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance roundrobin
-    # NO stick table - UI gets random distribution
+    balance source
     # FAILOVER: Allow fallback when primary server fails
     option redispatch
     # RETRY: Retry failed requests

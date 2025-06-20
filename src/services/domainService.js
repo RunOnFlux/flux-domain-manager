@@ -135,6 +135,8 @@ async function generateAndReplaceMainHaproxyConfig() {
       throw new Error('Invalid Flux List');
     }
 
+    const aux = fluxIPsForBalancing.length;
+
     for (const ip of fluxIPsForBalancing) {
       if (ip.split(':')[1] === 16127 || ip.split(':')[1] === '16127' || !ip.split(':')[1]) {
         // eslint-disable-next-line no-await-in-loop
@@ -146,6 +148,18 @@ async function generateAndReplaceMainHaproxyConfig() {
             console.log(`removing ${ip} as backend`);
           }
         }
+      }
+    }
+
+    if (aux !== fluxIPsForBalancing.length && fluxIPsForBalancing.length > 10) {
+      // lets remove already the nodes not ok before looking for new ones
+      const hc = await haproxyTemplate.createMainHaproxyConfig(ui, api, fluxIPsForBalancing, uiPrimary, apiPrimary);
+      console.log(hc);
+      const dataToWrite = hc;
+      // test haproxy config
+      const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
+      if (!successRestart) {
+        throw new Error('Invalid HAPROXY Config File!');
       }
     }
 

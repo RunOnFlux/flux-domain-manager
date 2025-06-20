@@ -333,7 +333,9 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     http-response set-header FLUXNODE %s
     mode http
     balance source
-     # SELECTIVE STICK: Only use stick table for authentication endpoints
+    # Master stick table for client persistence (24h expiry)
+    stick-table type ip size 20k expire 24h
+    # SELECTIVE STICK: Only use stick table for authentication endpoints
     stick on src if { path_beg /id/loginphrase } or { path_beg /id/emergencyphrase } or { path_beg /id/verifylogin }
     # FAILOVER: Allow fallback to other servers if primary fails
     option redispatch

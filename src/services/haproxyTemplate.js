@@ -328,15 +328,15 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     };
   });
 
-  // API backend with RANDOM distribution by default, STICK only for specific endpoints
+  // API backend with RANDOM distribution by default, STICK only for specific endpoints and WebSocket
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
     balance roundrobin
     # Master stick table for client persistence (24h expiry)
     stick-table type ip size 20k expire 24h
-    # SELECTIVE STICK: Only use stick table for specific endpoints that need persistence
-    stick on src if { path_beg /id/loginphrase } or { path_beg /id/emergencyphrase } or { path_beg /id/verifylogin }
+    # SELECTIVE STICK: Use stick table for specific endpoints AND WebSocket connections
+    stick on src if { path_beg /id/loginphrase } or { path_beg /id/emergencyphrase } or { path_beg /id/verifylogin } or { hdr(connection) -i upgrade }
     # FAILOVER: Allow fallback to other servers if primary fails
     option redispatch
     # RETRY: Retry failed requests automatically
@@ -395,7 +395,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     acls += apiPrimaryAcl;
   }
 
-  // Routing with WebSocket priority (WebSocket should use stick table for consistency)
+  // Routing with WebSocket using same stick table as sticky endpoints
   const wsBackendUse = `  use_backend ${apiB}backend if is_websocket ${apiB}\n`;
   const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;
   const apiBackendUse = `  use_backend ${apiB}backend if ${apiB}\n`;

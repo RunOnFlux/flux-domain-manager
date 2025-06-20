@@ -153,6 +153,7 @@ async function generateAndReplaceMainHaproxyConfig() {
 
     if (aux !== fluxIPsForBalancing.length && fluxIPsForBalancing.length > 10) {
       // lets remove already the nodes not ok before looking for new ones
+      console.log(`Removing some nodes from backend that are no longer ok: ${aux - fluxIPsForBalancing.length}`);
       const hc = await haproxyTemplate.createMainHaproxyConfig(ui, api, fluxIPsForBalancing, uiPrimary, apiPrimary);
       console.log(hc);
       const dataToWrite = hc;

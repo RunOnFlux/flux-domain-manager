@@ -62,8 +62,8 @@ frontend wwwhttp
   bind *:80
   option forwardfor except 127.0.0.0/8
   http-request add-header X-Forwarded-Proto http
-  http-response add-header Access-Control-Expose-Headers '*' if !{ res.hdr(Access-Control-Expose-Headers) -m found }
-  http-response add-header Access-Control-Allow-Origin "*" if !{ res.hdr(Access-Control-Allow-Origin) -m found }
+  http-response add-header Access-Control-Expose-Headers '*' unless { res.hdr(Access-Control-Expose-Headers) -m found }
+  http-after-response add-header Access-Control-Allow-Origin "*" unless { res.hdr(Access-Control-Allow-Origin) -m found }
 
   acl letsencrypt-acl path_beg /.well-known/acme-challenge/
   acl cloudflare-flux-acl path_beg /.well-known/pki-validation/
@@ -77,8 +77,8 @@ frontend wwwhttps
 #  option httplog
   option http-server-close
   option forwardfor except 127.0.0.0/8
-  http-response add-header Access-Control-Expose-Headers '*' if !{ res.hdr(Access-Control-Expose-Headers) -m found }
-  http-response add-header Access-Control-Allow-Origin "*" if !{ res.hdr(Access-Control-Allow-Origin) -m found }
+  http-response add-header Access-Control-Expose-Headers '*' unless { res.hdr(Access-Control-Expose-Headers) -m found }
+  http-after-response add-header Access-Control-Allow-Origin "*" unless { res.hdr(Access-Control-Allow-Origin) -m found }
 
   # stats in /fluxstatistics publicly available
   stats enable

@@ -318,7 +318,6 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     const apiPort = ip.split(':')[1] || '16127';
     const uiPort = Number(apiPort) - 1;
     const baseHost = ip.split(':')[0];
-
     return {
       index: index + 1,
       baseHost,
@@ -328,18 +327,11 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     };
   });
 
-  // API backend with RANDOM distribution by default, STICK only for specific endpoints and WebSocket
+  // API backend with source-based load balancing (for session persistence)
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance roundrobin
-    # Master stick table for client persistence (24h expiry)
-    stick-table type ip size 20k expire 24h
-    # SELECTIVE STICK: Use stick table for:
-    # 1. Specific endpoints that need persistence
-    # 2. WebSocket connections
-    # 3. Requests with zelidauth header (authenticated Flux requests)
-    stick on src if { path_beg /id/loginphrase } or { path_beg /id/emergencyphrase } or { path_beg /id/verifylogin } or { path_beg /id/providesign } or { hdr(connection) -i upgrade } or { req.hdr_cnt(zelidauth) gt 0 }
+    balance source
     # FAILOVER: Allow fallback to other servers if primary fails
     option redispatch
     # RETRY: Retry failed requests automatically
@@ -354,7 +346,27 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     # Health check with faster detection of failed servers
     default-server check inter 10s fall 2 rise 3 maxconn 100`;
 
-  // UI backend with random distribution (no stick table for UI)
+  // Roundrobin API backend for specific endpoints that need random distribution
+  let apiRoundrobinBackend = `backend ${apiB}roundrobinbackend
+    http-response set-header FLUXNODE %s
+    http-response set-header X-Flux-Mode "Roundrobin"
+    mode http
+    balance roundrobin
+    # FAILOVER: Allow fallback to other servers if primary fails
+    option redispatch
+    # RETRY: Retry failed requests automatically
+    retries 3
+    # Enhanced WebSocket support
+    timeout tunnel 7200s
+    timeout server 30s
+    timeout connect 5s
+    # WebSocket connection handling
+    option http-keep-alive
+    no option httpclose
+    # Health check with faster detection of failed servers
+    default-server check inter 10s fall 2 rise 3 maxconn 100`;
+
+  // UI backend with source-based load balancing
   let uiBackend = `backend ${uiB}backend
     http-response set-header FLUXNODE %s
     mode http
@@ -372,21 +384,31 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   for (const server of serverMapping) {
     uiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.uiPort} check`;
     apiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.apiPort} check`;
+    apiRoundrobinBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.apiPort} check`;
   }
 
   const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n';
 
   // Enhanced ACLs with WebSocket detection and specific endpoint detection
   const specificEndpointsAcl = `  acl is_sticky_endpoint path_beg /id/loginphrase
-  acl is_sticky_endpoint path_beg /id/emergencyphrase  
+  acl is_sticky_endpoint path_beg /id/emergencyphrase 
+  acl is_sticky_endpoint path_beg /id/providesign 
   acl is_sticky_endpoint path_beg /id/verifylogin\n`;
+
+  // ACLs for endpoints that should use roundrobin
+  const roundrobinEndpointsAcl = `  acl is_roundrobin_endpoint path_beg apps/calculatefiatandfluxprice 
+  acl is_roundrobin_endpoint path_beg /apps/verifyappregistrationspecifications 
+  acl is_roundrobin_endpoint path_beg /apps/verifyappupdatespecifications 
+  acl is_roundrobin_endpoint path_beg /apps/appregister 
+  acl is_roundrobin_endpoint path_beg /apps/appupdate 
+  acl is_roundrobin_endpoint path_beg /apps/testappinstall\n`;
 
   const webSocketAcl = `  acl is_websocket hdr(connection) -i upgrade
   acl is_websocket_upgrade hdr(upgrade) -i websocket\n`;
 
   const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;
   const apiAcl = `  acl ${apiB} hdr(host) ${api}\n`;
-  let acls = specificEndpointsAcl + webSocketAcl + uiAcl + apiAcl;
+  let acls = specificEndpointsAcl + roundrobinEndpointsAcl + webSocketAcl + uiAcl + apiAcl;
 
   if (uiPrimary) {
     const uiPrimaryAcl = `  acl ${uiB} hdr(host) ${uiPrimary}\n`;
@@ -397,13 +419,14 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     acls += apiPrimaryAcl;
   }
 
-  // Routing with WebSocket using same stick table as sticky endpoints
+  // Enhanced routing with roundrobin endpoints getting priority
   const wsBackendUse = `  use_backend ${apiB}backend if is_websocket ${apiB}\n`;
+  const roundrobinBackendUse = `  use_backend ${apiB}roundrobinbackend if ${apiB} is_roundrobin_endpoint\n`;
   const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;
   const apiBackendUse = `  use_backend ${apiB}backend if ${apiB}\n`;
 
-  const usebackends = wsBackendUse + uiBackendUse + apiBackendUse;
-  const backends = `${uiBackend}\n\n${apiBackend}`;
+  const usebackends = wsBackendUse + roundrobinBackendUse + uiBackendUse + apiBackendUse;
+  const backends = `${uiBackend}\n\n${apiBackend}\n\n${apiRoundrobinBackend}`;
   const urls = [ui, api, 'dashboard.zel.network', uiPrimary, apiPrimary];
 
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {}, {});

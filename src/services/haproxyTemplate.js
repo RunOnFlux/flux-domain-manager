@@ -335,8 +335,11 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     balance roundrobin
     # Master stick table for client persistence (24h expiry)
     stick-table type ip size 20k expire 24h
-    # SELECTIVE STICK: Use stick table for specific endpoints AND WebSocket connections
-    stick on src if { path_beg /id/loginphrase } or { path_beg /id/emergencyphrase } or { path_beg /id/verifylogin } or { path_beg /id/providesign } or { hdr(connection) -i upgrade }
+    # SELECTIVE STICK: Use stick table for:
+    # 1. Specific endpoints that need persistence
+    # 2. WebSocket connections
+    # 3. Requests with zelidauth header (authenticated Flux requests)
+    stick on src if { path_beg /id/loginphrase } or { path_beg /id/emergencyphrase } or { path_beg /id/verifylogin } or { path_beg /id/providesign } or { hdr(connection) -i upgrade } or { req.hdr_cnt(zelidauth) gt 0 }
     # FAILOVER: Allow fallback to other servers if primary fails
     option redispatch
     # RETRY: Retry failed requests automatically

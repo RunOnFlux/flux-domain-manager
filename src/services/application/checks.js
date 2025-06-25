@@ -989,4 +989,5 @@ module.exports = {
   checkAppRunning,
   checkALPHexplorer,
   checkErgoHeight,
+  isArcaneOS,
 };

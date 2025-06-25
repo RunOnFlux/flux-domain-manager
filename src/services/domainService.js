@@ -120,6 +120,8 @@ async function checkDomainOwnership(domain, appName) {
 
 // Generates config file for HAProxy
 const fluxIPsForBalancing = [];
+const fluxIPsArcaneOs = [];
+let iteration = 0;
 async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `${config.uiName}.${config.mainDomain}`;
@@ -130,23 +132,17 @@ async function generateAndReplaceMainHaproxyConfig() {
       uiPrimary = `${config.uiName}.${config.primaryDomain}`;
       apiPrimary = `${config.apiName}.${config.primaryDomain}`;
     }
-    const fluxIPs = await fluxService.getFluxIPs('STRATUS'); // use only stratus for home
-    if (fluxIPs.length < 1000) {
-      throw new Error('Invalid Flux List');
-    }
 
     const aux = fluxIPsForBalancing.length;
 
     for (const ip of fluxIPsForBalancing) {
-      if (ip.split(':')[1] === 16127 || ip.split(':')[1] === '16127' || !ip.split(':')[1]) {
-        // eslint-disable-next-line no-await-in-loop
-        const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
-        if (!isOK) {
-          const index = fluxIPsForBalancing.indexOf(fluxIPsForBalancing);
-          if (index > -1) { // only splice array when item is found
-            fluxIPsForBalancing.splice(index, 1); // 2nd parameter means remove one item only
-            console.log(`removing ${ip} as backend`);
-          }
+      // eslint-disable-next-line no-await-in-loop
+      const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
+      if (!isOK) {
+        const index = fluxIPsForBalancing.indexOf(fluxIPsForBalancing);
+        if (index > -1) { // only splice array when item is found
+          fluxIPsForBalancing.splice(index, 1); // 2nd parameter means remove one item only
+          console.log(`removing ${ip} as backend`);
         }
       }
     }
@@ -165,24 +161,44 @@ async function generateAndReplaceMainHaproxyConfig() {
     }
 
     console.log(`Current Ips on backend ${fluxIPsForBalancing.length}`);
+
+    if (iteration === 0 || iteration % 10 === 0) {
+      // every 10 iterations we update the stratus nodes list
+      const fluxIPs = await fluxService.getFluxIPs('STRATUS'); // use only stratus for home
+      if (fluxIPs.length < 1000) {
+        throw new Error('Invalid Flux List');
+      }
+      console.log(`Found ${fluxIPs.length} STRATUS on the explorer`);
+
+      iteration += 1;
+      for (const ip of fluxIPs) {
+        if (ip.split(':')[1] === 16127 || ip.split(':')[1] === '16127' || !ip.split(':')[1]) {
+        // eslint-disable-next-line no-await-in-loop
+          const isArcaneOS = await applicationChecks.isArcaneOS(ip.split(':')[0], ip.split(':')[1] || '16127'); // can be undefined
+          if (isArcaneOS) {
+            fluxIPsArcaneOs.push(ip);
+            console.log(`adding ${ip} as arcaneOS stratus node`);
+          }
+        }
+      }
+    }
+
     // we want to do some checks on UI and API to verify functionality
     // 1st check is loginphrase
     // 2nd check is communication
     // 3rd is ui
     if (fluxIPsForBalancing.length <= 100) {
-      console.log(`Found ${fluxIPs.length} STRATUS`);
-      for (const ip of fluxIPs) {
+      console.log(`Found ${fluxIPsArcaneOs.length} STRATUS ArcaneOs on default api port`);
+      for (const ip of fluxIPsArcaneOs) {
         if (fluxIPsForBalancing.indexOf(ip) >= 0) {
           // eslint-disable-next-line no-continue
           continue;
         }
-        if (ip.split(':')[1] === 16127 || ip.split(':')[1] === '16127' || !ip.split(':')[1]) {
         // eslint-disable-next-line no-await-in-loop
-          const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
-          if (isOK) {
-            fluxIPsForBalancing.push(ip);
-            console.log(`adding ${ip} as backend`);
-          }
+        const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
+        if (isOK) {
+          fluxIPsForBalancing.push(ip);
+          console.log(`adding ${ip} as backend`);
         }
         if (fluxIPsForBalancing.length > 100) { // maximum of 100 for load balancing
           break;

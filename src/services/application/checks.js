@@ -37,6 +37,7 @@ async function checkLoginPhrase(ip, port) {
     if (response.data.status === 'success') {
       return true;
     }
+    log.info(`Function checkLoginPhrase false for ip ${ip}`);
     return false;
   } catch (error) {
     log.info(`Function checkLoginPhrase failed for ip ${ip}`);
@@ -55,6 +56,7 @@ async function isCommunicationOK(ip, port) {
         return true;
       }
     }
+    log.info(`Function isCommunicationOK false for ip ${ip}`);
     return false;
   } catch (error) {
     log.info(`Function isCommunicationOK failed for ip ${ip}`);
@@ -69,6 +71,7 @@ async function isHomeOK(ip, port) {
     if (response.data.toLowerCase().startsWith('<!doctype html><html')) {
       return true;
     }
+    log.info(`Function isHomeOK false for ip ${ip}`);
     return false;
   } catch (error) {
     log.info(`Function isHomeOK failed for ip ${ip}`);
@@ -117,6 +120,7 @@ async function isUptimeOK(ip, port) {
     if (response.data.data > 3600) {
       return true;
     }
+    log.info(`Function isUptimeOK false for ip ${ip}`);
     return false;
   } catch (error) {
     log.info(`Function isUptimeOK failed for ip ${ip}`);
@@ -134,6 +138,7 @@ async function isVersionOK(ip, port) {
         return true;
       }
     }
+    log.info(`Function isVersionOK false for ip ${ip}`);
     return false;
   } catch (error) {
     log.info(`Function isVersionOK failed for ip ${ip}`);
@@ -162,6 +167,7 @@ async function isSyncedOK(ip, port) {
     if (height + 3 >= currentFluxBlockheight) {
       return true;
     }
+    log.info(`Function isSyncedOK false for ip ${ip}`);
     return false;
   } catch (error) {
     log.info(`Function isSyncedOK failed for ip ${ip}`);
@@ -176,6 +182,7 @@ async function isDaemonSyncedOK(ip, port) {
     if (response.data.data.blocks + 3 >= response.data.data.headers) {
       return true;
     }
+    log.info(`Function isDaemonSyncedOK false for ip ${ip}`);
     return false;
   } catch (error) {
     log.info(`Function isDaemonSyncedOK failed for ip ${ip}`);
@@ -193,6 +200,7 @@ async function hasManyApps(ip, port) {
       for (const app of config.mandatoryApps) {
         const appExists = response.data.data.find((a) => a.name === app);
         if (!appExists) {
+          log.info(`Function hasManyApps false for ip ${ip}`);
           return false;
         }
       }
@@ -215,6 +223,7 @@ async function hasManyMessages(ip, port) {
         return true;
       }
     }
+    log.info(`Function hasManyMessages false for ip ${ip}`);
     return false;
   } catch (error) {
     log.info(`Function hasManyMessages failed for ip ${ip}`);

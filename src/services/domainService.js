@@ -120,7 +120,7 @@ async function checkDomainOwnership(domain, appName) {
 
 // Generates config file for HAProxy
 const fluxIPsForBalancing = [];
-const fluxIPsArcaneOs = [];
+let fluxIPsArcaneOs = [];
 let iteration = 0;
 async function generateAndReplaceMainHaproxyConfig() {
   try {
@@ -169,6 +169,7 @@ async function generateAndReplaceMainHaproxyConfig() {
         throw new Error('Invalid Flux List');
       }
       console.log(`Found ${fluxIPs.length} STRATUS on the explorer`);
+      fluxIPsArcaneOs = [];
 
       iteration += 1;
       for (const ip of fluxIPs) {

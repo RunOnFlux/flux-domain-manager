@@ -31,7 +31,6 @@ const ethersList = [
 let currentFluxBlockheight = 1823810;
 // MAIN
 async function checkLoginPhrase(ip, port) {
-  const start = performance.now();
   try {
     const url = `http://${ip}:${port}/id/loginphrase`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
@@ -42,15 +41,10 @@ async function checkLoginPhrase(ip, port) {
   } catch (error) {
     log.info(`Function checkLoginPhrase failed for ip ${ip}`);
     return false;
-  } finally {
-    const end = performance.now();
-    const timeInSeconds = (end - start) / 1000;
-    log.info(`Function checkLoginPhrase ${timeInSeconds} seconds for ip ${ip}`);
   }
 }
 
 async function isCommunicationOK(ip, port) {
-  const start = performance.now();
   try {
     const urlA = `http://${ip}:${port}/flux/connectedpeersinfo`;
     const urlB = `http://${ip}:${port}/flux/incomingconnectionsinfo`;
@@ -65,15 +59,10 @@ async function isCommunicationOK(ip, port) {
   } catch (error) {
     log.info(`Function isCommunicationOK failed for ip ${ip}`);
     return false;
-  } finally {
-    const end = performance.now();
-    const timeInSeconds = (end - start) / 1000;
-    log.info(`Function isCommunicationOK ${timeInSeconds} seconds for ip ${ip}`);
   }
 }
 
 async function isHomeOK(ip, port) {
-  const start = performance.now();
   try {
     const url = `http://${ip}:${port}`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
@@ -84,10 +73,6 @@ async function isHomeOK(ip, port) {
   } catch (error) {
     log.info(`Function isHomeOK failed for ip ${ip}`);
     return false;
-  } finally {
-    const end = performance.now();
-    const timeInSeconds = (end - start) / 1000;
-    log.info(`Function isHomeOK ${timeInSeconds} seconds for ip ${ip}`);
   }
 }
 
@@ -126,7 +111,6 @@ function minVersionSatisfy(version, minimumVersion) {
 }
 
 async function isUptimeOK(ip, port) {
-  const start = performance.now();
   try {
     const url = `http://${ip}:${port}/flux/uptime`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
@@ -137,15 +121,10 @@ async function isUptimeOK(ip, port) {
   } catch (error) {
     log.info(`Function isUptimeOK failed for ip ${ip}`);
     return false;
-  } finally {
-    const end = performance.now();
-    const timeInSeconds = (end - start) / 1000;
-    log.info(`Function isUptimeOK ${timeInSeconds} seconds for ip ${ip}`);
   }
 }
 
 async function isVersionOK(ip, port) {
-  const start = performance.now();
   try {
     const url = `http://${ip}:${port}/flux/info`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
@@ -159,15 +138,10 @@ async function isVersionOK(ip, port) {
   } catch (error) {
     log.info(`Function isVersionOK failed for ip ${ip}`);
     return false;
-  } finally {
-    const end = performance.now();
-    const timeInSeconds = (end - start) / 1000;
-    log.info(`Function isVersionOK ${timeInSeconds} seconds for ip ${ip}`);
   }
 }
 
 async function isArcaneOS(ip, port) {
-  const start = performance.now();
   try {
     const url = `http://${ip}:${port}/flux/isarcaneos`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
@@ -177,15 +151,10 @@ async function isArcaneOS(ip, port) {
     return false;
   } catch (error) {
     return false;
-  } finally {
-    const end = performance.now();
-    const timeInSeconds = (end - start) / 1000;
-    log.info(`Function isArcaneOS ${timeInSeconds} seconds for ip ${ip}`);
   }
 }
 
 async function isSyncedOK(ip, port) {
-  const start = performance.now();
   try {
     const url = `http://${ip}:${port}/explorer/scannedheight`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
@@ -197,15 +166,10 @@ async function isSyncedOK(ip, port) {
   } catch (error) {
     log.info(`Function isSyncedOK failed for ip ${ip}`);
     return false;
-  } finally {
-    const end = performance.now();
-    const timeInSeconds = (end - start) / 1000;
-    log.info(`Function isSyncedOK ${timeInSeconds} seconds for ip ${ip}`);
   }
 }
 
 async function isDaemonSyncedOK(ip, port) {
-  const start = performance.now();
   try {
     const url = `http://${ip}:${port}/daemon/getblockchaininfo`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
@@ -216,15 +180,10 @@ async function isDaemonSyncedOK(ip, port) {
   } catch (error) {
     log.info(`Function isDaemonSyncedOK failed for ip ${ip}`);
     return false;
-  } finally {
-    const end = performance.now();
-    const timeInSeconds = (end - start) / 1000;
-    log.info(`Function isDaemonSyncedOK ${timeInSeconds} seconds for ip ${ip}`);
   }
 }
 
 async function hasManyApps(ip, port) {
-  const start = performance.now();
   try {
     const url = `http://${ip}:${port}/apps/globalappsspecifications`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
@@ -242,34 +201,10 @@ async function hasManyApps(ip, port) {
   } catch (error) {
     log.info(`Function hasManyApps failed for ip ${ip}`);
     return false;
-  } finally {
-    const end = performance.now();
-    const timeInSeconds = (end - start) / 1000;
-    log.info(`Function hasManyApps ${timeInSeconds} seconds for ip ${ip}`);
-  }
-}
-
-async function hasManyLocations(ip, port) {
-  try {
-    const url = `http://${ip}:${port}/apps/locations`;
-    const response = await serviceHelper.httpGetRequest(url, timeout);
-    const appsLocationsAmount = response.data.data.length;
-    if (appsLocationsAmount > 2000) { 
-      for (const app of config.mandatoryApps) {
-        const appExists = response.data.data.find((a) => a.name === app);
-        if (!appExists) {
-          return false;
-        }
-      }
-    }
-    return true;
-  } catch (error) {
-    return false;
   }
 }
 
 async function hasManyMessages(ip, port) {
-  const start = performance.now();
   try {
     const url = `http://${ip}:${port}/apps/hashes`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
@@ -284,41 +219,34 @@ async function hasManyMessages(ip, port) {
   } catch (error) {
     log.info(`Function hasManyMessages failed for ip ${ip}`);
     return false;
-  } finally {
-    const end = performance.now();
-    const timeInSeconds = (end - start) / 1000;
-    log.info(`Function hasManyMessages ${timeInSeconds} seconds for ip ${ip}`);
   }
 }
 
 async function checkMainFlux(ip, port = 16127) {
   try {
-    const isArcane = await isArcaneOS(ip, port);
-    if (isArcane) {
-      const uptimeOK = await isUptimeOK(ip, port);
-      if (uptimeOK) {
+    const uptimeOK = await isUptimeOK(ip, port);
+    if (uptimeOK) {
+      // eslint-disable-next-line no-await-in-loop
+      const versionOK = await isVersionOK(ip, port);
+      if (versionOK) {
         // eslint-disable-next-line no-await-in-loop
-        const versionOK = await isVersionOK(ip, port);
-        if (versionOK) {
+        const loginPhraseOK = await checkLoginPhrase(ip, port);
+        if (loginPhraseOK) {
           // eslint-disable-next-line no-await-in-loop
-          const loginPhraseOK = await checkLoginPhrase(ip, port);
-          if (loginPhraseOK) {
-            // eslint-disable-next-line no-await-in-loop
-            const communicationOK = await isCommunicationOK(ip, port);
-            if (communicationOK) {
-              const isSynced = await isSyncedOK(ip, port);
-              if (isSynced) {
-                const isDaemonSynced = await isDaemonSyncedOK(ip, port);
-                if (isDaemonSynced) {
-                  const hasApps = await hasManyApps(ip, port);
-                  if (hasApps) {
-                    const hasMessages = await hasManyMessages(ip, port);
-                    if (hasMessages) {
-                      // eslint-disable-next-line no-await-in-loop
-                      const uiOK = await isHomeOK(ip, +port - 1);
-                      if (uiOK) {
-                        return true;
-                      }
+          const communicationOK = await isCommunicationOK(ip, port);
+          if (communicationOK) {
+            const isSynced = await isSyncedOK(ip, port);
+            if (isSynced) {
+              const isDaemonSynced = await isDaemonSyncedOK(ip, port);
+              if (isDaemonSynced) {
+                const hasApps = await hasManyApps(ip, port);
+                if (hasApps) {
+                  const hasMessages = await hasManyMessages(ip, port);
+                  if (hasMessages) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const uiOK = await isHomeOK(ip, +port - 1);
+                    if (uiOK) {
+                      return true;
                     }
                   }
                 }

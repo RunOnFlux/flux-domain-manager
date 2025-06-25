@@ -100,24 +100,9 @@ async function getApplicationLocation(appName) {
   }
 }
 
-// Retrieves IP's that a given application in running on
-async function getApplicationLocationFromIP(appName, ip, port) {
-  try {
-    const fluxnodeList = await axios.get(`http://${ip}:${port}/apps/location/${appName}`, axiosConfig);
-    if (fluxnodeList.data.status === 'success') {
-      return fluxnodeList.data.data || [];
-    }
-    return [];
-  } catch (e) {
-    log.error(e);
-    return [];
-  }
-}
-
 module.exports = {
   getFluxIPs,
   getApplicationLocation,
   getAppSpecifications,
   getFluxPermanentMessages,
-  getApplicationLocationFromIP,
 };

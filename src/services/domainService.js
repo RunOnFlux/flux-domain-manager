@@ -119,9 +119,7 @@ async function checkDomainOwnership(domain, appName) {
 }
 
 // Generates config file for HAProxy
-const fluxIPsForBalancing = [];
-let fluxIPsArcaneOs = [];
-let iteration = 0;
+let fluxIPsForBalancing = [];
 async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `${config.uiName}.${config.mainDomain}`;
@@ -133,7 +131,14 @@ async function generateAndReplaceMainHaproxyConfig() {
       apiPrimary = `${config.apiName}.${config.primaryDomain}`;
     }
 
+    const fluxIPs = (await fluxService.getFluxIPs('STRATUS')).filter((ip) => !ip.split(':')[1]); // use only stratus for home and on default api port
+    if (fluxIPs.length < 100) {
+      throw new Error('Invalid Flux List');
+    }
+
     const aux = fluxIPsForBalancing.length;
+
+    fluxIPsForBalancing = fluxIPsForBalancing.filter((ip) => fluxIPs.includes(ip));
 
     for (const ip of fluxIPsForBalancing) {
       // eslint-disable-next-line no-await-in-loop
@@ -162,40 +167,13 @@ async function generateAndReplaceMainHaproxyConfig() {
 
     console.log(`Current Ips on backend ${fluxIPsForBalancing.length}`);
 
-    if (iteration === 0 || iteration % 10 === 0) {
-      // every 10 iterations we update the stratus nodes list
-      const fluxIPs = await fluxService.getFluxIPs('STRATUS'); // use only stratus for home
-      if (fluxIPs.length < 1000) {
-        throw new Error('Invalid Flux List');
-      }
-      console.log(`Found ${fluxIPs.length} STRATUS on the explorer`);
-      fluxIPsArcaneOs = [];
-
-      iteration += 1;
-      for (const ip of fluxIPs) {
-        if (ip.split(':')[1] === 16127 || ip.split(':')[1] === '16127' || !ip.split(':')[1]) {
-        // eslint-disable-next-line no-await-in-loop
-          const isArcaneOS = await applicationChecks.isArcaneOS(ip.split(':')[0], ip.split(':')[1] || '16127'); // can be undefined
-          if (isArcaneOS) {
-            fluxIPsArcaneOs.push(ip);
-            console.log(`adding ${ip} as arcaneOS stratus node`);
-            // eslint-disable-next-line no-await-in-loop
-            const appLocations = await fluxService.getApplicationLocationFromIP('web', ip.split(':')[0], '16127');
-            if (appLocations.length === 0) {
-              console.log(`${ip} doesn't have web locations`);
-            }
-          }
-        }
-      }
-    }
-
     // we want to do some checks on UI and API to verify functionality
     // 1st check is loginphrase
     // 2nd check is communication
     // 3rd is ui
     if (fluxIPsForBalancing.length <= 100) {
-      console.log(`Found ${fluxIPsArcaneOs.length} STRATUS ArcaneOs on default api port`);
-      for (const ip of fluxIPsArcaneOs) {
+      console.log(`Found ${fluxIPs.length} STRATUS on default api port`);
+      for (const ip of fluxIPs) {
         if (fluxIPsForBalancing.indexOf(ip) >= 0) {
           // eslint-disable-next-line no-continue
           continue;
@@ -610,7 +588,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
       // eslint-disable-next-line no-await-in-loop
       let appLocations = await fluxService.getApplicationLocation(app.name);
       let appLocationsSearchNumber = 0;
-      while (appLocations.length === 0 && appLocationsSearchNumber < 3) {
+      while (appLocations.length === 0 && appLocationsSearchNumber < 5) {
         log.info(`No apps locations found for application ${app.name}`);
         appLocationsSearchNumber += 1;
         // eslint-disable-next-line no-await-in-loop
@@ -868,7 +846,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
       // eslint-disable-next-line no-await-in-loop
       let appLocations = await fluxService.getApplicationLocation(app.name);
       let appLocationsSearchNumber = 0;
-      while (appLocations.length === 0 && appLocationsSearchNumber < 3) {
+      while (appLocations.length === 0 && appLocationsSearchNumber < 5) {
         log.info(`No apps locations found for application ${app.name}`);
         appLocationsSearchNumber += 1;
         // eslint-disable-next-line no-await-in-loop

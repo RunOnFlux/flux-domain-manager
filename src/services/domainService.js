@@ -139,7 +139,7 @@ async function generateAndReplaceMainHaproxyConfig() {
       // eslint-disable-next-line no-await-in-loop
       const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
       if (!isOK) {
-        const index = fluxIPsForBalancing.indexOf(fluxIPsForBalancing);
+        const index = fluxIPsForBalancing.indexOf(ip);
         if (index > -1) { // only splice array when item is found
           fluxIPsForBalancing.splice(index, 1); // 2nd parameter means remove one item only
           console.log(`removing ${ip} as backend`);

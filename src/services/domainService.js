@@ -605,6 +605,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
       let appLocations = await fluxService.getApplicationLocation(app.name);
       let appLocationsSearchNumber = 0;
       while (appLocations.length === 0 && appLocationsSearchNumber < 3) {
+        log.info(`No apps locations found for application ${app.name}`);
         appLocationsSearchNumber += 1;
         // eslint-disable-next-line no-await-in-loop
         appLocations = await fluxService.getApplicationLocation(app.name);

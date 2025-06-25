@@ -402,6 +402,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   acl is_roundrobin_endpoint path_beg /apps/appregister 
   acl is_roundrobin_endpoint path_beg /apps/appupdate 
   acl is_roundrobin_endpoint path_beg /apps/temporarymessages 
+  acl is_roundrobin_endpoint path_beg /apps/location 
   acl is_roundrobin_endpoint path_beg /apps/testappinstall\n`;
 
   const webSocketAcl = `  acl is_websocket hdr(connection) -i upgrade

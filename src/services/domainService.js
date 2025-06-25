@@ -602,7 +602,13 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
       // eslint-disable-next-line no-await-in-loop
-      const appLocations = await fluxService.getApplicationLocation(app.name);
+      let appLocations = await fluxService.getApplicationLocation(app.name);
+      let appLocationsSearchNumber = 0;
+      while (appLocations.length === 0 && appLocationsSearchNumber < 3) {
+        appLocationsSearchNumber += 1;
+        // eslint-disable-next-line no-await-in-loop
+        appLocations = await fluxService.getApplicationLocation(app.name);
+      }
       if (app.name === 'blockbookbitcoin') {
         appLocations.push({ ip: '[2001:41d0:d00:b800::20]:9130' });
         appLocations.push({ ip: '[2001:41d0:d00:b800::21]:9130' });

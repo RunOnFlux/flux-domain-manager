@@ -861,7 +861,14 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
       // eslint-disable-next-line no-await-in-loop
-      const appLocations = await fluxService.getApplicationLocation(app.name);
+      let appLocations = await fluxService.getApplicationLocation(app.name);
+      let appLocationsSearchNumber = 0;
+      while (appLocations.length === 0 && appLocationsSearchNumber < 3) {
+        log.info(`No apps locations found for application ${app.name}`);
+        appLocationsSearchNumber += 1;
+        // eslint-disable-next-line no-await-in-loop
+        appLocations = await fluxService.getApplicationLocation(app.name);
+      }
 
       if (appLocations.length > 0) {
         const appIps = [];

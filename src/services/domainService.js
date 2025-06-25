@@ -198,6 +198,11 @@ async function generateAndReplaceMainHaproxyConfig() {
         // eslint-disable-next-line no-await-in-loop
         const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
         if (isOK) {
+          // eslint-disable-next-line no-await-in-loop
+          const appLocations = await fluxService.getApplicationLocationFromIP('web', ip.split(':')[0], '16127');
+          if (appLocations.length === 0) {
+            console.log(`${ip} doesn't have web locations`);
+          }
           fluxIPsForBalancing.push(ip);
           console.log(`adding ${ip} as backend`);
         }

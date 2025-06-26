@@ -219,7 +219,7 @@ async function hasManyMessages(ip, port) {
     const appsAmount = response.data.data.length;
     if (appsAmount > 48000) {
       const messageFalse = response.data.data.filter((a) => a.message === false);
-      if (messageFalse.length < 300) {
+      if (messageFalse.length < 100) {
         return true;
       }
     }

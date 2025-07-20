@@ -1078,6 +1078,9 @@ async function start() {
       permanentMessages = permMessages;
     });
 
+    // We just run this once prior the appSpec loop so the permanent messages are
+    // populated first
+    await dataFetcher.permMessageRunner();
     dataFetcher.startAppSpecLoop();
     dataFetcher.startPermMessagesLoop();
   }

@@ -132,7 +132,7 @@ async function isVersionOK(ip, port) {
   try {
     const url = `http://${ip}:${port}/flux/info`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
-    const version = response.data.data.flux.version;
+    const { version } = response.data.data.flux;
     if (minVersionSatisfy(version, '6.3.0')) {
       if (response.data.data.flux.development === 'false' || !response.data.data.flux.development) {
         return true;
@@ -151,7 +151,7 @@ async function isArcaneOS(ip, port) {
     const url = `http://${ip}:${port}/flux/isarcaneos`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     if (response.data.data) {
-      return true
+      return true;
     }
     return false;
   } catch (error) {
@@ -557,7 +557,7 @@ async function extendedInsightTest(url, blockUlr, txUrl) {
   const adjustedUrlTx = txUrl + txid;
   const responseC = await serviceHelper.httpGetRequest(adjustedUrlTx, 8888);
   if (responseC.data.confirmations < -2) {
-    return false
+    return false;
   }
   return true;
 }
@@ -596,10 +596,10 @@ async function checkHavenHeight(ip, port) {
 async function checkHavenRPC(ip, port) {
   try {
     const data = {
-      "jsonrpc": "2.0",
-      "id": "0",
-      "method": "get_last_block_header"
-    }
+      jsonrpc: '2.0',
+      id: '0',
+      method: 'get_last_block_header',
+    };
     await serviceHelper.httpPostRequest(`http://${ip}:${port}/json_rpc`, data, 1500);
     // if code 200 all ok
     return true;
@@ -664,7 +664,8 @@ async function checkBlockBook(ip, port, appsname) {
     let coin = appsname.replace('blockbook', '');
     coin = coin.replace(/\d+/g, '');
     const index = coinList.indexOf(coin);
-    let response1, response2;
+    let response1; let
+      response2;
     const agent = new https.Agent({
       rejectUnauthorized: false,
     });
@@ -800,7 +801,7 @@ async function checkMinecraft(ip, port) {
       host: ip,
       port,
       attemptTimeout: 5000,
-      maxRetries: 3
+      maxRetries: 3,
     });
     return true;
   } catch (error) {
@@ -816,7 +817,7 @@ async function checkPalworld(ip, port) {
       host: ip,
       port,
       attemptTimeout: 5000,
-      maxRetries: 3
+      maxRetries: 3,
     });
     return true;
   } catch (error) {
@@ -884,32 +885,32 @@ async function checkAppRunning(url, appName) {
 function applicationWithChecks(app) {
   if (generalWebsiteApps.includes(app.name)) {
     return true;
-  } else if (app.name === 'explorer') {
+  } if (app.name === 'explorer') {
     return true;
-  } else if (app.name === 'bitcoinnode' || app.name === 'bitcoinnodetestnet' || app.name === 'bitcoinnodesignet') {
+  } if (app.name === 'bitcoinnode' || app.name === 'bitcoinnodetestnet' || app.name === 'bitcoinnodesignet') {
     return true;
-  } else if (app.name === 'HavenNodeMainnet') {
+  } if (app.name === 'HavenNodeMainnet') {
     return true;
-  } else if (app.name === 'HavenNodeTestnet') {
+  } if (app.name === 'HavenNodeTestnet') {
     return true;
-  } else if (app.name === 'HavenNodeStagenet') {
+  } if (app.name === 'HavenNodeStagenet') {
     return true;
-  } else if (app.name.startsWith('blockbook')) {
+  } if (app.name.startsWith('blockbook')) {
     return true;
-  } else if (app.name.startsWith('AlgorandRPC')) {
+  } if (app.name.startsWith('AlgorandRPC')) {
     return true;
-  } else if (app.name.toLowerCase().includes('bittensor')) {
+  } if (app.name.toLowerCase().includes('bittensor')) {
     return true;
-  } else if (app.name === 'alphexplorer') {
+  } if (app.name === 'alphexplorer') {
     return true;
-  } else if (app.name === 'ergo') {
+  } if (app.name === 'ergo') {
     return true;
-  } else {
-    const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
-    if (matchIndex > -1) {
-      return true;
-    }
   }
+  const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
+  if (matchIndex > -1) {
+    return true;
+  }
+
   return false;
 }
 
@@ -937,7 +938,7 @@ async function checkApplication(app, ip) {
       isOK = await checkHavenRPC(ip.split(':')[0], 33750);
     }
   } else if (app.name.startsWith('blockbook')) {
-    isOK = await checkBlockBook(ip.includes('[') ? ip.split(']')[0] + ']' : ip.split(':')[0], ip.includes(']:') ? ip.split(']:')[1] : app.compose[0].ports[0], app.name);
+    isOK = await checkBlockBook(ip.includes('[') ? `${ip.split(']')[0]}]` : ip.split(':')[0], ip.includes(']:') ? ip.split(']:')[1] : app.compose[0].ports[0], app.name);
   } else if (app.name.startsWith('AlgorandRPC')) {
     isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[1]);
   } else if (app.name.toLowerCase().includes('bittensor')) {

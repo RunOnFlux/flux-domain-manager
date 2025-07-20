@@ -24,8 +24,8 @@ async function selectIPforG(ips, app) {
 }
 
 async function test() {
-const b = await selectIPforG(['123.234','2345.342','456.34234','342.434'], 'test');
-console.log(b);
+  const b = await selectIPforG(['123.234', '2345.342', '456.34234', '342.434'], 'test');
+  console.log(b);
 }
 
 test();
@@ -57,13 +57,13 @@ let configuredApps = [{
 const updatingConfig = JSON.parse(JSON.stringify(recentlyConfiguredApps));
 // merge recentlyConfiguredApps with currently configuredApps
 for (const app of configuredApps) {
-  let appExists = updatingConfig.find((a) => a.appName === app.appName);
+  const appExists = updatingConfig.find((a) => a.appName === app.appName);
   if (!appExists) {
     updatingConfig.push(app);
   } else {
     updatingConfig.splice(updatingConfig.indexOf(appExists), 1, app);
     // console.log(app);
-   // appExists = app; // this is also updating element in updatingConfig
+    // appExists = app; // this is also updating element in updatingConfig
   }
 }
 console.log(updatingConfig);

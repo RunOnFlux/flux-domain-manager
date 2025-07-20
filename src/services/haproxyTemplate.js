@@ -391,18 +391,18 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
 
   // Enhanced ACLs with WebSocket detection and specific endpoint detection
   const specificEndpointsAcl = `  acl is_sticky_endpoint path_beg /id/loginphrase
-  acl is_sticky_endpoint path_beg /id/emergencyphrase 
-  acl is_sticky_endpoint path_beg /id/providesign 
+  acl is_sticky_endpoint path_beg /id/emergencyphrase
+  acl is_sticky_endpoint path_beg /id/providesign
   acl is_sticky_endpoint path_beg /id/verifylogin\n`;
 
   // ACLs for endpoints that should use roundrobin
-  const roundrobinEndpointsAcl = `  acl is_roundrobin_endpoint path_beg apps/calculatefiatandfluxprice 
-  acl is_roundrobin_endpoint path_beg /apps/verifyappregistrationspecifications 
-  acl is_roundrobin_endpoint path_beg /apps/verifyappupdatespecifications 
-  acl is_roundrobin_endpoint path_beg /apps/appregister 
-  acl is_roundrobin_endpoint path_beg /apps/appupdate 
-  acl is_roundrobin_endpoint path_beg /apps/temporarymessages 
-  acl is_roundrobin_endpoint path_beg /apps/location 
+  const roundrobinEndpointsAcl = `  acl is_roundrobin_endpoint path_beg apps/calculatefiatandfluxprice
+  acl is_roundrobin_endpoint path_beg /apps/verifyappregistrationspecifications
+  acl is_roundrobin_endpoint path_beg /apps/verifyappupdatespecifications
+  acl is_roundrobin_endpoint path_beg /apps/appregister
+  acl is_roundrobin_endpoint path_beg /apps/appupdate
+  acl is_roundrobin_endpoint path_beg /apps/temporarymessages
+  acl is_roundrobin_endpoint path_beg /apps/location
   acl is_roundrobin_endpoint path_beg /apps/testappinstall\n`;
 
   const webSocketAcl = `  acl is_websocket hdr(connection) -i upgrade

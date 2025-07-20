@@ -77,7 +77,7 @@ async function getAppSpecifications() {
   try {
     const fluxnodeList = await axios.get(
       'https://api.runonflux.io/apps/globalappsspecifications',
-      axiosConfig
+      axiosConfig,
     );
     if (fluxnodeList.data.status === 'success') {
       return fluxnodeList.data.data || [];
@@ -93,13 +93,13 @@ async function getApplicationLocation(appName) {
   try {
     const fluxnodeList = await axios.get(
       `https://api.runonflux.io/apps/location/${appName}`,
-      axiosConfig
+      axiosConfig,
     );
     if (fluxnodeList.data.status === 'success') {
       return fluxnodeList.data.data || [];
     }
     console.log(
-      `${fluxnodeList.data.status} received from getApplicationLocation`
+      `${fluxnodeList.data.status} received from getApplicationLocation`,
     );
     return [];
   } catch (e) {

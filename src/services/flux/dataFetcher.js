@@ -6,6 +6,7 @@ const url = require('node:url');
 
 const axios = require('axios');
 
+// const log = require('./log');
 const log = require('../../lib/log');
 
 /**
@@ -663,8 +664,8 @@ async function main() {
     keyPath: '/root/fdm-arcane-specs/fdm-eu-2-1.key',
     certPath: '/root/fdm-arcane-specs/fdm-eu-2-1.pem',
     caPath: '/root/fdm-arcane-specs/ca.pem',
-    fluxApiBasePath: 'https://api.runonflux.io/',
-    sasApiBasePath: 'https://10.100.0.170/api/',
+    fluxApiBaseUrl: 'https://api.runonflux.io/',
+    sasApiBaseUrl: 'https://10.100.0.170/api/',
   });
 
   specFetcher.startAppSpecLoop();

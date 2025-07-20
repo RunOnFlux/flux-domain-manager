@@ -1062,8 +1062,8 @@ async function start() {
       keyPath: '/root/fdm-arcane-specs/fdm-eu-2-1.key',
       certPath: '/root/fdm-arcane-specs/fdm-eu-2-1.pem',
       caPath: '/root/fdm-arcane-specs/ca.pem',
-      fluxApiBasePath: 'https://api.runonflux.io/',
-      sasApiBasePath: 'https://10.100.0.170/api/',
+      fluxApiBaseUrl: 'https://api.runonflux.io/',
+      sasApiBaseUrl: 'https://10.100.0.170/api/',
     });
 
     dataFetcher.on(
@@ -1078,8 +1078,8 @@ async function start() {
       permanentMessages = permMessages;
     });
 
-    setImmediate(dataFetcher.startAppSpecLoop);
-    setImmediate(dataFetcher.startPermMessagesLoop);
+    dataFetcher.startAppSpecLoop();
+    dataFetcher.startPermMessagesLoop();
   }
 
   try {

@@ -524,6 +524,9 @@ class FdmDataFetcher extends EventEmitter {
 
     const specMapper = (_specs) => {
       _specs.forEach((spec) => {
+        // this can happen if we give up trying to get owner or sas key etc
+        if (!spec) return;
+
         const { version, enterprise } = spec;
 
         const isEnterprise = Boolean(version >= 8 && enterprise);

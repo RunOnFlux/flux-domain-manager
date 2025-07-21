@@ -997,6 +997,26 @@ async function obtainCertificatesMode() {
   }
 }
 
+async function startAppDataFetcher() {
+  dataFetcher.on(
+    'appSpecsUpdated',
+    async (specs) => {
+      unifiedAppsDomains = specs.appFqdns;
+      await generateAndReplaceMainApplicationHaproxyConfig(specs.nonGApps);
+      await generateAndReplaceMainApplicationHaproxyGAppsConfig(specs.gApps);
+    },
+  );
+  dataFetcher.on('permMessagesUpdated', (permMessages) => {
+    permanentMessages = permMessages;
+  });
+
+  // We just run this once prior the appSpec loop so the permanent messages are
+  // populated first
+  await dataFetcher.permMessageRunner();
+  dataFetcher.startAppSpecLoop();
+  dataFetcher.startPermMessagesLoop();
+}
+
 // services run every 6 mins
 function initializeServices() {
   myIP = ipService.localIP();
@@ -1026,22 +1046,19 @@ function initializeServices() {
     } else if (
       config.mainDomain === config.cloudflare.domain
       && config.cloudflare.manageapp
+      && !dataFetcher.listenerCount('appSpecsUpdated')
     ) {
-      // only runs on main FDM handles X.APP.runonflux.io
-      generateAndReplaceMainApplicationHaproxyConfig();
-      setTimeout(() => {
-        generateAndReplaceMainApplicationHaproxyGAppsConfig();
-      }, 60 * 1000);
+      // only runs on main FDM handles X.APP.runonflux.io. This only runs once
+      // to add event listeners
+      startAppDataFetcher();
+
       log.info('Flux Main Application Domain Service initiated.');
     } else if (
       config.mainDomain === config.pDNS.domain
       && config.pDNS.manageapp
     ) {
-      // only runs on main FDM handles X.APP.runonflux.io
-      generateAndReplaceMainApplicationHaproxyConfig();
-      setTimeout(() => {
-        generateAndReplaceMainApplicationHaproxyGAppsConfig();
-      }, 60 * 1000);
+      // only runs on main FDM handles X.APP.runonflux.io. This only runs once
+      startAppDataFetcher();
       log.info('Flux Main Application Domain Service initiated.');
     } else {
       log.info('CUSTOM DOMAIN SERVICE UNAVAILABLE');
@@ -1065,24 +1082,6 @@ async function start() {
       fluxApiBaseUrl: 'https://api.runonflux.io/',
       sasApiBaseUrl: 'https://10.100.0.170/api/',
     });
-
-    dataFetcher.on(
-      'appSpecsUpdated',
-      async (specs) => {
-        unifiedAppsDomains = specs.appFqdns;
-        await generateAndReplaceMainApplicationHaproxyConfig(specs.nonGApps);
-        await generateAndReplaceMainApplicationHaproxyGAppsConfig(specs.gApps);
-      },
-    );
-    dataFetcher.on('permMessagesUpdated', (permMessages) => {
-      permanentMessages = permMessages;
-    });
-
-    // We just run this once prior the appSpec loop so the permanent messages are
-    // populated first
-    await dataFetcher.permMessageRunner();
-    dataFetcher.startAppSpecLoop();
-    dataFetcher.startPermMessagesLoop();
   }
 
   try {

@@ -190,6 +190,12 @@ class FdmDataFetcher extends EventEmitter {
     await new Promise((r) => { setTimeout(r, ms); });
   }
 
+  static timestamp() {
+    const formattedTime = new Date().toISOString().replace(/\.\d+Z?/, '');
+
+    return formattedTime;
+  }
+
   /**
    * Decrypts content with aes key
    * @param {string} appName application name.
@@ -281,7 +287,10 @@ class FdmDataFetcher extends EventEmitter {
 
     const cacheSpec = this.#cache.get(spec.hash);
 
-    if (cacheSpec) return cacheSpec;
+    if (cacheSpec) {
+      console.log(`Encrypted App spec: ${spec.name}, found in cache, no need to fetch`);
+      return cacheSpec;
+    }
 
     let originalOwner = this.#cache.get(spec.name);
     let ownerAttempts = 0;
@@ -321,6 +330,7 @@ class FdmDataFetcher extends EventEmitter {
         break;
       }
 
+      console.log(`Owner fetch for: ${spec.name} failed, retrying in 3 seconds`);
       ownerAttempts += 1;
       // eslint-disable-next-line no-await-in-loop
       await FdmDataFetcher.sleep(3_000);
@@ -358,6 +368,8 @@ class FdmDataFetcher extends EventEmitter {
       // is 30 seconds. So at max we would wait 2 cycles if nginx is down, and it
       // needs to be taken out of the server pool
       if (!response) {
+        console.log(`Decrypt AES key call for: ${spec.name} failed, retrying in 16 seconds`);
+
         decryptKeyAttempts += 1;
         // eslint-disable-next-line no-await-in-loop
         await FdmDataFetcher.sleep(16_000);
@@ -386,6 +398,7 @@ class FdmDataFetcher extends EventEmitter {
 
       // shouldn't end up here
 
+      console.log(`Base64AesKey not found for: ${spec.name}, retrying in 16 seconds`);
       decryptKeyAttempts += 1;
       // eslint-disable-next-line no-await-in-loop
       await FdmDataFetcher.sleep(16_000);
@@ -479,6 +492,7 @@ class FdmDataFetcher extends EventEmitter {
       etag,
       sameEtag: etag === store.etag,
       maxAgeMs,
+      timestamp: FdmDataFetcher.timestamp(),
     };
 
     console.log(logger);
@@ -590,6 +604,7 @@ class FdmDataFetcher extends EventEmitter {
       etag,
       specSize: payload ? payload.length : 0,
       sleepTimeMs,
+      timestamp: FdmDataFetcher.timestamp(),
     };
     console.log(logger);
 
@@ -633,6 +648,7 @@ class FdmDataFetcher extends EventEmitter {
       etag,
       specSize: payload ? payload.length : 0,
       sleepTimeMs,
+      timestamp: FdmDataFetcher.timestamp(),
     };
     console.log(logger);
 

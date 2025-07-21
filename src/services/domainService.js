@@ -184,7 +184,8 @@ async function generateAndReplaceMainHaproxyConfig() {
       uiPrimary,
       apiPrimary,
     );
-    console.log(hc);
+    // stop logging entire ha proxy config to console
+    // console.log(hc);
     const dataToWrite = hc;
     // test haproxy config
     const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
@@ -288,7 +289,8 @@ async function updateHaproxy(haproxyAppsConfig) {
     }
     updateHaproxyRunning = true;
     const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
-    console.log(hc);
+    // stop logging entire ha proxy config to console
+    // console.log(hc);
     const dataToWrite = hc;
     // test haproxy config
     const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
@@ -1043,7 +1045,7 @@ async function startAppDataFetcher() {
 // services run every 6 mins
 function initializeServices() {
   myIP = ipService.localIP();
-  console.log(myIP);
+  console.log(`public IP: ${myIP}`);
   if (config.domainAppType === 'CNAME') {
     myFDMnameORip = config.fdmAppDomain;
   } else {

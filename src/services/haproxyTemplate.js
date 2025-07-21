@@ -287,10 +287,8 @@ backend ${domainUsed}backend
 }
 
 function generateMinecraftACLs(app) {
-  console.log(app.domain);
   const aclName = app.domain.split('.').join('');
   const appName = app.domain.split('.')[0];
-  console.log(appName);
 
   const nameLength = appName.length + 1;
   const domainLength = app.domain.length;

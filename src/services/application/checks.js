@@ -703,7 +703,7 @@ async function checkBlockBook(ip, port, appsname) {
     log.error(`Bad IP ${ip}:${port} blockbook ${appsname}`);
     return false;
   } catch (error) {
-    log.error(error);
+    log.error(`Error checking blockbook endpoint: ${ip}:${port} ${error.message}`);
     return false;
   }
 }

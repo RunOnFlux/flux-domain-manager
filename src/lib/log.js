@@ -34,7 +34,9 @@ function writeToFile(filepath, args) {
 
 function debug(args) {
   try {
-    console.log(args);
+    // we are already logging to file. Don't log to console, as it hides
+    // all the actual calls to console.log
+    // console.log(args);
     // write to file
     const filepath = `${homeDirPath}debug.log`;
     writeToFile(filepath, args);

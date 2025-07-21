@@ -766,10 +766,11 @@ async function getBlockchainInfo(host, port, username, password) {
         password,
       },
     });
-    console.log(response.data);
+    // removed due to excessive console logs
+    // console.log(response.data);
     return response.data.result;
   } catch (error) {
-    console.log(error);
+    console.log(`getBlockchainInfo error: ${error.message}`);
     return false;
   }
 }

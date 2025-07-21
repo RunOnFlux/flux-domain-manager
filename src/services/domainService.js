@@ -33,6 +33,8 @@ let lastHaproxyAppsConfig = [];
 let gAppsProcessingFinishedOnce = false;
 let nonGAppsProcessingFinishedOnce = false;
 let dataFetcher = null;
+let configQueued = false;
+let configRunning = false;
 
 async function checkDomainOwnership(domain, appName) {
   try {
@@ -998,12 +1000,32 @@ async function obtainCertificatesMode() {
 }
 
 async function startAppDataFetcher() {
+  // we shouldn't need the running / queued state.
+  // However, until the load balancer ges fixed, you can switch
+  // backends randomly, which seem to all have different views of the
+  // network. So this is in place so that we only ever run one config
+  // generation, and queue one generation. It probably needs to stay anyway,
+  // as the app specs could get updated each block (which will soon be 30sec)
   dataFetcher.on(
     'appSpecsUpdated',
     async (specs) => {
       unifiedAppsDomains = specs.appFqdns;
+
+      if (configQueued && configRunning) return;
+
+      if (configRunning) {
+        configQueued = true;
+        return;
+      }
+
+      if (configQueued) configQueued = false;
+
+      configRunning = true;
+
       await generateAndReplaceMainApplicationHaproxyConfig(specs.nonGApps);
       await generateAndReplaceMainApplicationHaproxyGAppsConfig(specs.gApps);
+
+      configRunning = false;
     },
   );
   dataFetcher.on('permMessagesUpdated', (permMessages) => {

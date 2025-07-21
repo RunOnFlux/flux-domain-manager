@@ -171,11 +171,10 @@ class FdmDataFetcher extends EventEmitter {
     components.forEach((comp) => {
       for (let i = 0; i < comp.ports.length; i += 1) {
         const portDomains = comp.domains[i].split(',');
+        // strip http(s):// and also bad characters
         portDomains.forEach((portDomain) => {
           fqdns.push(portDomain
-            .replace('https://', '')
-            .replace('http://', '')
-            .replace(/[&/\\#,+()$~%'":*?<>{}]/g, '')
+            .replace(/https?:\/\/|[&/\\#,+()$~%'":*?<>{}]/g, '')
             .toLowerCase());
         });
       }

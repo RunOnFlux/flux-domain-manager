@@ -492,8 +492,7 @@ async function checkALPHexplorer(ip, port) {
     }
     return false;
   } catch (error) {
-    log.info('e');
-    log.info(error);
+    log.info(`Failed to check ALPH explorer: ${error.message}`);
     return false;
   }
 }
@@ -714,7 +713,7 @@ async function checkAlgorand(ip, port) {
   };
   try {
     const status = await axios.get(`http://${ip}:${port}/health`, axiosConfig);
-    // eslint-disable-next-line no-restricted-syntax
+    // eslint-disable-next-lin:e no-restricted-syntax
     if (status.data.isSynced === true) {
       return true;
     }

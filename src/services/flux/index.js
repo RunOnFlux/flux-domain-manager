@@ -103,7 +103,7 @@ async function getApplicationLocation(appName) {
     );
     return [];
   } catch (e) {
-    log.error(e);
+    log.error(`Failed to get app location for ${appName}. ${e.message}`);
     return [];
   }
 }

@@ -58,7 +58,7 @@ class FdmDataFetcher extends EventEmitter {
       url: 'apps/permanentmessages',
       options: {
         decompress: true,
-        headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' },
+        headers: { 'Accept-Encoding': 'gzip, compress, deflate, br' },
       },
       sha: '',
       etag: '',

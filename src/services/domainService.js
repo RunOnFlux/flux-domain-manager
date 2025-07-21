@@ -135,7 +135,8 @@ async function generateAndReplaceMainHaproxyConfig() {
         uiPrimary,
         apiPrimary,
       );
-      console.log(hc);
+      // stop logging the entire ha proxy config to console
+      // console.log(hc);
       const dataToWrite = hc;
       // test haproxy config
       const successRestart = await haproxyTemplate.restartProxy(dataToWrite);

@@ -595,7 +595,9 @@ class FdmDataFetcher extends EventEmitter {
     }
 
     const elapsedMs = Number(FdmDataFetcher.now - fetchTime) / 1_000_000;
-    const sleepTimeMs = Math.max(0, maxAgeMs - elapsedMs);
+    // add a one second overlay here. This stops retries when the max-age is
+    // at 0.
+    const sleepTimeMs = Math.max(1_000, maxAgeMs - elapsedMs + 1_000);
 
     const logger = {
       name: 'permMessages',
@@ -639,7 +641,9 @@ class FdmDataFetcher extends EventEmitter {
     }
 
     const elapsedMs = Number(FdmDataFetcher.now - fetchTime) / 1_000_000;
-    const sleepTimeMs = Math.max(0, maxAgeMs - elapsedMs);
+    // add a one second overlay here. This stops retries when the max-age is
+    // at 0.
+    const sleepTimeMs = Math.max(1_000, maxAgeMs - elapsedMs + 1_000);
 
     const logger = {
       name: 'globalAppSpecs',

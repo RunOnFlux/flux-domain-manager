@@ -1014,10 +1014,18 @@ async function startAppDataFetcher() {
     async (specs) => {
       unifiedAppsDomains = specs.appFqdns;
 
-      if (configQueued && configRunning) return;
+      if (configQueued && configRunning) {
+        console.log('appSpecsUpdated event received, while '
+          + 'an update already queued, skipping');
+
+        return;
+      }
 
       if (configRunning) {
+        console.log('appSpecsUpdated event received while an '
+          + 'update is running. Queueing next update.');
         configQueued = true;
+
         return;
       }
 
@@ -1035,8 +1043,8 @@ async function startAppDataFetcher() {
     permanentMessages = permMessages;
   });
 
-  // We just run this once prior the appSpec loop so the permanent messages are
-  // populated first
+  // We just run this once prior to the appSpec loop so the permanent messages
+  // are populated first
   await dataFetcher.permMessageRunner();
   dataFetcher.startAppSpecLoop();
   dataFetcher.startPermMessagesLoop();

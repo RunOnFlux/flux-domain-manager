@@ -1096,12 +1096,11 @@ function initializeServices() {
 
 async function start() {
   if (!dataFetcher) {
-    // symlink these to the same place on every fdm
-    // these paths are just dev at the moment
+    // these are symlinked to the correct key / pem on every box
     dataFetcher = new FdmDataFetcher({
-      keyPath: '/root/fdm-arcane-specs/fdm-eu-2-1.key',
-      certPath: '/root/fdm-arcane-specs/fdm-eu-2-1.pem',
-      caPath: '/root/fdm-arcane-specs/ca.pem',
+      keyPath: '/etc/ssl/private/fdm-arcane.key',
+      certPath: '/etc/ssl/certs/fdm-arcane.pem',
+      caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
       fluxApiBaseUrl: 'https://api.runonflux.io/',
       sasApiBaseUrl: 'https://10.100.0.170/api/',
     });

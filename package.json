@@ -26,6 +26,7 @@
     "testcloudflare": "mocha tests --timeout 10000 --grep 'cloudflareService'"
   },
   "dependencies": {
+    "@isaacs/ttlcache": "^1.4.1",
     "apicache": "^1.6.3",
     "axios": "^1.10.0",
     "chai": "^4.3.6",

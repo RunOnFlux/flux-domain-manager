@@ -963,8 +963,7 @@ setInterval(async () => {
       currentFluxBlockheight = height;
     }
   } catch (error) {
-    log.error(error);
-    log.error('ERROR OBTAINING FLUX HEIGHT');
+    log.error(`Error obtaining flux height: ${error.message}`);
   }
 }, 120 * 1000);
 

@@ -2,6 +2,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const https = require('node:https');
 const { EventEmitter } = require('node:events');
+const TTLCache = require('@isaacs/ttlcache');
 const url = require('node:url');
 
 const axios = require('axios');
@@ -39,6 +40,8 @@ class FdmDataFetcher extends EventEmitter {
   #sasApi;
 
   #aborted = false;
+
+  #cache = new TTLCache({ max: 1000, ttl: 86_400_000 });
 
   endpoints = {
     globalAppSpecs: {
@@ -183,6 +186,10 @@ class FdmDataFetcher extends EventEmitter {
     return domainMap;
   }
 
+  static async sleep(ms) {
+    await new Promise((r) => { setTimeout(r, ms); });
+  }
+
   /**
    * Decrypts content with aes key
    * @param {string} appName application name.
@@ -272,14 +279,54 @@ class FdmDataFetcher extends EventEmitter {
     const { enterprise } = appSpec;
     const { sasDecrypt } = this.endpoints;
 
-    // we need to stop doing this
-    const endpoint = `apps/apporiginalowner/${spec.name}`;
-    const fluxRes = await this.#fluxApi.get(endpoint);
+    const cacheSpec = this.#cache.get(spec.hash);
 
-    const parsedFluxRes = FdmDataFetcher.#parseAxiosResponse(fluxRes);
+    if (cacheSpec) return cacheSpec;
 
-    const { payload: originalOwner = null } = parsedFluxRes;
+    let originalOwner = this.#cache.get(spec.name);
+    let ownerAttempts = 0;
 
+    while (ownerAttempts < 3) {
+      const endpoint = `apps/apporiginalowner/${spec.name}`;
+      // eslint-disable-next-line no-await-in-loop
+      const fluxRes = await this.#fluxApi.get(endpoint).catch((err) => {
+        log.warning('Unable to get app original owner for '
+          + `${spec.name}. ${err.message}`);
+
+        return null;
+      });
+
+      if (!fluxRes) {
+        ownerAttempts += 1;
+        // eslint-disable-next-line no-await-in-loop
+        await FdmDataFetcher.sleep(3_000);
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      const parsedFluxRes = FdmDataFetcher.#parseAxiosResponse(fluxRes);
+
+      if (!parsedFluxRes) {
+        ownerAttempts += 1;
+        // eslint-disable-next-line no-await-in-loop
+        await FdmDataFetcher.sleep(3_000);
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      ({ payload: originalOwner = '' } = parsedFluxRes);
+
+      if (originalOwner) {
+        this.#cache.set(spec.name, originalOwner);
+        break;
+      }
+
+      ownerAttempts += 1;
+      // eslint-disable-next-line no-await-in-loop
+      await FdmDataFetcher.sleep(3_000);
+    }
+
+    // we tried 3 times... can't connect to flux api, bail
     if (!originalOwner) return null;
 
     const enterpriseBuf = Buffer.from(enterprise, 'base64');
@@ -295,15 +342,56 @@ class FdmDataFetcher extends EventEmitter {
       blockHeight: 9999999,
     };
 
-    const response = await this.#sasApi.post(sasDecrypt.url, payload);
+    let decryptKeyAttempts = 0;
+    let base64AesKey = '';
 
-    const { status: responseStatus, data: responseData } = response;
+    while (decryptKeyAttempts < 4) {
+      // eslint-disable-next-line no-await-in-loop
+      const response = await this.#sasApi.post(sasDecrypt.url, payload).catch((err) => {
+        log.warning(`Unable to contact sas to decrypt ${spec.name}. ${err.message}`
+          + `${spec.name}. ${err.message}`);
 
-    if (responseStatus !== 200) return null;
+        return null;
+      });
 
-    const { status: payloadStatus, message: base64AesKey } = responseData;
+      // we wait 16 seconds here (instead of 15) as the check loop on keepalived
+      // is 30 seconds. So at max we would wait 2 cycles if nginx is down, and it
+      // needs to be taken out of the server pool
+      if (!response) {
+        decryptKeyAttempts += 1;
+        // eslint-disable-next-line no-await-in-loop
+        await FdmDataFetcher.sleep(16_000);
+        // eslint-disable-next-line no-continue
+        continue;
+      }
 
-    if (payloadStatus !== 'ok') return null;
+      const { status: responseStatus, data: responseData } = response;
+
+      if (responseStatus !== 200) {
+        decryptKeyAttempts += 1;
+        // eslint-disable-next-line no-await-in-loop
+        await FdmDataFetcher.sleep(16_000);
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      const { status: payloadStatus, message: _base64AesKey } = responseData;
+
+      // we made contact with the sas, but it didn't like our request :(
+      if (payloadStatus !== 'ok') return null;
+
+      base64AesKey = _base64AesKey;
+
+      if (base64AesKey) break;
+
+      // shouldn't end up here
+
+      decryptKeyAttempts += 1;
+      // eslint-disable-next-line no-await-in-loop
+      await FdmDataFetcher.sleep(16_000);
+    }
+
+    if (!base64AesKey) return null;
 
     const decrypted = FdmDataFetcher.decryptAesData(
       spec.name,
@@ -325,6 +413,8 @@ class FdmDataFetcher extends EventEmitter {
     // or not. However, it's saving memory, and makes the add to map easier.
     // There should really be another boolean field
     spec.enterprise = '';
+
+    this.#cache.set(spec.hash, spec);
 
     return spec;
   }
@@ -452,6 +542,7 @@ class FdmDataFetcher extends EventEmitter {
 
     const decryptPromises = enterpriseApps.map((spec) => this.#decryptAppSpec(spec));
 
+    // these don't reject
     const decryptedSpecs = await Promise.all(decryptPromises);
 
     specMapper(decryptedSpecs);
@@ -576,6 +667,7 @@ class FdmDataFetcher extends EventEmitter {
       .head(this.endpoints.globalAppSpecs.url)
       .catch((err) => {
         log.info(`Unable to do HTTP HEAD for app specs: ${err.message}`);
+
         return null;
       });
 

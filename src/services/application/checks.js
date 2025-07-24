@@ -663,8 +663,8 @@ async function checkBlockBook(ip, port, appsname) {
     let coin = appsname.replace('blockbook', '');
     coin = coin.replace(/\d+/g, '');
     const index = coinList.indexOf(coin);
-    let response1; let
-      response2;
+    let response1;
+    let response2;
     const agent = new https.Agent({
       rejectUnauthorized: false,
     });
@@ -713,7 +713,6 @@ async function checkAlgorand(ip, port) {
   };
   try {
     const status = await axios.get(`http://${ip}:${port}/health`, axiosConfig);
-    // eslint-disable-next-lin:e no-restricted-syntax
     if (status.data.isSynced === true) {
       return true;
     }

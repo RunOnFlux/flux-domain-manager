@@ -75,7 +75,10 @@ async function getFluxIPs(tier) {
 // Retrieves application specifications from network api
 async function getAppSpecifications() {
   try {
-    const fluxnodeList = await axios.get('https://api.runonflux.io/apps/globalappsspecifications', axiosConfig);
+    const fluxnodeList = await axios.get(
+      'https://api.runonflux.io/apps/globalappsspecifications',
+      axiosConfig,
+    );
     if (fluxnodeList.data.status === 'success') {
       return fluxnodeList.data.data || [];
     }
@@ -88,14 +91,19 @@ async function getAppSpecifications() {
 // Retrieves IP's that a given application in running on
 async function getApplicationLocation(appName) {
   try {
-    const fluxnodeList = await axios.get(`https://api.runonflux.io/apps/location/${appName}`, axiosConfig);
+    const fluxnodeList = await axios.get(
+      `https://api.runonflux.io/apps/location/${appName}`,
+      axiosConfig,
+    );
     if (fluxnodeList.data.status === 'success') {
       return fluxnodeList.data.data || [];
     }
-    console.log(`${fluxnodeList.data.status} received from getApplicationLocation`);
+    console.log(
+      `${fluxnodeList.data.status} received from getApplicationLocation`,
+    );
     return [];
   } catch (e) {
-    log.error(e);
+    log.error(`Failed to get app location for ${appName}. ${e.message}`);
     return [];
   }
 }

@@ -6,7 +6,11 @@ const log = require('../lib/log');
 const ipService = require('./ipService');
 const fluxService = require('./flux');
 const haproxyTemplate = require('./haproxyTemplate');
-const { processApplications, getUnifiedDomains, getCustomDomains } = require('./domain');
+const {
+  processApplications,
+  getUnifiedDomains,
+  getCustomDomains,
+} = require('./domain');
 const { executeCertificateOperations } = require('./domain/cert');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
@@ -15,68 +19,22 @@ const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
 const serviceHelper = require('./serviceHelper');
 
+const { FdmDataFetcher } = require('./flux/dataFetcher');
+
 let myIP = null;
 let myFDMnameORip = null;
-let permanentMessages = null;
-let globalAppSpecs = null;
-const unifiedAppsDomains = [];
+
+let unifiedAppsDomains = [];
 const mapOfNamesIps = {};
 let recentlyConfiguredApps = null;
 let recentlyConfiguredGApps = null;
+let permanentMessages = [];
 let lastHaproxyAppsConfig = [];
 let gAppsProcessingFinishedOnce = false;
 let nonGAppsProcessingFinishedOnce = false;
-
-async function getPermanentMessages() {
-  try {
-    const messages = await fluxService.getFluxPermanentMessages();
-    if (messages.length) {
-      permanentMessages = messages;
-    }
-  } catch (error) {
-    log.error(error);
-  }
-}
-
-async function getGlobalAppSpecs() {
-  try {
-    const specs = await fluxService.getAppSpecifications();
-    if (specs.length) {
-      globalAppSpecs = specs;
-      specs.forEach((app) => {
-        if (app.version <= 3) {
-          for (let i = 0; i < app.ports.length; i += 1) {
-            if (app.domains[i]) {
-              const portDomains = app.domains[i].split(',');
-              const domains = [];
-              for (let portDomain of portDomains) {
-                portDomain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, '').toLowerCase(); // . is allowed
-                domains.push(portDomain);
-              }
-              unifiedAppsDomains.push({ name: app.name, domains });
-            }
-          }
-        } else {
-          for (const component of app.compose) {
-            const domains = [];
-            for (let i = 0; i < component.ports.length; i += 1) {
-              const portDomains = component.domains[i].split(',');
-              // eslint-disable-next-line no-loop-func
-              for (let portDomain of portDomains) {
-                // eslint-disable-next-line no-param-reassign
-                portDomain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, '').toLowerCase(); // . is allowed
-                domains.push(portDomain);
-              }
-            }
-            unifiedAppsDomains.push({ name: app.name, domains });
-          }
-        }
-      });
-    }
-  } catch (error) {
-    log.error(error);
-  }
-}
+let dataFetcher = null;
+let configQueued = false;
+let configRunning = false;
 
 async function checkDomainOwnership(domain, appName) {
   try {
@@ -84,7 +42,9 @@ async function checkDomainOwnership(domain, appName) {
       return true;
     }
     const filteredDomains = unifiedAppsDomains.filter((entry) => entry.domains.includes(domain.toLowerCase()));
-    const ourAppExists = filteredDomains.find((existing) => existing.name === appName);
+    const ourAppExists = filteredDomains.find(
+      (existing) => existing.name === appName,
+    );
     if (filteredDomains.length >= 2 && ourAppExists) {
       // we have multiple apps that has the same domain assigned;
       // check permanent messages for these apps
@@ -92,7 +52,8 @@ async function checkDomainOwnership(domain, appName) {
       filteredDomains.forEach((x) => {
         appNames.push(x.name);
       });
-      const filteredPermanentMessages = permanentMessages.filter((mes) => appNames.includes(mes.appSpecifications.name)); // now we have only the messages that touch the apps that have the domain
+      // now we have only the messages that touch the apps that have the domain
+      const filteredPermanentMessages = permanentMessages.filter((mes) => appNames.includes(mes.appSpecifications.name));
       const adjustedFilteredPermMessages = [];
       filteredPermanentMessages.forEach((message) => {
         const stringedMessage = JSON.stringify(message).toLowerCase();
@@ -100,11 +61,13 @@ async function checkDomainOwnership(domain, appName) {
           adjustedFilteredPermMessages.push(message);
         }
       });
-      const sortedPermanentFilteredMessages = adjustedFilteredPermMessages.sort((a, b) => {
-        if (a.height < b.height) return -1;
-        if (a.height > b.height) return 1;
-        return 0;
-      });
+      const sortedPermanentFilteredMessages = adjustedFilteredPermMessages.sort(
+        (a, b) => {
+          if (a.height < b.height) return -1;
+          if (a.height > b.height) return 1;
+          return 0;
+        },
+      );
       const oldestMessage = sortedPermanentFilteredMessages[0];
       if (oldestMessage.appSpecifications.name === appName) {
         return true;
@@ -124,14 +87,16 @@ async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `${config.uiName}.${config.mainDomain}`;
     const api = `${config.apiName}.${config.mainDomain}`;
-    let uiPrimary; let
-      apiPrimary;
+    let uiPrimary;
+    let apiPrimary;
     if (config.primaryDomain) {
       uiPrimary = `${config.uiName}.${config.primaryDomain}`;
       apiPrimary = `${config.apiName}.${config.primaryDomain}`;
     }
 
-    const fluxIPs = (await fluxService.getFluxIPs('STRATUS')).filter((ip) => !ip.split(':')[1]); // use only stratus for home and on default api port
+    const fluxIPs = (await fluxService.getFluxIPs('STRATUS')).filter(
+      (ip) => !ip.split(':')[1],
+    ); // use only stratus for home and on default api port
     if (fluxIPs.length < 100) {
       throw new Error('Invalid Flux List');
     }
@@ -142,10 +107,14 @@ async function generateAndReplaceMainHaproxyConfig() {
 
     for (const ip of fluxIPsForBalancing) {
       // eslint-disable-next-line no-await-in-loop
-      const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
+      const isOK = await applicationChecks.checkMainFlux(
+        ip.split(':')[0],
+        ip.split(':')[1],
+      ); // can be undefined
       if (!isOK) {
         const index = fluxIPsForBalancing.indexOf(ip);
-        if (index > -1) { // only splice array when item is found
+        if (index > -1) {
+          // only splice array when item is found
           fluxIPsForBalancing.splice(index, 1); // 2nd parameter means remove one item only
           console.log(`removing ${ip} as backend`);
         }
@@ -154,9 +123,20 @@ async function generateAndReplaceMainHaproxyConfig() {
 
     if (aux !== fluxIPsForBalancing.length && fluxIPsForBalancing.length > 0) {
       // lets remove already the nodes not ok before looking for new ones
-      console.log(`Removing some nodes from backend that are no longer ok: ${aux - fluxIPsForBalancing.length}`);
-      const hc = await haproxyTemplate.createMainHaproxyConfig(ui, api, fluxIPsForBalancing, uiPrimary, apiPrimary);
-      console.log(hc);
+      console.log(
+        `Removing some nodes from backend that are no longer ok: ${
+          aux - fluxIPsForBalancing.length
+        }`,
+      );
+      const hc = await haproxyTemplate.createMainHaproxyConfig(
+        ui,
+        api,
+        fluxIPsForBalancing,
+        uiPrimary,
+        apiPrimary,
+      );
+      // stop logging the entire ha proxy config to console
+      // console.log(hc);
       const dataToWrite = hc;
       // test haproxy config
       const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
@@ -179,12 +159,16 @@ async function generateAndReplaceMainHaproxyConfig() {
           continue;
         }
         // eslint-disable-next-line no-await-in-loop
-        const isOK = await applicationChecks.checkMainFlux(ip.split(':')[0], ip.split(':')[1]); // can be undefined
+        const isOK = await applicationChecks.checkMainFlux(
+          ip.split(':')[0],
+          ip.split(':')[1],
+        ); // can be undefined
         if (isOK) {
           fluxIPsForBalancing.push(ip);
           console.log(`adding ${ip} as backend`);
         }
-        if (fluxIPsForBalancing.length > 100) { // maximum of 100 for load balancing
+        if (fluxIPsForBalancing.length > 100) {
+          // maximum of 100 for load balancing
           break;
         }
       }
@@ -193,8 +177,15 @@ async function generateAndReplaceMainHaproxyConfig() {
     if (fluxIPsForBalancing.length < 10) {
       throw new Error('Not enough ok nodes, probably error');
     }
-    const hc = await haproxyTemplate.createMainHaproxyConfig(ui, api, fluxIPsForBalancing, uiPrimary, apiPrimary);
-    console.log(hc);
+    const hc = await haproxyTemplate.createMainHaproxyConfig(
+      ui,
+      api,
+      fluxIPsForBalancing,
+      uiPrimary,
+      apiPrimary,
+    );
+    // stop logging entire ha proxy config to console
+    // console.log(hc);
     const dataToWrite = hc;
     // test haproxy config
     const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
@@ -238,9 +229,15 @@ async function selectIPforG(ips, app) {
   // choose the ip address whose sum of digits is the lowest
   if (ips && ips.length) {
     let chosenIp = ips[0];
-    let chosenIpSum = ips[0].split(':')[0].split('.').reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
+    let chosenIpSum = ips[0]
+      .split(':')[0]
+      .split('.')
+      .reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
     for (const ip of ips) {
-      const sum = ip.split(':')[0].split('.').reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
+      const sum = ip
+        .split(':')[0]
+        .split('.')
+        .reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
       if (sum < chosenIpSum) {
         chosenIp = ip;
         chosenIpSum = sum;
@@ -292,7 +289,8 @@ async function updateHaproxy(haproxyAppsConfig) {
     }
     updateHaproxyRunning = true;
     const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
-    console.log(hc);
+    // stop logging entire ha proxy config to console
+    // console.log(hc);
     const dataToWrite = hc;
     // test haproxy config
     const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
@@ -330,7 +328,10 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
         const portDomains = app.domains[i].split(',');
         for (let portDomain of portDomains) {
           // eslint-disable-next-line no-param-reassign
-          portDomain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
+          portDomain = portDomain
+            .replace('https://', '')
+            .replace('http://', '')
+            .replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
           const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
           if (isDomainAllowed === false) {
             // eslint-disable-next-line no-continue
@@ -342,9 +343,24 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
             portDomain = portDomain.split('www.')[1];
           }
           // prevention for double backend on custom domains, can be improved
-          const domainAssigned = configuredApps.find((appThatIsConfigured) => appThatIsConfigured.domain === portDomain);
-          if (portDomain && portDomain.includes('.') && portDomain.length > 3 && !portDomain.toLowerCase().includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`) && !domainAssigned) { // prevent double backend
-            const domainExists = configuredApps.find((a) => a.domain === portDomain.toLowerCase());
+          const domainAssigned = configuredApps.find(
+            (appThatIsConfigured) => appThatIsConfigured.domain === portDomain,
+          );
+          if (
+            portDomain
+            && portDomain.includes('.')
+            && portDomain.length > 3
+            && !portDomain
+              .toLowerCase()
+              .includes(
+                `${config.appSubDomain}.${config.mainDomain.split('.')[0]}`,
+              )
+            && !domainAssigned
+          ) {
+            // prevent double backend
+            const domainExists = configuredApps.find(
+              (a) => a.domain === portDomain.toLowerCase(),
+            );
             if (!domainExists) {
               const configuredAppCustom = {
                 name: app.name,
@@ -360,7 +376,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
             }
             const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
             if (wwwAdjustedDomain) {
-              const domainExistsB = configuredApps.find((a) => a.domain === wwwAdjustedDomain);
+              const domainExistsB = configuredApps.find(
+                (a) => a.domain === wwwAdjustedDomain,
+              );
               if (!domainExistsB) {
                 const configuredAppCustom = {
                   name: app.name,
@@ -378,7 +396,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
 
             const testAdjustedDomain = `test.${portDomain.toLowerCase()}`;
             if (testAdjustedDomain) {
-              const domainExistsB = configuredApps.find((a) => a.domain === testAdjustedDomain);
+              const domainExistsB = configuredApps.find(
+                (a) => a.domain === testAdjustedDomain,
+              );
               if (!domainExistsB) {
                 const configuredAppCustom = {
                   name: app.name,
@@ -432,7 +452,10 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
         // eslint-disable-next-line no-loop-func
         for (let portDomain of portDomains) {
           // eslint-disable-next-line no-param-reassign
-          portDomain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
+          portDomain = portDomain
+            .replace('https://', '')
+            .replace('http://', '')
+            .replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
           const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
           if (isDomainAllowed === false) {
             // eslint-disable-next-line no-continue
@@ -443,10 +466,29 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
             portDomain = portDomain.split('www.')[1];
           }
           // prevention for double backend on custom domains, can be improved
-          const domainAssigned = configuredApps.find((appThatIsConfigured) => appThatIsConfigured.domain === portDomain);
-          if (portDomain && portDomain.includes('.') && portDomain.length >= 3 && !portDomain.toLowerCase().includes(`${config.appSubDomain}.${config.mainDomain.split('.')[0]}`) && !domainAssigned) {
-            if (!portDomain.includes(`${config.appSubDomain}${config.mainDomain.split('.')[0]}`)) { // prevent double backend
-              const domainExists = configuredApps.find((a) => a.domain === portDomain.toLowerCase());
+          const domainAssigned = configuredApps.find(
+            (appThatIsConfigured) => appThatIsConfigured.domain === portDomain,
+          );
+          if (
+            portDomain
+            && portDomain.includes('.')
+            && portDomain.length >= 3
+            && !portDomain
+              .toLowerCase()
+              .includes(
+                `${config.appSubDomain}.${config.mainDomain.split('.')[0]}`,
+              )
+            && !domainAssigned
+          ) {
+            if (
+              !portDomain.includes(
+                `${config.appSubDomain}${config.mainDomain.split('.')[0]}`,
+              )
+            ) {
+              // prevent double backend
+              const domainExists = configuredApps.find(
+                (a) => a.domain === portDomain.toLowerCase(),
+              );
               if (!domainExists) {
                 const configuredAppCustom = {
                   name: app.name,
@@ -463,7 +505,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
 
               const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
               if (wwwAdjustedDomain) {
-                const domainExistsB = configuredApps.find((a) => a.domain === wwwAdjustedDomain);
+                const domainExistsB = configuredApps.find(
+                  (a) => a.domain === wwwAdjustedDomain,
+                );
                 if (!domainExistsB) {
                   const configuredAppCustom = {
                     name: app.name,
@@ -481,7 +525,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
 
               const testAdjustedDomain = `test.${portDomain.toLowerCase()}`;
               if (testAdjustedDomain) {
-                const domainExistsB = configuredApps.find((a) => a.domain === testAdjustedDomain);
+                const domainExistsB = configuredApps.find(
+                  (a) => a.domain === testAdjustedDomain,
+                );
                 if (!domainExistsB) {
                   const configuredAppCustom = {
                     name: app.name,
@@ -505,7 +551,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
     // push main domain
     for (let q = 0; q < app.compose.length; q += 1) {
       for (let w = 0; w < app.compose[q].ports.length; w += 1) {
-        const mainDomainExists = configuredApps.find((qw) => qw.domain === domains[domains.length - 1]);
+        const mainDomainExists = configuredApps.find(
+          (qw) => qw.domain === domains[domains.length - 1],
+        );
         if (!mainDomainExists) {
           const mainApp = {
             name: app.name,
@@ -523,42 +571,20 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
   }
 }
 
-async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
+/**
+ *
+ * @param {Map<string, Object>} globalAppSpecs Pre filtered NonG Applications
+ */
+async function generateAndReplaceMainApplicationHaproxyConfig(globalAppSpecsMap) {
   try {
     log.info(`Non G Mode STARTED at${new Date()}`);
-    // get permanent messages on the network
-    await getPermanentMessages();
-    // get applications on the network
-    await getGlobalAppSpecs();
 
-    if (!permanentMessages || !globalAppSpecs) {
-      throw new Error('Obtained specifications invalid');
-    }
+    // just use the map in the future
+    const globalAppSpecs = globalAppSpecsMap.values();
 
     // filter applications based on config
-    let applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
+    const applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
 
-    const nonGApps = [];
-    // in G mode we process only apps that do have g: in containerData
-    for (const app of applicationSpecifications) {
-      if (app.version <= 3) {
-        if (!app.containerData.includes('g:')) {
-          nonGApps.push(app);
-        }
-      } else {
-        let isG = false;
-        for (const component of app.compose) {
-          if (component.containerData.includes('g:')) {
-            isG = true;
-          }
-        }
-        if (!isG) {
-          nonGApps.push(app);
-        }
-      }
-    }
-
-    applicationSpecifications = nonGApps;
     // for every application do following
     // get name, ports
     // main application domain is name.app.domain, for every port we have name-port.app.domain
@@ -569,7 +595,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
     // if all ok, add for creation of domain
     await createSSLDirectory();
     log.info('SSL directory checked');
-    const appsOK = await processApplications(applicationSpecifications, myFDMnameORip, myIP);
+    const appsOK = await processApplications(
+      applicationSpecifications,
+      myFDMnameORip,
+      myIP,
+    );
     // check appsOK against mandatoryApps
     let { mandatoryApps } = config;
     if (config.useSubset) {
@@ -632,7 +662,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
         const applicationWithChecks = applicationChecks.applicationWithChecks(app);
         if (applicationWithChecks) {
           let promiseArray = [];
-          for (const [i, location] of appLocations.entries()) { // run coded checks for app
+          for (const [i, location] of appLocations.entries()) {
+            // run coded checks for app
             promiseArray.push(addAppIps(app, location.ip));
             if ((i + 1) % 10 === 0) {
               // eslint-disable-next-line no-await-in-loop
@@ -660,29 +691,52 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
             });
             appIpsOnAppsChecks = [];
           }
-        } else if (app.compose && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'))) {
+        } else if (
+          app.compose
+          && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'))
+        ) {
           // app using sharedDB project
           app.isRdata = true;
           appIps = appLocations.map((location) => location.ip);
           const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
           log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
-          if (componentUsingSharedDB.ports && componentUsingSharedDB.ports.length > 0) {
-            const apiPort = componentUsingSharedDB.ports[componentUsingSharedDB.ports.length - 1]; // it's the last port from the shareddb that is the api port
+          if (
+            componentUsingSharedDB.ports
+            && componentUsingSharedDB.ports.length > 0
+          ) {
+            const apiPort = componentUsingSharedDB.ports[
+              componentUsingSharedDB.ports.length - 1
+            ]; // it's the last port from the shareddb that is the api port
             let operatorClusterStatus = null;
             const httpTimeout = 5000;
             // eslint-disable-next-line no-await-in-loop
             for (const ip of appIps) {
               const url = `http://${ip.split(':')[0]}:${apiPort}/status`;
-              log.info(`sharedDBApps: ${app.name} going to check operator status on url ${url}`);
+              log.info(
+                `sharedDBApps: ${app.name} going to check operator status on url ${url}`,
+              );
               // eslint-disable-next-line no-await-in-loop
-              const operatorStatus = await serviceHelper.httpGetRequest(url, httpTimeout).catch((error) => log.error(`sharedDBApps: ${app.name} operatorStatus error: ${error}`));
-              if (operatorStatus && operatorStatus.data && operatorStatus.data.status === 'OK') {
-                operatorClusterStatus = operatorStatus.data.clusterStatus.map((cluster) => cluster.ip);
+              const operatorStatus = await serviceHelper
+                .httpGetRequest(url, httpTimeout)
+                .catch((error) => log.error(
+                  `sharedDBApps: ${app.name} operatorStatus error: ${error}`,
+                ));
+              if (
+                operatorStatus
+                && operatorStatus.data
+                && operatorStatus.data.status === 'OK'
+              ) {
+                operatorClusterStatus = operatorStatus.data.clusterStatus.map(
+                  (cluster) => cluster.ip,
+                );
                 break;
               }
             }
             if (operatorClusterStatus) {
-              appIps.sort((a, b) => operatorClusterStatus.indexOf(a) - operatorClusterStatus.indexOf(b));
+              appIps.sort(
+                (a, b) => operatorClusterStatus.indexOf(a)
+                  - operatorClusterStatus.indexOf(b),
+              );
               log.info(`Application ${app.name} was setup as a sharedDBApps`);
             } else {
               appIps.sort((a, b) => {
@@ -716,7 +770,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
             if (componentMySQLIndex >= 0) {
               app.compose.splice(componentMySQLIndex, 1);
             }
-          } else if ((app.version <= 3 && app.containerData.includes('r:')) || (app.compose && app.compose.find((comp) => comp.containerData.includes('r:')))) {
+          } else if (
+            (app.version <= 3 && app.containerData.includes('r:'))
+            || (app.compose
+              && app.compose.find((comp) => comp.containerData.includes('r:')))
+          ) {
             app.isRdata = true;
             appIps.sort((a, b) => {
               if (!a.runningSince && b.runningSince) {
@@ -750,7 +808,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         addConfigurations(configuredApps, app, appIps, false);
-        log.info(`Application ${app.name} with specific checks: ${applicationWithChecks} is OK. Proceeding to FDM`);
+        log.info(
+          `Application ${app.name} with specific checks: ${applicationWithChecks} is OK. Proceeding to FDM`,
+        );
       } else {
         log.warn(`Application ${app.name} is excluded. Not running properly?`);
         if (config.mandatoryApps.includes(app.name)) {
@@ -763,7 +823,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
       throw new Error('PANIC PLEASE DEV HELP ME');
     }
 
-    if (JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)) {
+    if (
+      JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)
+    ) {
       log.info('No changes in Non G Mode configuration detected');
     } else {
       log.info('Changes in Non G Mode configuration detected');
@@ -775,8 +837,15 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
       haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps); // we need to put always in same order to avoid. non g first g at end
     }
 
-    if (nonGAppsProcessingFinishedOnce && gAppsProcessingFinishedOnce && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
-      log.info(`Non G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`);
+    if (
+      nonGAppsProcessingFinishedOnce
+      && gAppsProcessingFinishedOnce
+      && JSON.stringify(lastHaproxyAppsConfig)
+        !== JSON.stringify(haproxyAppsConfig)
+    ) {
+      log.info(
+        `Non G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`,
+      );
       lastHaproxyAppsConfig = haproxyAppsConfig;
       await updateHaproxy(haproxyAppsConfig);
     }
@@ -784,48 +853,19 @@ async function generateAndReplaceMainApplicationHaproxyConfig(timeout = 30) {
     log.error(error);
   } finally {
     log.info(`Non G Mode ENDED at${new Date()}`);
-    setTimeout(() => {
-      generateAndReplaceMainApplicationHaproxyConfig();
-    }, timeout * 1000);
   }
 }
 
-async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) {
+async function generateAndReplaceMainApplicationHaproxyGAppsConfig(
+  globalAppSpecsMap,
+) {
   try {
     log.info(`G Mode STARTED at${new Date()}`);
-    // get permanent messages on the network
-    await getPermanentMessages();
-    // get applications on the network
-    await getGlobalAppSpecs();
 
-    if (!permanentMessages || !globalAppSpecs) {
-      throw new Error('Obtained specifications invalid');
-    }
+    const globalAppSpecs = globalAppSpecsMap.values();
 
     // filter applications based on config
-    let applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
-
-    const gApps = [];
-    // in G mode we process only apps that do have g: in containerData
-    for (const app of applicationSpecifications) {
-      if (app.version <= 3) {
-        if (app.containerData.includes('g:')) {
-          gApps.push(app);
-        }
-      } else {
-        let isG = false;
-        for (const component of app.compose) {
-          if (component.containerData.includes('g:')) {
-            isG = true;
-          }
-        }
-        if (isG) {
-          gApps.push(app);
-        }
-      }
-    }
-
-    applicationSpecifications = gApps;
+    const applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
 
     // for every application do following
     // get name, ports
@@ -837,7 +877,11 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
     // if all ok, add for creation of domain
     await createSSLDirectory();
     log.info('SSL directory checked');
-    const appsOK = await processApplications(applicationSpecifications, myFDMnameORip, myIP);
+    const appsOK = await processApplications(
+      applicationSpecifications,
+      myFDMnameORip,
+      myIP,
+    );
 
     // continue with appsOK
     const configuredApps = []; // object of domain, port, ips for backend and isRdata
@@ -863,21 +907,27 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
         if (selectedIP) {
           appIps.push(selectedIP);
           addConfigurations(configuredApps, app, appIps, true);
-          log.info(`G Application ${app.name} is OK selected IP is ${selectedIP}. Proceeding to FDM`);
+          log.info(
+            `G Application ${app.name} is OK selected IP is ${selectedIP}. Proceeding to FDM`,
+          );
         }
 
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
       } else {
-        log.warn(`G Application ${app.name} is excluded. Not running properly?`);
+        log.warn(
+          `G Application ${app.name} is excluded. Not running properly?`,
+        );
         if (config.mandatoryApps.includes(app.name)) {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
       }
     }
 
-    if (JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredGApps)) {
+    if (
+      JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredGApps)
+    ) {
       log.info('No changes in G Mode configuration detected');
     } else {
       log.info('Changes in G Mode configuration detected');
@@ -890,8 +940,15 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
       haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
     }
 
-    if (nonGAppsProcessingFinishedOnce && gAppsProcessingFinishedOnce && JSON.stringify(lastHaproxyAppsConfig) !== JSON.stringify(haproxyAppsConfig)) {
-      log.info(`G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`);
+    if (
+      nonGAppsProcessingFinishedOnce
+      && gAppsProcessingFinishedOnce
+      && JSON.stringify(lastHaproxyAppsConfig)
+        !== JSON.stringify(haproxyAppsConfig)
+    ) {
+      log.info(
+        `G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`,
+      );
       lastHaproxyAppsConfig = haproxyAppsConfig;
       await updateHaproxy(haproxyAppsConfig);
     }
@@ -899,10 +956,6 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(timeout = 5) 
     log.error(error);
   } finally {
     log.info(`G Mode ENDED at${new Date()}`);
-
-    setTimeout(() => {
-      generateAndReplaceMainApplicationHaproxyGAppsConfig();
-    }, timeout * 1000);
   }
 }
 
@@ -912,15 +965,24 @@ async function obtainCertificatesMode() {
     let applicationSpecifications = await fluxService.getAppSpecifications();
 
     // filter applications based on config
-    applicationSpecifications = getApplicationsToProcess(applicationSpecifications);
+    applicationSpecifications = getApplicationsToProcess(
+      applicationSpecifications,
+    );
     for (const appSpecs of applicationSpecifications) {
       const customDomains = getCustomDomains(appSpecs);
       if (customDomains.length) {
         log.info(`Processing ${appSpecs.name}`);
         // eslint-disable-next-line no-await-in-loop
-        const customCertOperationsSuccessful = await executeCertificateOperations(customDomains, DOMAIN_TYPE.CUSTOM, myFDMnameORip, myIP);
+        const customCertOperationsSuccessful = await executeCertificateOperations(
+          customDomains,
+          DOMAIN_TYPE.CUSTOM,
+          myFDMnameORip,
+          myIP,
+        );
         if (customCertOperationsSuccessful) {
-          log.info(`Application domain and ssl for custom domains of ${appSpecs.name} is ready`);
+          log.info(
+            `Application domain and ssl for custom domains of ${appSpecs.name} is ready`,
+          );
         } else {
           log.error(`Domain/ssl issues for custom domains of ${appSpecs.name}`);
         }
@@ -940,10 +1002,58 @@ async function obtainCertificatesMode() {
   }
 }
 
+async function startAppDataFetcher() {
+  // we shouldn't need the running / queued state.
+  // However, until the load balancer ges fixed, you can switch
+  // backends randomly, which seem to all have different views of the
+  // network. So this is in place so that we only ever run one config
+  // generation, and queue one generation. It probably needs to stay anyway,
+  // as the app specs could get updated each block (which will soon be 30sec)
+  dataFetcher.on(
+    'appSpecsUpdated',
+    async (specs) => {
+      unifiedAppsDomains = specs.appFqdns;
+
+      if (configQueued && configRunning) {
+        console.log('appSpecsUpdated event received, while '
+          + 'an update already queued, skipping');
+
+        return;
+      }
+
+      if (configRunning) {
+        console.log('appSpecsUpdated event received while an '
+          + 'update is running. Queueing next update.');
+        configQueued = true;
+
+        return;
+      }
+
+      if (configQueued) configQueued = false;
+
+      configRunning = true;
+
+      await generateAndReplaceMainApplicationHaproxyConfig(specs.nonGApps);
+      await generateAndReplaceMainApplicationHaproxyGAppsConfig(specs.gApps);
+
+      configRunning = false;
+    },
+  );
+  dataFetcher.on('permMessagesUpdated', (permMessages) => {
+    permanentMessages = permMessages;
+  });
+
+  // We just run this once prior to the appSpec loop so the permanent messages
+  // are populated first
+  await dataFetcher.permMessageRunner();
+  dataFetcher.startAppSpecLoop();
+  dataFetcher.startPermMessagesLoop();
+}
+
 // services run every 6 mins
 function initializeServices() {
   myIP = ipService.localIP();
-  console.log(myIP);
+  console.log(`public IP: ${myIP}`);
   if (config.domainAppType === 'CNAME') {
     myFDMnameORip = config.fdmAppDomain;
   } else {
@@ -954,25 +1064,34 @@ function initializeServices() {
       obtainCertificatesMode();
       startCertRsync();
       log.info('FDM Certificate Service initialized.');
-    } else if (config.mainDomain === config.cloudflare.domain && !config.cloudflare.manageapp) {
+    } else if (
+      config.mainDomain === config.cloudflare.domain
+      && !config.cloudflare.manageapp
+    ) {
       generateAndReplaceMainHaproxyConfig();
       log.info('Flux Main Node Domain Service initiated.');
-    } else if (config.mainDomain === config.pDNS.domain && !config.pDNS.manageapp) {
+    } else if (
+      config.mainDomain === config.pDNS.domain
+      && !config.pDNS.manageapp
+    ) {
       generateAndReplaceMainHaproxyConfig();
       log.info('Flux Main Node Domain Service initiated.');
-    } else if (config.mainDomain === config.cloudflare.domain && config.cloudflare.manageapp) {
-      // only runs on main FDM handles X.APP.runonflux.io
-      generateAndReplaceMainApplicationHaproxyConfig();
-      setTimeout(() => {
-        generateAndReplaceMainApplicationHaproxyGAppsConfig();
-      }, 60 * 1000);
+    } else if (
+      config.mainDomain === config.cloudflare.domain
+      && config.cloudflare.manageapp
+      && !dataFetcher.listenerCount('appSpecsUpdated')
+    ) {
+      // only runs on main FDM handles X.APP.runonflux.io. This only runs once
+      // to add event listeners
+      startAppDataFetcher();
+
       log.info('Flux Main Application Domain Service initiated.');
-    } else if (config.mainDomain === config.pDNS.domain && config.pDNS.manageapp) {
-      // only runs on main FDM handles X.APP.runonflux.io
-      generateAndReplaceMainApplicationHaproxyConfig();
-      setTimeout(() => {
-        generateAndReplaceMainApplicationHaproxyGAppsConfig();
-      }, 60 * 1000);
+    } else if (
+      config.mainDomain === config.pDNS.domain
+      && config.pDNS.manageapp
+    ) {
+      // only runs on main FDM handles X.APP.runonflux.io. This only runs once
+      startAppDataFetcher();
       log.info('Flux Main Application Domain Service initiated.');
     } else {
       log.info('CUSTOM DOMAIN SERVICE UNAVAILABLE');
@@ -986,6 +1105,17 @@ function initializeServices() {
 }
 
 async function start() {
+  if (!dataFetcher) {
+    // these are symlinked to the correct key / pem on every box
+    dataFetcher = new FdmDataFetcher({
+      keyPath: '/etc/ssl/private/fdm-arcane.key',
+      certPath: '/etc/ssl/certs/fdm-arcane.pem',
+      caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
+      fluxApiBaseUrl: 'https://api.runonflux.io/',
+      sasApiBaseUrl: 'https://10.100.0.170/api/',
+    });
+  }
+
   try {
     log.info('Initiating FDM API services...');
     initializeServices();

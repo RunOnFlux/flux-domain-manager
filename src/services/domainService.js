@@ -1005,7 +1005,7 @@ async function startApplicationProcessing() {
   const appLoop = async () => {
     await generateAndReplaceMainApplicationHaproxyConfig();
     await generateAndReplaceMainApplicationHaproxyGAppsConfig();
-    setTimeout(appLoop, 30_000);
+    setImmediate(appLoop);
   };
 
   dataFetcher.on(

@@ -1082,7 +1082,7 @@ function initializeServices() {
     } else if (
       config.mainDomain === config.cloudflare.domain
       && config.cloudflare.manageapp
-      && !dataFetcher.listenerCount('appSpecsUpdated')
+      && !dataFetcher
     ) {
       // only runs on main FDM handles X.APP.runonflux.io. This only runs once
       // to add event listeners
@@ -1092,6 +1092,7 @@ function initializeServices() {
     } else if (
       config.mainDomain === config.pDNS.domain
       && config.pDNS.manageapp
+      && !dataFetcher
     ) {
       // only runs on main FDM handles X.APP.runonflux.io. This only runs once
       startApplicationProcessing();

@@ -1,6 +1,7 @@
 /* eslint-disable prefer-destructuring */
 /* eslint-disable no-restricted-syntax */
 const config = require('config');
+const crypto = require('node:crypto');
 const fs = require('fs').promises;
 const log = require('../lib/log');
 const ipService = require('./ipService');
@@ -28,13 +29,13 @@ let unifiedAppsDomains = [];
 const mapOfNamesIps = {};
 let recentlyConfiguredApps = [];
 let recentlyConfiguredGApps = [];
-let permanentMessages = [];
-let lastHaproxyAppsConfig = [];
 
 let dataFetcher = null;
 
+let permanentMessages = [];
 let nonGApps = new Map();
 let gApps = new Map();
+let appsLocations = new Map();
 
 async function checkDomainOwnership(domain, appName) {
   try {
@@ -614,15 +615,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     const configuredApps = []; // object of domain, port, ips for backend and isRdata
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
-      // eslint-disable-next-line no-await-in-loop
-      let appLocations = await fluxService.getApplicationLocation(app.name);
-      let appLocationsSearchNumber = 0;
-      while (appLocations.length === 0 && appLocationsSearchNumber < 5) {
-        log.info(`No apps locations found for application ${app.name}`);
-        appLocationsSearchNumber += 1;
-        // eslint-disable-next-line no-await-in-loop
-        appLocations = await fluxService.getApplicationLocation(app.name);
-      }
+
+      const appLocations = appsLocations.get(app.name) || [];
+
       if (app.name === 'blockbookbitcoin') {
         appLocations.push({ ip: '[2001:41d0:d00:b800::20]:9130' });
         appLocations.push({ ip: '[2001:41d0:d00:b800::21]:9130' });
@@ -822,29 +817,36 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       throw new Error('PANIC PLEASE DEV HELP ME');
     }
 
-    if (
-      JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)
-    ) {
+    const serializedApps = JSON.stringify(configuredApps);
+    const lastSerializedApps = JSON.stringify(recentlyConfiguredApps);
+
+    if (serializedApps === lastSerializedApps) {
       log.info('No changes in Non G Mode configuration detected');
-    } else {
-      log.info('Changes in Non G Mode configuration detected');
+      return;
     }
+
     let haproxyAppsConfig = [];
     recentlyConfiguredApps = configuredApps;
 
+    // if g apps haven't completed once - we don't update the config
     if (!recentlyConfiguredGApps.length) return;
+
+    log.info('Changes in Non G Mode configuration detected');
+
+    const appsHasher = crypto.createHash('sha1');
+    const appsSha = appsHasher.update(serializedApps).digest('hex');
+    const lastAppsHasher = crypto.createHash('sha1');
+    const lastAppsSha = lastAppsHasher.update(lastSerializedApps).digest('hex');
+
+    console.log('Non G apps SHA:', appsSha, 'Last Non G apps SHA:', lastAppsSha);
 
     // we need to put always in same order to avoid. non g first g at end
     haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps);
 
-    if (JSON.stringify(lastHaproxyAppsConfig)
-      !== JSON.stringify(haproxyAppsConfig)) {
-      log.info(
-        `Non G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`,
-      );
-      lastHaproxyAppsConfig = haproxyAppsConfig;
-      await updateHaproxy(haproxyAppsConfig);
-    }
+    log.info(
+      `Non G Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
+    );
+    await updateHaproxy(haproxyAppsConfig);
   } catch (error) {
     log.error(error);
   } finally {
@@ -881,15 +883,8 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     const configuredApps = []; // object of domain, port, ips for backend and isRdata
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
-      // eslint-disable-next-line no-await-in-loop
-      let appLocations = await fluxService.getApplicationLocation(app.name);
-      let appLocationsSearchNumber = 0;
-      while (appLocations.length === 0 && appLocationsSearchNumber < 5) {
-        log.info(`No apps locations found for application ${app.name}`);
-        appLocationsSearchNumber += 1;
-        // eslint-disable-next-line no-await-in-loop
-        appLocations = await fluxService.getApplicationLocation(app.name);
-      }
+
+      const appLocations = appsLocations.get(app.name) || [];
 
       if (appLocations.length > 0) {
         const appIps = [];
@@ -919,30 +914,36 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
       }
     }
 
-    if (
-      JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredGApps)
-    ) {
+    const serializedApps = JSON.stringify(configuredApps);
+    const lastSerializedApps = JSON.stringify(recentlyConfiguredGApps);
+
+    if (serializedApps === lastSerializedApps) {
       log.info('No changes in G Mode configuration detected');
-    } else {
-      log.info('Changes in G Mode configuration detected');
+      return;
     }
+
+    log.info('Changes in G Mode configuration detected');
+
+    const appsHasher = crypto.createHash('sha1');
+    const appsSha = appsHasher.update(serializedApps).digest('hex');
+    const lastAppsHasher = crypto.createHash('sha1');
+    const lastAppsSha = lastAppsHasher.update(lastSerializedApps).digest('hex');
+
+    console.log('G apps SHA:', appsSha, 'Last G apps SHA:', lastAppsSha);
+
     let haproxyAppsConfig = [];
 
     recentlyConfiguredGApps = configuredApps;
 
+    // if non g apps haven't completed once - we don't update the config
     if (!recentlyConfiguredApps.length) return;
 
     haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
 
-    if (
-      JSON.stringify(lastHaproxyAppsConfig)
-      !== JSON.stringify(haproxyAppsConfig)) {
-      log.info(
-        `G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`,
-      );
-      lastHaproxyAppsConfig = haproxyAppsConfig;
-      await updateHaproxy(haproxyAppsConfig);
-    }
+    log.info(
+      `G Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
+    );
+    await updateHaproxy(haproxyAppsConfig);
   } catch (error) {
     log.error(error);
   } finally {
@@ -1031,6 +1032,10 @@ async function startApplicationProcessing() {
 
   dataFetcher.on('permMessagesUpdated', (permMessages) => {
     permanentMessages = permMessages;
+  });
+
+  dataFetcher.on('appsLocationsUpdated', (appsLocs) => {
+    appsLocations = appsLocs;
   });
 
   // We just run these once prior to the fetch loops ss the data is populated

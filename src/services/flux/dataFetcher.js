@@ -56,6 +56,18 @@ class FdmDataFetcher extends EventEmitter {
        */
       timeout: null,
     },
+    appsLocations: {
+      name: 'appsLocations',
+      url: 'apps/locations',
+      sha: '',
+      etag: '',
+      maxAgeMs: 0,
+      defaultFetchMs: 30_000,
+      /**
+       * @type {NodeJS.Timeout | null}
+       */
+      timeout: null,
+    },
     permMessages: {
       name: 'permMessages',
       url: 'apps/permanentmessages',
@@ -263,7 +275,7 @@ class FdmDataFetcher extends EventEmitter {
     if (payloadStatus !== 'success') {
       log.info(
         'HTTP response was fine, but payload status was not '
-          + `success: ${payloadStatus}. Skipping`,
+        + `success: ${payloadStatus}. Skipping`,
       );
 
       return parsed;
@@ -449,6 +461,14 @@ class FdmDataFetcher extends EventEmitter {
     setImmediate(() => this.loop(runner, globalAppSpecs));
   }
 
+  startAppsLocationsLoop() {
+    const { appsLocations } = this.endpoints;
+
+    const runner = this.appsLocationsRunner.bind(this);
+
+    setImmediate(() => this.loop(runner, appsLocations));
+  }
+
   startPermMessagesLoop() {
     const { permMessages } = this.endpoints;
 
@@ -512,6 +532,20 @@ class FdmDataFetcher extends EventEmitter {
   async processPermMessages(messages) {
     // do processing here instead of filtering elsewhere
     this.emit('permMessagesUpdated', messages);
+  }
+
+  async processAppsLocations(locations) {
+    const locationsMap = new Map();
+
+    locations.forEach((location) => {
+      const { name } = location;
+      if (!locationsMap.has(name)) locationsMap.set(name, []);
+
+      const appLocations = locationsMap.get(name);
+      appLocations.push(location);
+    });
+
+    this.emit('appsLocationsUpdated', locationsMap);
   }
 
   async processAppSpecs(specs) {
@@ -661,6 +695,52 @@ class FdmDataFetcher extends EventEmitter {
     return sleepTimeMs;
   }
 
+  async getAndProcessAppsLocations() {
+    const { appsLocations } = this.endpoints;
+
+    const getRes = await this.doAppsLocationsHttpGet();
+    if (!getRes) return appsLocations.defaultFetchMs;
+
+    const {
+      payload, etag, maxAgeMs, backend,
+    } = getRes;
+
+    appsLocations.etag = etag;
+    appsLocations.maxAgeMs = maxAgeMs;
+
+    const fetchTime = FdmDataFetcher.now;
+
+    // we could get the response as text and hash that, but it changes
+    // the logic quite a bit. So a better compromise is to stringify again
+    // until the load balancers are fixed (return same api endpoint, i.e. same etag)
+    const hasher = crypto.createHash('sha1');
+    const locationsSha = hasher.update(JSON.stringify(payload)).digest('hex');
+
+    if (locationsSha !== appsLocations.sha) {
+      console.log('appsLocations have a different SHA... processing');
+      appsLocations.sha = locationsSha;
+      await this.processAppsLocations(payload);
+    }
+
+    const elapsedMs = Number(FdmDataFetcher.now - fetchTime) / 1_000_000;
+    // add a one second overlay here. This stops retries when the max-age is
+    // at 0.
+    const sleepTimeMs = Math.max(1_000, maxAgeMs - elapsedMs + 1_000);
+
+    const logger = {
+      name: 'appsLocations',
+      verb: 'get',
+      backend,
+      etag,
+      specSize: payload ? payload.length : 0,
+      sleepTimeMs,
+      timestamp: FdmDataFetcher.timestamp(),
+    };
+    console.log(logger);
+
+    return sleepTimeMs;
+  }
+
   /**
    *
    * @returns {Promise<>}
@@ -687,6 +767,26 @@ class FdmDataFetcher extends EventEmitter {
   async doAppSpecsHttpHead() {
     const response = await this.#fluxApi
       .head(this.endpoints.globalAppSpecs.url)
+      .catch((err) => {
+        log.info(`Unable to do HTTP HEAD for app specs: ${err.message}`);
+
+        return null;
+      });
+
+    const parsed = FdmDataFetcher.#parseAxiosResponse(response, {
+      head: true,
+    });
+
+    return parsed;
+  }
+
+  /**
+   *
+   * @returns {Promise<>}
+   */
+  async doAppsLocationsHttpHead() {
+    const response = await this.#fluxApi
+      .head(this.endpoints.appsLocations.url)
       .catch((err) => {
         log.info(`Unable to do HTTP HEAD for app specs: ${err.message}`);
 
@@ -748,6 +848,27 @@ class FdmDataFetcher extends EventEmitter {
     }
 
     const getMaxAgeMs = await this.getAndProcessAppSpecs();
+
+    return getMaxAgeMs;
+  }
+
+  /**
+   * Checks the latest apps locations via ETAG, if different, runs a GET.
+   * @returns {Promise<number>} Ms until next loop time
+   */
+  async appsLocationsRunner() {
+    const { appsLocations } = this.endpoints;
+
+    if (appsLocations.etag) {
+      const store = appsLocations;
+      const fetcher = this.doAppsLocationsHttpHead.bind(this);
+
+      const cacheMaxAgeMs = await FdmDataFetcher.getHttpCacheValues(store, fetcher);
+
+      if (cacheMaxAgeMs) return cacheMaxAgeMs;
+    }
+
+    const getMaxAgeMs = await this.getAndProcessAppsLocations();
 
     return getMaxAgeMs;
   }

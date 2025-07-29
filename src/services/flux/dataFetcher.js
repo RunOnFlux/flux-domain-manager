@@ -640,7 +640,7 @@ class FdmDataFetcher extends EventEmitter {
       verb: 'get',
       backend,
       etag,
-      specSize: payload ? payload.length : 0,
+      payloadSize: payload ? payload.length : 0,
       sleepTimeMs,
       timestamp: FdmDataFetcher.timestamp(),
     };
@@ -686,7 +686,7 @@ class FdmDataFetcher extends EventEmitter {
       verb: 'get',
       backend,
       etag,
-      specSize: payload ? payload.length : 0,
+      payloadSize: payload ? payload.length : 0,
       sleepTimeMs,
       timestamp: FdmDataFetcher.timestamp(),
     };
@@ -732,7 +732,7 @@ class FdmDataFetcher extends EventEmitter {
       verb: 'get',
       backend,
       etag,
-      specSize: payload ? payload.length : 0,
+      payloadSize: payload ? payload.length : 0,
       sleepTimeMs,
       timestamp: FdmDataFetcher.timestamp(),
     };

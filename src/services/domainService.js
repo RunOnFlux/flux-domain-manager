@@ -1049,6 +1049,12 @@ async function startApplicationProcessing() {
     await generateAndReplaceMainApplicationHaproxyGAppsConfig();
     await generateAndReplaceMainApplicationHaproxyConfig();
 
+    if (configQueued) {
+      await generateAndReplaceMainApplicationHaproxyGAppsConfig();
+      await generateAndReplaceMainApplicationHaproxyConfig();
+      configQueued = false;
+    }
+
     configRunning = false;
   };
 

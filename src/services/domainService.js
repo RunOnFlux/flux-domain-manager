@@ -999,6 +999,17 @@ async function obtainCertificatesMode() {
  * @returns {Promise<void>}
  */
 async function startApplicationProcessing() {
+  if (!dataFetcher) {
+    // these are symlinked to the correct key / pem on every box
+    dataFetcher = new FdmDataFetcher({
+      keyPath: '/etc/ssl/private/fdm-arcane.key',
+      certPath: '/etc/ssl/certs/fdm-arcane.pem',
+      caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
+      fluxApiBaseUrl: 'https://api.runonflux.io/',
+      sasApiBaseUrl: 'https://10.100.0.170/api/',
+    });
+  }
+
   const gAppLoop = async () => {
     await generateAndReplaceMainApplicationHaproxyGAppsConfig();
     setImmediate(gAppLoop);
@@ -1097,17 +1108,6 @@ function initializeServices() {
 }
 
 async function start() {
-  if (!dataFetcher) {
-    // these are symlinked to the correct key / pem on every box
-    dataFetcher = new FdmDataFetcher({
-      keyPath: '/etc/ssl/private/fdm-arcane.key',
-      certPath: '/etc/ssl/certs/fdm-arcane.pem',
-      caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
-      fluxApiBaseUrl: 'https://api.runonflux.io/',
-      sasApiBaseUrl: 'https://10.100.0.170/api/',
-    });
-  }
-
   try {
     log.info('Initiating FDM API services...');
     initializeServices();

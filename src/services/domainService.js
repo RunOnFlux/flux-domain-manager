@@ -576,7 +576,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
  */
 async function generateAndReplaceMainApplicationHaproxyConfig() {
   try {
-    log.info(`Non G Mode STARTED at${new Date()}`);
+    log.info('Non G Mode STARTED');
 
     // just use the map in the future
     const globalAppSpecs = nonGApps.values();
@@ -854,7 +854,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
 async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
   try {
-    log.info(`G Mode STARTED at${new Date()}`);
+    log.info('G Mode STARTED');
 
     const globalAppSpecs = gApps.values();
 

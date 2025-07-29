@@ -1000,16 +1000,16 @@ async function obtainCertificatesMode() {
  * @returns {Promise<void>}
  */
 async function startApplicationProcessing() {
-  if (!dataFetcher) {
-    // these are symlinked to the correct key / pem on every box
-    dataFetcher = new FdmDataFetcher({
-      keyPath: '/etc/ssl/private/fdm-arcane.key',
-      certPath: '/etc/ssl/certs/fdm-arcane.pem',
-      caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
-      fluxApiBaseUrl: 'https://api.runonflux.io/',
-      sasApiBaseUrl: 'https://10.100.0.170/api/',
-    });
-  }
+  if (dataFetcher) return;
+
+  // these are symlinked to the correct key / pem on every box
+  dataFetcher = new FdmDataFetcher({
+    keyPath: '/etc/ssl/private/fdm-arcane.key',
+    certPath: '/etc/ssl/certs/fdm-arcane.pem',
+    caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
+    fluxApiBaseUrl: 'https://api.runonflux.io/',
+    sasApiBaseUrl: 'https://10.100.0.170/api/',
+  });
 
   const gAppLoop = async () => {
     await generateAndReplaceMainApplicationHaproxyGAppsConfig();
@@ -1041,6 +1041,7 @@ async function startApplicationProcessing() {
   // We just run these once prior to the fetch loops ss the data is populated
   await dataFetcher.permMessageRunner();
   await dataFetcher.appSpecRunner();
+  await dataFetcher.appsLocationsRunner();
 
   // Run non g first as this takes significantly longer. 8 minutes vs about 30
   // seconds. The reason we run these once first, is so that we don't sit there
@@ -1053,6 +1054,7 @@ async function startApplicationProcessing() {
 
   dataFetcher.startAppSpecLoop();
   dataFetcher.startPermMessagesLoop();
+  dataFetcher.startAppsLocationsLoop();
 
   setImmediate(gAppLoop);
   setImmediate(nonGAppLoop);

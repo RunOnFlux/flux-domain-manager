@@ -895,7 +895,7 @@ class FdmDataFetcher extends EventEmitter {
 }
 
 async function main() {
-  const specFetcher = new FdmDataFetcher({
+  const dataFetcher = new FdmDataFetcher({
     keyPath: '/etc/ssl/private/fdm-arcane.key',
     certPath: '/etc/ssl/certs/fdm-arcane.pem',
     caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
@@ -903,16 +903,21 @@ async function main() {
     sasApiBaseUrl: 'https://10.100.0.170/api/',
   });
 
-  specFetcher.startAppSpecLoop();
-  specFetcher.startPermMessagesLoop();
-  specFetcher.on('appSpecsUpdated', (specs) => console.log(
+  dataFetcher.startAppSpecLoop();
+  dataFetcher.startPermMessagesLoop();
+  dataFetcher.startAppsLocationsLoop();
+  dataFetcher.on('appSpecsUpdated', (specs) => console.log(
     'Received appSpecsUpdated event with spec sizes:',
     specs.gApps.size,
     specs.nonGApps.size,
   ));
-  specFetcher.on('permMessagesUpdated', (messages) => console.log(
+  dataFetcher.on('permMessagesUpdated', (messages) => console.log(
     'Received permMessagesUpdated event with spec size:',
     messages.length,
+  ));
+  dataFetcher.on('appsLocationsUpdated', (locations) => console.log(
+    'Received appsLocationsUpdated event with location size:',
+    locations.size,
   ));
 }
 

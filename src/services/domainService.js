@@ -31,6 +31,8 @@ let recentlyConfiguredApps = [];
 let recentlyConfiguredGApps = [];
 
 let dataFetcher = null;
+let configQueued = false;
+let configRunning = false;
 
 let permanentMessages = [];
 let nonGApps = new Map();
@@ -1011,14 +1013,43 @@ async function startApplicationProcessing() {
     sasApiBaseUrl: 'https://10.100.0.170/api/',
   });
 
-  const gAppLoop = async () => {
-    await generateAndReplaceMainApplicationHaproxyGAppsConfig();
-    setImmediate(gAppLoop);
-  };
+  // const gAppLoop = async () => {
+  //   await generateAndReplaceMainApplicationHaproxyGAppsConfig();
+  //   setImmediate(gAppLoop);
+  // };
 
-  const nonGAppLoop = async () => {
+  // const nonGAppLoop = async () => {
+  //   await generateAndReplaceMainApplicationHaproxyConfig();
+  //   setImmediate(nonGAppLoop);
+  // };
+
+  const locationsHandler = async (appsLocs) => {
+    appsLocations = appsLocs;
+
+    if (configQueued && configRunning) {
+      console.log('appsLocationsUpdated event received, while '
+        + 'an update already queued, skipping');
+
+      return;
+    }
+
+    if (configRunning) {
+      console.log('appsLocationsUpdated event received while an '
+        + 'update is running. Queueing next update.');
+      configQueued = true;
+
+      return;
+    }
+
+    if (configQueued) configQueued = false;
+
+    configRunning = true;
+
+    // run the gapps first
+    await generateAndReplaceMainApplicationHaproxyGAppsConfig();
     await generateAndReplaceMainApplicationHaproxyConfig();
-    setImmediate(nonGAppLoop);
+
+    configRunning = false;
   };
 
   dataFetcher.on(
@@ -1034,30 +1065,21 @@ async function startApplicationProcessing() {
     permanentMessages = permMessages;
   });
 
-  dataFetcher.on('appsLocationsUpdated', (appsLocs) => {
-    appsLocations = appsLocs;
-  });
+  dataFetcher.on('appsLocationsUpdated', locationsHandler);
 
   // We just run these once prior to the fetch loops ss the data is populated
   await dataFetcher.permMessageRunner();
   await dataFetcher.appSpecRunner();
   await dataFetcher.appsLocationsRunner();
 
-  // Run non g first as this takes significantly longer. 8 minutes vs about 30
-  // seconds. The reason we run these once first, is so that we don't sit there
-  // spamming the GAppsConfig while there is no nonGApps config (they both need
-  // to be present to create an haproxy config) They both need to be present
-  // because this could be an FDM restart and there could already be a working
-  // haproxy config, and we don't want to wipe the nonGApps portion
-  await generateAndReplaceMainApplicationHaproxyConfig();
-  await generateAndReplaceMainApplicationHaproxyGAppsConfig();
+  await locationsHandler();
 
   dataFetcher.startAppSpecLoop();
   dataFetcher.startPermMessagesLoop();
   dataFetcher.startAppsLocationsLoop();
 
-  setImmediate(gAppLoop);
-  setImmediate(nonGAppLoop);
+  // setImmediate(gAppLoop);
+  // setImmediate(nonGAppLoop);
 }
 
 // services run every 6 mins

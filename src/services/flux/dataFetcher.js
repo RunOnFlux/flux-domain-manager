@@ -813,6 +813,19 @@ class FdmDataFetcher extends EventEmitter {
     return parsed;
   }
 
+  async doAppsLocationsHttpGet() {
+    const response = await this.#fluxApi
+      .get(this.endpoints.appsLocations.url)
+      .catch((err) => {
+        log.info(`Unable to do HTTP GET for apps locations: ${err.message}`);
+        return null;
+      });
+
+    const parsed = FdmDataFetcher.#parseAxiosResponse(response);
+
+    return parsed;
+  }
+
   async doPermMessagesHttpGet() {
     // we get the compressed output. 56Mb vs 11Mb
     // this is still ridiculous though - we don't need to fetch the entire

@@ -26,15 +26,15 @@ let myFDMnameORip = null;
 
 let unifiedAppsDomains = [];
 const mapOfNamesIps = {};
-let recentlyConfiguredApps = null;
-let recentlyConfiguredGApps = null;
+let recentlyConfiguredApps = [];
+let recentlyConfiguredGApps = [];
 let permanentMessages = [];
 let lastHaproxyAppsConfig = [];
-let gAppsProcessingFinishedOnce = false;
-let nonGAppsProcessingFinishedOnce = false;
+
 let dataFetcher = null;
-let configQueued = false;
-let configRunning = false;
+
+let nonGApps = new Map();
+let gApps = new Map();
 
 async function checkDomainOwnership(domain, appName) {
   try {
@@ -124,9 +124,8 @@ async function generateAndReplaceMainHaproxyConfig() {
     if (aux !== fluxIPsForBalancing.length && fluxIPsForBalancing.length > 0) {
       // lets remove already the nodes not ok before looking for new ones
       console.log(
-        `Removing some nodes from backend that are no longer ok: ${
-          aux - fluxIPsForBalancing.length
-        }`,
+        'Removing some nodes from backend that are no longer ok: '
+        + `${aux - fluxIPsForBalancing.length}`,
       );
       const hc = await haproxyTemplate.createMainHaproxyConfig(
         ui,
@@ -575,12 +574,12 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
  *
  * @param {Map<string, Object>} globalAppSpecs Pre filtered NonG Applications
  */
-async function generateAndReplaceMainApplicationHaproxyConfig(globalAppSpecsMap) {
+async function generateAndReplaceMainApplicationHaproxyConfig() {
   try {
-    log.info(`Non G Mode STARTED at${new Date()}`);
+    log.info('Non G Mode STARTED');
 
     // just use the map in the future
-    const globalAppSpecs = globalAppSpecsMap.values();
+    const globalAppSpecs = nonGApps.values();
 
     // filter applications based on config
     const applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
@@ -832,17 +831,14 @@ async function generateAndReplaceMainApplicationHaproxyConfig(globalAppSpecsMap)
     }
     let haproxyAppsConfig = [];
     recentlyConfiguredApps = configuredApps;
-    nonGAppsProcessingFinishedOnce = true;
-    if (gAppsProcessingFinishedOnce) {
-      haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps); // we need to put always in same order to avoid. non g first g at end
-    }
 
-    if (
-      nonGAppsProcessingFinishedOnce
-      && gAppsProcessingFinishedOnce
-      && JSON.stringify(lastHaproxyAppsConfig)
-        !== JSON.stringify(haproxyAppsConfig)
-    ) {
+    if (!recentlyConfiguredGApps.length) return;
+
+    // we need to put always in same order to avoid. non g first g at end
+    haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps);
+
+    if (JSON.stringify(lastHaproxyAppsConfig)
+      !== JSON.stringify(haproxyAppsConfig)) {
       log.info(
         `Non G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`,
       );
@@ -852,17 +848,15 @@ async function generateAndReplaceMainApplicationHaproxyConfig(globalAppSpecsMap)
   } catch (error) {
     log.error(error);
   } finally {
-    log.info(`Non G Mode ENDED at${new Date()}`);
+    log.info('Non G Mode ENDED');
   }
 }
 
-async function generateAndReplaceMainApplicationHaproxyGAppsConfig(
-  globalAppSpecsMap,
-) {
+async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
   try {
-    log.info(`G Mode STARTED at${new Date()}`);
+    log.info('G Mode STARTED');
 
-    const globalAppSpecs = globalAppSpecsMap.values();
+    const globalAppSpecs = gApps.values();
 
     // filter applications based on config
     const applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
@@ -935,17 +929,14 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(
     let haproxyAppsConfig = [];
 
     recentlyConfiguredGApps = configuredApps;
-    gAppsProcessingFinishedOnce = true;
-    if (nonGAppsProcessingFinishedOnce) {
-      haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
-    }
+
+    if (!recentlyConfiguredApps.length) return;
+
+    haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
 
     if (
-      nonGAppsProcessingFinishedOnce
-      && gAppsProcessingFinishedOnce
-      && JSON.stringify(lastHaproxyAppsConfig)
-        !== JSON.stringify(haproxyAppsConfig)
-    ) {
+      JSON.stringify(lastHaproxyAppsConfig)
+      !== JSON.stringify(haproxyAppsConfig)) {
       log.info(
         `G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`,
       );
@@ -955,7 +946,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig(
   } catch (error) {
     log.error(error);
   } finally {
-    log.info(`G Mode ENDED at${new Date()}`);
+    log.info('G Mode ENDED');
   }
 }
 
@@ -1002,52 +993,53 @@ async function obtainCertificatesMode() {
   }
 }
 
-async function startAppDataFetcher() {
-  // we shouldn't need the running / queued state.
-  // However, until the load balancer ges fixed, you can switch
-  // backends randomly, which seem to all have different views of the
-  // network. So this is in place so that we only ever run one config
-  // generation, and queue one generation. It probably needs to stay anyway,
-  // as the app specs could get updated each block (which will soon be 30sec)
+/** Initiates application processing. Before the haproxy app config is generated,
+ * it ensure that the app specs and permanent messages are populated. It then
+ * runs
+ * @returns {Promise<void>}
+ */
+async function startApplicationProcessing() {
+  const gAppLoop = async () => {
+    await generateAndReplaceMainApplicationHaproxyGAppsConfig();
+    setImmediate(gAppLoop);
+  };
+
+  const nonGAppLoop = async () => {
+    await generateAndReplaceMainApplicationHaproxyConfig();
+    setImmediate(nonGAppLoop);
+  };
+
   dataFetcher.on(
     'appSpecsUpdated',
     async (specs) => {
       unifiedAppsDomains = specs.appFqdns;
-
-      if (configQueued && configRunning) {
-        console.log('appSpecsUpdated event received, while '
-          + 'an update already queued, skipping');
-
-        return;
-      }
-
-      if (configRunning) {
-        console.log('appSpecsUpdated event received while an '
-          + 'update is running. Queueing next update.');
-        configQueued = true;
-
-        return;
-      }
-
-      if (configQueued) configQueued = false;
-
-      configRunning = true;
-
-      await generateAndReplaceMainApplicationHaproxyConfig(specs.nonGApps);
-      await generateAndReplaceMainApplicationHaproxyGAppsConfig(specs.gApps);
-
-      configRunning = false;
+      nonGApps = specs.nonGApps;
+      gApps = specs.gApps;
     },
   );
+
   dataFetcher.on('permMessagesUpdated', (permMessages) => {
     permanentMessages = permMessages;
   });
 
-  // We just run this once prior to the appSpec loop so the permanent messages
-  // are populated first
+  // We just run these once prior to the fetch loops ss the data is populated
   await dataFetcher.permMessageRunner();
+  await dataFetcher.appSpecRunner();
+
+  // Run non g first as this takes significantly longer. 8 minutes vs about 30
+  // seconds. The reason we run these once first, is so that we don't sit there
+  // spamming the GAppsConfig while there is no nonGApps config (they both need
+  // to be present to create an haproxy config) They both need to be present
+  // because this could be an FDM restart and there could already be a working
+  // haproxy config, and we don't want to wipe the nonGApps portion
+  await generateAndReplaceMainApplicationHaproxyConfig();
+  await generateAndReplaceMainApplicationHaproxyGAppsConfig();
+
   dataFetcher.startAppSpecLoop();
   dataFetcher.startPermMessagesLoop();
+
+  setImmediate(gAppLoop);
+  setImmediate(nonGAppLoop);
 }
 
 // services run every 6 mins
@@ -1083,7 +1075,7 @@ function initializeServices() {
     ) {
       // only runs on main FDM handles X.APP.runonflux.io. This only runs once
       // to add event listeners
-      startAppDataFetcher();
+      startApplicationProcessing();
 
       log.info('Flux Main Application Domain Service initiated.');
     } else if (
@@ -1091,7 +1083,7 @@ function initializeServices() {
       && config.pDNS.manageapp
     ) {
       // only runs on main FDM handles X.APP.runonflux.io. This only runs once
-      startAppDataFetcher();
+      startApplicationProcessing();
       log.info('Flux Main Application Domain Service initiated.');
     } else {
       log.info('CUSTOM DOMAIN SERVICE UNAVAILABLE');

@@ -19,6 +19,11 @@ function ensureString(parameter) {
 }
 
 function writeToFile(filepath, args) {
+  // this function was raising if args are undefined or null, i.e. no message propery.
+  // This isn't the best, as you can no longer log an empty line, however we should
+  // replace this module with a standard logging module, like pino.
+  if (!args) return;
+
   const size = getFilesizeInBytes(filepath);
   let flag = 'a+';
   if (size > (25 * 1024 * 1024)) { // 25MB

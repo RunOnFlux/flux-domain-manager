@@ -93,7 +93,7 @@ async function getApplicationLocation(appName) {
   try {
     const fluxnodeList = await axios.get(
       `https://api.runonflux.io/apps/location/${appName}`,
-      axiosConfig,
+      { timeout: 3_000 },
     );
     if (fluxnodeList.data.status === 'success') {
       return fluxnodeList.data.data || [];

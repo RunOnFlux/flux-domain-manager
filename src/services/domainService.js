@@ -1,7 +1,5 @@
-/* eslint-disable prefer-destructuring */
 /* eslint-disable no-restricted-syntax */
 const config = require('config');
-// const crypto = require('node:crypto');
 const fs = require('fs').promises;
 const log = require('../lib/log');
 const ipService = require('./ipService');
@@ -314,7 +312,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
   if (app.version <= 3) {
     const timeoutConfig = app.enviromentParameters.find((att) => att.toLowerCase().startsWith('timeout='));
     if (timeoutConfig) {
-      timeout = timeoutConfig.split('=')[1];
+      [, timeout] = timeoutConfig.split('=');
     }
     for (let i = 0; i < app.ports.length; i += 1) {
       const configuredApp = {
@@ -439,7 +437,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
       timeout = null;
       const timeoutConfig = component.environmentParameters.find((att) => att.toLowerCase().startsWith('timeout='));
       if (timeoutConfig) {
-        timeout = timeoutConfig.split('=')[1];
+        [, timeout] = timeoutConfig.split('=');
       }
       for (let i = 0; i < component.ports.length; i += 1) {
         const configuredApp = {
@@ -864,13 +862,6 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
     log.info('Changes in Non G Mode configuration detected');
 
-    // const appsHasher = crypto.createHash('sha1');
-    // const appsSha = appsHasher.update(serializedApps).digest('hex');
-    // const lastAppsHasher = crypto.createHash('sha1');
-    // const lastAppsSha = lastAppsHasher.update(lastSerializedApps).digest('hex');
-
-    // console.log('Non G apps SHA:', appsSha, 'Last Non G apps SHA:', lastAppsSha);
-
     // we need to put always in same order to avoid. non g first g at end
     haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps);
 
@@ -968,13 +959,6 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     }
 
     log.info('Changes in G Mode configuration detected');
-
-    // const appsHasher = crypto.createHash('sha1');
-    // const appsSha = appsHasher.update(serializedApps).digest('hex');
-    // const lastAppsHasher = crypto.createHash('sha1');
-    // const lastAppsSha = lastAppsHasher.update(lastSerializedApps).digest('hex');
-
-    // console.log('G apps SHA:', appsSha, 'Last G apps SHA:', lastAppsSha);
 
     let haproxyAppsConfig = [];
 

@@ -549,7 +549,6 @@ class FdmDataFetcher extends EventEmitter {
   }
 
   async processAppSpecs(specs) {
-    // fix these riduculous names
     const gAppsMap = new Map();
     const nonGAppsMap = new Map();
     const appFqdns = [];
@@ -596,7 +595,6 @@ class FdmDataFetcher extends EventEmitter {
     const decryptedSpecs = await Promise.all(decryptPromises);
 
     specMapper(decryptedSpecs);
-    // console.log(util.inspect(decryptedSpecs, { colors: true, depth: null }));
 
     console.log('After decryption:\n', logger());
 
@@ -618,9 +616,6 @@ class FdmDataFetcher extends EventEmitter {
 
     const fetchTime = FdmDataFetcher.now;
 
-    // we could get the response as text and hash that, but it changes
-    // the logic quite a bit. So a better compromise is to stringify again
-    // until the load balancers are fixed (return same api endpoint, i.e. same etag)
     const hasher = crypto.createHash('sha1');
     const specSha = hasher.update(JSON.stringify(payload)).digest('hex');
 
@@ -664,9 +659,6 @@ class FdmDataFetcher extends EventEmitter {
 
     const fetchTime = FdmDataFetcher.now;
 
-    // we could get the response as text and hash that, but it changes
-    // the logic quite a bit. So a better compromise is to stringify again
-    // until the load balancers are fixed (return same api endpoint, i.e. same etag)
     const hasher = crypto.createHash('sha1');
     const specSha = hasher.update(JSON.stringify(payload)).digest('hex');
 
@@ -710,26 +702,9 @@ class FdmDataFetcher extends EventEmitter {
     appsLocations.etag = etag;
     appsLocations.maxAgeMs = maxAgeMs;
 
-    // const fetchTime = FdmDataFetcher.now;
-
-    // we could get the response as text and hash that, but it changes
-    // the logic quite a bit. So a better compromise is to stringify again
-    // until the load balancers are fixed (return same api endpoint, i.e. same etag)
-    // const hasher = crypto.createHash('sha1');
-    // const locationsSha = hasher.update(JSON.stringify(payload)).digest('hex');
-
-    // if (locationsSha !== appsLocations.sha) {
-    //   console.log('appsLocations have a different SHA... processing');
-    //   appsLocations.sha = locationsSha;
-    //   await this.processAppsLocations(payload);
-    // }
-
     await this.processAppsLocations(payload);
-    // const elapsedMs = Number(FdmDataFetcher.now - fetchTime) / 1_000_000;
-    // add a one second overlay here. This stops retries when the max-age is
-    // at 0.
-    // const sleepTimeMs = Math.max(1_000, maxAgeMs - elapsedMs + 1_000);
-    // test hardsetting this to 10 seconds (we try a different node on each call)
+
+    // Hardsetting this to 10 seconds now (we try a different node on each call)
     const sleepTimeMs = 10_000;
 
     const logger = {
@@ -877,17 +852,6 @@ class FdmDataFetcher extends EventEmitter {
   async appsLocationsRunner() {
     // don't do the head request here anymore, as the endpoint is always different.
     // this is now hardcoded to run every 10 seconds
-
-    // const { appsLocations } = this.endpoints;
-
-    // if (appsLocations.etag) {
-    //   const store = appsLocations;
-    //   const fetcher = this.doAppsLocationsHttpHead.bind(this);
-
-    //   const cacheMaxAgeMs = await FdmDataFetcher.getHttpCacheValues(store, fetcher);
-
-    //   if (cacheMaxAgeMs) return cacheMaxAgeMs;
-    // }
 
     const getMaxAgeMs = await this.getAndProcessAppsLocations();
 

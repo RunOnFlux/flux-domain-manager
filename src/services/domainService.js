@@ -31,13 +31,16 @@ let recentlyConfiguredApps = [];
 let recentlyConfiguredGApps = [];
 
 let dataFetcher = null;
-let configQueued = false;
-let configRunning = false;
 
 let permanentMessages = [];
 let nonGApps = new Map();
 let gApps = new Map();
 let appsLocations = new Map();
+
+const runQueue = {
+  gApps: { running: false, queued: false },
+  nonGApps: { running: false, queued: false },
+};
 
 async function checkDomainOwnership(domain, appName) {
   try {
@@ -1033,54 +1036,43 @@ async function startApplicationProcessing() {
     sasApiBaseUrl: 'https://10.100.0.170/api/',
   });
 
-  // const gAppLoop = async () => {
-  //   await generateAndReplaceMainApplicationHaproxyGAppsConfig();
-  //   setImmediate(gAppLoop);
-  // };
-
-  // const nonGAppLoop = async () => {
-  //   await generateAndReplaceMainApplicationHaproxyConfig();
-  //   setImmediate(nonGAppLoop);
-  // };
-
   const locationsHandler = async (appsLocs) => {
     if (appsLocs) appsLocations = appsLocs;
 
-    if (configQueued && configRunning) {
-      console.log('appsLocationsUpdated event received, while '
-        + 'an update already queued, skipping');
+    const handler = async (name, handlerState, runner) => {
+      const state = handlerState;
 
-      return;
-    }
+      if (state.queued && state.running) {
+        console.log('appsLocationsUpdated event received, while '
+          + `an update already queued for: ${name}, skipping`);
 
-    if (configRunning) {
-      console.log('appsLocationsUpdated event received while an '
-        + 'update is running. Queueing next update.');
-      configQueued = true;
+        return;
+      }
 
-      return;
-    }
+      if (state.running) {
+        console.log('appsLocationsUpdated event received while an '
+          + `update is running for: ${name}. Queueing next update.`);
+        state.queued = true;
 
-    if (configQueued) configQueued = false;
+        return;
+      }
 
-    configRunning = true;
+      if (state.queued) state.queued = false;
 
-    const appProcessor = async () => {
-      const tasks = [
-        generateAndReplaceMainApplicationHaproxyGAppsConfig(),
-        generateAndReplaceMainApplicationHaproxyConfig(),
-      ];
-      await Promise.all(tasks);
+      state.running = true;
+
+      await runner();
+
+      if (state.queued) {
+        await runner();
+        state.queued = false;
+      }
+
+      state.running = false;
     };
 
-    await appProcessor();
-
-    if (configQueued) {
-      await appProcessor();
-      configQueued = false;
-    }
-
-    configRunning = false;
+    setImmediate(() => handler('gApps', runQueue.gApps, generateAndReplaceMainApplicationHaproxyGAppsConfig));
+    setImmediate(() => handler('nonGApps', runQueue.nonGApps, generateAndReplaceMainApplicationHaproxyConfig));
   };
 
   dataFetcher.on(

@@ -1110,9 +1110,6 @@ async function startApplicationProcessing() {
   dataFetcher.startAppSpecLoop();
   dataFetcher.startPermMessagesLoop();
   dataFetcher.startAppsLocationsLoop();
-
-  // setImmediate(gAppLoop);
-  // setImmediate(nonGAppLoop);
 }
 
 // services run every 6 mins

@@ -620,6 +620,14 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
       const appLocations = appsLocations.get(app.name) || [];
 
+      let searchCount = 0;
+      while (!appLocations.length && searchCount < 5) {
+        searchCount += 1;
+        // eslint-disable-next-line no-await-in-loop
+        const newLocations = await fluxService.getApplicationLocation(app.name);
+        appLocations.push(...newLocations);
+      }
+
       if (app.name === 'blockbookbitcoin') {
         appLocations.push({ ip: '[2001:41d0:d00:b800::20]:9130' });
         appLocations.push({ ip: '[2001:41d0:d00:b800::21]:9130' });
@@ -887,6 +895,14 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
       log.info(`Configuring ${app.name}`);
 
       const appLocations = appsLocations.get(app.name) || [];
+
+      let searchCount = 0;
+      while (!appLocations.length && searchCount < 5) {
+        searchCount += 1;
+        // eslint-disable-next-line no-await-in-loop
+        const newLocations = await fluxService.getApplicationLocation(app.name);
+        appLocations.push(...newLocations);
+      }
 
       if (appLocations.length > 0) {
         const appIps = [];

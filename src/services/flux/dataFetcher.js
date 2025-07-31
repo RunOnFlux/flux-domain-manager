@@ -56,6 +56,18 @@ class FdmDataFetcher extends EventEmitter {
        */
       timeout: null,
     },
+    appsLocations: {
+      name: 'appsLocations',
+      url: 'apps/locations',
+      sha: '',
+      etag: '',
+      maxAgeMs: 0,
+      defaultFetchMs: 30_000,
+      /**
+       * @type {NodeJS.Timeout | null}
+       */
+      timeout: null,
+    },
     permMessages: {
       name: 'permMessages',
       url: 'apps/permanentmessages',
@@ -263,7 +275,7 @@ class FdmDataFetcher extends EventEmitter {
     if (payloadStatus !== 'success') {
       log.info(
         'HTTP response was fine, but payload status was not '
-          + `success: ${payloadStatus}. Skipping`,
+        + `success: ${payloadStatus}. Skipping`,
       );
 
       return parsed;
@@ -449,6 +461,14 @@ class FdmDataFetcher extends EventEmitter {
     setImmediate(() => this.loop(runner, globalAppSpecs));
   }
 
+  startAppsLocationsLoop() {
+    const { appsLocations } = this.endpoints;
+
+    const runner = this.appsLocationsRunner.bind(this);
+
+    setImmediate(() => this.loop(runner, appsLocations));
+  }
+
   startPermMessagesLoop() {
     const { permMessages } = this.endpoints;
 
@@ -514,8 +534,21 @@ class FdmDataFetcher extends EventEmitter {
     this.emit('permMessagesUpdated', messages);
   }
 
+  async processAppsLocations(locations) {
+    const locationsMap = new Map();
+
+    locations.forEach((location) => {
+      const { name } = location;
+      if (!locationsMap.has(name)) locationsMap.set(name, []);
+
+      const appLocations = locationsMap.get(name);
+      appLocations.push(location);
+    });
+
+    this.emit('appsLocationsUpdated', locationsMap);
+  }
+
   async processAppSpecs(specs) {
-    // fix these riduculous names
     const gAppsMap = new Map();
     const nonGAppsMap = new Map();
     const appFqdns = [];
@@ -562,7 +595,6 @@ class FdmDataFetcher extends EventEmitter {
     const decryptedSpecs = await Promise.all(decryptPromises);
 
     specMapper(decryptedSpecs);
-    // console.log(util.inspect(decryptedSpecs, { colors: true, depth: null }));
 
     console.log('After decryption:\n', logger());
 
@@ -584,9 +616,6 @@ class FdmDataFetcher extends EventEmitter {
 
     const fetchTime = FdmDataFetcher.now;
 
-    // we could get the response as text and hash that, but it changes
-    // the logic quite a bit. So a better compromise is to stringify again
-    // until the load balancers are fixed (return same api endpoint, i.e. same etag)
     const hasher = crypto.createHash('sha1');
     const specSha = hasher.update(JSON.stringify(payload)).digest('hex');
 
@@ -606,7 +635,7 @@ class FdmDataFetcher extends EventEmitter {
       verb: 'get',
       backend,
       etag,
-      specSize: payload ? payload.length : 0,
+      payloadSize: payload ? payload.length : 0,
       sleepTimeMs,
       timestamp: FdmDataFetcher.timestamp(),
     };
@@ -630,9 +659,6 @@ class FdmDataFetcher extends EventEmitter {
 
     const fetchTime = FdmDataFetcher.now;
 
-    // we could get the response as text and hash that, but it changes
-    // the logic quite a bit. So a better compromise is to stringify again
-    // until the load balancers are fixed (return same api endpoint, i.e. same etag)
     const hasher = crypto.createHash('sha1');
     const specSha = hasher.update(JSON.stringify(payload)).digest('hex');
 
@@ -652,7 +678,41 @@ class FdmDataFetcher extends EventEmitter {
       verb: 'get',
       backend,
       etag,
-      specSize: payload ? payload.length : 0,
+      payloadSize: payload ? payload.length : 0,
+      sleepTimeMs,
+      timestamp: FdmDataFetcher.timestamp(),
+    };
+    console.log(logger);
+
+    return sleepTimeMs;
+  }
+
+  async getAndProcessAppsLocations() {
+    const { appsLocations } = this.endpoints;
+
+    // this call is 2.1Mb without compression and 0.37Mb compressed (axios uses
+    // compression)
+    const getRes = await this.doAppsLocationsHttpGet();
+    if (!getRes) return appsLocations.defaultFetchMs;
+
+    const {
+      payload, etag, maxAgeMs, backend,
+    } = getRes;
+
+    appsLocations.etag = etag;
+    appsLocations.maxAgeMs = maxAgeMs;
+
+    await this.processAppsLocations(payload);
+
+    // Hardsetting this to 10 seconds now (we try a different node on each call)
+    const sleepTimeMs = 10_000;
+
+    const logger = {
+      name: 'appsLocations',
+      verb: 'get',
+      backend,
+      etag,
+      payloadSize: payload ? payload.length : 0,
       sleepTimeMs,
       timestamp: FdmDataFetcher.timestamp(),
     };
@@ -700,11 +760,44 @@ class FdmDataFetcher extends EventEmitter {
     return parsed;
   }
 
+  /**
+   *
+   * @returns {Promise<>}
+   */
+  async doAppsLocationsHttpHead() {
+    const response = await this.#fluxApi
+      .head(this.endpoints.appsLocations.url)
+      .catch((err) => {
+        log.info(`Unable to do HTTP HEAD for app specs: ${err.message}`);
+
+        return null;
+      });
+
+    const parsed = FdmDataFetcher.#parseAxiosResponse(response, {
+      head: true,
+    });
+
+    return parsed;
+  }
+
   async doAppSpecsHttpGet() {
     const response = await this.#fluxApi
       .get(this.endpoints.globalAppSpecs.url)
       .catch((err) => {
         log.info(`Unable to do HTTP GET for app specs: ${err.message}`);
+        return null;
+      });
+
+    const parsed = FdmDataFetcher.#parseAxiosResponse(response);
+
+    return parsed;
+  }
+
+  async doAppsLocationsHttpGet() {
+    const response = await this.#fluxApi
+      .get(this.endpoints.appsLocations.url)
+      .catch((err) => {
+        log.info(`Unable to do HTTP GET for apps locations: ${err.message}`);
         return null;
       });
 
@@ -753,6 +846,19 @@ class FdmDataFetcher extends EventEmitter {
   }
 
   /**
+   * Checks the latest apps locations via ETAG, if different, runs a GET.
+   * @returns {Promise<number>} Ms until next loop time
+   */
+  async appsLocationsRunner() {
+    // don't do the head request here anymore, as the endpoint is always different.
+    // this is now hardcoded to run every 10 seconds
+
+    const getMaxAgeMs = await this.getAndProcessAppsLocations();
+
+    return getMaxAgeMs;
+  }
+
+  /**
    * Checks the latest permanent messages via ETAG, if different, runs a GET.
    * @returns {Promise<number>} Ms until next loop time
    */
@@ -774,7 +880,7 @@ class FdmDataFetcher extends EventEmitter {
 }
 
 async function main() {
-  const specFetcher = new FdmDataFetcher({
+  const dataFetcher = new FdmDataFetcher({
     keyPath: '/etc/ssl/private/fdm-arcane.key',
     certPath: '/etc/ssl/certs/fdm-arcane.pem',
     caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
@@ -782,16 +888,21 @@ async function main() {
     sasApiBaseUrl: 'https://10.100.0.170/api/',
   });
 
-  specFetcher.startAppSpecLoop();
-  specFetcher.startPermMessagesLoop();
-  specFetcher.on('appSpecsUpdated', (specs) => console.log(
+  dataFetcher.startAppSpecLoop();
+  dataFetcher.startPermMessagesLoop();
+  dataFetcher.startAppsLocationsLoop();
+  dataFetcher.on('appSpecsUpdated', (specs) => console.log(
     'Received appSpecsUpdated event with spec sizes:',
     specs.gApps.size,
     specs.nonGApps.size,
   ));
-  specFetcher.on('permMessagesUpdated', (messages) => console.log(
+  dataFetcher.on('permMessagesUpdated', (messages) => console.log(
     'Received permMessagesUpdated event with spec size:',
     messages.length,
+  ));
+  dataFetcher.on('appsLocationsUpdated', (locations) => console.log(
+    'Received appsLocationsUpdated event with location size:',
+    locations.size,
   ));
 }
 

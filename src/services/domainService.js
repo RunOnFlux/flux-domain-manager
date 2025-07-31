@@ -1,4 +1,3 @@
-/* eslint-disable prefer-destructuring */
 /* eslint-disable no-restricted-syntax */
 const config = require('config');
 const fs = require('fs').promises;
@@ -28,13 +27,18 @@ let unifiedAppsDomains = [];
 const mapOfNamesIps = {};
 let recentlyConfiguredApps = [];
 let recentlyConfiguredGApps = [];
-let permanentMessages = [];
-let lastHaproxyAppsConfig = [];
 
 let dataFetcher = null;
 
+let permanentMessages = [];
 let nonGApps = new Map();
 let gApps = new Map();
+let appsLocations = new Map();
+
+const runQueue = {
+  gApps: { running: false, queued: false },
+  nonGApps: { running: false, queued: false },
+};
 
 async function checkDomainOwnership(domain, appName) {
   try {
@@ -308,7 +312,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
   if (app.version <= 3) {
     const timeoutConfig = app.enviromentParameters.find((att) => att.toLowerCase().startsWith('timeout='));
     if (timeoutConfig) {
-      timeout = timeoutConfig.split('=')[1];
+      [, timeout] = timeoutConfig.split('=');
     }
     for (let i = 0; i < app.ports.length; i += 1) {
       const configuredApp = {
@@ -433,7 +437,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
       timeout = null;
       const timeoutConfig = component.environmentParameters.find((att) => att.toLowerCase().startsWith('timeout='));
       if (timeoutConfig) {
-        timeout = timeoutConfig.split('=')[1];
+        [, timeout] = timeoutConfig.split('=');
       }
       for (let i = 0; i < component.ports.length; i += 1) {
         const configuredApp = {
@@ -575,6 +579,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
  * @param {Map<string, Object>} globalAppSpecs Pre filtered NonG Applications
  */
 async function generateAndReplaceMainApplicationHaproxyConfig() {
+  const startTime = process.hrtime.bigint();
+  let appsProcessingTimeNs = 0;
+
   try {
     log.info('Non G Mode STARTED');
 
@@ -613,16 +620,22 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     // continue with appsOK
     const configuredApps = []; // object of domain, port, ips for backend and isRdata
     for (const app of appsOK) {
+      const appStartTime = process.hrtime.bigint();
+
       log.info(`Configuring ${app.name}`);
-      // eslint-disable-next-line no-await-in-loop
-      let appLocations = await fluxService.getApplicationLocation(app.name);
-      let appLocationsSearchNumber = 0;
-      while (appLocations.length === 0 && appLocationsSearchNumber < 5) {
-        log.info(`No apps locations found for application ${app.name}`);
-        appLocationsSearchNumber += 1;
+
+      const appLocations = appsLocations.get(app.name) || [];
+
+      let searchCount = 0;
+      while (!appLocations.length && searchCount < 5) {
+        log.info(`Application: ${app.name} not found in global locations... `
+          + 'searching nodes');
+        searchCount += 1;
         // eslint-disable-next-line no-await-in-loop
-        appLocations = await fluxService.getApplicationLocation(app.name);
+        const newLocations = await fluxService.getApplicationLocation(app.name);
+        appLocations.push(...newLocations);
       }
+
       if (app.name === 'blockbookbitcoin') {
         appLocations.push({ ip: '[2001:41d0:d00:b800::20]:9130' });
         appLocations.push({ ip: '[2001:41d0:d00:b800::21]:9130' });
@@ -690,6 +703,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             });
             appIpsOnAppsChecks = [];
           }
+          // as the application checks uses network, the responses can come in
+          // a different order, so we sort the responses by ip address.
+          serviceHelper.sortIPAddresses(appIps);
         } else if (
           app.compose
           && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'))
@@ -816,43 +832,55 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
       }
+
+      const elapsedNs = Number(process.hrtime.bigint() - appStartTime);
+      const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
+      appsProcessingTimeNs += elapsedNs;
+      log.info(`App: ${app.name}, Elapsed: ${elapsedS}`);
     }
+
+    const elapsedAppsS = Math.round((appsProcessingTimeNs / 1_000_000_000) * 100) / 100;
+    log.info(`Total apps processing time. Elapsed: ${elapsedAppsS}`);
 
     if (configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');
     }
 
-    if (
-      JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredApps)
-    ) {
+    const serializedApps = JSON.stringify(configuredApps);
+    const lastSerializedApps = JSON.stringify(recentlyConfiguredApps);
+
+    if (serializedApps === lastSerializedApps) {
       log.info('No changes in Non G Mode configuration detected');
-    } else {
-      log.info('Changes in Non G Mode configuration detected');
+      return;
     }
+
     let haproxyAppsConfig = [];
     recentlyConfiguredApps = configuredApps;
 
+    // if g apps haven't completed once - we don't update the config
     if (!recentlyConfiguredGApps.length) return;
+
+    log.info('Changes in Non G Mode configuration detected');
 
     // we need to put always in same order to avoid. non g first g at end
     haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps);
 
-    if (JSON.stringify(lastHaproxyAppsConfig)
-      !== JSON.stringify(haproxyAppsConfig)) {
-      log.info(
-        `Non G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`,
-      );
-      lastHaproxyAppsConfig = haproxyAppsConfig;
-      await updateHaproxy(haproxyAppsConfig);
-    }
+    log.info(
+      `Non G Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
+    );
+    await updateHaproxy(haproxyAppsConfig);
   } catch (error) {
     log.error(error);
   } finally {
-    log.info('Non G Mode ENDED');
+    const elapsedNs = Number(process.hrtime.bigint() - startTime);
+    const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
+    log.info(`Non G Mode ENDED. Elapsed: ${elapsedS}s`);
   }
 }
 
 async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
+  const startTime = process.hrtime.bigint();
+
   try {
     log.info('G Mode STARTED');
 
@@ -881,14 +909,17 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     const configuredApps = []; // object of domain, port, ips for backend and isRdata
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
-      // eslint-disable-next-line no-await-in-loop
-      let appLocations = await fluxService.getApplicationLocation(app.name);
-      let appLocationsSearchNumber = 0;
-      while (appLocations.length === 0 && appLocationsSearchNumber < 5) {
-        log.info(`No apps locations found for application ${app.name}`);
-        appLocationsSearchNumber += 1;
+
+      const appLocations = appsLocations.get(app.name) || [];
+
+      let searchCount = 0;
+      while (!appLocations.length && searchCount < 5) {
+        log.info(`Application: ${app.name} not found in global locations... `
+          + 'searching nodes');
+        searchCount += 1;
         // eslint-disable-next-line no-await-in-loop
-        appLocations = await fluxService.getApplicationLocation(app.name);
+        const newLocations = await fluxService.getApplicationLocation(app.name);
+        appLocations.push(...newLocations);
       }
 
       if (appLocations.length > 0) {
@@ -919,34 +950,35 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
       }
     }
 
-    if (
-      JSON.stringify(configuredApps) === JSON.stringify(recentlyConfiguredGApps)
-    ) {
+    const serializedApps = JSON.stringify(configuredApps);
+    const lastSerializedApps = JSON.stringify(recentlyConfiguredGApps);
+
+    if (serializedApps === lastSerializedApps) {
       log.info('No changes in G Mode configuration detected');
-    } else {
-      log.info('Changes in G Mode configuration detected');
+      return;
     }
+
+    log.info('Changes in G Mode configuration detected');
+
     let haproxyAppsConfig = [];
 
     recentlyConfiguredGApps = configuredApps;
 
+    // if non g apps haven't completed once - we don't update the config
     if (!recentlyConfiguredApps.length) return;
 
     haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
 
-    if (
-      JSON.stringify(lastHaproxyAppsConfig)
-      !== JSON.stringify(haproxyAppsConfig)) {
-      log.info(
-        `G Mode updating haproxy with lenght: ${haproxyAppsConfig.length}`,
-      );
-      lastHaproxyAppsConfig = haproxyAppsConfig;
-      await updateHaproxy(haproxyAppsConfig);
-    }
+    log.info(
+      `G Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
+    );
+    await updateHaproxy(haproxyAppsConfig);
   } catch (error) {
     log.error(error);
   } finally {
-    log.info('G Mode ENDED');
+    const elapsedNs = Number(process.hrtime.bigint() - startTime);
+    const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
+    log.info(`G Mode ENDED. Elapsed: ${elapsedS}s`);
   }
 }
 
@@ -999,25 +1031,58 @@ async function obtainCertificatesMode() {
  * @returns {Promise<void>}
  */
 async function startApplicationProcessing() {
-  if (!dataFetcher) {
-    // these are symlinked to the correct key / pem on every box
-    dataFetcher = new FdmDataFetcher({
-      keyPath: '/etc/ssl/private/fdm-arcane.key',
-      certPath: '/etc/ssl/certs/fdm-arcane.pem',
-      caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
-      fluxApiBaseUrl: 'https://api.runonflux.io/',
-      sasApiBaseUrl: 'https://10.100.0.170/api/',
-    });
-  }
+  if (dataFetcher) return;
 
-  const gAppLoop = async () => {
-    await generateAndReplaceMainApplicationHaproxyGAppsConfig();
-    setImmediate(gAppLoop);
-  };
+  // these are symlinked to the correct key / pem on every box
+  dataFetcher = new FdmDataFetcher({
+    keyPath: '/etc/ssl/private/fdm-arcane.key',
+    certPath: '/etc/ssl/certs/fdm-arcane.pem',
+    caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
+    fluxApiBaseUrl: 'https://api.runonflux.io/',
+    sasApiBaseUrl: 'https://10.100.0.170/api/',
+  });
 
-  const nonGAppLoop = async () => {
-    await generateAndReplaceMainApplicationHaproxyConfig();
-    setImmediate(nonGAppLoop);
+  const locationsHandler = async (appsLocs) => {
+    if (appsLocs) appsLocations = appsLocs;
+
+    const handler = async (name, handlerState, runner) => {
+      const state = handlerState;
+
+      if (state.queued && state.running) {
+        console.log('appsLocationsUpdated event received, while '
+          + `an update already queued for: ${name}, skipping`);
+
+        return;
+      }
+
+      if (state.running) {
+        console.log('appsLocationsUpdated event received while an '
+          + `update is running for: ${name}. Queueing next update.`);
+        state.queued = true;
+
+        return;
+      }
+
+      if (state.queued) state.queued = false;
+
+      state.running = true;
+
+      await runner();
+
+      if (state.queued) {
+        await runner();
+        state.queued = false;
+      }
+
+      state.running = false;
+    };
+
+    const promises = [
+      handler('gApps', runQueue.gApps, generateAndReplaceMainApplicationHaproxyGAppsConfig),
+      handler('nonGApps', runQueue.nonGApps, generateAndReplaceMainApplicationHaproxyConfig),
+    ];
+
+    await Promise.all(promises);
   };
 
   dataFetcher.on(
@@ -1033,24 +1098,18 @@ async function startApplicationProcessing() {
     permanentMessages = permMessages;
   });
 
+  dataFetcher.on('appsLocationsUpdated', locationsHandler);
+
   // We just run these once prior to the fetch loops ss the data is populated
   await dataFetcher.permMessageRunner();
   await dataFetcher.appSpecRunner();
+  await dataFetcher.appsLocationsRunner();
 
-  // Run non g first as this takes significantly longer. 8 minutes vs about 30
-  // seconds. The reason we run these once first, is so that we don't sit there
-  // spamming the GAppsConfig while there is no nonGApps config (they both need
-  // to be present to create an haproxy config) They both need to be present
-  // because this could be an FDM restart and there could already be a working
-  // haproxy config, and we don't want to wipe the nonGApps portion
-  await generateAndReplaceMainApplicationHaproxyConfig();
-  await generateAndReplaceMainApplicationHaproxyGAppsConfig();
+  await locationsHandler();
 
   dataFetcher.startAppSpecLoop();
   dataFetcher.startPermMessagesLoop();
-
-  setImmediate(gAppLoop);
-  setImmediate(nonGAppLoop);
+  dataFetcher.startAppsLocationsLoop();
 }
 
 // services run every 6 mins

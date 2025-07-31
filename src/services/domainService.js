@@ -869,7 +869,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
   } finally {
     const elapsedNs = Number(process.hrtime.bigint() - startTime);
     const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
-    log.info(`Non G Mode ENDED. Elapsed: ${elapsedS}`);
+    log.info(`Non G Mode ENDED. Elapsed: ${elapsedS}s`);
   }
 }
 
@@ -980,7 +980,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
   } finally {
     const elapsedNs = Number(process.hrtime.bigint() - startTime);
     const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
-    log.info(`G Mode ENDED. Elapsed: ${elapsedS}`);
+    log.info(`G Mode ENDED. Elapsed: ${elapsedS}s`);
   }
 }
 

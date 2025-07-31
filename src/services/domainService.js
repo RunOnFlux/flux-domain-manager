@@ -581,6 +581,8 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
  * @param {Map<string, Object>} globalAppSpecs Pre filtered NonG Applications
  */
 async function generateAndReplaceMainApplicationHaproxyConfig() {
+  const startTime = process.hrtime.bigint();
+
   try {
     log.info('Non G Mode STARTED');
 
@@ -865,11 +867,15 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
   } catch (error) {
     log.error(error);
   } finally {
-    log.info('Non G Mode ENDED');
+    const elapsedNs = Number(process.hrtime.bigint() - startTime);
+    const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
+    log.info(`Non G Mode ENDED. Elapsed: ${elapsedS}`);
   }
 }
 
 async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
+  const startTime = process.hrtime.bigint();
+
   try {
     log.info('G Mode STARTED');
 
@@ -972,7 +978,9 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
   } catch (error) {
     log.error(error);
   } finally {
-    log.info('G Mode ENDED');
+    const elapsedNs = Number(process.hrtime.bigint() - startTime);
+    const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
+    log.info(`G Mode ENDED. Elapsed: ${elapsedS}`);
   }
 }
 

@@ -839,7 +839,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     }
 
     const elapsedAppsS = Math.round((appsProcessingTimeNs / 1_000_000_000) * 100) / 100;
-    console.log(`Total apps processing time: ${elapsedAppsS}`);
+    console.log(`Total apps processing time. Elapsed: ${elapsedAppsS}`);
 
     if (configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');

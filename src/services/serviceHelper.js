@@ -6,6 +6,96 @@ const axios = require('axios');
 const { MongoClient } = mongodb;
 const mongoUrl = `mongodb://${config.database.url}:${config.database.port}/`;
 
+/**
+ * Sorts an array of IP addresses (both IPv4 and IPv6) with optional ports
+ * @param {string[]} addresses - Array of IP addresses to sort
+ * @returns {string[]} - Sorted array of IP addresses
+ */
+function sortIPAddresses(addresses) {
+  return addresses.sort((a, b) => {
+    const parseAddress = (addr) => {
+      let ip;
+      let port = 0;
+
+      // Check if IPv6 (contains colons and possibly brackets)
+      if (addr.includes('[') && addr.includes(']:')) {
+        // IPv6 with port: [2001:41d0:d00:b800::46]:9159
+        const match = addr.match(/\[(.*?)\]:(\d+)/);
+        if (match) {
+          [, ip, port] = match;
+          port = parseInt(port, 10);
+        }
+      } else if (addr.includes(':') && addr.split(':').length > 2) {
+        // IPv6 without port
+        ip = addr;
+      } else if (addr.includes(':')) {
+        // IPv4 with port: 95.216.124.210:16774
+        const parts = addr.split(':');
+        [ip, port] = parts;
+        port = parseInt(port, 10);
+      } else {
+        // IPv4 without port
+        ip = addr;
+      }
+
+      return { ip, port, isIPv6: ip.includes(':') };
+    };
+
+    const addrA = parseAddress(a);
+    const addrB = parseAddress(b);
+
+    // Sort IPv4 before IPv6
+    if (addrA.isIPv6 !== addrB.isIPv6) {
+      return addrA.isIPv6 ? 1 : -1;
+    }
+
+    if (!addrA.isIPv6) {
+      // Compare IPv4 addresses
+      const partsA = addrA.ip.split('.').map(Number);
+      const partsB = addrB.ip.split('.').map(Number);
+
+      for (let i = 0; i < 4; i += 1) {
+        if (partsA[i] !== partsB[i]) {
+          return partsA[i] - partsB[i];
+        }
+      }
+    } else {
+      // Compare IPv6 addresses
+      const expandIPv6 = (ip) => {
+        // Handle :: shorthand
+        const sections = ip.split('::');
+        let parts;
+
+        if (sections.length === 2) {
+          const left = sections[0] ? sections[0].split(':') : [];
+          const right = sections[1] ? sections[1].split(':') : [];
+          const missing = 8 - left.length - right.length;
+          parts = [...left, ...Array(missing).fill('0'), ...right];
+        } else {
+          parts = ip.split(':');
+        }
+
+        // Pad each part with leading zeros
+        return parts.map((part) => part.padStart(4, '0'));
+      };
+
+      const expandedA = expandIPv6(addrA.ip);
+      const expandedB = expandIPv6(addrB.ip);
+
+      for (let i = 0; i < 8; i += 1) {
+        const valA = parseInt(expandedA[i], 16);
+        const valB = parseInt(expandedB[i], 16);
+        if (valA !== valB) {
+          return valA - valB;
+        }
+      }
+    }
+
+    // If IPs are equal, sort by port
+    return addrA.port - addrB.port;
+  });
+}
+
 async function httpGetRequest(url, awaitTime = 30000, headers = {}, httpsAgent) {
   const { CancelToken } = axios;
   const source = CancelToken.source();
@@ -237,4 +327,5 @@ module.exports = {
   createWarningMessage,
   createErrorMessage,
   matchRule,
+  sortIPAddresses,
 };

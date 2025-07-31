@@ -705,6 +705,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             });
             appIpsOnAppsChecks = [];
           }
+          // as the application checks uses network, the responses can come in
+          // a different order, so we sort the responses by ip address.
+          serviceHelper.sortIPAddresses(appIps);
         } else if (
           app.compose
           && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'))

@@ -1044,7 +1044,7 @@ async function startApplicationProcessing() {
   // };
 
   const locationsHandler = async (appsLocs) => {
-    appsLocations = appsLocs;
+    if (appsLocs) appsLocations = appsLocs;
 
     if (configQueued && configRunning) {
       console.log('appsLocationsUpdated event received, while '

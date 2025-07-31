@@ -713,15 +713,16 @@ class FdmDataFetcher extends EventEmitter {
     // we could get the response as text and hash that, but it changes
     // the logic quite a bit. So a better compromise is to stringify again
     // until the load balancers are fixed (return same api endpoint, i.e. same etag)
-    const hasher = crypto.createHash('sha1');
-    const locationsSha = hasher.update(JSON.stringify(payload)).digest('hex');
+    // const hasher = crypto.createHash('sha1');
+    // const locationsSha = hasher.update(JSON.stringify(payload)).digest('hex');
 
-    if (locationsSha !== appsLocations.sha) {
-      console.log('appsLocations have a different SHA... processing');
-      appsLocations.sha = locationsSha;
-      await this.processAppsLocations(payload);
-    }
+    // if (locationsSha !== appsLocations.sha) {
+    //   console.log('appsLocations have a different SHA... processing');
+    //   appsLocations.sha = locationsSha;
+    //   await this.processAppsLocations(payload);
+    // }
 
+    await this.processAppsLocations(payload);
     // const elapsedMs = Number(FdmDataFetcher.now - fetchTime) / 1_000_000;
     // add a one second overlay here. This stops retries when the max-age is
     // at 0.
@@ -872,16 +873,19 @@ class FdmDataFetcher extends EventEmitter {
    * @returns {Promise<number>} Ms until next loop time
    */
   async appsLocationsRunner() {
-    const { appsLocations } = this.endpoints;
+    // don't do the head request here anymore, as the endpoint is always different.
+    // this is now hardcoded to run every 10 seconds
 
-    if (appsLocations.etag) {
-      const store = appsLocations;
-      const fetcher = this.doAppsLocationsHttpHead.bind(this);
+    // const { appsLocations } = this.endpoints;
 
-      const cacheMaxAgeMs = await FdmDataFetcher.getHttpCacheValues(store, fetcher);
+    // if (appsLocations.etag) {
+    //   const store = appsLocations;
+    //   const fetcher = this.doAppsLocationsHttpHead.bind(this);
 
-      if (cacheMaxAgeMs) return cacheMaxAgeMs;
-    }
+    //   const cacheMaxAgeMs = await FdmDataFetcher.getHttpCacheValues(store, fetcher);
+
+    //   if (cacheMaxAgeMs) return cacheMaxAgeMs;
+    // }
 
     const getMaxAgeMs = await this.getAndProcessAppsLocations();
 

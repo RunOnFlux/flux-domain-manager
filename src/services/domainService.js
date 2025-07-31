@@ -582,6 +582,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
  */
 async function generateAndReplaceMainApplicationHaproxyConfig() {
   const startTime = process.hrtime.bigint();
+  let appsProcessingTimeNs = 0;
 
   try {
     log.info('Non G Mode STARTED');
@@ -621,7 +622,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     // continue with appsOK
     const configuredApps = []; // object of domain, port, ips for backend and isRdata
     for (const app of appsOK) {
-      const startTime = process.hrtime.bigint();
+      const appStartTime = process.hrtime.bigint();
 
       log.info(`Configuring ${app.name}`);
 
@@ -831,10 +832,14 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         }
       }
 
-      const elapsedNs = Number(process.hrtime.bigint() - startTime);
+      const elapsedNs = Number(process.hrtime.bigint() - appStartTime);
       const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
+      appsProcessingTimeNs += elapsedNs;
       log.info(`App: ${app.name}, Elapsed: ${elapsedS}`);
     }
+
+    const elapsedAppsS = Math.round((appsProcessingTimeNs / 1_000_000_000) * 100) / 100;
+    console.log(`Total apps processing time: ${elapsedAppsS}`);
 
     if (configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');

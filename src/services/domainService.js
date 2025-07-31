@@ -1065,13 +1065,18 @@ async function startApplicationProcessing() {
 
     configRunning = true;
 
-    // run the gapps first
-    await generateAndReplaceMainApplicationHaproxyGAppsConfig();
-    await generateAndReplaceMainApplicationHaproxyConfig();
+    const appProcessor = async () => {
+      const tasks = [
+        generateAndReplaceMainApplicationHaproxyGAppsConfig(),
+        generateAndReplaceMainApplicationHaproxyConfig(),
+      ];
+      await Promise.all(tasks);
+    };
+
+    await appProcessor();
 
     if (configQueued) {
-      await generateAndReplaceMainApplicationHaproxyGAppsConfig();
-      await generateAndReplaceMainApplicationHaproxyConfig();
+      await appProcessor();
       configQueued = false;
     }
 

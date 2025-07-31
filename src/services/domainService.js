@@ -622,6 +622,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
       let searchCount = 0;
       while (!appLocations.length && searchCount < 5) {
+        log.info(`Application: ${app.name} not found in global locations... `
+          + 'searching nodes');
         searchCount += 1;
         // eslint-disable-next-line no-await-in-loop
         const newLocations = await fluxService.getApplicationLocation(app.name);
@@ -898,6 +900,8 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
 
       let searchCount = 0;
       while (!appLocations.length && searchCount < 5) {
+        log.info(`Application: ${app.name} not found in global locations... `
+          + 'searching nodes');
         searchCount += 1;
         // eslint-disable-next-line no-await-in-loop
         const newLocations = await fluxService.getApplicationLocation(app.name);

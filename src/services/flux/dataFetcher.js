@@ -698,6 +698,8 @@ class FdmDataFetcher extends EventEmitter {
   async getAndProcessAppsLocations() {
     const { appsLocations } = this.endpoints;
 
+    // this call is 2.1Mb without compression and 0.37Mb compressed (axios uses
+    // compression)
     const getRes = await this.doAppsLocationsHttpGet();
     if (!getRes) return appsLocations.defaultFetchMs;
 

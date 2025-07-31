@@ -621,6 +621,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     // continue with appsOK
     const configuredApps = []; // object of domain, port, ips for backend and isRdata
     for (const app of appsOK) {
+      const startTime = process.hrtime.bigint();
+
       log.info(`Configuring ${app.name}`);
 
       const appLocations = appsLocations.get(app.name) || [];
@@ -828,6 +830,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
       }
+
+      const elapsedNs = Number(process.hrtime.bigint() - startTime);
+      const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
+      log.info(`App: ${app.name}, Elapsed: ${elapsedS}`);
     }
 
     if (configuredApps.length < 10) {

@@ -708,7 +708,7 @@ class FdmDataFetcher extends EventEmitter {
     appsLocations.etag = etag;
     appsLocations.maxAgeMs = maxAgeMs;
 
-    const fetchTime = FdmDataFetcher.now;
+    // const fetchTime = FdmDataFetcher.now;
 
     // we could get the response as text and hash that, but it changes
     // the logic quite a bit. So a better compromise is to stringify again
@@ -722,10 +722,12 @@ class FdmDataFetcher extends EventEmitter {
       await this.processAppsLocations(payload);
     }
 
-    const elapsedMs = Number(FdmDataFetcher.now - fetchTime) / 1_000_000;
+    // const elapsedMs = Number(FdmDataFetcher.now - fetchTime) / 1_000_000;
     // add a one second overlay here. This stops retries when the max-age is
     // at 0.
-    const sleepTimeMs = Math.max(1_000, maxAgeMs - elapsedMs + 1_000);
+    // const sleepTimeMs = Math.max(1_000, maxAgeMs - elapsedMs + 1_000);
+    // test hardsetting this to 10 seconds (we try a different node on each call)
+    const sleepTimeMs = 10_000;
 
     const logger = {
       name: 'appsLocations',

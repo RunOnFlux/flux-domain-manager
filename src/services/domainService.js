@@ -839,7 +839,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     }
 
     const elapsedAppsS = Math.round((appsProcessingTimeNs / 1_000_000_000) * 100) / 100;
-    console.log(`Total apps processing time. Elapsed: ${elapsedAppsS}`);
+    log.info(`Total apps processing time. Elapsed: ${elapsedAppsS}`);
 
     if (configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');
@@ -1090,8 +1090,12 @@ async function startApplicationProcessing() {
       state.running = false;
     };
 
-    setImmediate(() => handler('gApps', runQueue.gApps, generateAndReplaceMainApplicationHaproxyGAppsConfig));
-    setImmediate(() => handler('nonGApps', runQueue.nonGApps, generateAndReplaceMainApplicationHaproxyConfig));
+    const promises = [
+      handler('gApps', runQueue.gApps, generateAndReplaceMainApplicationHaproxyGAppsConfig),
+      handler('nonGApps', runQueue.nonGApps, generateAndReplaceMainApplicationHaproxyConfig),
+    ];
+
+    await Promise.all(promises);
   };
 
   dataFetcher.on(

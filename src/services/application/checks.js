@@ -28,7 +28,7 @@ const ethersList = [
     name: 'AstarRPC', providerURL: null, cmd: 'system_health', port: '36011',
   },
 ];
-let currentFluxBlockheight = 1823810;
+let currentFluxBlockheight = 1968478;
 // MAIN
 async function checkLoginPhrase(ip, port) {
   try {
@@ -566,8 +566,9 @@ async function checkFluxExplorer(ip, port) {
     const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/addr/t3c51GjrkUg7pUiS8bzNdTnW2hD25egWUih`, 8888);
     const responseB = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/sync`, 8888);
     const responseC = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/circulation`, 8888);
+    const responseD = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/status`, 8888);
     // eslint-disable-next-line no-use-before-define
-    if (response.data.transactions.length > 0 && responseB.data.blockChainHeight >= currentFluxBlockheight && responseC.data.circulationsupply > 372000000) {
+    if (response.data.transactions.length > 0 && responseB.data.blockChainHeight >= currentFluxBlockheight && responseC.data.circulationsupply > 389000000 && responseD.data.info.version >= 8000050) {
       const urls = [`http://${ip}:${port}/api/blocks?limit=1`, `http://${ip}:${port}/api/txs/?block=`, `http://${ip}:${port}/api/tx/`];
       const result = await extendedInsightTest(urls[0], urls[1], urls[2]);
       if (result) {
@@ -674,6 +675,11 @@ async function checkBlockBook(ip, port, appsname) {
     } else {
       response1 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api`, 5000);
       response2 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, 5000);
+    }
+    if (coin === 'flux') {
+      if (response1.data.backend.version < 8000050) {
+        return false;
+      }
     }
     const currentTime = new Date().getTime();
     if (response2.data.txids.length > 0 && response1.data.blockbook.bestHeight > (response1.data.backend.blocks - 100) && response1.data.blockbook.bestHeight > heightList[index] && response1.data.backend.blocks > heightList[index]) {
@@ -884,7 +890,7 @@ async function checkAppRunning(url, appName) {
 function applicationWithChecks(app) {
   if (generalWebsiteApps.includes(app.name)) {
     return true;
-  } if (app.name === 'explorer') {
+  } if (app.name === 'explorer' || app.name === 'explorerb') {
     return true;
   } if (app.name === 'bitcoinnode' || app.name === 'bitcoinnodetestnet' || app.name === 'bitcoinnodesignet') {
     return true;
@@ -917,7 +923,7 @@ async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
     isOK = await generalWebsiteCheck(ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0], undefined, app.name);
-  } else if (app.name === 'explorer') {
+  } else if (app.name === 'explorer' || app.name === 'explorerb') {
     isOK = await checkFluxExplorer(ip.split(':')[0], 39185);
   } else if (app.name === 'bitcoinnode' || app.name === 'bitcoinnodetestnet' || app.name === 'bitcoinnodesignet') {
     isOK = await checkBitcoinNode(ip.split(':')[0], app.compose[0].ports[0], app.name);

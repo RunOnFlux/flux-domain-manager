@@ -660,7 +660,7 @@ async function checkBlockBook(ip, port, appsname) {
       'XmCgmabJL2S8DJ8tmEvB8QDArgBbSSMJea', 'aBEJgEP2b7DP7tyQukv639qtdhjFhWp2QE', 'SXoqyAiZ6gQjafKmSnb2pmfwg7qLC8r4Sf', 'RKo31qpgy9278MuWNXb5NPranc4W6oaUFf',
       'DTVg3KVrPiv9QLPT1cYQ8XYV6SUugMYkZV', 'DsUbTWsJWNzNdfUigTrUqbxmnwntDBJXasi', 'NfXjy71SH9CdC8tNzQjkYGKUCYfMsTPaKS', '12ib7dApVFvg82TXKycWBNpN8kFyiAN1dr', 'tb1qzzlexm9xz8zthacl5tl0ewp2yu9tq0jp2tt6e0', 'tb1pwzv7fv35yl7ypwj8w7al2t8apd6yf4568cs772qjwper74xqc99sk8x7tk',
       'AMq8KfE2iJtMbKNMtHp3VmJFFKmyLoMwuG', 'bitcoincash:qr8ger8kn2fz5cr73cp7ylkqznauyjyzuqwwh4uqht', 'GLTodZWWjuMWmXhu2fAtPM4e4Sv6Z2oZYP'];
-    const heightList = [2561528, 1489960, 18510512, 2067081, 2260134, 4922428, 18038850, 4796068, 1953740, 764150, 1690368, 3015843, 4085836, 807730, 255116, 812896, 68910, 165752, 516509, 845000, 850000];
+    const heightList = [2561528, 1969000, 18510512, 2067081, 2260134, 4922428, 18038850, 4796068, 1953740, 764150, 1690368, 3015843, 4085836, 807730, 255116, 812896, 68910, 165752, 516509, 845000, 850000];
     let coin = appsname.replace('blockbook', '');
     coin = coin.replace(/\d+/g, '');
     const index = coinList.indexOf(coin);
@@ -677,7 +677,7 @@ async function checkBlockBook(ip, port, appsname) {
       response2 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, 5000);
     }
     if (coin === 'flux') {
-      if (response1.data.backend.version < 8000050) {
+      if (response1.data.backend.version !== 'zebra' && +response1.data.backend.version < 8000050) { // consider zebra always valid
         return false;
       }
     }

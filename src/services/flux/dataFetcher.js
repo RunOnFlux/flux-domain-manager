@@ -141,9 +141,10 @@ class FdmDataFetcher extends EventEmitter {
     for (const [key, value] of Object.entries(blob)) {
       if (value instanceof Array) {
         parsed[key] = value.map((item) => this.hydrate(item));
-      } else if (value.startsWith('[') && value.endsWith(']')) {
+      } else if (value && typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
         parsed[key] = this.parseJson(value);
       } else {
+        console.log('DEBUG value', value);
         parsed[key] = value;
       }
     }

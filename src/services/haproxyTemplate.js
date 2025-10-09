@@ -52,6 +52,7 @@ defaults
   maxconn 100000
   errorfile 400 /etc/haproxy/errors/400.http
   errorfile 403 /etc/haproxy/errors/403.http
+  errorfile 404 /etc/haproxy/errors/404.http
   errorfile 408 /etc/haproxy/errors/408.http
   errorfile 500 /etc/haproxy/errors/500.http
   errorfile 502 /etc/haproxy/errors/502.http
@@ -106,6 +107,11 @@ const cloudflareFluxBackend = `backend cloudflare-flux-backend
 const forbiddenBackend = `backend forbidden-backend
   mode http
   http-request deny deny_status 403
+`;
+
+const noInstancesBackend = `backend no-instances-backend
+  mode http
+  http-request deny deny_status 404
 `;
 // eslint-disable-next-line no-unused-vars
 function createCertificatesPaths(domains) {
@@ -195,6 +201,7 @@ ${backends}
 ${letsEncryptBackend}
 ${cloudflareFluxBackend}
 ${forbiddenBackend}
+${noInstancesBackend}
 `;
   return config;
 }
@@ -446,6 +453,7 @@ function createAppsHaproxyConfig(appConfig) {
   usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
   const domains = [];
   const seenApps = {};
+  const noInstancesApps = []; // Track apps with no instances
   const minecraftAppsMap = {};
   const tcpAppsMap = {};
   for (const app of appConfig) {
@@ -453,6 +461,19 @@ function createAppsHaproxyConfig(appConfig) {
       // eslint-disable-next-line no-continue
       continue;
     }
+
+    // Check if app has no instances running
+    if (!app.ips || app.ips.length === 0) {
+      const domainUsed = app.domain.split('.').join('');
+      domains.push(app.domain);
+      acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
+      usebackends += `  use_backend no-instances-backend if ${domainUsed}\n`;
+      noInstancesApps.push(app.name);
+      log.info(`App ${app.name} has no instances - routing to no-instances-backend`);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
     if (app.appName in seenApps) {
       domains.push(app.domain);
       acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;

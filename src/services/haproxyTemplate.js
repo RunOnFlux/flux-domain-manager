@@ -87,6 +87,9 @@ frontend wwwhttps
   stats uri     /fluxstatistics
   stats realm   Flux\\ Statistics
 
+  # Default backend for unknown domains
+  default_backend app-not-exists-backend
+
   # The SSL CRT file is a combination of the public certificate and the private key
 `;
 
@@ -117,6 +120,11 @@ const noInstancesBackend = `backend no-instances-backend
 const temporarilyUnavailableBackend = `backend temporarily-unavailable-backend
   mode http
   http-request deny deny_status 502
+`;
+
+const appNotExistsBackend = `backend app-not-exists-backend
+  mode http
+  http-request deny deny_status 418
 `;
 // eslint-disable-next-line no-unused-vars
 function createCertificatesPaths(domains) {
@@ -208,6 +216,7 @@ ${cloudflareFluxBackend}
 ${forbiddenBackend}
 ${noInstancesBackend}
 ${temporarilyUnavailableBackend}
+${appNotExistsBackend}
 `;
   return config;
 }

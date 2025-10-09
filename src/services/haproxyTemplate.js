@@ -113,6 +113,11 @@ const noInstancesBackend = `backend no-instances-backend
   mode http
   http-request deny deny_status 404
 `;
+
+const temporarilyUnavailableBackend = `backend temporarily-unavailable-backend
+  mode http
+  http-request deny deny_status 502
+`;
 // eslint-disable-next-line no-unused-vars
 function createCertificatesPaths(domains) {
   // let path = '';
@@ -202,6 +207,7 @@ ${letsEncryptBackend}
 ${cloudflareFluxBackend}
 ${forbiddenBackend}
 ${noInstancesBackend}
+${temporarilyUnavailableBackend}
 `;
   return config;
 }
@@ -439,6 +445,9 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {}, {});
 }
 
+// Track apps that have had instances running (persists across config generations)
+const appsWithHistoricalInstances = new Set();
+
 // appConfig is an array of object of domain, port, ips
 function createAppsHaproxyConfig(appConfig) {
   let backends = '';
@@ -467,12 +476,23 @@ function createAppsHaproxyConfig(appConfig) {
       const domainUsed = app.domain.split('.').join('');
       domains.push(app.domain);
       acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
-      usebackends += `  use_backend no-instances-backend if ${domainUsed}\n`;
+
+      // If app previously had instances, show 503 (temporarily unavailable)
+      // Otherwise show 404 (not found)
+      if (appsWithHistoricalInstances.has(app.name)) {
+        usebackends += `  use_backend temporarily-unavailable-backend if ${domainUsed}\n`;
+        log.info(`App ${app.name} has no instances - routing to temporarily-unavailable-backend (503)`);
+      } else {
+        usebackends += `  use_backend no-instances-backend if ${domainUsed}\n`;
+        log.info(`App ${app.name} has no instances - routing to no-instances-backend (404)`);
+      }
       noInstancesApps.push(app.name);
-      log.info(`App ${app.name} has no instances - routing to no-instances-backend`);
       // eslint-disable-next-line no-continue
       continue;
     }
+
+    // App has instances - track it in our history
+    appsWithHistoricalInstances.add(app.name);
 
     if (app.appName in seenApps) {
       domains.push(app.domain);

@@ -54,6 +54,7 @@ defaults
   errorfile 403 /etc/haproxy/errors/403.http
   errorfile 404 /etc/haproxy/errors/404.http
   errorfile 408 /etc/haproxy/errors/408.http
+  errorfile 418 /etc/haproxy/errors/418.http
   errorfile 500 /etc/haproxy/errors/500.http
   errorfile 502 /etc/haproxy/errors/502.http
   errorfile 503 /etc/haproxy/errors/503.http
@@ -471,7 +472,6 @@ function createAppsHaproxyConfig(appConfig) {
   usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
   const domains = [];
   const seenApps = {};
-  const noInstancesApps = []; // Track apps with no instances
   const minecraftAppsMap = {};
   const tcpAppsMap = {};
   for (const app of appConfig) {
@@ -486,16 +486,15 @@ function createAppsHaproxyConfig(appConfig) {
       domains.push(app.domain);
       acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
 
-      // If app previously had instances, show 503 (temporarily unavailable)
+      // If app previously had instances, show 502 (temporarily unavailable)
       // Otherwise show 404 (not found)
       if (appsWithHistoricalInstances.has(app.name)) {
         usebackends += `  use_backend temporarily-unavailable-backend if ${domainUsed}\n`;
-        log.info(`App ${app.name} has no instances - routing to temporarily-unavailable-backend (503)`);
+        log.info(`App ${app.name} has no instances - routing to temporarily-unavailable-backend (502)`);
       } else {
         usebackends += `  use_backend no-instances-backend if ${domainUsed}\n`;
         log.info(`App ${app.name} has no instances - routing to no-instances-backend (404)`);
       }
-      noInstancesApps.push(app.name);
       // eslint-disable-next-line no-continue
       continue;
     }

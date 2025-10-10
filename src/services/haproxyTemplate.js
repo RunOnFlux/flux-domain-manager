@@ -54,7 +54,7 @@ defaults
   errorfile 403 /etc/haproxy/errors/403.http
   errorfile 404 /etc/haproxy/errors/404.http
   errorfile 408 /etc/haproxy/errors/408.http
-  errorfile 418 /etc/haproxy/errors/418.http
+  errorfile 421 /etc/haproxy/errors/421.http
   errorfile 500 /etc/haproxy/errors/500.http
   errorfile 502 /etc/haproxy/errors/502.http
   errorfile 503 /etc/haproxy/errors/503.http
@@ -125,7 +125,7 @@ const temporarilyUnavailableBackend = `backend temporarily-unavailable-backend
 
 const appNotExistsBackend = `backend app-not-exists-backend
   mode http
-  http-request deny deny_status 418
+  http-request deny deny_status 421
 `;
 // eslint-disable-next-line no-unused-vars
 function createCertificatesPaths(domains) {

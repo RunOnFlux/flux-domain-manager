@@ -29,6 +29,10 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     defaultConfig.ssl = true;
   }
 
+  if (specifications.name.toLowerCase().includes('kaspanode')) {
+    defaultConfig.mode = 'tcp';
+  }
+
   if (isGsyncthingApp) {
     defaultConfig.mode = 'tcp';
     defaultConfig.check = false;

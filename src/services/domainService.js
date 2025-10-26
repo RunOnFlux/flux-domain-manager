@@ -310,7 +310,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
   const customConfigs = getCustomConfigs(app, gMode);
   let timeout = null;
   if (app.version <= 3) {
-    const timeoutConfig = app.enviromentParameters.find((att) => att.toLowerCase().startsWith('timeout='));
+    const timeoutConfig = app.enviromentParameters?.find((att) => typeof att === 'string' && att.toLowerCase().startsWith('timeout='));
     if (timeoutConfig) {
       [, timeout] = timeoutConfig.split('=');
     }
@@ -435,7 +435,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
     let j = 0;
     for (const component of app.compose) {
       timeout = null;
-      const timeoutConfig = component.environmentParameters.find((att) => att.toLowerCase().startsWith('timeout='));
+      const timeoutConfig = component.environmentParameters?.find((att) => typeof att === 'string' && att.toLowerCase().startsWith('timeout='));
       if (timeoutConfig) {
         [, timeout] = timeoutConfig.split('=');
       }

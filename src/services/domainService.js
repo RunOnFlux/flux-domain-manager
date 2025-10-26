@@ -327,7 +327,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
       };
 
       configuredApps.push(configuredApp);
-      if (app.domains[i]) {
+      if (typeof app.domains[i] === 'string') {
         const portDomains = app.domains[i].split(',');
         for (let portDomain of portDomains) {
           // eslint-disable-next-line no-param-reassign
@@ -451,9 +451,10 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
           timeout,
         };
         configuredApps.push(configuredApp);
-        const portDomains = component.domains[i].split(',');
-        // eslint-disable-next-line no-loop-func
-        for (let portDomain of portDomains) {
+        if (typeof component.domains[i] === 'string') {
+          const portDomains = component.domains[i].split(',');
+          // eslint-disable-next-line no-loop-func
+          for (let portDomain of portDomains) {
           // eslint-disable-next-line no-param-reassign
           portDomain = portDomain
             .replace('https://', '')
@@ -547,6 +548,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
               }
             }
           }
+        }
         }
         j += 1;
       }

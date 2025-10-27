@@ -140,11 +140,10 @@ class FdmDataFetcher extends EventEmitter {
     // eslint-disable-next-line no-restricted-syntax
     for (const [key, value] of Object.entries(blob)) {
       if (value instanceof Array) {
-        parsed[key] = value.map((item) => this.hydrate(item));
+        parsed[key] = value.map((item) => (typeof item === 'object' && item !== null ? this.hydrate(item) : item));
       } else if (value && typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
         parsed[key] = this.parseJson(value);
       } else {
-        console.log('DEBUG value', value);
         parsed[key] = value;
       }
     }

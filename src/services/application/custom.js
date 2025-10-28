@@ -33,6 +33,10 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     defaultConfig.mode = 'tcp';
   }
 
+  if (specifications.name.toLowerCase().includes('devstack')) {
+    defaultConfig.mode = 'tcp';
+  }
+
   if (isGsyncthingApp) {
     defaultConfig.mode = 'tcp';
     defaultConfig.check = false;

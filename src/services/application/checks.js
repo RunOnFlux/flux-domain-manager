@@ -233,30 +233,42 @@ async function hasManyMessages(ip, port) {
 
 async function checkMainFlux(ip, port = 16127) {
   try {
+    console.log(`Checking ${ip}:${port}`);
     const isArcane = await isArcaneOS(ip, port);
+    console.log(`isArcane: ${isArcane}`);
     if (isArcane) {
       const uptimeOK = await isUptimeOK(ip, port);
+      console.log(`uptimeOK: ${uptimeOK}`);
       if (uptimeOK) {
         // eslint-disable-next-line no-await-in-loop
         const versionOK = await isVersionOK(ip, port);
+        console.log(`versionOK: ${versionOK}`);
         if (versionOK) {
           // eslint-disable-next-line no-await-in-loop
           const loginPhraseOK = await checkLoginPhrase(ip, port);
+          console.log(`loginPhraseOK: ${loginPhraseOK}`);
           if (loginPhraseOK) {
             // eslint-disable-next-line no-await-in-loop
             const communicationOK = await isCommunicationOK(ip, port);
+            console.log(`communicationOK: ${communicationOK}`);
             if (communicationOK) {
               const isSynced = await isSyncedOK(ip, port);
+              console.log(`isSynced: ${isSynced}`);
               if (isSynced) {
                 const isDaemonSynced = await isDaemonSyncedOK(ip, port);
+                console.log(`isDaemonSynced: ${isDaemonSynced}`);
                 if (isDaemonSynced) {
                   const hasApps = await hasManyApps(ip, port);
+                  console.log(`hasApps: ${hasApps}`);
                   if (hasApps) {
                     const hasMessages = await hasManyMessages(ip, port);
+                    console.log(`hasMessages: ${hasMessages}`);
                     if (hasMessages) {
                       // eslint-disable-next-line no-await-in-loop
                       const uiOK = await isHomeOK(ip, +port - 1);
+                      console.log(`uiOK: ${uiOK}`);
                       if (uiOK) {
+                        console.log(`${ip}:${port} is OK`);
                         return true;
                       }
                     }

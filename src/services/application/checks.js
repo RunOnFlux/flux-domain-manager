@@ -117,7 +117,7 @@ async function isUptimeOK(ip, port) {
   try {
     const url = `http://${ip}:${port}/flux/uptime`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
-    if (response.data.data > 3600) {
+    if (response.data.data > 60) {
       return true;
     }
     log.info(`Function isUptimeOK false for ip ${ip}`);
@@ -133,7 +133,7 @@ async function isVersionOK(ip, port) {
     const url = `http://${ip}:${port}/flux/info`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
     const version = response.data.data.flux.version;
-    if (minVersionSatisfy(version, '6.9.0')) {
+    if (minVersionSatisfy(version, '7.0.0')) {
       if (response.data.data.flux.development === 'false' || !response.data.data.flux.development) {
         return true;
       }

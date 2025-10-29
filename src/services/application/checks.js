@@ -179,7 +179,7 @@ async function isDaemonSyncedOK(ip, port) {
   try {
     const url = `http://${ip}:${port}/daemon/getblockchaininfo`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
-    if (response.data.data.blocks + 3 >= response.data.data.headers) {
+    if (response.data.data.blocks + 10 >= response.data.data.headers) {
       return true;
     }
     log.info(`Function isDaemonSyncedOK false for ip ${ip}`);

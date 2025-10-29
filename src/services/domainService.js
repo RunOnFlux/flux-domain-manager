@@ -86,7 +86,7 @@ async function checkDomainOwnership(domain, appName) {
 }
 
 // Generates config file for HAProxy
-const fluxIPsForBalancing = []; // current nodes l
+let fluxIPsForBalancing = []; // current nodes l
 async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `${config.uiName}.${config.mainDomain}`;
@@ -106,56 +106,47 @@ async function generateAndReplaceMainHaproxyConfig() {
       throw new Error('Invalid Flux List');
     }
 
-    // const aux = fluxIPsForBalancing.length;
+    const initialNodeCount = fluxIPsForBalancing.length;
 
-    // fluxIPsForBalancing = fluxIPsForBalancing.filter((ip) => fluxIPs.includes(ip));
+    // Remove nodes that are no longer in the current flux list
+    fluxIPsForBalancing = fluxIPsForBalancing.filter((ip) => fluxIPs.includes(ip));
+    const removedByFilter = initialNodeCount - fluxIPsForBalancing.length;
 
-    // for (const ip of fluxIPsForBalancing) {
-    //   // eslint-disable-next-line no-await-in-loop
-    //   const isOK = await applicationChecks.checkMainFlux(
-    //     ip.split(':')[0],
-    //     ip.split(':')[1],
-    //   ); // can be undefined
-    //   if (!isOK) {
-    //     const index = fluxIPsForBalancing.indexOf(ip);
-    //     if (index > -1) {
-    //       // only splice array when item is found
-    //       fluxIPsForBalancing.splice(index, 1); // 2nd parameter means remove one item only
-    //       console.log(`removing ${ip} as backend`);
-    //     }
-    //   }
-    // }
+    if (removedByFilter > 0) {
+      console.log(`Removed ${removedByFilter} nodes no longer in flux list`);
+    }
 
-    // if (aux !== fluxIPsForBalancing.length && fluxIPsForBalancing.length > 0) {
-    //   // lets remove already the nodes not ok before looking for new ones
-    //   console.log(
-    //     'Removing some nodes from backend that are no longer ok: '
-    //     + `${aux - fluxIPsForBalancing.length}`,
-    //   );
-    //   const hc = await haproxyTemplate.createMainHaproxyConfig(
-    //     ui,
-    //     api,
-    //     fluxIPsForBalancing,
-    //     uiPrimary,
-    //     apiPrimary,
-    //   );
-    //   // stop logging the entire ha proxy config to console
-    //   // console.log(hc);
-    //   const dataToWrite = hc;
-    //   // test haproxy config
-    //   const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
-    //   if (!successRestart) {
-    //     throw new Error('Invalid HAPROXY Config File!');
-    //   }
-    // }
+    // Check each existing IP and only keep the ones that pass health check
+    const nodeCountBeforeHealthCheck = fluxIPsForBalancing.length;
+    const healthyIPs = [];
+    for (const ip of fluxIPsForBalancing) {
+      // eslint-disable-next-line no-await-in-loop
+      const isOK = await applicationChecks.checkMainFlux(
+        ip.split(':')[0],
+        ip.split(':')[1],
+      ); // can be undefined
+      if (isOK) {
+        healthyIPs.push(ip);
+      } else {
+        console.log(`removing ${ip} as backend (failed health check)`);
+      }
+    }
+    fluxIPsForBalancing = healthyIPs;
 
-    // console.log(`Current Ips on backend ${fluxIPsForBalancing.length}`);
+    const removedByHealthCheck = nodeCountBeforeHealthCheck - fluxIPsForBalancing.length;
+    if (removedByHealthCheck > 0) {
+      console.log(
+        `Removed ${removedByHealthCheck} nodes that failed health check`,
+      );
+    }
+
+    console.log(`Current Ips on backend ${fluxIPsForBalancing.length}`);
 
     // we want to do some checks on UI and API to verify functionality
     // 1st check is loginphrase
     // 2nd check is communication
     // 3rd is ui
-    if (fluxIPsForBalancing.length <= 100) {
+    if (fluxIPsForBalancing.length < 100) {
       console.log(`Found ${fluxIPs.length} STRATUS on default api port`);
       for (const ip of fluxIPs) {
         if (fluxIPsForBalancing.indexOf(ip) >= 0) {
@@ -170,10 +161,10 @@ async function generateAndReplaceMainHaproxyConfig() {
         if (isOK) {
           fluxIPsForBalancing.push(ip);
           console.log(`adding ${ip} as backend`);
-        }
-        if (fluxIPsForBalancing.length > 100) {
-          // maximum of 100 for load balancing
-          break;
+          if (fluxIPsForBalancing.length >= 100) {
+            // maximum of 100 for load balancing
+            break;
+          }
         }
       }
     }

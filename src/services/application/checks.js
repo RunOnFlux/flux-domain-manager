@@ -681,12 +681,22 @@ async function checkBlockBook(ip, port, appsname) {
     const agent = new https.Agent({
       rejectUnauthorized: false,
     });
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
     if (ip.includes(':')) {
-      response1 = await axios.get(`https://${ip}:${port}/api`, { httpsAgent: agent, timeout });
-      response2 = await axios.get(`https://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, { httpsAgent: agent, timeout });
+      response1 = await axios.get(`https://${ip}:${port}/api`, { httpsAgent: agent, timeout, cancelToken: source.token });
+      response2 = await axios.get(`https://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, { httpsAgent: agent, timeout, cancelToken: source.token });
+      isResolved = true;
     } else {
       response1 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api`, 5000);
       response2 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, 5000);
+      isResolved = true;
     }
     if (coin === 'flux') {
       if (response1.data.backend.version !== 'zebra' && +response1.data.backend.version < 8000050) { // consider zebra always valid
@@ -726,11 +736,21 @@ async function checkBlockBook(ip, port, appsname) {
 }
 
 async function checkAlgorand(ip, port) {
-  const axiosConfig = {
-    timeout: 13456,
-  };
   try {
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, 13456 * 2);
+    const axiosConfig = {
+      timeout: 13456,
+      cancelToken: source.token,
+    };
     const status = await axios.get(`http://${ip}:${port}/health`, axiosConfig);
+    isResolved = true;
     if (status.data.isSynced === true) {
       return true;
     }
@@ -777,12 +797,23 @@ async function getBlockchainInfo(host, port, username, password) {
     parameter: [],
   };
   try {
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
     const response = await axios.post(`http://${host}:${port}`, body, {
       auth: {
         username,
         password,
       },
+      timeout,
+      cancelToken: source.token,
     });
+    isResolved = true;
     // removed due to excessive console logs
     // console.log(response.data);
     return response.data.result;
@@ -867,7 +898,16 @@ async function checkBittensor(ip, port) {
     params: [],
   };
   try {
-    await axios.post(url, data, { timeout: 5000 });
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, 5000 * 2);
+    await axios.post(url, data, { timeout: 5000, cancelToken: source.token });
+    isResolved = true;
     return true;
   } catch (error) {
     return false;
@@ -975,7 +1015,16 @@ async function checkApplication(app, ip) {
 
 setInterval(async () => {
   try {
-    const response = await axios.get('https://explorer.runonflux.io/api/status');
+    const { CancelToken } = axios;
+    const source = CancelToken.source();
+    let isResolved = false;
+    setTimeout(() => {
+      if (!isResolved) {
+        source.cancel('Operation canceled by the user.');
+      }
+    }, timeout * 2);
+    const response = await axios.get('https://explorer.runonflux.io/api/status', { timeout, cancelToken: source.token });
+    isResolved = true;
     const height = response.data.info.blocks;
     if (height > currentFluxBlockheight) {
       currentFluxBlockheight = height;

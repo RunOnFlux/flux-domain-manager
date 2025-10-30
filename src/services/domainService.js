@@ -616,7 +616,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     for (const app of appsOK) {
       const appStartTime = process.hrtime.bigint();
 
-      log.info(`Configuring ${app.name}`);
+      log.info(`Configuring Non G App ${app.name}`);
 
       const appLocations = appsLocations.get(app.name) || [];
 
@@ -818,10 +818,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         }
         addConfigurations(configuredApps, app, appIps, false);
         log.info(
-          `Application ${app.name} with specific checks: ${applicationWithChecks} is OK. Proceeding to FDM`,
+          `Non G Application ${app.name} with specific checks: ${applicationWithChecks} is OK. Proceeding to FDM`,
         );
       } else {
-        log.warn(`Application ${app.name} is excluded. Not running properly?`);
+        log.warn(`Non G Application ${app.name} is excluded. Not running properly?`);
         if (config.mandatoryApps.includes(app.name)) {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
@@ -830,11 +830,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       const elapsedNs = Number(process.hrtime.bigint() - appStartTime);
       const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
       appsProcessingTimeNs += elapsedNs;
-      log.info(`App: ${app.name}, Elapsed: ${elapsedS}`);
+      log.info(`Non G App: ${app.name}, Elapsed: ${elapsedS}`);
     }
 
     const elapsedAppsS = Math.round((appsProcessingTimeNs / 1_000_000_000) * 100) / 100;
-    log.info(`Total apps processing time. Elapsed: ${elapsedAppsS}`);
+    log.info(`Total Non G apps processing time. Elapsed: ${elapsedAppsS}`);
 
     if (configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');

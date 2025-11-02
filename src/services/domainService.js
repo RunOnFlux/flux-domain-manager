@@ -11,6 +11,9 @@ const {
   getCustomDomains,
 } = require('./domain');
 const { executeCertificateOperations } = require('./domain/cert');
+const {
+  createDNSRecord, listDNSRecords, deleteDNSRecordCloudflare, deleteDNSRecordPDNS,
+} = require('./domain/dns');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
 const { getApplicationsToProcess } = require('./application/subset');
@@ -260,6 +263,73 @@ async function addAppIps(app, ip) {
   const isCheckOK = await applicationChecks.checkApplication(app, ip);
   if (isCheckOK) {
     appIpsOnAppsChecks.push(ip);
+  }
+}
+
+/**
+ * Create direct DNS A records for game apps pointing to their primary IP
+ * This bypasses HAProxy for better game server performance while keeping
+ * the app in HAProxy config for FluxOS monitoring
+ * @param {Object} app - Application specification
+ * @param {string} primaryIP - The selected primary IP for this game server
+ */
+async function createGameAppDNS(app, primaryIP) {
+  try {
+    if (!primaryIP) {
+      log.warn(`No primary IP for game app ${app.name}, skipping DNS creation`);
+      return;
+    }
+
+    // Extract just the IP without port for DNS
+    const cleanIP = primaryIP.split(':')[0].replace(/\[|\]/g, ''); // Remove brackets for IPv6
+
+    const domains = getUnifiedDomains(app);
+    log.info(`Creating direct DNS A records for game ${app.name} pointing to ${cleanIP}`);
+
+    for (const domain of domains) {
+      // eslint-disable-next-line no-await-in-loop
+      const existingRecords = await listDNSRecords(domain);
+
+      // Delete any existing records that don't point to our IP
+      for (const record of existingRecords) {
+        let adjustedContent = record.content;
+        if (adjustedContent && config.pDNS.enabled) {
+          adjustedContent = adjustedContent.slice(0, -1);
+        }
+        // Delete if it's not an A record or doesn't point to our clean IP
+        if (record.type !== 'A' || adjustedContent !== cleanIP) {
+          if (config.cloudflare.enabled) {
+            // eslint-disable-next-line no-await-in-loop
+            await deleteDNSRecordCloudflare(record);
+            log.info(`Deleted old ${record.type} record ${domain} -> ${record.content}`);
+          } else if (config.pDNS.enabled) {
+            // eslint-disable-next-line no-await-in-loop
+            await deleteDNSRecordPDNS(record.name, record.content, record.type, record.ttl);
+            log.info(`Deleted old ${record.type} record ${domain} -> ${record.content}`);
+          }
+        }
+      }
+
+      // Check if correct A record already exists
+      const correctRecord = existingRecords.find((record) => {
+        let adjustedContent = record.content;
+        if (adjustedContent && config.pDNS.enabled) {
+          adjustedContent = adjustedContent.slice(0, -1);
+        }
+        return record.type === 'A' && adjustedContent === cleanIP;
+      });
+
+      if (!correctRecord) {
+        // Create new A record
+        // eslint-disable-next-line no-await-in-loop
+        await createDNSRecord(domain, cleanIP, 'A', 60);
+        log.info(`Created A record for ${domain} -> ${cleanIP}`);
+      } else {
+        log.info(`A record for ${domain} -> ${cleanIP} already exists`);
+      }
+    }
+  } catch (error) {
+    log.error(`Error creating game app DNS for ${app.name}: ${error.message}`);
   }
 }
 
@@ -925,10 +995,30 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
         const selectedIP = await selectIPforG(locationIps, app);
         if (selectedIP) {
           appIps.push(selectedIP);
+
+          // Check if this is a UDP/TCP game app that needs direct DNS routing
+          // Only applies to G mode apps (verified via containerData check)
+          const isGameApp = serviceHelper.isUDPGameApp(app.name, config.udpGameApps, app);
+
+          if (isGameApp) {
+            // For game apps: create direct A record DNS for player connections (bypasses HAProxy)
+            log.info(`${app.name} is a G mode game app, creating direct DNS to ${selectedIP}`);
+            // eslint-disable-next-line no-await-in-loop
+            await createGameAppDNS(app, selectedIP);
+          }
+
+          // Add to HAProxy configuration (for FluxOS monitoring and non-game traffic)
           addConfigurations(configuredApps, app, appIps, true);
-          log.info(
-            `G Application ${app.name} is OK selected IP is ${selectedIP}. Proceeding to FDM`,
-          );
+
+          if (isGameApp) {
+            log.info(
+              `G Game Application ${app.name} configured: direct DNS to ${selectedIP} (players bypass HAProxy), backend in HAProxy (FluxOS monitoring)`,
+            );
+          } else {
+            log.info(
+              `G Application ${app.name} is OK selected IP is ${selectedIP}. Proceeding to FDM`,
+            );
+          }
         }
 
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {

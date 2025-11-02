@@ -919,15 +919,16 @@ async function checkAppRunning(url, appName) {
     const { CancelToken } = axios;
     const source = CancelToken.source();
     let isResolved = false;
+    const checkAppRunningTimeout = 12000;
     setTimeout(() => {
       if (!isResolved) {
         source.cancel('Operation canceled by the user.');
       }
-    }, timeout * 2);
+    }, checkAppRunningTimeout * 2);
 
     const ip = url.split(':')[0];
     const port = url.split(':')[1] || 16127;
-    const response = await axios.get(`http://${ip}:${port}/apps/listrunningapps`, { timeout, cancelToken: source.token });
+    const response = await axios.get(`http://${ip}:${port}/apps/listrunningapps`, { timeout: checkAppRunningTimeout, cancelToken: source.token });
     isResolved = true;
     const appsRunning = response.data.data;
     if (appsRunning.find((app) => app.Names[0].includes(appName) && app.State === 'running')) {

@@ -997,7 +997,6 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
           appIps.push(selectedIP);
 
           // Check if this is a UDP/TCP game app that needs direct DNS routing
-          // Only applies to G mode apps (verified via containerData check)
           const isGameApp = serviceHelper.isUDPGameApp(app.name, config.udpGameApps, app);
 
           if (isGameApp) {

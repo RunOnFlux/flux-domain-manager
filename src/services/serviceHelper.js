@@ -235,27 +235,12 @@ function matchRule(str, rules) {
 /**
  * Check if an app is a UDP/TCP game that should use direct DNS routing
  * Games use direct DNS routing to primary IP for better latency
- * This should ONLY be used for G mode apps (apps with g: in containerData)
  * @param {string} appName - The name of the application
  * @param {string[]} gameTypes - Array of game type prefixes from config
  * @param {Object} [appSpec] - Optional: full app specification to verify G mode
  * @returns {boolean} True if app is a game that needs direct routing
  */
 function isUDPGameApp(appName, gameTypes, appSpec = null) {
-  // If app spec provided, verify it's actually a G mode app
-  if (appSpec) {
-    let hasGMode = false;
-    if (appSpec.version <= 3) {
-      hasGMode = appSpec.containerData && appSpec.containerData.includes('g:');
-    } else if (appSpec.compose) {
-      hasGMode = appSpec.compose.some((comp) => comp.containerData && comp.containerData.includes('g:'));
-    }
-    // If not G mode, definitely not a game app for this feature
-    if (!hasGMode) {
-      return false;
-    }
-  }
-
   const lowerName = appName.toLowerCase();
   // eslint-disable-next-line no-restricted-syntax
   for (const gameType of gameTypes) {

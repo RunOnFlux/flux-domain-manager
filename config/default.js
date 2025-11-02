@@ -49,6 +49,7 @@ module.exports = {
   whiteListedApps: appsConfig.whiteListedApps, // If there's app in the array, blacklisting will be ignore
   blackListedApps: appsConfig.blackListedApps,
   minecraftApps: appsConfig.minecraftApps,
+  udpGameApps: appsConfig.udpGameApps, // Games that need direct DNS routing (bypass HAProxy)
   appSubDomain: 'app2',
   fdmAppDomain: 'fdm-lb-2-1.runonflux.io',
   uiName: 'home',

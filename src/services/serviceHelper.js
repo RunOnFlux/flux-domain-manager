@@ -237,10 +237,9 @@ function matchRule(str, rules) {
  * Games use direct DNS routing to primary IP for better latency
  * @param {string} appName - The name of the application
  * @param {string[]} gameTypes - Array of game type prefixes from config
- * @param {Object} [appSpec] - Optional: full app specification to verify G mode
  * @returns {boolean} True if app is a game that needs direct routing
  */
-function isUDPGameApp(appName, gameTypes, appSpec = null) {
+function isUDPGameApp(appName, gameTypes) {
   const lowerName = appName.toLowerCase();
   // eslint-disable-next-line no-restricted-syntax
   for (const gameType of gameTypes) {

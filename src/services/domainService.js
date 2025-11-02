@@ -997,7 +997,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
           appIps.push(selectedIP);
 
           // Check if this is a UDP/TCP game app that needs direct DNS routing
-          const isGameApp = serviceHelper.isUDPGameApp(app.name, config.udpGameApps, app);
+          const isGameApp = serviceHelper.isUDPGameApp(app.name, config.udpGameApps);
 
           if (isGameApp) {
             // For game apps: create direct A record DNS for player connections (bypasses HAProxy)

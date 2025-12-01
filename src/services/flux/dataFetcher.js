@@ -812,7 +812,7 @@ class FdmDataFetcher extends EventEmitter {
     // we get the compressed output. 56Mb vs 11Mb
     // this is still ridiculous though - we don't need to fetch the entire
     // message list every time
-    const { permMessages: options } = this.endpoints;
+    const { permMessages: { options } } = this.endpoints;
 
     const response = await this.#fluxApi
       .get(this.endpoints.permMessages.url, options)

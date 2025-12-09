@@ -168,6 +168,7 @@
       loop:
         - cloudflareConfig.js
         - PDNSConfig.js
+        - dnsGatewayConfig.js
         - appsConfig.js
 
     - name: Ensure config files exist for CDM (they should already be there from git clone)
@@ -177,6 +178,7 @@
       loop:
         - cloudflareConfig.js
         - PDNSConfig.js
+        - dnsGatewayConfig.js
         - appsConfig.js
 
     - name: Install Dependencies FDM

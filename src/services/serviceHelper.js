@@ -233,13 +233,13 @@ function matchRule(str, rules) {
 }
 
 /**
- * Check if an app is a UDP/TCP game that should use direct DNS routing
- * Games use direct DNS routing to primary IP for better latency
+ * Check if an app is a game that should use direct DNS routing
+ * Games use direct DNS routing to all server IPs for load balancing and better latency
  * @param {string} appName - The name of the application
  * @param {string[]} gameTypes - Array of game type prefixes from config
- * @returns {boolean} True if app is a game that needs direct routing
+ * @returns {boolean} True if app is a game that needs direct DNS routing
  */
-function isUDPGameApp(appName, gameTypes) {
+function isDirectDNSGameApp(appName, gameTypes) {
   const lowerName = appName.toLowerCase();
   // eslint-disable-next-line no-restricted-syntax
   for (const gameType of gameTypes) {
@@ -346,5 +346,5 @@ module.exports = {
   createErrorMessage,
   matchRule,
   sortIPAddresses,
-  isUDPGameApp,
+  isDirectDNSGameApp,
 };

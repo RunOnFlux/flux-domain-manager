@@ -11,9 +11,7 @@ const {
   getCustomDomains,
 } = require('./domain');
 const { executeCertificateOperations } = require('./domain/cert');
-const {
-  createDNSRecord, listDNSRecords, deleteDNSRecordCloudflare, deleteDNSRecordPDNS,
-} = require('./domain/dns');
+const { createGameDNSRecords, deleteGameDNSRecords } = require('./domain/dnsGateway');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
 const { getApplicationsToProcess } = require('./application/subset');
@@ -42,6 +40,44 @@ const runQueue = {
   gApps: { running: false, queued: false },
   nonGApps: { running: false, queued: false },
 };
+
+// DNS state tracking to prevent unnecessary updates every 10 seconds
+// Tracks current DNS state per game - no TTL (state-based, not time-based)
+// Memory bounded by active game count (~10-20 apps, max 500)
+const gameDNSState = new Map();
+
+/**
+ * Check if IPs for an app have changed since last DNS update
+ * @param {string} appName - Application name
+ * @param {string[]} currentIPs - Current IP addresses (can be empty array)
+ * @returns {boolean} True if IPs have changed or no state entry exists
+ */
+function hasIPsChanged(appName, currentIPs) {
+  const cachedState = gameDNSState.get(appName);
+  if (!cachedState) return true; // No state entry, needs update
+
+  // Compare IP arrays (order-independent)
+  const cachedIPsSet = new Set(cachedState);
+  const currentIPsSet = new Set(currentIPs);
+
+  if (cachedIPsSet.size !== currentIPsSet.size) return true;
+
+  for (const ip of currentIPsSet) {
+    if (!cachedIPsSet.has(ip)) return true;
+  }
+
+  return false; // IPs are identical
+}
+
+/**
+ * Update DNS state after successful DNS record operation
+ * @param {string} appName - Application name
+ * @param {string[]} ips - IP addresses that were set (can be empty array for deletion)
+ */
+function updateDNSState(appName, ips) {
+  // Store current state - persists until FDM restart
+  gameDNSState.set(appName, [...ips]);
+}
 
 async function checkDomainOwnership(domain, appName) {
   try {
@@ -263,73 +299,6 @@ async function addAppIps(app, ip) {
   const isCheckOK = await applicationChecks.checkApplication(app, ip);
   if (isCheckOK) {
     appIpsOnAppsChecks.push(ip);
-  }
-}
-
-/**
- * Create direct DNS A records for game apps pointing to their primary IP
- * This bypasses HAProxy for better game server performance while keeping
- * the app in HAProxy config for FluxOS monitoring
- * @param {Object} app - Application specification
- * @param {string} primaryIP - The selected primary IP for this game server
- */
-async function createGameAppDNS(app, primaryIP) {
-  try {
-    if (!primaryIP) {
-      log.warn(`No primary IP for game app ${app.name}, skipping DNS creation`);
-      return;
-    }
-
-    // Extract just the IP without port for DNS
-    const cleanIP = primaryIP.split(':')[0].replace(/\[|\]/g, ''); // Remove brackets for IPv6
-
-    const domains = getUnifiedDomains(app);
-    log.info(`Creating direct DNS A records for game ${app.name} pointing to ${cleanIP}`);
-
-    for (const domain of domains) {
-      // eslint-disable-next-line no-await-in-loop
-      const existingRecords = await listDNSRecords(domain);
-
-      // Delete any existing records that don't point to our IP
-      for (const record of existingRecords) {
-        let adjustedContent = record.content;
-        if (adjustedContent && config.pDNS.enabled) {
-          adjustedContent = adjustedContent.slice(0, -1);
-        }
-        // Delete if it's not an A record or doesn't point to our clean IP
-        if (record.type !== 'A' || adjustedContent !== cleanIP) {
-          if (config.cloudflare.enabled) {
-            // eslint-disable-next-line no-await-in-loop
-            await deleteDNSRecordCloudflare(record);
-            log.info(`Deleted old ${record.type} record ${domain} -> ${record.content}`);
-          } else if (config.pDNS.enabled) {
-            // eslint-disable-next-line no-await-in-loop
-            await deleteDNSRecordPDNS(record.name, record.content, record.type, record.ttl);
-            log.info(`Deleted old ${record.type} record ${domain} -> ${record.content}`);
-          }
-        }
-      }
-
-      // Check if correct A record already exists
-      const correctRecord = existingRecords.find((record) => {
-        let adjustedContent = record.content;
-        if (adjustedContent && config.pDNS.enabled) {
-          adjustedContent = adjustedContent.slice(0, -1);
-        }
-        return record.type === 'A' && adjustedContent === cleanIP;
-      });
-
-      if (!correctRecord) {
-        // Create new A record
-        // eslint-disable-next-line no-await-in-loop
-        await createDNSRecord(domain, cleanIP, 'A', 60);
-        log.info(`Created A record for ${domain} -> ${cleanIP}`);
-      } else {
-        log.info(`A record for ${domain} -> ${cleanIP} already exists`);
-      }
-    }
-  } catch (error) {
-    log.error(`Error creating game app DNS for ${app.name}: ${error.message}`);
   }
 }
 
@@ -996,14 +965,50 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
         if (selectedIP) {
           appIps.push(selectedIP);
 
-          // Check if this is a UDP/TCP game app that needs direct DNS routing
-          const isGameApp = serviceHelper.isUDPGameApp(app.name, config.udpGameApps);
+          // Check if this is a game app that needs direct DNS routing
+          const isGameApp = serviceHelper.isDirectDNSGameApp(app.name, config.directDNSGameApps);
 
-          if (isGameApp) {
-            // For game apps: create direct A record DNS for player connections (bypasses HAProxy)
-            log.info(`${app.name} is a G mode game app, creating direct DNS to ${selectedIP}`);
+          if (isGameApp && config.dnsGateway.enabled) {
+            // For game apps: create direct DNS records pointing to ALL server IPs
+            // This enables round-robin DNS load balancing and automatic failover
+
+            // Get all IPs for this app (not just the selected primary)
+            const allIPs = locationIps.map((ip) => {
+              const cleanIP = ip.split(':')[0]; // Remove port
+              return cleanIP.replace(/\[|\]/g, ''); // Remove IPv6 brackets
+            });
+
+            // Check if DNS state has changed
             // eslint-disable-next-line no-await-in-loop
-            await createGameAppDNS(app, selectedIP);
+            if (hasIPsChanged(app.name, allIPs)) {
+              if (allIPs.length > 0) {
+                // Game has IPs - create/update DNS records
+                log.info(`${app.name} IPs changed, updating DNS records`);
+                try {
+                  // eslint-disable-next-line no-await-in-loop
+                  await createGameDNSRecords(app.name, allIPs);
+                  updateDNSState(app.name, allIPs);
+                  log.info(`Updated DNS records for ${app.name} with ${allIPs.length} IPs: [${allIPs.join(', ')}]`);
+                } catch (error) {
+                  log.error(`Failed to update DNS records for ${app.name}: ${error.message}`);
+                  // Continue anyway - HAProxy will still work for FluxOS monitoring
+                }
+              } else {
+                // Game has no IPs - delete DNS records if they existed
+                const previousState = gameDNSState.get(app.name);
+                if (previousState && previousState.length > 0) {
+                  log.info(`${app.name} has no IPs, deleting DNS records`);
+                  try {
+                    // eslint-disable-next-line no-await-in-loop
+                    await deleteGameDNSRecords(app.name);
+                    updateDNSState(app.name, []); // Track empty state
+                    log.info(`Deleted DNS records for ${app.name}`);
+                  } catch (error) {
+                    log.error(`Failed to delete DNS records for ${app.name}: ${error.message}`);
+                  }
+                }
+              }
+            }
           }
 
           // Add to HAProxy configuration (for FluxOS monitoring and non-game traffic)
@@ -1011,7 +1016,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
 
           if (isGameApp) {
             log.info(
-              `G Game Application ${app.name} configured: direct DNS to ${selectedIP} (players bypass HAProxy), backend in HAProxy (FluxOS monitoring)`,
+              `G Game Application ${app.name} configured: direct DNS with round-robin (players bypass HAProxy), backend in HAProxy (FluxOS monitoring)`,
             );
           } else {
             log.info(

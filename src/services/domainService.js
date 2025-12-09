@@ -46,6 +46,14 @@ const runQueue = {
 // Memory bounded by active game count (~10-20 apps, max 500)
 const gameDNSState = new Map();
 
+// Track which game apps were seen in the last loop
+// Used to detect when apps are removed from the network
+let lastSeenGameApps = new Set();
+
+// Track when each game app was last seen (for deletion grace period)
+// Map<appName, timestamp> - only starts tracking when app disappears
+const appLastSeenTimestamps = new Map();
+
 /**
  * Check if IPs for an app have changed since last DNS update
  * @param {string} appName - Application name
@@ -922,6 +930,9 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     // filter applications based on config
     const applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
 
+    // Track game apps seen in this loop (for cleanup of removed apps)
+    const currentSeenGameApps = new Set();
+
     // for every application do following
     // get name, ports
     // main application domain is name.app.domain, for every port we have name-port.app.domain
@@ -962,61 +973,46 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
         const locationIps = appLocations.map((location) => location.ip);
         // eslint-disable-next-line no-await-in-loop
         const selectedIP = await selectIPforG(locationIps, app);
+
+        // Check if this is a game app that needs direct DNS routing
+        const isGameApp = serviceHelper.isDirectDNSGameApp(app.name, config.directDNSGameApps);
+
+        // Track this game app as seen in current loop
+        if (isGameApp && config.dnsGateway.enabled) {
+          currentSeenGameApps.add(app.name);
+        }
+
         if (selectedIP) {
           appIps.push(selectedIP);
 
-          // Check if this is a game app that needs direct DNS routing
-          const isGameApp = serviceHelper.isDirectDNSGameApp(app.name, config.directDNSGameApps);
-
           if (isGameApp && config.dnsGateway.enabled) {
-            // For game apps: create direct DNS records pointing to ALL server IPs
-            // This enables round-robin DNS load balancing and automatic failover
+            // For game apps: create direct DNS record pointing to master/primary IP
+            // This bypasses HAProxy for player connections while keeping app in HAProxy for monitoring
 
-            // Get all IPs for this app (not just the selected primary)
-            const allIPs = locationIps.map((ip) => {
-              const cleanIP = ip.split(':')[0]; // Remove port
-              return cleanIP.replace(/\[|\]/g, ''); // Remove IPv6 brackets
-            });
+            // Extract master IP (remove port and IPv6 brackets)
+            const masterIP = selectedIP.split(':')[0].replace(/\[|\]/g, '');
 
             // Check if DNS state has changed
             // eslint-disable-next-line no-await-in-loop
-            if (hasIPsChanged(app.name, allIPs)) {
-              if (allIPs.length > 0) {
-                // Game has IPs - create/update DNS records
-                log.info(`${app.name} IPs changed, updating DNS records`);
-                try {
-                  // eslint-disable-next-line no-await-in-loop
-                  await createGameDNSRecords(app.name, allIPs);
-                  updateDNSState(app.name, allIPs);
-                  log.info(`Updated DNS records for ${app.name} with ${allIPs.length} IPs: [${allIPs.join(', ')}]`);
-                } catch (error) {
-                  log.error(`Failed to update DNS records for ${app.name}: ${error.message}`);
-                  // Continue anyway - HAProxy will still work for FluxOS monitoring
-                }
-              } else {
-                // Game has no IPs - delete DNS records if they existed
-                const previousState = gameDNSState.get(app.name);
-                if (previousState && previousState.length > 0) {
-                  log.info(`${app.name} has no IPs, deleting DNS records`);
-                  try {
-                    // eslint-disable-next-line no-await-in-loop
-                    await deleteGameDNSRecords(app.name);
-                    updateDNSState(app.name, []); // Track empty state
-                    log.info(`Deleted DNS records for ${app.name}`);
-                  } catch (error) {
-                    log.error(`Failed to delete DNS records for ${app.name}: ${error.message}`);
-                  }
-                }
+            if (hasIPsChanged(app.name, [masterIP])) {
+              log.info(`${app.name} master IP changed, updating DNS record`);
+              try {
+                // eslint-disable-next-line no-await-in-loop
+                await createGameDNSRecords(app.name, [masterIP]);
+                updateDNSState(app.name, [masterIP]);
+                log.info(`Updated DNS record for ${app.name} to master IP: ${masterIP}`);
+              } catch (error) {
+                log.error(`Failed to update DNS record for ${app.name}: ${error.message}`);
+                // Continue anyway - HAProxy will still work for FluxOS monitoring
               }
             }
           }
-
           // Add to HAProxy configuration (for FluxOS monitoring and non-game traffic)
           addConfigurations(configuredApps, app, appIps, true);
 
           if (isGameApp) {
             log.info(
-              `G Game Application ${app.name} configured: direct DNS with round-robin (players bypass HAProxy), backend in HAProxy (FluxOS monitoring)`,
+              `G Game Application ${app.name} configured: direct DNS to ${selectedIP} (players bypass HAProxy), backend in HAProxy (FluxOS monitoring)`,
             );
           } else {
             log.info(
@@ -1036,6 +1032,54 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
       }
+    }
+
+    // Cleanup DNS records for game apps that were removed from the network
+    // Uses grace period to prevent accidental deletion during FDM restart or API issues
+    if (config.dnsGateway.enabled) {
+      const currentTime = Date.now();
+      const removedGameApps = [...lastSeenGameApps].filter((appName) => !currentSeenGameApps.has(appName));
+
+      for (const appName of removedGameApps) {
+        const cachedState = gameDNSState.get(appName);
+        if (cachedState && cachedState.length > 0) {
+          // Track when we first noticed this app was missing
+          if (!appLastSeenTimestamps.has(appName)) {
+            appLastSeenTimestamps.set(appName, currentTime);
+            log.info(`Game app ${appName} not found in current loop, starting grace period (${config.dnsGateway.deletionGracePeriodMs / 1000 / 60} minutes)`);
+          } else {
+            // Check if grace period has elapsed
+            const firstMissingTime = appLastSeenTimestamps.get(appName);
+            const elapsedMs = currentTime - firstMissingTime;
+
+            if (elapsedMs >= config.dnsGateway.deletionGracePeriodMs) {
+              // Grace period elapsed - safe to delete
+              log.info(`Game app ${appName} missing for ${Math.round(elapsedMs / 1000 / 60)} minutes, deleting DNS records`);
+              try {
+                // eslint-disable-next-line no-await-in-loop
+                await deleteGameDNSRecords(appName);
+                gameDNSState.delete(appName); // Remove from cache entirely
+                appLastSeenTimestamps.delete(appName); // Remove timestamp tracking
+                log.info(`Deleted DNS records for removed app ${appName}`);
+              } catch (error) {
+                log.error(`Failed to delete DNS records for removed app ${appName}: ${error.message}`);
+              }
+            }
+            // Note: No logging during grace period to avoid spamming logs every 10 seconds
+          }
+        }
+      }
+
+      // Clear timestamps for apps that reappeared (came back before grace period expired)
+      for (const appName of currentSeenGameApps) {
+        if (appLastSeenTimestamps.has(appName)) {
+          log.info(`Game app ${appName} reappeared, canceling deletion`);
+          appLastSeenTimestamps.delete(appName);
+        }
+      }
+
+      // Update tracking for next loop
+      lastSeenGameApps = currentSeenGameApps;
     }
 
     const serializedApps = JSON.stringify(configuredApps);

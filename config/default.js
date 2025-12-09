@@ -52,6 +52,7 @@ module.exports = {
     caPath: dnsGatewayConfig.caPath,
     timeout: dnsGatewayConfig.timeout,
     enabled: dnsGatewayConfig.enabled,
+    deletionGracePeriodMs: dnsGatewayConfig.deletionGracePeriodMs,
   },
   mandatoryApps: appsConfig.mandatoryApps,
   ownersApps: appsConfig.ownersApps, // Will retrieve only apps of owners specified here

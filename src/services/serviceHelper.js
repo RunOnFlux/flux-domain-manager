@@ -232,24 +232,6 @@ function matchRule(str, rules) {
   return false;
 }
 
-/**
- * Check if an app is a game that should use direct DNS routing
- * Games use direct DNS routing to all server IPs for load balancing and better latency
- * @param {string} appName - The name of the application
- * @param {string[]} gameTypes - Array of game type prefixes from config
- * @returns {boolean} True if app is a game that needs direct DNS routing
- */
-function isDirectDNSGameApp(appName, gameTypes) {
-  const lowerName = appName.toLowerCase();
-  // eslint-disable-next-line no-restricted-syntax
-  for (const gameType of gameTypes) {
-    if (lowerName.startsWith(gameType.toLowerCase())) {
-      return true;
-    }
-  }
-  return false;
-}
-
 // MongoDB functions
 async function connectMongoDb(url) {
   const connectUrl = url || mongoUrl;
@@ -346,5 +328,4 @@ module.exports = {
   createErrorMessage,
   matchRule,
   sortIPAddresses,
-  isDirectDNSGameApp,
 };

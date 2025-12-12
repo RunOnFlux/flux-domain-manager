@@ -1,6 +1,5 @@
 const cloudflareConfig = require('./cloudflareConfig');
 const pDNSConfig = require('./PDNSConfig');
-const dnsGatewayConfig = require('./dnsGatewayConfig');
 const appsConfig = require('./appsConfig');
 
 module.exports = {
@@ -45,21 +44,11 @@ module.exports = {
     manageapp: false,
     enabled: false,
   },
-  dnsGateway: {
-    endpoint: dnsGatewayConfig.endpoint,
-    certPath: dnsGatewayConfig.certPath,
-    keyPath: dnsGatewayConfig.keyPath,
-    caPath: dnsGatewayConfig.caPath,
-    timeout: dnsGatewayConfig.timeout,
-    enabled: dnsGatewayConfig.enabled,
-    deletionGracePeriodMs: dnsGatewayConfig.deletionGracePeriodMs,
-  },
   mandatoryApps: appsConfig.mandatoryApps,
   ownersApps: appsConfig.ownersApps, // Will retrieve only apps of owners specified here
   whiteListedApps: appsConfig.whiteListedApps, // If there's app in the array, blacklisting will be ignore
   blackListedApps: appsConfig.blackListedApps,
   minecraftApps: appsConfig.minecraftApps,
-  directDNSGameApps: appsConfig.directDNSGameApps, // Games that need direct DNS routing (bypass HAProxy for player traffic)
   appSubDomain: 'app2',
   fdmAppDomain: 'fdm-lb-2-1.runonflux.io',
   uiName: 'home',

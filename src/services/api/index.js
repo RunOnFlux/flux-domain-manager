@@ -80,7 +80,7 @@ function getAppIpsAPI(req, res) {
       return res.status(404).json(errMessage);
     }
 
-    const uniqueIps = [...new Set(matchingApps.flatMap((app) => app.ips))];
+    const uniqueIps = [...new Set(matchingApps.flatMap((app) => app.ips.map((ip) => ip.split(':')[0])))];
 
     const resMessage = serviceHelper.createDataMessage({
       appName: matchingApps[0].name,

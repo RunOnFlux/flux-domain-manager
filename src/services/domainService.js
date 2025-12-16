@@ -27,6 +27,8 @@ let unifiedAppsDomains = [];
 const mapOfNamesIps = {};
 let recentlyConfiguredApps = [];
 let recentlyConfiguredGApps = [];
+let nonGAppsInitialized = false;
+let gAppsInitialized = false;
 
 let dataFetcher = null;
 
@@ -850,6 +852,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
     let haproxyAppsConfig = [];
     recentlyConfiguredApps = configuredApps;
+    nonGAppsInitialized = true;
 
     // if g apps haven't completed once - we don't update the config
     if (!recentlyConfiguredGApps.length) return;
@@ -957,6 +960,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     let haproxyAppsConfig = [];
 
     recentlyConfiguredGApps = configuredApps;
+    gAppsInitialized = true;
 
     // if non g apps haven't completed once - we don't update the config
     if (!recentlyConfiguredApps.length) return;
@@ -1174,6 +1178,16 @@ async function start() {
   }
 }
 
+function getConfiguredApps() {
+  return {
+    nonGApps: recentlyConfiguredApps,
+    gApps: recentlyConfiguredGApps,
+    nonGAppsInitialized,
+    gAppsInitialized,
+  };
+}
+
 module.exports = {
   start,
+  getConfiguredApps,
 };

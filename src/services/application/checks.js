@@ -68,7 +68,7 @@ async function isHomeOK(ip, port) {
   try {
     const url = `http://${ip}:${port}`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
-    if (response.data.toLowerCase().startsWith('<!doctype html><html')) {
+    if (/^<!doctype html>\s*<html/i.test(response.data)) {
       return true;
     }
     log.info(`Function isHomeOK false for ip ${ip}`);

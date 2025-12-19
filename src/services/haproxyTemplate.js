@@ -304,7 +304,7 @@ function generateMinecraftACLs(app) {
   ];
 }
 
-function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
+function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudUi, cloudUiPrimary) {
   const uiB = ui.split('.').join('');
   const apiB = api.split('.').join('');
 
@@ -385,7 +385,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     apiRoundrobinBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.apiPort} check`;
   }
 
-  const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n';
+  const redirects = '  http-request redirect code 301 location https://cloud.runonflux.com/dashboards/overview if { hdr(host) -i dashboard.zel.network }\n\n';
 
   // Enhanced ACLs with WebSocket detection and specific endpoint detection
   const specificEndpointsAcl = `  acl is_sticky_endpoint path_beg /id/loginphrase
@@ -418,6 +418,13 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
     const apiPrimaryAcl = `  acl ${apiB} hdr(host) ${apiPrimary}\n`;
     acls += apiPrimaryAcl;
   }
+  // Cloud UI uses same backend as home UI
+  const cloudUiAcl = `  acl ${uiB} hdr(host) ${cloudUi}\n`;
+  acls += cloudUiAcl;
+  if (cloudUiPrimary) {
+    const cloudUiPrimaryAcl = `  acl ${uiB} hdr(host) ${cloudUiPrimary}\n`;
+    acls += cloudUiPrimaryAcl;
+  }
 
   // Enhanced routing with roundrobin endpoints getting priority
   const wsBackendUse = `  use_backend ${apiB}backend if is_websocket ${apiB}\n`;
@@ -427,7 +434,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary) {
 
   const usebackends = wsBackendUse + roundrobinBackendUse + uiBackendUse + apiBackendUse;
   const backends = `${uiBackend}\n\n${apiBackend}\n\n${apiRoundrobinBackend}`;
-  const urls = [ui, api, 'dashboard.zel.network', uiPrimary, apiPrimary];
+  const urls = [ui, api, 'dashboard.zel.network', uiPrimary, apiPrimary, cloudUi, cloudUiPrimary];
 
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {}, {});
 }

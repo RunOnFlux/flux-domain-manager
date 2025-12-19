@@ -82,6 +82,7 @@
         startSubset: "0"
         endSubset: "F"
         uiName: "home"
+        cloudUiName: "cloud"
         apiName: "api"
 
     - name: Ensure config files exist (they should already be there from git clone)

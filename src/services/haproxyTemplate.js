@@ -385,7 +385,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     apiRoundrobinBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.apiPort} check`;
   }
 
-  const redirects = '  http-request redirect code 301 location https://home.runonflux.io/dashboard/overview if { hdr(host) -i dashboard.zel.network }\n\n';
+  const redirects = '  http-request redirect code 301 location https://cloud.runonflux.com/dashboards/overview if { hdr(host) -i dashboard.zel.network }\n\n';
 
   // Enhanced ACLs with WebSocket detection and specific endpoint detection
   const specificEndpointsAcl = `  acl is_sticky_endpoint path_beg /id/loginphrase

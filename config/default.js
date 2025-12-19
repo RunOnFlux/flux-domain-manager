@@ -52,6 +52,7 @@ module.exports = {
   appSubDomain: 'app2',
   fdmAppDomain: 'fdm-lb-2-1.runonflux.io',
   uiName: 'home',
+  cloudUiName: 'cloud',
   apiName: 'api',
   useSubset: false,
   subset: {

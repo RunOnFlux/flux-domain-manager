@@ -93,11 +93,14 @@ async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `${config.uiName}.${config.mainDomain}`;
     const api = `${config.apiName}.${config.mainDomain}`;
+    const cloudUi = `${config.cloudUiName}.${config.mainDomain}`;
     let uiPrimary;
     let apiPrimary;
+    let cloudUiPrimary;
     if (config.primaryDomain) {
       uiPrimary = `${config.uiName}.${config.primaryDomain}`;
       apiPrimary = `${config.apiName}.${config.primaryDomain}`;
+      cloudUiPrimary = `${config.cloudUiName}.${config.primaryDomain}`;
     }
 
     // get current list of flux ip only stratus
@@ -180,6 +183,8 @@ async function generateAndReplaceMainHaproxyConfig() {
       fluxIPsForBalancing,
       uiPrimary,
       apiPrimary,
+      cloudUi,
+      cloudUiPrimary,
     );
     // stop logging entire ha proxy config to console
     // console.log(hc);

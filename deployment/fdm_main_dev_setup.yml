@@ -84,6 +84,7 @@
         startSubset: "0"
         endSubset: "F"
         uiName: "devhome"
+        cloudUiName: "devcloud"
         apiName: "devapi"
 
     - name: Ensure config files exist (they should already be there from git clone)

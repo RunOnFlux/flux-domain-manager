@@ -146,6 +146,7 @@
         useSubset: "true"
         manageApps: "true"
         uiName: "home"
+        cloudUiName: "cloud"
         apiName: "api"
 
     - name: Copy default.js config to CDM
@@ -159,6 +160,7 @@
         useSubset: "false"
         manageApps: "true"
         uiName: "home"
+        cloudUiName: "cloud"
         apiName: "api"
 
     - name: Ensure config files exist for FDM (they should already be there from git clone)

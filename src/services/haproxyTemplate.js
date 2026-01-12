@@ -93,7 +93,6 @@ const httpsFdmApiPrefix = `
   # FDM API routing - only for this FDM's domain
   acl fdm-domain hdr(host) -i ${configGlobal.fdmAppDomain}
   acl fdm-api-path path_beg /api/
-  http-request set-path %[path,regsub(^/api/,/)] if fdm-domain fdm-api-path
   use_backend fdm-api-backend if fdm-domain fdm-api-path
 `;
 
@@ -112,6 +111,7 @@ const cloudflareFluxBackend = `backend cloudflare-flux-backend
 `;
 
 const fdmApiBackend = `backend fdm-api-backend
+  http-request set-path %[path,regsub(^/api/,/)]
   server fdm-api 127.0.0.1:${configGlobal.server.port}
 `;
 

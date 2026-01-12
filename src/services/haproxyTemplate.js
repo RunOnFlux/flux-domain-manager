@@ -89,6 +89,14 @@ frontend wwwhttps
   # The SSL CRT file is a combination of the public certificate and the private key
 `;
 
+const httpsFdmApiPrefix = `
+  # FDM API routing - only for this FDM's domain
+  acl fdm-domain hdr(host) -i ${configGlobal.fdmAppDomain}
+  acl fdm-api-path path_beg /api/
+  http-request set-path %[path,regsub(^/api/,/)] if fdm-domain fdm-api-path
+  use_backend fdm-api-backend if fdm-domain fdm-api-path
+`;
+
 const certificatePrefix = '  bind *:443 ssl ';
 
 const certificatesSuffix = ''; // 'ciphers kEECDH+aRSA+AES:kRSA+AES:+AES256:RC4-SHA:!kEDH:!LOW:!EXP:!MD5:!aNULL:!eNULL no-sslv3';
@@ -101,6 +109,10 @@ const letsEncryptBackend = `backend letsencrypt-backend
 
 const cloudflareFluxBackend = `backend cloudflare-flux-backend
   server cloudflareflux 127.0.0.1:${configGlobal.server.port}
+`;
+
+const fdmApiBackend = `backend fdm-api-backend
+  server fdm-api 127.0.0.1:${configGlobal.server.port}
 `;
 
 const forbiddenBackend = `backend forbidden-backend
@@ -186,6 +198,7 @@ ${redirects}
 ${tcpConfig}
 
 ${httpsPrefix}${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix} ${h2Suffix}
+${httpsFdmApiPrefix}
 
 ${acls}
 ${usebackends}
@@ -194,6 +207,7 @@ ${redirects}
 ${backends}
 ${letsEncryptBackend}
 ${cloudflareFluxBackend}
+${fdmApiBackend}
 ${forbiddenBackend}
 `;
   return config;

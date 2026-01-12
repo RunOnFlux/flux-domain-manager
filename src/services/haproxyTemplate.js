@@ -111,8 +111,6 @@ const cloudflareFluxBackend = `backend cloudflare-flux-backend
 `;
 
 const fdmApiBackend = `backend fdm-api-backend
-  # Pass through backend's error responses (don't use HAProxy errorfiles)
-  no errorfile 503
   http-request set-path %[path,regsub(^/api/,/)]
   server fdm-api 127.0.0.1:${configGlobal.server.port}
 `;

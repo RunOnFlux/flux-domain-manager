@@ -312,7 +312,7 @@ class FdmDataFetcher extends EventEmitter {
       const endpoint = `apps/apporiginalowner/${spec.name}`;
       // eslint-disable-next-line no-await-in-loop
       const fluxRes = await this.#fluxApi.get(endpoint).catch((err) => {
-        log.warning('Unable to get app original owner for '
+        log.warn('Unable to get app original owner for '
           + `${spec.name}. ${err.message}`);
 
         return null;
@@ -371,7 +371,7 @@ class FdmDataFetcher extends EventEmitter {
     while (decryptKeyAttempts < 4) {
       // eslint-disable-next-line no-await-in-loop
       const response = await this.#sasApi.post(sasDecrypt.url, payload).catch((err) => {
-        log.warning(`Unable to contact sas to decrypt ${spec.name}. ${err.message}`
+        log.warn(`Unable to contact sas to decrypt ${spec.name}. ${err.message}`
           + `${spec.name}. ${err.message}`);
 
         return null;

@@ -440,7 +440,10 @@ class FdmDataFetcher extends EventEmitter {
     // There should really be another boolean field
     spec.enterprise = '';
 
-    this.#cache.set(spec.hash, spec);
+    // random TTL between 24-48h to avoid all entries expiring at the same
+    // time (they are all added nearly simultaneously via Promise.all)
+    const ttl = 86_400_000 + Math.floor(Math.random() * 86_400_000);
+    this.#cache.set(spec.hash, spec, { ttl });
 
     return spec;
   }

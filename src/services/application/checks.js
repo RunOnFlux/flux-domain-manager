@@ -931,7 +931,7 @@ async function checkAppRunning(url, appName) {
     const response = await axios.get(`http://${ip}:${port}/apps/listrunningapps`, { timeout: checkAppRunningTimeout, cancelToken: source.token });
     isResolved = true;
     const appsRunning = response.data.data;
-    if (appsRunning.find((app) => app.Names[0].includes(appName) && app.State === 'running')) {
+    if (appsRunning.find((app) => app.Names[0].includes(appName) && (app.State === 'running' || app.State === 'restarting'))) {
       return true;
     }
     return false;

@@ -25,6 +25,10 @@ let myFDMnameORip = null;
 
 let unifiedAppsDomains = [];
 const mapOfNamesIps = {};
+const mapOfNamesIpsLastHealthy = {}; // timestamp of last successful health check per app
+const G_APP_HEALTH_RETRY_COUNT = 3;
+const G_APP_HEALTH_RETRY_DELAY_MS = 3000;
+const G_APP_UNHEALTHY_THRESHOLD_MS = 90 * 1000; // 90 seconds before switching away from sticky IP
 let recentlyConfiguredApps = [];
 let recentlyConfiguredGApps = [];
 let nonGAppsInitialized = false;
@@ -227,36 +231,90 @@ function filterMandatoryApps(apps) {
   return appsInBucket;
 }
 
-async function selectIPforG(ips, app) {
-  // choose the ip address whose sum of digits is the lowest
-  if (ips && ips.length) {
-    let chosenIp = ips[0];
-    let chosenIpSum = ips[0]
+function selectLowestDigitSumIp(ips) {
+  let chosenIp = ips[0];
+  let chosenIpSum = ips[0]
+    .split(':')[0]
+    .split('.')
+    .reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
+  for (const ip of ips) {
+    const sum = ip
       .split(':')[0]
       .split('.')
       .reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
-    for (const ip of ips) {
-      const sum = ip
-        .split(':')[0]
-        .split('.')
-        .reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
-      if (sum < chosenIpSum) {
-        chosenIp = ip;
-        chosenIpSum = sum;
-      }
+    if (sum < chosenIpSum) {
+      chosenIp = ip;
+      chosenIpSum = sum;
     }
-    if (ips.includes(mapOfNamesIps[app.name])) {
-      chosenIp = mapOfNamesIps[app.name];
-    } else {
-      mapOfNamesIps[app.name] = chosenIp;
-    }
-    const isOk = await applicationChecks.checkAppRunning(chosenIp, app.name);
+  }
+  return chosenIp;
+}
+
+async function checkAppRunningWithRetries(ip, appName, retries = G_APP_HEALTH_RETRY_COUNT) {
+  for (let attempt = 1; attempt <= retries; attempt += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const isOk = await applicationChecks.checkAppRunning(ip, appName);
     if (isOk) {
-      return chosenIp;
+      return true;
     }
-    const newIps = ips.filter((ip) => ip !== chosenIp);
-    if (newIps.length) {
-      return selectIPforG(newIps, app);
+    if (attempt < retries) {
+      log.info(`G App ${appName} health check attempt ${attempt}/${retries} failed for ${ip}, retrying...`);
+      // eslint-disable-next-line no-await-in-loop
+      await serviceHelper.timeout(G_APP_HEALTH_RETRY_DELAY_MS);
+    }
+  }
+  return false;
+}
+
+async function selectIPforG(ips, app) {
+  // choose the ip address whose sum of digits is the lowest
+  if (ips && ips.length) {
+    const lowestDigitSumIp = selectLowestDigitSumIp(ips);
+
+    // Use sticky IP if it's still in the location list
+    const stickyIp = mapOfNamesIps[app.name];
+    if (stickyIp && ips.includes(stickyIp)) {
+      // Sticky IP still exists in locations - health check it with retries
+      const isOk = await checkAppRunningWithRetries(stickyIp, app.name);
+      if (isOk) {
+        mapOfNamesIpsLastHealthy[app.name] = Date.now();
+        return stickyIp;
+      }
+      // Sticky IP failed all retries - check if we should still keep it
+      // based on how recently it was last seen healthy
+      const lastHealthy = mapOfNamesIpsLastHealthy[app.name] || 0;
+      const timeSinceHealthy = Date.now() - lastHealthy;
+      if (lastHealthy > 0 && timeSinceHealthy < G_APP_UNHEALTHY_THRESHOLD_MS) {
+        log.warn(
+          `G App ${app.name} sticky IP ${stickyIp} failed health check but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
+        );
+        return stickyIp;
+      }
+      log.warn(
+        `G App ${app.name} sticky IP ${stickyIp} failed health check for >${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s, selecting new IP`,
+      );
+    }
+
+    // No valid sticky IP - select from available IPs starting with lowest digit sum
+    // Sort candidates: lowest digit sum first for deterministic fallback order
+    const candidates = stickyIp
+      ? ips.filter((ip) => ip !== stickyIp)
+      : [...ips];
+    // Put lowest digit sum IP first, then the rest
+    candidates.sort((a, b) => {
+      if (a === lowestDigitSumIp) return -1;
+      if (b === lowestDigitSumIp) return 1;
+      return 0;
+    });
+
+    for (const candidate of candidates) {
+      // eslint-disable-next-line no-await-in-loop
+      const isOk = await checkAppRunningWithRetries(candidate, app.name);
+      if (isOk) {
+        mapOfNamesIps[app.name] = candidate;
+        mapOfNamesIpsLastHealthy[app.name] = Date.now();
+        return candidate;
+      }
     }
   }
   return null;

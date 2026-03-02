@@ -43,6 +43,19 @@ class FdmDataFetcher extends EventEmitter {
 
   #cache = new TTLCache({ max: 1000, ttl: 86_400_000 });
 
+  /** @type {Map<string, AppSpec>} enterprise specs that failed SAS decrypt */
+  #pendingEnterprise = new Map();
+
+  /**
+   * Last successfully decrypted enterprise specs. When a re-decrypt fails
+   * (e.g. SAS is unreachable after cache expiry), the stale entry is served
+   * for up to 6 hours before being dropped from haproxy.
+   * @type {Map<string, { spec: AppSpec, failedAt: number | null }>}
+   */
+  #lastDecryptedEnterprise = new Map();
+
+  static #STALE_LIMIT_MS = 6 * 60 * 60 * 1000;
+
   endpoints = {
     globalAppSpecs: {
       name: 'globalAppSpecs',
@@ -350,7 +363,10 @@ class FdmDataFetcher extends EventEmitter {
     }
 
     // we tried 3 times... can't connect to flux api, bail
-    if (!originalOwner) return null;
+    if (!originalOwner) {
+      this.#pendingEnterprise.set(spec.hash, spec);
+      return null;
+    }
 
     const enterpriseBuf = Buffer.from(enterprise, 'base64');
     const aesKeyEncrypted = enterpriseBuf.subarray(0, 256);
@@ -417,7 +433,12 @@ class FdmDataFetcher extends EventEmitter {
       await FdmDataFetcher.sleep(16_000);
     }
 
-    if (!base64AesKey) return null;
+    if (!base64AesKey) {
+      this.#pendingEnterprise.set(spec.hash, spec);
+      return null;
+    }
+
+    this.#pendingEnterprise.delete(spec.hash);
 
     const decrypted = FdmDataFetcher.decryptAesData(
       spec.name,
@@ -446,6 +467,36 @@ class FdmDataFetcher extends EventEmitter {
     this.#cache.set(spec.hash, spec, { ttl });
 
     return spec;
+  }
+
+  async #retryPendingEnterprise() {
+    const pending = [...this.#pendingEnterprise.values()];
+
+    console.log(`Retrying ${pending.length} pending enterprise app(s)`);
+
+    const results = await Promise.all(
+      pending.map((spec) => this.#decryptAppSpec(spec)),
+    );
+
+    const succeeded = results.filter(Boolean);
+
+    if (!succeeded.length) return;
+
+    console.log(`${succeeded.length}/${pending.length} enterprise app(s) decrypted on retry`);
+
+    const gAppsMap = new Map();
+    const nonGAppsMap = new Map();
+    const appFqdns = [];
+
+    succeeded.forEach((spec) => {
+      const isGApp = FdmDataFetcher.#isGApp(spec);
+      const appMap = isGApp ? gAppsMap : nonGAppsMap;
+
+      appMap.set(spec.name, spec);
+      appFqdns.push(FdmDataFetcher.#buildFqdnMap(spec));
+    });
+
+    this.emit('enterpriseAppsDecrypted', { gApps: gAppsMap, nonGApps: nonGAppsMap, appFqdns });
   }
 
   async loop(runner, dataStore) {
@@ -585,6 +636,19 @@ class FdmDataFetcher extends EventEmitter {
 
     specMapper(specs);
 
+    // prune stale state for apps no longer in the spec list
+    const currentEnterpriseHashes = new Set(enterpriseApps.map((s) => s.hash));
+    for (const hash of this.#pendingEnterprise.keys()) {
+      if (!currentEnterpriseHashes.has(hash)) {
+        this.#pendingEnterprise.delete(hash);
+      }
+    }
+    for (const hash of this.#lastDecryptedEnterprise.keys()) {
+      if (!currentEnterpriseHashes.has(hash)) {
+        this.#lastDecryptedEnterprise.delete(hash);
+      }
+    }
+
     const logger = () => ({
       GApps: gAppsMap.size,
       NonGApps: nonGAppsMap.size,
@@ -599,7 +663,31 @@ class FdmDataFetcher extends EventEmitter {
     // these don't reject
     const decryptedSpecs = await Promise.all(decryptPromises);
 
-    specMapper(decryptedSpecs);
+    const resolvedSpecs = decryptedSpecs.map((result, i) => {
+      const { hash } = enterpriseApps[i];
+
+      if (result) {
+        this.#lastDecryptedEnterprise.set(hash, { spec: result, failedAt: null });
+        return result;
+      }
+
+      const stale = this.#lastDecryptedEnterprise.get(hash);
+
+      if (!stale) return null;
+
+      if (!stale.failedAt) {
+        stale.failedAt = Date.now();
+      } else if (Date.now() - stale.failedAt >= FdmDataFetcher.#STALE_LIMIT_MS) {
+        this.#lastDecryptedEnterprise.delete(hash);
+        log.warn(`Stale limit reached for ${enterpriseApps[i].name}, removing`);
+        return null;
+      }
+
+      log.info(`Serving stale decrypt for ${enterpriseApps[i].name}`);
+      return stale.spec;
+    });
+
+    specMapper(resolvedSpecs);
 
     console.log('After decryption:\n', logger());
 
@@ -842,10 +930,20 @@ class FdmDataFetcher extends EventEmitter {
 
       const cacheMaxAgeMs = await FdmDataFetcher.getHttpCacheValues(store, fetcher);
 
-      if (cacheMaxAgeMs) return cacheMaxAgeMs;
+      if (cacheMaxAgeMs) {
+        if (this.#pendingEnterprise.size) {
+          await this.#retryPendingEnterprise();
+        }
+
+        return cacheMaxAgeMs;
+      }
     }
 
     const getMaxAgeMs = await this.getAndProcessAppSpecs();
+
+    if (this.#pendingEnterprise.size) {
+      await this.#retryPendingEnterprise();
+    }
 
     return getMaxAgeMs;
   }

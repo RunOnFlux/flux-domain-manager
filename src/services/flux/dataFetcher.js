@@ -43,6 +43,16 @@ class FdmDataFetcher extends EventEmitter {
 
   #cache = new TTLCache({ max: 1000, ttl: 86_400_000 });
 
+  /** @type {Map<string, AppSpec>} enterprise specs that failed SAS decrypt */
+  #pendingEnterprise = new Map();
+
+  static #REFRESH_THRESHOLD_MS = 24 * 60 * 60 * 1000; // refresh when < 24h remaining
+
+  static #cacheTtl() {
+    // 36-48h, randomised to stagger refresh times across enterprise apps
+    return (36 * 60 * 60 * 1000) + Math.floor(Math.random() * 12 * 60 * 60 * 1000);
+  }
+
   endpoints = {
     globalAppSpecs: {
       name: 'globalAppSpecs',
@@ -301,8 +311,13 @@ class FdmDataFetcher extends EventEmitter {
     const cacheSpec = this.#cache.get(spec.hash);
 
     if (cacheSpec) {
-      console.log(`Encrypted App spec: ${spec.name}, found in cache, no need to fetch`);
-      return cacheSpec;
+      const remaining = this.#cache.getRemainingTTL(spec.hash);
+
+      if (remaining > FdmDataFetcher.#REFRESH_THRESHOLD_MS) {
+        return cacheSpec;
+      }
+
+      // approaching expiry — fall through to refresh from SAS
     }
 
     let originalOwner = this.#cache.get(spec.name);
@@ -350,7 +365,15 @@ class FdmDataFetcher extends EventEmitter {
     }
 
     // we tried 3 times... can't connect to flux api, bail
-    if (!originalOwner) return null;
+    if (!originalOwner) {
+      if (cacheSpec) {
+        this.#cache.set(spec.hash, cacheSpec, { ttl: FdmDataFetcher.#cacheTtl() });
+        log.info(`Flux API unreachable, extending cache for ${spec.name}`);
+        return cacheSpec;
+      }
+      this.#pendingEnterprise.set(spec.hash, spec);
+      return null;
+    }
 
     const enterpriseBuf = Buffer.from(enterprise, 'base64');
     const aesKeyEncrypted = enterpriseBuf.subarray(0, 256);
@@ -417,7 +440,17 @@ class FdmDataFetcher extends EventEmitter {
       await FdmDataFetcher.sleep(16_000);
     }
 
-    if (!base64AesKey) return null;
+    if (!base64AesKey) {
+      if (cacheSpec) {
+        this.#cache.set(spec.hash, cacheSpec, { ttl: FdmDataFetcher.#cacheTtl() });
+        log.info(`SAS unreachable, extending cache for ${spec.name}`);
+        return cacheSpec;
+      }
+      this.#pendingEnterprise.set(spec.hash, spec);
+      return null;
+    }
+
+    this.#pendingEnterprise.delete(spec.hash);
 
     const decrypted = FdmDataFetcher.decryptAesData(
       spec.name,
@@ -440,12 +473,31 @@ class FdmDataFetcher extends EventEmitter {
     // There should really be another boolean field
     spec.enterprise = '';
 
-    // random TTL between 24-48h to avoid all entries expiring at the same
-    // time (they are all added nearly simultaneously via Promise.all)
-    const ttl = 86_400_000 + Math.floor(Math.random() * 86_400_000);
-    this.#cache.set(spec.hash, spec, { ttl });
+    this.#cache.set(spec.hash, spec, { ttl: FdmDataFetcher.#cacheTtl() });
 
     return spec;
+  }
+
+  async #retryPendingEnterprise() {
+    const pending = [...this.#pendingEnterprise.values()];
+
+    console.log(`Retrying ${pending.length} pending enterprise app(s)`);
+
+    const results = await Promise.all(
+      pending.map((spec) => this.#decryptAppSpec(spec)),
+    );
+
+    const succeeded = results.filter(Boolean);
+
+    if (!succeeded.length) return;
+
+    console.log(`${succeeded.length}/${pending.length} enterprise app(s) decrypted on retry`);
+
+    // force full reprocess on next cycle — the freshly cached decrypts
+    // will be picked up through the normal appSpecsUpdated path
+    const { globalAppSpecs } = this.endpoints;
+    globalAppSpecs.sha = '';
+    globalAppSpecs.etag = '';
   }
 
   async loop(runner, dataStore) {
@@ -584,6 +636,16 @@ class FdmDataFetcher extends EventEmitter {
     };
 
     specMapper(specs);
+
+    // prune pending retries for apps no longer in the spec list
+    if (this.#pendingEnterprise.size) {
+      const currentEnterpriseHashes = new Set(enterpriseApps.map((s) => s.hash));
+      for (const hash of this.#pendingEnterprise.keys()) {
+        if (!currentEnterpriseHashes.has(hash)) {
+          this.#pendingEnterprise.delete(hash);
+        }
+      }
+    }
 
     const logger = () => ({
       GApps: gAppsMap.size,
@@ -842,7 +904,13 @@ class FdmDataFetcher extends EventEmitter {
 
       const cacheMaxAgeMs = await FdmDataFetcher.getHttpCacheValues(store, fetcher);
 
-      if (cacheMaxAgeMs) return cacheMaxAgeMs;
+      if (cacheMaxAgeMs) {
+        if (this.#pendingEnterprise.size) {
+          await this.#retryPendingEnterprise();
+        }
+
+        return cacheMaxAgeMs;
+      }
     }
 
     const getMaxAgeMs = await this.getAndProcessAppSpecs();

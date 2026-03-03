@@ -484,19 +484,11 @@ class FdmDataFetcher extends EventEmitter {
 
     console.log(`${succeeded.length}/${pending.length} enterprise app(s) decrypted on retry`);
 
-    const gAppsMap = new Map();
-    const nonGAppsMap = new Map();
-    const appFqdns = [];
-
-    succeeded.forEach((spec) => {
-      const isGApp = FdmDataFetcher.#isGApp(spec);
-      const appMap = isGApp ? gAppsMap : nonGAppsMap;
-
-      appMap.set(spec.name, spec);
-      appFqdns.push(FdmDataFetcher.#buildFqdnMap(spec));
-    });
-
-    this.emit('enterpriseAppsDecrypted', { gApps: gAppsMap, nonGApps: nonGAppsMap, appFqdns });
+    // force full reprocess on next cycle — the freshly cached decrypts
+    // will be picked up through the normal appSpecsUpdated path
+    const { globalAppSpecs } = this.endpoints;
+    globalAppSpecs.sha = '';
+    globalAppSpecs.etag = '';
   }
 
   async loop(runner, dataStore) {

@@ -1155,15 +1155,6 @@ async function startApplicationProcessing() {
     },
   );
 
-  dataFetcher.on(
-    'enterpriseAppsDecrypted',
-    async (specs) => {
-      specs.nonGApps.forEach((spec, name) => nonGApps.set(name, spec));
-      specs.gApps.forEach((spec, name) => gApps.set(name, spec));
-      unifiedAppsDomains = unifiedAppsDomains.concat(specs.appFqdns);
-    },
-  );
-
   dataFetcher.on('permMessagesUpdated', (permMessages) => {
     permanentMessages = permMessages;
   });

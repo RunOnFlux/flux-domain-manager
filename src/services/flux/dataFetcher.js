@@ -638,10 +638,12 @@ class FdmDataFetcher extends EventEmitter {
     specMapper(specs);
 
     // prune pending retries for apps no longer in the spec list
-    const currentEnterpriseHashes = new Set(enterpriseApps.map((s) => s.hash));
-    for (const hash of this.#pendingEnterprise.keys()) {
-      if (!currentEnterpriseHashes.has(hash)) {
-        this.#pendingEnterprise.delete(hash);
+    if (this.#pendingEnterprise.size) {
+      const currentEnterpriseHashes = new Set(enterpriseApps.map((s) => s.hash));
+      for (const hash of this.#pendingEnterprise.keys()) {
+        if (!currentEnterpriseHashes.has(hash)) {
+          this.#pendingEnterprise.delete(hash);
+        }
       }
     }
 
@@ -912,10 +914,6 @@ class FdmDataFetcher extends EventEmitter {
     }
 
     const getMaxAgeMs = await this.getAndProcessAppSpecs();
-
-    if (this.#pendingEnterprise.size) {
-      await this.#retryPendingEnterprise();
-    }
 
     return getMaxAgeMs;
   }

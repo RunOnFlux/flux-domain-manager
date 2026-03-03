@@ -46,15 +46,12 @@ class FdmDataFetcher extends EventEmitter {
   /** @type {Map<string, AppSpec>} enterprise specs that failed SAS decrypt */
   #pendingEnterprise = new Map();
 
-  /**
-   * Last successfully decrypted enterprise specs. When a re-decrypt fails
-   * (e.g. SAS is unreachable after cache expiry), the stale entry is served
-   * for up to 6 hours before being dropped from haproxy.
-   * @type {Map<string, { spec: AppSpec, failedAt: number | null }>}
-   */
-  #lastDecryptedEnterprise = new Map();
+  static #REFRESH_THRESHOLD_MS = 24 * 60 * 60 * 1000; // refresh when < 24h remaining
 
-  static #STALE_LIMIT_MS = 6 * 60 * 60 * 1000;
+  static #cacheTtl() {
+    // 36-48h, randomised to stagger refresh times across enterprise apps
+    return (36 * 60 * 60 * 1000) + Math.floor(Math.random() * 12 * 60 * 60 * 1000);
+  }
 
   endpoints = {
     globalAppSpecs: {
@@ -314,8 +311,13 @@ class FdmDataFetcher extends EventEmitter {
     const cacheSpec = this.#cache.get(spec.hash);
 
     if (cacheSpec) {
-      console.log(`Encrypted App spec: ${spec.name}, found in cache, no need to fetch`);
-      return cacheSpec;
+      const remaining = this.#cache.getRemainingTTL(spec.hash);
+
+      if (remaining > FdmDataFetcher.#REFRESH_THRESHOLD_MS) {
+        return cacheSpec;
+      }
+
+      // approaching expiry — fall through to refresh from SAS
     }
 
     let originalOwner = this.#cache.get(spec.name);
@@ -364,6 +366,11 @@ class FdmDataFetcher extends EventEmitter {
 
     // we tried 3 times... can't connect to flux api, bail
     if (!originalOwner) {
+      if (cacheSpec) {
+        this.#cache.set(spec.hash, cacheSpec, { ttl: FdmDataFetcher.#cacheTtl() });
+        log.info(`Flux API unreachable, extending cache for ${spec.name}`);
+        return cacheSpec;
+      }
       this.#pendingEnterprise.set(spec.hash, spec);
       return null;
     }
@@ -434,6 +441,11 @@ class FdmDataFetcher extends EventEmitter {
     }
 
     if (!base64AesKey) {
+      if (cacheSpec) {
+        this.#cache.set(spec.hash, cacheSpec, { ttl: FdmDataFetcher.#cacheTtl() });
+        log.info(`SAS unreachable, extending cache for ${spec.name}`);
+        return cacheSpec;
+      }
       this.#pendingEnterprise.set(spec.hash, spec);
       return null;
     }
@@ -461,10 +473,7 @@ class FdmDataFetcher extends EventEmitter {
     // There should really be another boolean field
     spec.enterprise = '';
 
-    // random TTL between 24-48h to avoid all entries expiring at the same
-    // time (they are all added nearly simultaneously via Promise.all)
-    const ttl = 86_400_000 + Math.floor(Math.random() * 86_400_000);
-    this.#cache.set(spec.hash, spec, { ttl });
+    this.#cache.set(spec.hash, spec, { ttl: FdmDataFetcher.#cacheTtl() });
 
     return spec;
   }
@@ -628,16 +637,11 @@ class FdmDataFetcher extends EventEmitter {
 
     specMapper(specs);
 
-    // prune stale state for apps no longer in the spec list
+    // prune pending retries for apps no longer in the spec list
     const currentEnterpriseHashes = new Set(enterpriseApps.map((s) => s.hash));
     for (const hash of this.#pendingEnterprise.keys()) {
       if (!currentEnterpriseHashes.has(hash)) {
         this.#pendingEnterprise.delete(hash);
-      }
-    }
-    for (const hash of this.#lastDecryptedEnterprise.keys()) {
-      if (!currentEnterpriseHashes.has(hash)) {
-        this.#lastDecryptedEnterprise.delete(hash);
       }
     }
 
@@ -655,31 +659,7 @@ class FdmDataFetcher extends EventEmitter {
     // these don't reject
     const decryptedSpecs = await Promise.all(decryptPromises);
 
-    const resolvedSpecs = decryptedSpecs.map((result, i) => {
-      const { hash } = enterpriseApps[i];
-
-      if (result) {
-        this.#lastDecryptedEnterprise.set(hash, { spec: result, failedAt: null });
-        return result;
-      }
-
-      const stale = this.#lastDecryptedEnterprise.get(hash);
-
-      if (!stale) return null;
-
-      if (!stale.failedAt) {
-        stale.failedAt = Date.now();
-      } else if (Date.now() - stale.failedAt >= FdmDataFetcher.#STALE_LIMIT_MS) {
-        this.#lastDecryptedEnterprise.delete(hash);
-        log.warn(`Stale limit reached for ${enterpriseApps[i].name}, removing`);
-        return null;
-      }
-
-      log.info(`Serving stale decrypt for ${enterpriseApps[i].name}`);
-      return stale.spec;
-    });
-
-    specMapper(resolvedSpecs);
+    specMapper(decryptedSpecs);
 
     console.log('After decryption:\n', logger());
 

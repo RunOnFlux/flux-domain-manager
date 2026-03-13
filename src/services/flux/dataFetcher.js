@@ -305,52 +305,9 @@ class FdmDataFetcher extends EventEmitter {
       return cacheSpec;
     }
 
-    let originalOwner = this.#cache.get(spec.name);
-    let ownerAttempts = 0;
+    const { owner } = spec;
 
-    while (ownerAttempts < 3) {
-      const endpoint = `apps/apporiginalowner/${spec.name}`;
-      // eslint-disable-next-line no-await-in-loop
-      const fluxRes = await this.#fluxApi.get(endpoint).catch((err) => {
-        log.warn('Unable to get app original owner for '
-          + `${spec.name}. ${err.message}`);
-
-        return null;
-      });
-
-      if (!fluxRes) {
-        ownerAttempts += 1;
-        // eslint-disable-next-line no-await-in-loop
-        await FdmDataFetcher.sleep(3_000);
-        // eslint-disable-next-line no-continue
-        continue;
-      }
-
-      const parsedFluxRes = FdmDataFetcher.#parseAxiosResponse(fluxRes);
-
-      if (!parsedFluxRes) {
-        ownerAttempts += 1;
-        // eslint-disable-next-line no-await-in-loop
-        await FdmDataFetcher.sleep(3_000);
-        // eslint-disable-next-line no-continue
-        continue;
-      }
-
-      ({ payload: originalOwner = '' } = parsedFluxRes);
-
-      if (originalOwner) {
-        this.#cache.set(spec.name, originalOwner);
-        break;
-      }
-
-      console.log(`Owner fetch for: ${spec.name} failed, retrying in 3 seconds`);
-      ownerAttempts += 1;
-      // eslint-disable-next-line no-await-in-loop
-      await FdmDataFetcher.sleep(3_000);
-    }
-
-    // we tried 3 times... can't connect to flux api, bail
-    if (!originalOwner) return null;
+    if (!owner) return null;
 
     const enterpriseBuf = Buffer.from(enterprise, 'base64');
     const aesKeyEncrypted = enterpriseBuf.subarray(0, 256);
@@ -359,7 +316,7 @@ class FdmDataFetcher extends EventEmitter {
     const base64EncryptedAesKey = aesKeyEncrypted.toString('base64');
 
     const payload = {
-      fluxID: originalOwner,
+      fluxID: owner,
       appName: spec.name,
       message: base64EncryptedAesKey,
       blockHeight: 9999999,

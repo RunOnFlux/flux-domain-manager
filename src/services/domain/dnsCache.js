@@ -4,14 +4,20 @@ const log = require('../../lib/log');
 // Maps domain -> { failures: number, lastChecked: number (epoch ms) }
 const cache = new Map();
 
-const MIN_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes (match cycle interval)
-const MAX_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours
 
-// Exponential backoff: 15m, 30m, 1h, 2h, 4h, 8h, 16h, 24h (capped)
+// Backoff: 0, 30m, 1h, 2h (capped)
+// A new misconfigured domain gets 4 checks in ~2 hours, then every 2h after
+const COOLDOWNS_MS = [
+  0,                      // failure 1: recheck next cycle
+  30 * 60 * 1000,         // failure 2: 30m
+  60 * 60 * 1000,         // failure 3: 1h
+];
+
 function getCooldownMs(failures) {
-  if (failures <= 1) return 0; // first failure, always recheck next cycle
-  const ms = MIN_COOLDOWN_MS * (2 ** (failures - 2));
-  return Math.min(ms, MAX_COOLDOWN_MS);
+  if (failures <= 0) return 0;
+  if (failures <= COOLDOWNS_MS.length) return COOLDOWNS_MS[failures - 1];
+  return MAX_COOLDOWN_MS;
 }
 
 function shouldCheckDomain(domain) {

@@ -12,24 +12,22 @@ describe('dnsCache', () => {
   });
 
   describe('getCooldownMs', () => {
-    it('returns 0 for first failure (always recheck)', () => {
+    it('returns 0 for first failure (recheck next cycle)', () => {
       expect(dnsCache.getCooldownMs(1)).to.equal(0);
     });
 
-    it('returns 15m for second failure', () => {
-      expect(dnsCache.getCooldownMs(2)).to.equal(15 * 60 * 1000);
+    it('returns 30m for second failure', () => {
+      expect(dnsCache.getCooldownMs(2)).to.equal(30 * 60 * 1000);
     });
 
-    it('doubles each time', () => {
-      expect(dnsCache.getCooldownMs(3)).to.equal(30 * 60 * 1000);
-      expect(dnsCache.getCooldownMs(4)).to.equal(60 * 60 * 1000);
-      expect(dnsCache.getCooldownMs(5)).to.equal(2 * 60 * 60 * 1000);
-      expect(dnsCache.getCooldownMs(6)).to.equal(4 * 60 * 60 * 1000);
+    it('returns 1h for third failure', () => {
+      expect(dnsCache.getCooldownMs(3)).to.equal(60 * 60 * 1000);
     });
 
-    it('caps at 24 hours', () => {
-      expect(dnsCache.getCooldownMs(20)).to.equal(24 * 60 * 60 * 1000);
-      expect(dnsCache.getCooldownMs(100)).to.equal(24 * 60 * 60 * 1000);
+    it('caps at 2 hours', () => {
+      expect(dnsCache.getCooldownMs(4)).to.equal(2 * 60 * 60 * 1000);
+      expect(dnsCache.getCooldownMs(10)).to.equal(2 * 60 * 60 * 1000);
+      expect(dnsCache.getCooldownMs(100)).to.equal(2 * 60 * 60 * 1000);
     });
   });
 

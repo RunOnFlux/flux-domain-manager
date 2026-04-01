@@ -4,28 +4,23 @@ const log = require('../../lib/log');
 // Maps domain -> { failures: number, lastChecked: number (epoch ms) }
 const cache = new Map();
 
-// Backoff buckets:
-// 1-3 failures:  always check (DNS might be propagating)
-// 4-10 failures: skip if checked within 1 hour
-// 11-50 failures: skip if checked within 6 hours
-// 51+: skip if checked within 24 hours
-const BACKOFF_BUCKETS = [
-  { maxFailures: 3, cooldownMs: 0 },
-  { maxFailures: 10, cooldownMs: 60 * 60 * 1000 },
-  { maxFailures: 50, cooldownMs: 6 * 60 * 60 * 1000 },
-  { maxFailures: Infinity, cooldownMs: 24 * 60 * 60 * 1000 },
-];
+const MIN_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes (match cycle interval)
+const MAX_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Exponential backoff: 15m, 30m, 1h, 2h, 4h, 8h, 16h, 24h (capped)
+function getCooldownMs(failures) {
+  if (failures <= 1) return 0; // first failure, always recheck next cycle
+  const ms = MIN_COOLDOWN_MS * (2 ** (failures - 2));
+  return Math.min(ms, MAX_COOLDOWN_MS);
+}
 
 function shouldCheckDomain(domain) {
   const entry = cache.get(domain);
   if (!entry) return true;
 
-  const now = Date.now();
-  const bucket = BACKOFF_BUCKETS.find((b) => entry.failures <= b.maxFailures);
-  if (!bucket) return true;
-
-  if (bucket.cooldownMs === 0) return true;
-  return (now - entry.lastChecked) >= bucket.cooldownMs;
+  const cooldown = getCooldownMs(entry.failures);
+  if (cooldown === 0) return true;
+  return (Date.now() - entry.lastChecked) >= cooldown;
 }
 
 function recordFailure(domain) {
@@ -34,9 +29,8 @@ function recordFailure(domain) {
   entry.lastChecked = Date.now();
   cache.set(domain, entry);
 
-  const bucket = BACKOFF_BUCKETS.find((b) => entry.failures <= b.maxFailures);
-  const cooldownMin = Math.round((bucket ? bucket.cooldownMs : 0) / 60000);
-  if (entry.failures === 4 || entry.failures === 11 || entry.failures === 51) {
+  const cooldownMin = Math.round(getCooldownMs(entry.failures) / 60000);
+  if (entry.failures <= 5 || entry.failures % 10 === 0) {
     log.info(`DNS for ${domain} failed ${entry.failures} times, next check in ${cooldownMin}m`);
   }
 }
@@ -54,4 +48,5 @@ module.exports = {
   recordFailure,
   recordSuccess,
   getCacheSize,
+  getCooldownMs,
 };

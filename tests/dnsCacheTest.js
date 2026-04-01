@@ -6,9 +6,30 @@ const { expect } = chai;
 
 describe('dnsCache', () => {
   beforeEach(() => {
-    // Reset cache by recording success for any test domains
     ['test1.example.com', 'test2.example.com', 'test3.example.com'].forEach((d) => {
       dnsCache.recordSuccess(d);
+    });
+  });
+
+  describe('getCooldownMs', () => {
+    it('returns 0 for first failure (always recheck)', () => {
+      expect(dnsCache.getCooldownMs(1)).to.equal(0);
+    });
+
+    it('returns 15m for second failure', () => {
+      expect(dnsCache.getCooldownMs(2)).to.equal(15 * 60 * 1000);
+    });
+
+    it('doubles each time', () => {
+      expect(dnsCache.getCooldownMs(3)).to.equal(30 * 60 * 1000);
+      expect(dnsCache.getCooldownMs(4)).to.equal(60 * 60 * 1000);
+      expect(dnsCache.getCooldownMs(5)).to.equal(2 * 60 * 60 * 1000);
+      expect(dnsCache.getCooldownMs(6)).to.equal(4 * 60 * 60 * 1000);
+    });
+
+    it('caps at 24 hours', () => {
+      expect(dnsCache.getCooldownMs(20)).to.equal(24 * 60 * 60 * 1000);
+      expect(dnsCache.getCooldownMs(100)).to.equal(24 * 60 * 60 * 1000);
     });
   });
 
@@ -17,22 +38,14 @@ describe('dnsCache', () => {
       expect(dnsCache.shouldCheckDomain('never-seen.example.com')).to.equal(true);
     });
 
-    it('returns true for domains with 1-3 failures (no cooldown)', () => {
-      dnsCache.recordFailure('test1.example.com');
-      expect(dnsCache.shouldCheckDomain('test1.example.com')).to.equal(true);
-
-      dnsCache.recordFailure('test1.example.com');
-      expect(dnsCache.shouldCheckDomain('test1.example.com')).to.equal(true);
-
+    it('returns true after first failure (no cooldown)', () => {
       dnsCache.recordFailure('test1.example.com');
       expect(dnsCache.shouldCheckDomain('test1.example.com')).to.equal(true);
     });
 
-    it('returns false for domains with 4+ failures within cooldown', () => {
-      for (let i = 0; i < 4; i += 1) {
-        dnsCache.recordFailure('test2.example.com');
-      }
-      // 4 failures = 1 hour cooldown, should skip immediately after
+    it('returns false after second failure within cooldown', () => {
+      dnsCache.recordFailure('test2.example.com');
+      dnsCache.recordFailure('test2.example.com');
       expect(dnsCache.shouldCheckDomain('test2.example.com')).to.equal(false);
     });
   });
@@ -52,13 +65,12 @@ describe('dnsCache', () => {
   describe('getCacheSize', () => {
     it('tracks number of cached domains', () => {
       const before = dnsCache.getCacheSize();
-      dnsCache.recordFailure('unique-test-domain-1.example.com');
-      dnsCache.recordFailure('unique-test-domain-2.example.com');
+      dnsCache.recordFailure('unique-test-1.example.com');
+      dnsCache.recordFailure('unique-test-2.example.com');
       expect(dnsCache.getCacheSize()).to.equal(before + 2);
 
-      // cleanup
-      dnsCache.recordSuccess('unique-test-domain-1.example.com');
-      dnsCache.recordSuccess('unique-test-domain-2.example.com');
+      dnsCache.recordSuccess('unique-test-1.example.com');
+      dnsCache.recordSuccess('unique-test-2.example.com');
     });
   });
 });

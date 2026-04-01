@@ -10,7 +10,7 @@ const {
   getUnifiedDomains,
   getCustomDomains,
 } = require('./domain');
-const { executeCertificateOperations, cleanupOrphanedCerts } = require('./domain/cert');
+const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/cert');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
 const { getApplicationsToProcess } = require('./application/subset');
@@ -1068,7 +1068,7 @@ async function obtainCertificatesMode() {
         myFDMnameORip,
         myIP,
       );
-      const orphansRemoved = await cleanupOrphanedCerts(allCustomDomains);
+      const orphansRemoved = await cleanupStaleCerts();
       certsChanged = certsChanged || orphansRemoved;
     }
     log.info('Certificates obtained');

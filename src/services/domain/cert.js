@@ -315,9 +315,8 @@ async function executeCertificateOperations(domains, type, fdmOrIP, myIP) {
   }
 }
 
-async function cleanupOrphanedCerts(activeDomains) {
+async function cleanupStaleCerts() {
   try {
-    const activeSet = new Set(activeDomains);
     const files = await fs.readdir(CERT_DIR);
     let removed = 0;
 
@@ -327,8 +326,8 @@ async function cleanupOrphanedCerts(activeDomains) {
 
       // eslint-disable-next-line no-await-in-loop
       const daysRemaining = await getCertDaysRemaining(domain);
-      if (shouldRemoveOrphanedCert(domain, activeSet, daysRemaining)) {
-        log.info(`Removing orphaned cert for ${domain} (expired ${Math.round(-daysRemaining)} days ago)`);
+      if (shouldRemoveStaleCert(daysRemaining)) {
+        log.info(`Removing stale cert for ${domain} (expired ${Math.round(-daysRemaining)} days ago)`);
         // eslint-disable-next-line no-await-in-loop
         await fs.unlink(`${CERT_DIR}/${file}`).catch(() => {});
         removed += 1;
@@ -336,7 +335,7 @@ async function cleanupOrphanedCerts(activeDomains) {
     }
 
     if (removed) {
-      log.info(`Orphan cleanup: removed ${removed} stale certs`);
+      log.info(`Cert cleanup: removed ${removed} expired certs`);
     }
     return removed > 0;
   } catch (error) {
@@ -345,14 +344,13 @@ async function cleanupOrphanedCerts(activeDomains) {
   }
 }
 
-function shouldRemoveOrphanedCert(domain, activeDomains, daysRemaining) {
-  if (activeDomains.has(domain)) return false;
+function shouldRemoveStaleCert(daysRemaining) {
   if (daysRemaining === null) return false;
   return daysRemaining < -30;
 }
 
 module.exports = {
   executeCertificateOperations,
-  cleanupOrphanedCerts,
-  shouldRemoveOrphanedCert,
+  cleanupStaleCerts,
+  shouldRemoveStaleCert,
 };

@@ -1052,17 +1052,16 @@ async function obtainCertificatesMode() {
     applicationSpecifications = getApplicationsToProcess(
       applicationSpecifications,
     );
-    // Collect all custom domains across all apps for a single parallel batch
-    const allCustomDomains = [];
+    // Collect all unique custom domains across all apps for a single parallel batch
+    const domainSet = new Set();
     for (const appSpecs of applicationSpecifications) {
       const customDomains = getCustomDomains(appSpecs);
-      if (customDomains.length) {
-        allCustomDomains.push(...customDomains);
-      }
+      customDomains.forEach((d) => domainSet.add(d));
     }
+    const allCustomDomains = [...domainSet];
     let certsChanged = false;
     if (allCustomDomains.length) {
-      log.info(`Processing ${allCustomDomains.length} custom domains from ${applicationSpecifications.length} apps`);
+      log.info(`Processing ${allCustomDomains.length} unique custom domains from ${applicationSpecifications.length} apps`);
       certsChanged = await executeCertificateOperations(
         allCustomDomains,
         DOMAIN_TYPE.CUSTOM,

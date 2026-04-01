@@ -35,13 +35,14 @@ async function checkCertificatePresetForDomain(domain) {
   }
 }
 
-async function obtainDomainCertificate(domain) { // let it throw
-  const cmdToExec = `sudo certbot certonly --standalone -d ${domain} --non-interactive --agree-tos --email ${config.emailDomain} --http-01-port=8787`;
-  const cmdToExecContinue = `sudo cat ${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem ${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem | sudo tee ${CERT_DIR}/${domain}.pem`;
-  const response = await cmdAsync(cmdToExec);
-  if (response.includes('Congratulations') || response.includes('Certificate not yet due for renewal')) {
-    await cmdAsync(cmdToExecContinue);
-  }
+async function obtainDomainCertificate(domain) {
+  await cmdAsync(`sudo certbot certonly --standalone -d ${domain} --non-interactive --agree-tos --email ${config.emailDomain} --http-01-port=8787`);
+  // certbot exited 0 — verify cert files exist then combine for haproxy
+  const fullchainPath = `${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem`;
+  const privkeyPath = `${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem`;
+  await fs.access(fullchainPath);
+  await fs.access(privkeyPath);
+  await cmdAsync(`sudo cat ${fullchainPath} ${privkeyPath} | sudo tee ${CERT_DIR}/${domain}.pem`);
 }
 
 async function adjustAutoRenewalScriptForDomain(domain) { // let it throw

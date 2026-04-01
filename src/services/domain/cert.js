@@ -36,13 +36,13 @@ async function checkCertificatePresetForDomain(domain) {
 }
 
 async function obtainDomainCertificate(domain) {
+  // cmdAsync rejects on non-zero exit code
   await cmdAsync(`sudo certbot certonly --standalone -d ${domain} --non-interactive --agree-tos --email ${config.emailDomain} --http-01-port=8787`);
-  // certbot exited 0 — verify cert files exist then combine for haproxy
   const fullchainPath = `${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem`;
   const privkeyPath = `${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem`;
   await fs.access(fullchainPath);
   await fs.access(privkeyPath);
-  await cmdAsync(`sudo cat ${fullchainPath} ${privkeyPath} | sudo tee ${CERT_DIR}/${domain}.pem`);
+  await cmdAsync(`sudo cat ${fullchainPath} ${privkeyPath} > ${CERT_DIR}/${domain}.pem`);
 }
 
 async function adjustAutoRenewalScriptForDomain(domain) { // let it throw

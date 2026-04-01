@@ -566,8 +566,35 @@ async function checkConfig(configName) {
   return configOK;
 }
 
+async function cleanupBrokenCerts() {
+  const certDir = `/etc/ssl/${configGlobal.certFolder}`;
+  try {
+    const files = await fs.readdir(certDir);
+    for (const file of files) {
+      const filePath = `${certDir}/${file}`;
+      if (!file.endsWith('.pem')) {
+        log.info(`Removing non-.pem file from cert directory: ${filePath}`);
+        // eslint-disable-next-line no-await-in-loop
+        await fs.unlink(filePath);
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      const stat = await fs.stat(filePath);
+      if (stat.size === 0) {
+        log.info(`Removing empty cert file: ${filePath}`);
+        // eslint-disable-next-line no-await-in-loop
+        await fs.unlink(filePath);
+      }
+    }
+  } catch (error) {
+    log.warn(`Error cleaning cert directory: ${error.message}`);
+  }
+}
+
 async function restartProxy(dataToWrite) {
   await writeConfig(TEMP_HAPROXY_CONFIG, dataToWrite);
+  await cleanupBrokenCerts();
   const isConfigOk = await checkConfig(TEMP_HAPROXY_CONFIG);
   if (!isConfigOk) {
     log.info('Haproxy config is invalid. Not restarting');

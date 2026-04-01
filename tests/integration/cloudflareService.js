@@ -1,6 +1,6 @@
 /* eslint-disable func-names */
 const chai = require('chai');
-const cloudflareService = require('../src/services/cloudflareService');
+const cloudflareService = require('../../src/services/cloudflareService');
 
 const { expect } = chai;
 

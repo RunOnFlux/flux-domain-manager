@@ -21,9 +21,10 @@
   "scripts": {
     "start": "nodemon index.js",
     "test": "mocha tests --timeout 10000",
+    "test:integration": "mocha tests/integration --timeout 20000",
+    "test:cloudflare": "mocha tests/integration --timeout 20000 --grep 'cloudflareService'",
     "lint": "eslint ./",
-    "lint:fix": "eslint ./ --fix",
-    "testcloudflare": "mocha tests --timeout 10000 --grep 'cloudflareService'"
+    "lint:fix": "eslint ./ --fix"
   },
   "dependencies": {
     "@isaacs/ttlcache": "^1.4.1",

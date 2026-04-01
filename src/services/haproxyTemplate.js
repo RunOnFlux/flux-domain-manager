@@ -5,6 +5,7 @@ const fs = require('fs').promises;
 const log = require('../lib/log');
 const { cmdAsync, TEMP_HAPROXY_CONFIG, HAPROXY_CONFIG } = require('./constants');
 const { matchRule } = require('./serviceHelper');
+const { getPrimaryIP } = require('./rsync/config');
 
 let lastHaproxyConfig;
 
@@ -102,9 +103,22 @@ const certificatesSuffix = ''; // 'ciphers kEECDH+aRSA+AES:kRSA+AES:+AES256:RC4-
 
 const h2Suffix = 'alpn h2,http/1.1';
 
-const letsEncryptBackend = `backend letsencrypt-backend
+const letsEncryptBackend = (() => {
+  if (configGlobal.certRenewalPrimary) {
+    return `backend letsencrypt-backend
   server letsencrypt 127.0.0.1:8787
 `;
+  }
+  // Non-primary: proxy ACME challenges to the primary's certbot
+  const primaryIP = getPrimaryIP();
+  if (!primaryIP) {
+    log.error('certRenewalPrimary is false but no primary IP found in hosts.ini. ACME challenges will fail.');
+  }
+  const target = primaryIP || '127.0.0.1';
+  return `backend letsencrypt-backend
+  server letsencrypt ${target}:8787
+`;
+})();
 
 const cloudflareFluxBackend = `backend cloudflare-flux-backend
   server cloudflareflux 127.0.0.1:${configGlobal.server.port}

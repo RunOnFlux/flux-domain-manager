@@ -10,13 +10,16 @@ const {
   listDNSRecords, deleteDNSRecordCloudflare, deleteDNSRecordPDNS, createDNSRecord,
 } = require('./dns');
 
+const CERT_DIR = `/etc/ssl/${config.certFolder}`;
+const LETSENCRYPT_LIVE_DIR = '/etc/letsencrypt/live';
+
 async function checkCertificatePresetForDomain(domain) {
   try {
     if (domain.endsWith(`${config.appSubDomain}.${config.mainDomain}`) || domain.endsWith('app.runonflux.io') || domain.endsWith('app2.runonflux.io')) {
       return true;
     }
-    const path = `/etc/ssl/fluxapps/${domain}.pem`;
-    const pathB = `/etc/letsencrypt/live/${domain}/fullchain.pem`;
+    const path = `${CERT_DIR}/${domain}.pem`;
+    const pathB = `${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem`;
     await fs.access(path); // only check if file exists. Does not check permissions
     await fs.access(pathB); // only check if file exists. Does not check permissions
     const fileSize = fsSync.statSync(path).size;
@@ -32,7 +35,7 @@ async function checkCertificatePresetForDomain(domain) {
 
 async function obtainDomainCertificate(domain) { // let it throw
   const cmdToExec = `sudo certbot certonly --standalone -d ${domain} --non-interactive --agree-tos --email ${config.emailDomain} --http-01-port=8787`;
-  const cmdToExecContinue = `sudo cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem | sudo tee /etc/ssl/${config.certFolder}/${domain}.pem`;
+  const cmdToExecContinue = `sudo cat ${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem ${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem | sudo tee ${CERT_DIR}/${domain}.pem`;
   const response = await cmdAsync(cmdToExec);
   if (response.includes('Congratulations') || response.includes('Certificate not yet due for renewal')) {
     await cmdAsync(cmdToExecContinue);
@@ -59,7 +62,7 @@ certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
       });
     }
 
-    const cert = `bash -c "cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > /etc/ssl/${config.certFolder}/${domain}.pem"`;
+    const cert = `bash -c "cat ${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem ${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem > ${CERT_DIR}/${domain}.pem"`;
     if (autoRenewScript.includes(cert)) {
       return;
     }
@@ -72,13 +75,33 @@ certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
       encoding: 'utf-8',
     });
   } catch (error) {
-    const cert = `bash -c "cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > /etc/ssl/${config.certFolder}/${domain}.pem"\n`;
+    const cert = `bash -c "cat ${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem ${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem > ${CERT_DIR}/${domain}.pem"\n`;
     const file = header + cert;
     await fs.writeFile(path, file, {
       mode: 0o755,
       flag: 'w',
       encoding: 'utf-8',
     });
+  }
+}
+
+async function isCertificateExpiringSoon(domain, thresholdDays = 30) {
+  try {
+    const pemPath = `${CERT_DIR}/${domain}.pem`;
+    await fs.access(pemPath);
+    const result = await cmdAsync(
+      `openssl x509 -enddate -noout -in ${pemPath}`,
+    );
+    // result looks like: "notAfter=Mar 15 12:00:00 2026 GMT\n"
+    const match = result.match(/notAfter=(.+)/);
+    if (!match) return true; // can't parse, treat as expiring
+    const expiryDate = new Date(match[1].trim());
+    const now = new Date();
+    const daysRemaining = (expiryDate - now) / (1000 * 60 * 60 * 24);
+    return daysRemaining < thresholdDays;
+  } catch (error) {
+    log.warn(`Cannot check expiry for ${domain}: ${error.message}`);
+    return false; // if cert doesn't exist, obtainDomainCertificate handles it
   }
 }
 
@@ -206,14 +229,19 @@ async function executeCertificateOperations(domains, type, fdmOrIP, myIP) {
             log.info(`Obtaining certificate for ${appDomain}`);
             // eslint-disable-next-line no-await-in-loop
             await obtainDomainCertificate(appDomain);
+          } else {
+            // cert exists, check if renewal is needed
+            // eslint-disable-next-line no-await-in-loop
+            const expiringSoon = await isCertificateExpiringSoon(appDomain);
+            if (expiringSoon) {
+              log.info(`Renewing expiring certificate for ${appDomain}`);
+              // eslint-disable-next-line no-await-in-loop
+              await obtainDomainCertificate(appDomain);
+            }
           }
           // eslint-disable-next-line no-await-in-loop
           const isCertificatePresentB = await checkCertificatePresetForDomain(appDomain);
-          if (isCertificatePresentB) {
-            // check if domain has autorenewal, if not, adjust it
-            // eslint-disable-next-line no-await-in-loop
-            await adjustAutoRenewalScriptForDomain(appDomain);
-          } else {
+          if (!isCertificatePresentB) {
             throw new Error(`Certificate not present for ${appDomain}`);
           }
         } catch (error) {

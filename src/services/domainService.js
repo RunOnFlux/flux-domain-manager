@@ -1076,13 +1076,13 @@ async function obtainCertificatesMode() {
     setTimeout(() => {
       obtainCertificatesMode();
       startCertRsync();
-    }, 5 * 60 * 1000);
+    }, 15 * 60 * 1000);
   } catch (error) {
     log.error(error);
     setTimeout(() => {
       obtainCertificatesMode();
       startCertRsync();
-    }, 5 * 60 * 1000);
+    }, 15 * 60 * 1000);
   }
 }
 
@@ -1237,7 +1237,7 @@ async function start() {
     log.error(e);
     setTimeout(() => {
       start();
-    }, 5 * 60 * 1000);
+    }, 15 * 60 * 1000);
   }
 }
 

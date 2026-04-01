@@ -245,6 +245,5 @@
       when: certRenewalPrimary | bool
 
     - name: Stop CDM on non-primary hosts
-      shell: pm2 delete CDM
+      shell: pm2 describe CDM > /dev/null 2>&1 && pm2 delete CDM || true
       when: not certRenewalPrimary | bool
-      ignore_errors: yes

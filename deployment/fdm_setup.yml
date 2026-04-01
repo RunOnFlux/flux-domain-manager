@@ -162,7 +162,7 @@
         manageCertificateOnly: "true"
         certRenewalPrimary: "{{ certRenewalPrimary }}"
         appSubDomain: "{{ 'app2' if DEPLOY_ENV == 'staging' else 'app' }}"
-        useSubset: "false"
+        useSubset: "true"
         manageApps: "true"
         uiName: "home"
         cloudUiName: "cloud"

@@ -25,7 +25,7 @@ module.exports = {
   emailDomain: 'tadeas@runonflux.io',
   certFolder: 'fluxapps',
   manageCertificateOnly: {{ manageCertificateOnly }},
-  certRenewalPrimary: {{ certRenewalPrimary }},
+  certRenewalPrimary: {{ certRenewalPrimary | lower }},
   automateCertificates: false,
   automateCertificatesForFDMdomains: false,
   adjustFDMdomains: false,

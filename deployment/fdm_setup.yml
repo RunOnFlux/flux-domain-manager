@@ -118,7 +118,7 @@
       ansible.builtin.git:
         repo: https://github.com/RunOnFlux/flux-domain-manager.git
         dest: flux-domain-manager
-        version: main
+        version: "{{ git_branch | default('main') }}"
         force: yes
         update: yes
         clone: yes
@@ -129,7 +129,7 @@
       ansible.builtin.git:
         repo: https://github.com/RunOnFlux/flux-domain-manager.git
         dest: cert-domain-manager
-        version: main
+        version: "{{ git_branch | default('main') }}"
         update: yes
         force: yes
         clone: yes

@@ -10,7 +10,7 @@ const {
   getUnifiedDomains,
   getCustomDomains,
 } = require('./domain');
-const { executeCertificateOperations } = require('./domain/cert');
+const { executeCertificateOperations, cleanupOrphanedCerts } = require('./domain/cert');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
 const { getApplicationsToProcess } = require('./application/subset');
@@ -1068,6 +1068,7 @@ async function obtainCertificatesMode() {
         myFDMnameORip,
         myIP,
       );
+      await cleanupOrphanedCerts(allCustomDomains);
     }
     log.info('Certificates obtained');
     setTimeout(() => {

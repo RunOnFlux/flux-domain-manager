@@ -338,8 +338,10 @@ async function cleanupOrphanedCerts(activeDomains) {
     if (removed) {
       log.info(`Orphan cleanup: removed ${removed} stale certs`);
     }
+    return removed > 0;
   } catch (error) {
     log.warn(`Error cleaning orphaned certs: ${error.message}`);
+    return false;
   }
 }
 

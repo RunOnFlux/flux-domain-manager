@@ -1068,7 +1068,8 @@ async function obtainCertificatesMode() {
         myFDMnameORip,
         myIP,
       );
-      await cleanupOrphanedCerts(allCustomDomains);
+      const orphansRemoved = await cleanupOrphanedCerts(allCustomDomains);
+      certsChanged = certsChanged || orphansRemoved;
     }
     log.info('Certificates obtained');
     if (certsChanged) {

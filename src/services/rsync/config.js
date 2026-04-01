@@ -20,13 +20,24 @@ function parseHostConfig(value) {
   }, {});
 }
 
-function getHostsToRsync() {
+function getGroupPeerIPs() {
   const { host, type } = rsyncConfig;
   const number = host.charAt(6);
-  const rsyncHosts = Object.keys(hosts[type]).filter((k) => !k.includes(host) && k.charAt(6) === number);
+  const peerHosts = Object.keys(hosts[type]).filter((k) => !k.includes(host) && k.charAt(6) === number);
 
-  return rsyncHosts.map((rh) => {
+  return peerHosts.map((rh) => {
     const hostConfig = parseHostConfig(hosts[type][rh]);
+    return hostConfig.rsyncIP || hostConfig.ansible_host;
+  });
+}
+
+function getGroupIPs() {
+  const { host, type } = rsyncConfig;
+  const number = host.charAt(6);
+  const groupHosts = Object.keys(hosts[type]).filter((k) => k.charAt(6) === number);
+
+  return groupHosts.map((gh) => {
+    const hostConfig = parseHostConfig(hosts[type][gh]);
     return hostConfig.rsyncIP || hostConfig.ansible_host;
   });
 }
@@ -49,7 +60,8 @@ function getPrimaryIP() {
 }
 
 module.exports = {
-  getHostsToRsync,
+  getGroupPeerIPs,
+  getGroupIPs,
   getPrimaryIP,
   parseHostConfig,
 };

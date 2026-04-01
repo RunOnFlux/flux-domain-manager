@@ -149,17 +149,19 @@ async function dnsLookup(hostname) {
   return result || [];
 }
 
-async function isDomainPointedToThisFDM(hostname, FDMnameOrIP, myIP) {
+async function isDomainPointedToThisGroup(hostname, FDMnameOrIP, myIP) {
   try {
     if (!FDMnameOrIP) {
       return false;
     }
+    const { getGroupIPs } = require('../rsync/config');
+    const groupIPs = new Set(getGroupIPs());
+    groupIPs.add(FDMnameOrIP);
+    if (myIP) groupIPs.add(myIP);
+
     const dnsLookupdRecords = await dnsLookup(hostname);
-    const pointedToMyIp = dnsLookupdRecords.find((record) => (record.address === FDMnameOrIP || record.address === myIP) && record.address);
-    if (pointedToMyIp) {
-      return true;
-    }
-    return false;
+    const pointedToGroup = dnsLookupdRecords.find((record) => groupIPs.has(record.address));
+    return !!pointedToGroup;
   } catch (error) {
     log.warn(error);
     return false;
@@ -237,7 +239,7 @@ async function checkDomainAction(appDomain, type, fdmOrIP, myIP) {
       if (!dnsCache.shouldCheckDomain(appDomain)) {
         return { domain: appDomain, action: 'skip', reason: 'dns backoff' };
       }
-      const domainIsPointedCorrectly = await isDomainPointedToThisFDM(appDomain, fdmOrIP, myIP);
+      const domainIsPointedCorrectly = await isDomainPointedToThisGroup(appDomain, fdmOrIP, myIP);
       if (!domainIsPointedCorrectly) {
         dnsCache.recordFailure(appDomain);
         return { domain: appDomain, action: 'skip', reason: 'dns not pointed' };

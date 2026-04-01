@@ -11,27 +11,44 @@ const hostsIniPath = path.resolve(__dirname, '../deployment/hosts.ini');
 const hosts = ini.parse(fs.readFileSync(hostsIniPath, 'utf-8'));
 
 // Import the module (uses default rsync_config.json: fdm_fn1_app / app_fdm_servers)
-const { getHostsToRsync, getPrimaryIP, parseHostConfig } = require('../src/services/rsync/config');
+const { getGroupPeerIPs, getGroupIPs, getPrimaryIP, parseHostConfig } = require('../src/services/rsync/config');
 
 describe('rsync config', function () {
-  describe('getHostsToRsync', () => {
+  describe('getGroupPeerIPs', () => {
     it('returns an array of IPs', () => {
-      const result = getHostsToRsync();
+      const result = getGroupPeerIPs();
       expect(result).to.be.an('array');
     });
 
     it('does not include the current host', () => {
       // Default rsync_config.json has host=fdm_fn1_app, which has rsyncIP=5.39.57.42
-      const result = getHostsToRsync();
+      const result = getGroupPeerIPs();
       expect(result).to.not.include('5.39.57.42');
     });
 
-    it('only returns hosts from the same group number', () => {
+    it('only returns peers from the same group number', () => {
       // fdm_fn1_app is group 1 — peers should be fdm_sg1_app and fdm_us1_app
-      const result = getHostsToRsync();
+      const result = getGroupPeerIPs();
       expect(result).to.include('146.190.83.190'); // fdm_sg1_app
       expect(result).to.include('5.161.211.14'); // fdm_us1_app
       expect(result).to.have.lengthOf(2);
+    });
+  });
+
+  describe('getGroupIPs', () => {
+    it('returns all IPs in the group including self', () => {
+      const result = getGroupIPs();
+      expect(result).to.be.an('array');
+      expect(result).to.include('5.39.57.42'); // fdm_fn1_app (self)
+      expect(result).to.include('146.190.83.190'); // fdm_sg1_app
+      expect(result).to.include('5.161.211.14'); // fdm_us1_app
+      expect(result).to.have.lengthOf(3);
+    });
+
+    it('does not include hosts from other groups', () => {
+      const result = getGroupIPs();
+      expect(result).to.not.include('5.39.57.43'); // fdm_fn2_app (group 2)
+      expect(result).to.not.include('5.39.57.44'); // fdm_fn3_app (group 3)
     });
   });
 

@@ -1,13 +1,13 @@
 const cmd = require('node-cmd');
 const util = require('util');
-const { getHostsToRsync } = require('./config');
+const { getGroupPeerIPs } = require('./config');
 const log = require('../../lib/log');
 
 const cmdAsync = util.promisify(cmd.run);
 
 async function startCertRsync() {
   log.info('starting rsync');
-  const ips = getHostsToRsync();
+  const ips = getGroupPeerIPs();
   log.info(`Rsyncing to ${ips}`);
   try {
     // eslint-disable-next-line no-restricted-syntax

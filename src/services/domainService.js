@@ -1052,25 +1052,22 @@ async function obtainCertificatesMode() {
     applicationSpecifications = getApplicationsToProcess(
       applicationSpecifications,
     );
+    // Collect all custom domains across all apps for a single parallel batch
+    const allCustomDomains = [];
     for (const appSpecs of applicationSpecifications) {
       const customDomains = getCustomDomains(appSpecs);
       if (customDomains.length) {
-        log.info(`Processing ${appSpecs.name}`);
-        // eslint-disable-next-line no-await-in-loop
-        const customCertOperationsSuccessful = await executeCertificateOperations(
-          customDomains,
-          DOMAIN_TYPE.CUSTOM,
-          myFDMnameORip,
-          myIP,
-        );
-        if (customCertOperationsSuccessful) {
-          log.info(
-            `Application domain and ssl for custom domains of ${appSpecs.name} is ready`,
-          );
-        } else {
-          log.error(`Domain/ssl issues for custom domains of ${appSpecs.name}`);
-        }
+        allCustomDomains.push(...customDomains);
       }
+    }
+    if (allCustomDomains.length) {
+      log.info(`Processing ${allCustomDomains.length} custom domains from ${applicationSpecifications.length} apps`);
+      await executeCertificateOperations(
+        allCustomDomains,
+        DOMAIN_TYPE.CUSTOM,
+        myFDMnameORip,
+        myIP,
+      );
     }
     log.info('Certificates obtained');
     setTimeout(() => {

@@ -1060,9 +1060,10 @@ async function obtainCertificatesMode() {
         allCustomDomains.push(...customDomains);
       }
     }
+    let certsChanged = false;
     if (allCustomDomains.length) {
       log.info(`Processing ${allCustomDomains.length} custom domains from ${applicationSpecifications.length} apps`);
-      await executeCertificateOperations(
+      certsChanged = await executeCertificateOperations(
         allCustomDomains,
         DOMAIN_TYPE.CUSTOM,
         myFDMnameORip,
@@ -1071,15 +1072,16 @@ async function obtainCertificatesMode() {
       await cleanupOrphanedCerts(allCustomDomains);
     }
     log.info('Certificates obtained');
+    if (certsChanged) {
+      startCertRsync();
+    }
     setTimeout(() => {
       obtainCertificatesMode();
-      startCertRsync();
     }, 15 * 60 * 1000);
   } catch (error) {
     log.error(error);
     setTimeout(() => {
       obtainCertificatesMode();
-      startCertRsync();
     }, 15 * 60 * 1000);
   }
 }

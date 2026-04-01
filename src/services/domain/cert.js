@@ -303,11 +303,12 @@ async function executeCertificateOperations(domains, type, fdmOrIP, myIP) {
     const obtained = actions.filter((a) => a.action === 'obtain').length;
     const renewed = actions.filter((a) => a.action === 'renew').length;
     const skippedDns = actions.filter((a) => a.reason === 'dns backoff').length;
+    const certsChanged = obtained > 0 || renewed > 0;
     if (obtained || renewed || skippedDns) {
       log.info(`Cert ops: ${obtained} obtained, ${renewed} renewed, ${skippedDns} skipped (dns backoff), ${dnsCache.getCacheSize()} cached failures`);
     }
 
-    return true;
+    return certsChanged;
   } catch (error) {
     log.error(error);
     return false;
@@ -323,12 +324,10 @@ async function cleanupOrphanedCerts(activeDomains) {
     for (const file of files) {
       if (!file.endsWith('.pem')) continue;
       const domain = file.slice(0, -4); // strip .pem
-      if (activeSet.has(domain)) continue;
 
-      // Not in active apps — check if expired > 30 days
       // eslint-disable-next-line no-await-in-loop
       const daysRemaining = await getCertDaysRemaining(domain);
-      if (daysRemaining !== null && daysRemaining < -30) {
+      if (shouldRemoveOrphanedCert(domain, activeSet, daysRemaining)) {
         log.info(`Removing orphaned cert for ${domain} (expired ${Math.round(-daysRemaining)} days ago)`);
         // eslint-disable-next-line no-await-in-loop
         await fs.unlink(`${CERT_DIR}/${file}`).catch(() => {});
@@ -344,7 +343,14 @@ async function cleanupOrphanedCerts(activeDomains) {
   }
 }
 
+function shouldRemoveOrphanedCert(domain, activeDomains, daysRemaining) {
+  if (activeDomains.has(domain)) return false;
+  if (daysRemaining === null) return false;
+  return daysRemaining < -30;
+}
+
 module.exports = {
   executeCertificateOperations,
   cleanupOrphanedCerts,
+  shouldRemoveOrphanedCert,
 };

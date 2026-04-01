@@ -13,7 +13,7 @@ const dnsCache = require('./dnsCache');
 
 const CERT_DIR = `/etc/ssl/${config.certFolder}`;
 const LETSENCRYPT_LIVE_DIR = '/etc/letsencrypt/live';
-const CONCURRENCY_LIMIT = 20;
+const CONCURRENCY_LIMIT = 10;
 
 async function checkCertificatePresetForDomain(domain) {
   try {
@@ -140,14 +140,16 @@ async function isCertificateExpiringSoon(domain, thresholdDays = 30) {
   }
 }
 
-// return array of IPs to which a hostname is pointeed
+// return array of IPv4 addresses to which a hostname is pointed
+// Uses dns.resolve4 (c-ares) instead of dns.lookup (libuv thread pool)
+// to avoid thread pool exhaustion under concurrent lookups
 async function dnsLookup(hostname) {
   const timeoutPromise = new Promise((resolve) => {
-    setTimeout(resolve, 2000, []);
+    setTimeout(resolve, 10000, []);
   });
-  const dnsPromise = dns.lookup(hostname, { all: true }).catch((error) => console.log(error)); // eg. [ { address: '65.21.189.1', family: 4 } ]
+  const dnsPromise = dns.resolve4(hostname).catch(() => []);
   const result = await Promise.race([dnsPromise, timeoutPromise]);
-  return result || [];
+  return (result || []).map((address) => ({ address, family: 4 }));
 }
 
 async function isDomainPointedToThisGroup(hostname, FDMnameOrIP, myIP) {

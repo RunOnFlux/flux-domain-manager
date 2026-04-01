@@ -310,10 +310,10 @@ async function executeCertificateOperations(domains, type, fdmOrIP, myIP) {
       log.info(`Cert ops: ${obtained} obtained, ${renewed} renewed, ${skippedDns} skipped (dns backoff), ${dnsCache.getCacheSize()} cached failures`);
     }
 
-    return certsChanged;
+    return { success: true, certsChanged };
   } catch (error) {
     log.error(error);
-    return false;
+    return { success: false, certsChanged: false };
   }
 }
 

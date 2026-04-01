@@ -135,17 +135,17 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
 
     if (domains.length === portLength + 1) {
       // eslint-disable-next-line no-await-in-loop
-      const domainOperationsSuccessful = await executeCertificateOperations(domains, DOMAIN_TYPE.FDM, myFDMnameORip, myIP);
-      if (domainOperationsSuccessful) {
+      const domainOps = await executeCertificateOperations(domains, DOMAIN_TYPE.FDM, myFDMnameORip, myIP);
+      if (domainOps.success) {
         log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
         processedApplications.push(appSpecs);
       } else {
         log.error(`Domain/ssl issues for ${appSpecs.name}`);
       }
-      if (domainOperationsSuccessful && customDomains.length) {
+      if (domainOps.success && customDomains.length) {
         // eslint-disable-next-line no-await-in-loop
-        const customCertOperationsSuccessful = await executeCertificateOperations(customDomains, DOMAIN_TYPE.CUSTOM, myFDMnameORip, myIP);
-        if (customCertOperationsSuccessful) {
+        const customOps = await executeCertificateOperations(customDomains, DOMAIN_TYPE.CUSTOM, myFDMnameORip, myIP);
+        if (customOps.success) {
           log.info(`Application domain and ssl for custom domains of ${appSpecs.name} is ready`);
         } else {
           log.error(`Domain/ssl issues for custom domains of ${appSpecs.name}`);

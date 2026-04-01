@@ -1062,12 +1062,13 @@ async function obtainCertificatesMode() {
     let certsChanged = false;
     if (allCustomDomains.length) {
       log.info(`Processing ${allCustomDomains.length} unique custom domains from ${applicationSpecifications.length} apps`);
-      certsChanged = await executeCertificateOperations(
+      const certOps = await executeCertificateOperations(
         allCustomDomains,
         DOMAIN_TYPE.CUSTOM,
         myFDMnameORip,
         myIP,
       );
+      certsChanged = certOps.certsChanged;
       const orphansRemoved = await cleanupStaleCerts();
       certsChanged = certsChanged || orphansRemoved;
     }

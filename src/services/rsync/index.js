@@ -13,7 +13,7 @@ async function startCertRsync() {
     // eslint-disable-next-line no-restricted-syntax
     for (const ip of ips) {
       // eslint-disable-next-line no-await-in-loop
-      await cmdAsync(`rsync -au --delete -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /etc/ssl/fluxapps/ ${ip}:/etc/ssl/fluxapps/`);
+      await cmdAsync(`rsync -a --delete -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /etc/ssl/fluxapps/ ${ip}:/etc/ssl/fluxapps/`);
       log.info(`Certs sent to ${ip}`);
     }
   } catch (error) {

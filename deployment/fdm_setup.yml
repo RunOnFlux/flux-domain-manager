@@ -244,6 +244,15 @@
         NODE_CONFIG_DIR: /root/cert-domain-manager/config
       when: certRenewalPrimary | bool
 
+    - name: Install get-cert CLI tool (primary only)
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          NODE_CONFIG_DIR=/root/cert-domain-manager/config node /root/cert-domain-manager/get-cert.js "$@"
+        dest: /usr/local/bin/get-cert
+        mode: '0755'
+      when: certRenewalPrimary | bool
+
     - name: Stop CDM on non-primary hosts
       shell: pm2 describe CDM > /dev/null 2>&1 && pm2 delete CDM || true
       when: not certRenewalPrimary | bool

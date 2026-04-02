@@ -7,7 +7,7 @@ const fs = require('fs').promises;
 const fsSync = require('fs');
 const { execSync } = require('child_process');
 const config = require('config');
-const { getGroupIPs } = require('./src/services/rsync/config');
+const { getGroupIPs, getGroupPeerIPs } = require('./src/services/rsync/config');
 
 const CERT_DIR = `/etc/ssl/${config.certFolder}`;
 const LETSENCRYPT_LIVE_DIR = '/etc/letsencrypt/live';
@@ -79,6 +79,19 @@ function checkLetsencrypt() {
   }
 }
 
+function rsyncToPeers() {
+  const peers = getGroupPeerIPs();
+  for (const ip of peers) {
+    try {
+      console.log(`Syncing to ${ip}...`);
+      execSync(`rsync -a --delete -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /etc/ssl/fluxapps/ ${ip}:/etc/ssl/fluxapps/`, { timeout: 30000 });
+      console.log(`Synced to ${ip}`);
+    } catch (err) {
+      console.error(`Failed to sync to ${ip}: ${err.message}`);
+    }
+  }
+}
+
 function obtainCert() {
   console.log('\nObtaining certificate...');
   try {
@@ -136,14 +149,18 @@ function obtainCert() {
   if (pem.exists && pem.days !== null && pem.days <= 30) {
     console.log(`Certificate expires in ${pem.days} days. Renewing...`);
     obtainCert();
-    console.log('\nCertificate renewed.');
+    rsyncToPeers();
+    console.log('\nCertificate renewed and rsynced to group peers.');
+    console.log('NOTE: Haproxy will pick up the new cert on next FDM cycle, or run "service haproxy reload" on each box.');
     process.exit(0);
   }
 
   if (!pem.exists) {
     console.log('No certificate found. Obtaining...');
     obtainCert();
-    console.log('\nCertificate obtained.');
+    rsyncToPeers();
+    console.log('\nCertificate obtained and rsynced to group peers.');
+    console.log('NOTE: Haproxy will pick up the new cert on next FDM cycle, or run "service haproxy reload" on each box.');
     process.exit(0);
   }
 })();

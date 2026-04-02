@@ -151,7 +151,10 @@ async function runWithConcurrency(tasks, limit) {
   const executing = new Set();
   for (const task of tasks) {
     // eslint-disable-next-line no-loop-func
-    const p = task().then((r) => { executing.delete(p); return r; });
+    const p = task().then(
+      (r) => { executing.delete(p); return r; },
+      (e) => { executing.delete(p); throw e; },
+    );
     executing.add(p);
     results.push(p);
     if (executing.size >= limit) {

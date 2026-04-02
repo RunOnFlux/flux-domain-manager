@@ -6,6 +6,7 @@ const TTLCache = require('@isaacs/ttlcache');
 const url = require('node:url');
 
 const axios = require('axios');
+const { runWithConcurrency } = require('../serviceHelper');
 
 // const log = require('./log');
 const log = require('../../lib/log');
@@ -551,10 +552,13 @@ class FdmDataFetcher extends EventEmitter {
 
     console.log('Before decryption:\n', logger());
 
-    const decryptPromises = enterpriseApps.map((spec) => this.#decryptAppSpec(spec));
-
-    // these don't reject
-    const decryptedSpecs = await Promise.all(decryptPromises);
+    const decryptTasks = enterpriseApps.map(
+      (spec) => () => this.#decryptAppSpec(spec),
+    );
+    const decryptResults = await runWithConcurrency(decryptTasks, 5);
+    const decryptedSpecs = decryptResults
+      .filter((r) => r.status === 'fulfilled')
+      .map((r) => r.value);
 
     specMapper(decryptedSpecs);
 
@@ -582,11 +586,14 @@ class FdmDataFetcher extends EventEmitter {
     }
 
     if (enterpriseApps.length) {
-      const decryptedSpecs = await Promise.all(
-        enterpriseApps.map((spec) => this.#decryptAppSpec(spec)),
+      const decryptTasks = enterpriseApps.map(
+        (spec) => () => this.#decryptAppSpec(spec),
       );
-      for (const spec of decryptedSpecs) {
-        if (spec) allSpecs.push(spec);
+      const results = await runWithConcurrency(decryptTasks, 5);
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+          allSpecs.push(result.value);
+        }
       }
     }
 

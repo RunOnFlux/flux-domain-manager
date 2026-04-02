@@ -35,6 +35,7 @@ let nonGAppsInitialized = false;
 let gAppsInitialized = false;
 
 let dataFetcher = null;
+let appProcessingStarted = false;
 
 let permanentMessages = [];
 let nonGApps = new Map();
@@ -1045,8 +1046,8 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
 
 async function obtainCertificatesMode() {
   try {
-    // get applications on the network
-    let applicationSpecifications = await fluxService.getAppSpecifications();
+    // get applications on the network (including decrypted enterprise apps)
+    let applicationSpecifications = await dataFetcher.getDecryptedSpecs();
 
     // filter applications based on config
     applicationSpecifications = getApplicationsToProcess(
@@ -1093,16 +1094,8 @@ async function obtainCertificatesMode() {
  * @returns {Promise<void>}
  */
 async function startApplicationProcessing() {
-  if (dataFetcher) return;
-
-  // these are symlinked to the correct key / pem on every box
-  dataFetcher = new FdmDataFetcher({
-    keyPath: '/etc/ssl/private/fdm-arcane.key',
-    certPath: '/etc/ssl/certs/fdm-arcane.pem',
-    caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
-    fluxApiBaseUrl: 'https://api.runonflux.io/',
-    sasApiBaseUrl: 'https://10.100.0.170/api/',
-  });
+  if (appProcessingStarted) return;
+  appProcessingStarted = true;
 
   const locationsHandler = async (appsLocs) => {
     if (appsLocs) appsLocations = appsLocs;
@@ -1184,6 +1177,18 @@ function initializeServices() {
     myFDMnameORip = myIP;
   }
   if (myIP) {
+    const needsDataFetcher = config.manageCertificateOnly
+      || config.cloudflare.manageapp
+      || config.pDNS.manageapp;
+    if (!dataFetcher && needsDataFetcher) {
+      dataFetcher = new FdmDataFetcher({
+        keyPath: '/etc/ssl/private/fdm-arcane.key',
+        certPath: '/etc/ssl/certs/fdm-arcane.pem',
+        caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
+        fluxApiBaseUrl: 'https://api.runonflux.io/',
+        sasApiBaseUrl: 'https://10.100.0.170/api/',
+      });
+    }
     if (config.manageCertificateOnly) {
       obtainCertificatesMode();
       startCertRsync();
@@ -1203,7 +1208,7 @@ function initializeServices() {
     } else if (
       config.mainDomain === config.cloudflare.domain
       && config.cloudflare.manageapp
-      && !dataFetcher
+      && !appProcessingStarted
     ) {
       // only runs on main FDM handles X.APP.runonflux.io. This only runs once
       // to add event listeners
@@ -1213,7 +1218,7 @@ function initializeServices() {
     } else if (
       config.mainDomain === config.pDNS.domain
       && config.pDNS.manageapp
-      && !dataFetcher
+      && !appProcessingStarted
     ) {
       // only runs on main FDM handles X.APP.runonflux.io. This only runs once
       startApplicationProcessing();

@@ -563,6 +563,36 @@ class FdmDataFetcher extends EventEmitter {
     this.emit('appSpecsUpdated', { gApps: gAppsMap, nonGApps: nonGAppsMap, appFqdns });
   }
 
+  async getDecryptedSpecs() {
+    const getRes = await this.doAppSpecsHttpGet();
+    if (!getRes) return [];
+
+    const { payload } = getRes;
+    const allSpecs = [];
+    const enterpriseApps = [];
+
+    for (const spec of payload) {
+      if (!spec) continue;
+      const isEnterprise = Boolean(spec.version >= 8 && spec.enterprise);
+      if (isEnterprise) {
+        enterpriseApps.push(spec);
+      } else {
+        allSpecs.push(spec);
+      }
+    }
+
+    if (enterpriseApps.length) {
+      const decryptedSpecs = await Promise.all(
+        enterpriseApps.map((spec) => this.#decryptAppSpec(spec)),
+      );
+      for (const spec of decryptedSpecs) {
+        if (spec) allSpecs.push(spec);
+      }
+    }
+
+    return allSpecs;
+  }
+
   async getAndProcessPermMessages() {
     const { permMessages } = this.endpoints;
 

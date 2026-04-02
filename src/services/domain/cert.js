@@ -9,14 +9,19 @@ const serviceHelper = require('../serviceHelper');
 const {
   listDNSRecords, deleteDNSRecordCloudflare, deleteDNSRecordPDNS, createDNSRecord,
 } = require('./dns');
+const dnsCache = require('./dnsCache');
+
+const CERT_DIR = `/etc/ssl/${config.certFolder}`;
+const LETSENCRYPT_LIVE_DIR = '/etc/letsencrypt/live';
+const CONCURRENCY_LIMIT = 10;
 
 async function checkCertificatePresetForDomain(domain) {
   try {
     if (domain.endsWith(`${config.appSubDomain}.${config.mainDomain}`) || domain.endsWith('app.runonflux.io') || domain.endsWith('app2.runonflux.io')) {
       return true;
     }
-    const path = `/etc/ssl/fluxapps/${domain}.pem`;
-    const pathB = `/etc/letsencrypt/live/${domain}/fullchain.pem`;
+    const path = `${CERT_DIR}/${domain}.pem`;
+    const pathB = `${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem`;
     await fs.access(path); // only check if file exists. Does not check permissions
     await fs.access(pathB); // only check if file exists. Does not check permissions
     const fileSize = fsSync.statSync(path).size;
@@ -30,13 +35,14 @@ async function checkCertificatePresetForDomain(domain) {
   }
 }
 
-async function obtainDomainCertificate(domain) { // let it throw
-  const cmdToExec = `sudo certbot certonly --standalone -d ${domain} --non-interactive --agree-tos --email ${config.emailDomain} --http-01-port=8787`;
-  const cmdToExecContinue = `sudo cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem | sudo tee /etc/ssl/${config.certFolder}/${domain}.pem`;
-  const response = await cmdAsync(cmdToExec);
-  if (response.includes('Congratulations') || response.includes('Certificate not yet due for renewal')) {
-    await cmdAsync(cmdToExecContinue);
-  }
+async function obtainDomainCertificate(domain) {
+  // cmdAsync rejects on non-zero exit code
+  await cmdAsync(`sudo certbot certonly --standalone -d ${domain} --non-interactive --agree-tos --email ${config.emailDomain} --http-01-port=8787`);
+  const fullchainPath = `${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem`;
+  const privkeyPath = `${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem`;
+  await fs.access(fullchainPath);
+  await fs.access(privkeyPath);
+  await cmdAsync(`sudo cat ${fullchainPath} ${privkeyPath} > ${CERT_DIR}/${domain}.pem`);
 }
 
 async function adjustAutoRenewalScriptForDomain(domain) { // let it throw
@@ -59,7 +65,7 @@ certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
       });
     }
 
-    const cert = `bash -c "cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > /etc/ssl/${config.certFolder}/${domain}.pem"`;
+    const cert = `bash -c "cat ${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem ${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem > ${CERT_DIR}/${domain}.pem"`;
     if (autoRenewScript.includes(cert)) {
       return;
     }
@@ -72,7 +78,7 @@ certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
       encoding: 'utf-8',
     });
   } catch (error) {
-    const cert = `bash -c "cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > /etc/ssl/${config.certFolder}/${domain}.pem"\n`;
+    const cert = `bash -c "cat ${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem ${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem > ${CERT_DIR}/${domain}.pem"\n`;
     const file = header + cert;
     await fs.writeFile(path, file, {
       mode: 0o755,
@@ -82,27 +88,83 @@ certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
   }
 }
 
-// return array of IPs to which a hostname is pointeed
-async function dnsLookup(hostname) {
-  const timeoutPromise = new Promise((resolve) => {
-    setTimeout(resolve, 2000, []);
-  });
-  const dnsPromise = dns.lookup(hostname, { all: true }).catch((error) => console.log(error)); // eg. [ { address: '65.21.189.1', family: 4 } ]
-  const result = await Promise.race([dnsPromise, timeoutPromise]);
-  return result || [];
+async function runWithConcurrency(tasks, limit) {
+  const results = [];
+  const executing = new Set();
+  for (const task of tasks) {
+    const p = task().then((r) => { executing.delete(p); return r; });
+    executing.add(p);
+    results.push(p);
+    if (executing.size >= limit) {
+      // eslint-disable-next-line no-await-in-loop
+      await Promise.race(executing);
+    }
+  }
+  return Promise.allSettled(results);
 }
 
-async function isDomainPointedToThisFDM(hostname, FDMnameOrIP, myIP) {
+async function getCertDaysRemaining(domain) {
+  try {
+    const pemPath = `${CERT_DIR}/${domain}.pem`;
+    await fs.access(pemPath);
+    const result = await cmdAsync(
+      `openssl x509 -enddate -noout -in ${pemPath}`,
+    );
+    const match = result.match(/notAfter=(.+)/);
+    if (!match) return null;
+    const expiryDate = new Date(match[1].trim());
+    const now = new Date();
+    return (expiryDate - now) / (1000 * 60 * 60 * 24);
+  } catch (error) {
+    return null;
+  }
+}
+
+async function isCertificateExpiringSoon(domain, thresholdDays = 30) {
+  try {
+    const pemPath = `${CERT_DIR}/${domain}.pem`;
+    await fs.access(pemPath);
+    const result = await cmdAsync(
+      `openssl x509 -enddate -noout -in ${pemPath}`,
+    );
+    // result looks like: "notAfter=Mar 15 12:00:00 2026 GMT\n"
+    const match = result.match(/notAfter=(.+)/);
+    if (!match) return true; // can't parse, treat as expiring
+    const expiryDate = new Date(match[1].trim());
+    const now = new Date();
+    const daysRemaining = (expiryDate - now) / (1000 * 60 * 60 * 24);
+    return daysRemaining < thresholdDays;
+  } catch (error) {
+    log.warn(`Cannot check expiry for ${domain}: ${error.message}`);
+    return false; // if cert doesn't exist, obtainDomainCertificate handles it
+  }
+}
+
+// return array of IPv4 addresses to which a hostname is pointed
+// Uses dns.resolve4 (c-ares) instead of dns.lookup (libuv thread pool)
+// to avoid thread pool exhaustion under concurrent lookups
+async function dnsLookup(hostname) {
+  const timeoutPromise = new Promise((resolve) => {
+    setTimeout(resolve, 10000, []);
+  });
+  const dnsPromise = dns.resolve4(hostname).catch(() => []);
+  const result = await Promise.race([dnsPromise, timeoutPromise]);
+  return (result || []).map((address) => ({ address, family: 4 }));
+}
+
+async function isDomainPointedToThisGroup(hostname, FDMnameOrIP, myIP) {
   try {
     if (!FDMnameOrIP) {
       return false;
     }
+    const { getGroupIPs } = require('../rsync/config');
+    const groupIPs = new Set(getGroupIPs());
+    groupIPs.add(FDMnameOrIP);
+    if (myIP) groupIPs.add(myIP);
+
     const dnsLookupdRecords = await dnsLookup(hostname);
-    const pointedToMyIp = dnsLookupdRecords.find((record) => (record.address === FDMnameOrIP || record.address === myIP) && record.address);
-    if (pointedToMyIp) {
-      return true;
-    }
-    return false;
+    const pointedToGroup = dnsLookupdRecords.find((record) => groupIPs.has(record.address));
+    return !!pointedToGroup;
   } catch (error) {
     log.warn(error);
     return false;
@@ -164,16 +226,48 @@ async function checkAndAdjustDNSrecordForDomain(domain, myFDMnameORip) {
   }
 }
 
+// Phase 1: Parallel check to determine what action each domain needs
+async function checkDomainAction(appDomain, type, fdmOrIP, myIP) {
+  try {
+    if (appDomain === 'ethereumnodelight.app.runonflux.io') return { domain: appDomain, action: 'skip' };
+    if (appDomain.length > 64) return { domain: appDomain, action: 'skip', reason: 'too long' };
+
+    const isAutomated = type === DOMAIN_TYPE.CUSTOM ? config.automateCertificates : config.automateCertificatesForFDMdomains;
+    if (!isAutomated && !config.manageCertificateOnly) return { domain: appDomain, action: 'skip' };
+
+    const isCertificatePresent = await checkCertificatePresetForDomain(appDomain);
+
+    if (!isCertificatePresent) {
+      // No cert — check DNS (with cache)
+      if (!dnsCache.shouldCheckDomain(appDomain)) {
+        return { domain: appDomain, action: 'skip', reason: 'dns backoff' };
+      }
+      const domainIsPointedCorrectly = await isDomainPointedToThisGroup(appDomain, fdmOrIP, myIP);
+      if (!domainIsPointedCorrectly) {
+        dnsCache.recordFailure(appDomain);
+        return { domain: appDomain, action: 'skip', reason: 'dns not pointed' };
+      }
+      dnsCache.recordSuccess(appDomain);
+      return { domain: appDomain, action: 'obtain' };
+    }
+
+    // Cert exists — check if renewal needed (expired or expiring within 30 days)
+    const daysRemaining = await getCertDaysRemaining(appDomain);
+    if (daysRemaining !== null && daysRemaining < 30) {
+      return { domain: appDomain, action: 'renew', daysRemaining: Math.round(daysRemaining) };
+    }
+    return { domain: appDomain, action: 'skip' };
+  } catch (error) {
+    log.warn(`Error checking ${appDomain}: ${error.message}`);
+    return { domain: appDomain, action: 'skip' };
+  }
+}
+
 async function executeCertificateOperations(domains, type, fdmOrIP, myIP) {
   try {
-    for (const appDomain of domains) {
-      if (appDomain === 'ethereumnodelight.app.runonflux.io') { // temporarily disable
-        // eslint-disable-next-line no-continue
-        continue;
-      }
-      if (type === DOMAIN_TYPE.FDM && config.adjustFDMdomains) {
-        // check DNS
-        // if DNS was adjusted for this domain, wait a second
+    // Phase 1: DNS adjustments (sequential, only for FDM type)
+    if (type === DOMAIN_TYPE.FDM && config.adjustFDMdomains) {
+      for (const appDomain of domains) {
         // eslint-disable-next-line no-await-in-loop
         const wasDomainAdjusted = await checkAndAdjustDNSrecordForDomain(appDomain, fdmOrIP);
         if (wasDomainAdjusted) {
@@ -182,52 +276,86 @@ async function executeCertificateOperations(domains, type, fdmOrIP, myIP) {
           await serviceHelper.timeout(1 * 1000);
         }
       }
+    }
 
-      const isAutomated = type === DOMAIN_TYPE.CUSTOM ? config.automateCertificates : config.automateCertificatesForFDMdomains;
-      if (isAutomated || config.manageCertificateOnly) {
-        try {
-          // check if we have certificate
+    // Phase 2: Parallel checks to determine actions
+    const checkTasks = domains.map(
+      (domain) => () => checkDomainAction(domain, type, fdmOrIP, myIP),
+    );
+    const results = await runWithConcurrency(checkTasks, CONCURRENCY_LIMIT);
+
+    const actions = results
+      .filter((r) => r.status === 'fulfilled')
+      .map((r) => r.value);
+
+    // Phase 3: Sequential certbot calls for domains that need certs
+    for (const result of actions) {
+      try {
+        if (result.action === 'obtain') {
+          log.info(`Obtaining certificate for ${result.domain}`);
           // eslint-disable-next-line no-await-in-loop
-          const isCertificatePresent = await checkCertificatePresetForDomain(appDomain);
-          if (appDomain.length > 64) {
-            log.warn(`Domain ${appDomain} is too long. Certificate not issued`);
-            // eslint-disable-next-line no-continue
-            continue;
-          }
-          if (!isCertificatePresent) {
-            // eslint-disable-next-line no-await-in-loop
-            const domainIsPointedCorrectly = await isDomainPointedToThisFDM(appDomain, fdmOrIP, myIP);
-            if (!domainIsPointedCorrectly) {
-              log.warn(`DNS record is not pointed to this FDM for ${appDomain}, cert operations not proceeding`);
-              // eslint-disable-next-line no-continue
-              continue;
-            }
-            // if we dont have certificate, obtain it
-            log.info(`Obtaining certificate for ${appDomain}`);
-            // eslint-disable-next-line no-await-in-loop
-            await obtainDomainCertificate(appDomain);
-          }
+          await obtainDomainCertificate(result.domain);
+        } else if (result.action === 'renew') {
+          log.info(`Renewing certificate for ${result.domain} (${result.daysRemaining} days remaining)`);
           // eslint-disable-next-line no-await-in-loop
-          const isCertificatePresentB = await checkCertificatePresetForDomain(appDomain);
-          if (isCertificatePresentB) {
-            // check if domain has autorenewal, if not, adjust it
-            // eslint-disable-next-line no-await-in-loop
-            await adjustAutoRenewalScriptForDomain(appDomain);
-          } else {
-            throw new Error(`Certificate not present for ${appDomain}`);
-          }
-        } catch (error) {
-          log.warn(error);
+          await obtainDomainCertificate(result.domain);
         }
+      } catch (error) {
+        log.warn(`Cert operation failed for ${result.domain}: ${error.message}`);
       }
     }
-    return true;
+
+    const obtained = actions.filter((a) => a.action === 'obtain').length;
+    const renewed = actions.filter((a) => a.action === 'renew').length;
+    const skippedDns = actions.filter((a) => a.reason === 'dns backoff').length;
+    const certsChanged = obtained > 0 || renewed > 0;
+    if (obtained || renewed || skippedDns) {
+      log.info(`Cert ops: ${obtained} obtained, ${renewed} renewed, ${skippedDns} skipped (dns backoff), ${dnsCache.getCacheSize()} cached failures`);
+    }
+
+    return { success: true, certsChanged };
   } catch (error) {
     log.error(error);
+    return { success: false, certsChanged: false };
+  }
+}
+
+async function cleanupStaleCerts() {
+  try {
+    const files = await fs.readdir(CERT_DIR);
+    let removed = 0;
+
+    for (const file of files) {
+      if (!file.endsWith('.pem')) continue;
+      const domain = file.slice(0, -4); // strip .pem
+
+      // eslint-disable-next-line no-await-in-loop
+      const daysRemaining = await getCertDaysRemaining(domain);
+      if (shouldRemoveStaleCert(daysRemaining)) {
+        log.info(`Removing stale cert for ${domain} (expired ${Math.round(-daysRemaining)} days ago)`);
+        // eslint-disable-next-line no-await-in-loop
+        await fs.unlink(`${CERT_DIR}/${file}`).catch(() => {});
+        removed += 1;
+      }
+    }
+
+    if (removed) {
+      log.info(`Cert cleanup: removed ${removed} expired certs`);
+    }
+    return removed > 0;
+  } catch (error) {
+    log.warn(`Error cleaning orphaned certs: ${error.message}`);
     return false;
   }
 }
 
+function shouldRemoveStaleCert(daysRemaining) {
+  if (daysRemaining === null) return false;
+  return daysRemaining < -30;
+}
+
 module.exports = {
   executeCertificateOperations,
+  cleanupStaleCerts,
+  shouldRemoveStaleCert,
 };

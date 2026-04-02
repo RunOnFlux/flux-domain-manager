@@ -5,6 +5,7 @@ const fs = require('fs').promises;
 const log = require('../lib/log');
 const { cmdAsync, TEMP_HAPROXY_CONFIG, HAPROXY_CONFIG } = require('./constants');
 const { matchRule } = require('./serviceHelper');
+const { getPrimaryIP } = require('./rsync/config');
 
 let lastHaproxyConfig;
 
@@ -102,9 +103,22 @@ const certificatesSuffix = ''; // 'ciphers kEECDH+aRSA+AES:kRSA+AES:+AES256:RC4-
 
 const h2Suffix = 'alpn h2,http/1.1';
 
-const letsEncryptBackend = `backend letsencrypt-backend
+const letsEncryptBackend = (() => {
+  if (configGlobal.certRenewalPrimary) {
+    return `backend letsencrypt-backend
   server letsencrypt 127.0.0.1:8787
 `;
+  }
+  // Non-primary: proxy ACME challenges to the primary's certbot
+  const primaryIP = getPrimaryIP();
+  if (!primaryIP) {
+    log.error('certRenewalPrimary is false but no primary IP found in hosts.ini. ACME challenges will fail.');
+  }
+  const target = primaryIP || '127.0.0.1';
+  return `backend letsencrypt-backend
+  server letsencrypt ${target}:8787
+`;
+})();
 
 const cloudflareFluxBackend = `backend cloudflare-flux-backend
   server cloudflareflux 127.0.0.1:${configGlobal.server.port}
@@ -552,8 +566,35 @@ async function checkConfig(configName) {
   return configOK;
 }
 
+async function cleanupBrokenCerts() {
+  const certDir = `/etc/ssl/${configGlobal.certFolder}`;
+  try {
+    const files = await fs.readdir(certDir);
+    for (const file of files) {
+      const filePath = `${certDir}/${file}`;
+      if (!file.endsWith('.pem')) {
+        log.info(`Removing non-.pem file from cert directory: ${filePath}`);
+        // eslint-disable-next-line no-await-in-loop
+        await fs.unlink(filePath);
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      const stat = await fs.stat(filePath);
+      if (stat.size === 0) {
+        log.info(`Removing empty cert file: ${filePath}`);
+        // eslint-disable-next-line no-await-in-loop
+        await fs.unlink(filePath);
+      }
+    }
+  } catch (error) {
+    log.warn(`Error cleaning cert directory: ${error.message}`);
+  }
+}
+
 async function restartProxy(dataToWrite) {
   await writeConfig(TEMP_HAPROXY_CONFIG, dataToWrite);
+  await cleanupBrokenCerts();
   const isConfigOk = await checkConfig(TEMP_HAPROXY_CONFIG);
   if (!isConfigOk) {
     log.info('Haproxy config is invalid. Not restarting');

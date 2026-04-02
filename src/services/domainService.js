@@ -10,7 +10,7 @@ const {
   getUnifiedDomains,
   getCustomDomains,
 } = require('./domain');
-const { executeCertificateOperations } = require('./domain/cert');
+const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/cert');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
 const { getApplicationsToProcess } = require('./application/subset');
@@ -1052,37 +1052,38 @@ async function obtainCertificatesMode() {
     applicationSpecifications = getApplicationsToProcess(
       applicationSpecifications,
     );
+    // Collect all unique custom domains across all apps for a single parallel batch
+    const domainSet = new Set();
     for (const appSpecs of applicationSpecifications) {
       const customDomains = getCustomDomains(appSpecs);
-      if (customDomains.length) {
-        log.info(`Processing ${appSpecs.name}`);
-        // eslint-disable-next-line no-await-in-loop
-        const customCertOperationsSuccessful = await executeCertificateOperations(
-          customDomains,
-          DOMAIN_TYPE.CUSTOM,
-          myFDMnameORip,
-          myIP,
-        );
-        if (customCertOperationsSuccessful) {
-          log.info(
-            `Application domain and ssl for custom domains of ${appSpecs.name} is ready`,
-          );
-        } else {
-          log.error(`Domain/ssl issues for custom domains of ${appSpecs.name}`);
-        }
-      }
+      customDomains.forEach((d) => domainSet.add(d));
+    }
+    const allCustomDomains = [...domainSet];
+    let certsChanged = false;
+    if (allCustomDomains.length) {
+      log.info(`Processing ${allCustomDomains.length} unique custom domains from ${applicationSpecifications.length} apps`);
+      const certOps = await executeCertificateOperations(
+        allCustomDomains,
+        DOMAIN_TYPE.CUSTOM,
+        myFDMnameORip,
+        myIP,
+      );
+      certsChanged = certOps.certsChanged;
+      const orphansRemoved = await cleanupStaleCerts();
+      certsChanged = certsChanged || orphansRemoved;
     }
     log.info('Certificates obtained');
+    if (certsChanged) {
+      startCertRsync();
+    }
     setTimeout(() => {
       obtainCertificatesMode();
-      startCertRsync();
-    }, 5 * 60 * 1000);
+    }, 15 * 60 * 1000);
   } catch (error) {
     log.error(error);
     setTimeout(() => {
       obtainCertificatesMode();
-      startCertRsync();
-    }, 5 * 60 * 1000);
+    }, 15 * 60 * 1000);
   }
 }
 
@@ -1237,7 +1238,7 @@ async function start() {
     log.error(e);
     setTimeout(() => {
       start();
-    }, 5 * 60 * 1000);
+    }, 15 * 60 * 1000);
   }
 }
 

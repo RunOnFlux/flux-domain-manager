@@ -4,6 +4,10 @@
   become: yes
 
   tasks:
+    - name: Set certRenewalPrimary flag
+      set_fact:
+        certRenewalPrimary: "{{ 'true' if 'fn' in inventory_hostname else 'false' }}"
+
     - name: Import MongoDB public GPG key
       ansible.builtin.get_url:
         url: "https://www.mongodb.org/static/pgp/server-6.0.asc"
@@ -71,21 +75,17 @@
         state: directory
         mode: '0755'
 
-    - name: Create /opt/update-certs.sh
-      ansible.builtin.file:
-        path: /opt/update-certs.sh
-        state: touch
-        owner: root
-        group: root
-        mode: '0775'
+    - name: Disable certbot.timer (renewal handled by CDM)
+      ansible.builtin.systemd:
+        name: certbot.timer
+        state: stopped
+        enabled: no
+      ignore_errors: yes
 
-    - name: Copy new certbot-cron
-      ansible.builtin.copy:
-        src: certbot-cron
-        dest: /etc/cron.d/certbot
-        owner: root
-        group: root
-        mode: '0644'
+    - name: Remove old certbot cron
+      ansible.builtin.file:
+        path: /etc/cron.d/certbot
+        state: absent
 
     - name: Copy Minecraft LUA file
       ansible.builtin.copy:
@@ -111,13 +111,14 @@
       shell: git checkout HEAD -- config/default.js
       args:
         chdir: cert-domain-manager
+      when: certRenewalPrimary | bool
       ignore_errors: yes
 
     - name: Clone FDM
       ansible.builtin.git:
         repo: https://github.com/RunOnFlux/flux-domain-manager.git
         dest: flux-domain-manager
-        version: main
+        version: "{{ GIT_BRANCH | default('main') }}"
         force: yes
         update: yes
         clone: yes
@@ -128,12 +129,13 @@
       ansible.builtin.git:
         repo: https://github.com/RunOnFlux/flux-domain-manager.git
         dest: cert-domain-manager
-        version: main
+        version: "{{ GIT_BRANCH | default('main') }}"
         update: yes
         force: yes
         clone: yes
         depth: 1
         accept_hostkey: yes
+      when: certRenewalPrimary | bool
 
     - name: Copy default.js config to FDM
       ansible.builtin.template:
@@ -142,6 +144,7 @@
         mode: '0644'
       vars:
         manageCertificateOnly: "false"
+        certRenewalPrimary: "{{ certRenewalPrimary }}"
         appSubDomain: "{{ 'app2' if DEPLOY_ENV == 'staging' else 'app' }}"
         useSubset: "true"
         manageApps: "true"
@@ -154,10 +157,12 @@
         src: default.js.j2
         dest: cert-domain-manager/config/default.js
         mode: '0644'
+      when: certRenewalPrimary | bool
       vars:
         manageCertificateOnly: "true"
+        certRenewalPrimary: "{{ certRenewalPrimary }}"
         appSubDomain: "{{ 'app2' if DEPLOY_ENV == 'staging' else 'app' }}"
-        useSubset: "false"
+        useSubset: "true"
         manageApps: "true"
         uiName: "home"
         cloudUiName: "cloud"
@@ -176,6 +181,7 @@
       ansible.builtin.file:
         path: "cert-domain-manager/config/{{ item }}"
         state: file
+      when: certRenewalPrimary | bool
       loop:
         - cloudflareConfig.js
         - PDNSConfig.js
@@ -190,6 +196,7 @@
       command: npm install
       args:
         chdir: cert-domain-manager
+      when: certRenewalPrimary | bool
 
     - name: Create Static Rsync Json File
       set_fact:
@@ -197,10 +204,17 @@
           type: "{{ 'app2_fdm_servers' if DEPLOY_ENV == 'staging' else 'app_fdm_servers' }}"
           host: "{{ inventory_hostname }}"
 
-    - name: Write the static JSON to a file
+    - name: Write the static JSON to a file (CDM)
       ansible.builtin.copy:
         content: "{{ static_json | to_nice_json }}"
         dest: cert-domain-manager/deployment/rsync_config.json
+        force: yes
+      when: certRenewalPrimary | bool
+
+    - name: Write the static JSON to a file (FDM)
+      ansible.builtin.copy:
+        content: "{{ static_json | to_nice_json }}"
+        dest: flux-domain-manager/deployment/rsync_config.json
         force: yes
 
     - name: Start FDM with PM2
@@ -216,7 +230,7 @@
         NODE_ENV: production
         NODE_CONFIG_DIR: /root/flux-domain-manager/config
 
-    - name: Start CDM with PM2
+    - name: Start CDM with PM2 (primary only)
       shell: |
         if pm2 describe CDM > /dev/null 2>&1; then
           pm2 restart CDM --update-env
@@ -228,3 +242,8 @@
       environment:
         NODE_ENV: production
         NODE_CONFIG_DIR: /root/cert-domain-manager/config
+      when: certRenewalPrimary | bool
+
+    - name: Stop CDM on non-primary hosts
+      shell: pm2 describe CDM > /dev/null 2>&1 && pm2 delete CDM || true
+      when: not certRenewalPrimary | bool

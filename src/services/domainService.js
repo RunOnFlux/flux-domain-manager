@@ -1045,8 +1045,8 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
 
 async function obtainCertificatesMode() {
   try {
-    // get applications on the network
-    let applicationSpecifications = await fluxService.getAppSpecifications();
+    // get applications on the network (including decrypted enterprise apps)
+    let applicationSpecifications = await dataFetcher.getDecryptedSpecs();
 
     // filter applications based on config
     applicationSpecifications = getApplicationsToProcess(
@@ -1185,6 +1185,15 @@ function initializeServices() {
   }
   if (myIP) {
     if (config.manageCertificateOnly) {
+      if (!dataFetcher) {
+        dataFetcher = new FdmDataFetcher({
+          keyPath: '/etc/ssl/private/fdm-arcane.key',
+          certPath: '/etc/ssl/certs/fdm-arcane.pem',
+          caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
+          fluxApiBaseUrl: 'https://api.runonflux.io/',
+          sasApiBaseUrl: 'https://10.100.0.170/api/',
+        });
+      }
       obtainCertificatesMode();
       startCertRsync();
       log.info('FDM Certificate Service initialized.');

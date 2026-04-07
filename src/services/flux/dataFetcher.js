@@ -6,6 +6,7 @@ const TTLCache = require('@isaacs/ttlcache');
 const url = require('node:url');
 
 const axios = require('axios');
+const { runWithConcurrency } = require('../serviceHelper');
 
 // const log = require('./log');
 const log = require('../../lib/log');
@@ -551,16 +552,52 @@ class FdmDataFetcher extends EventEmitter {
 
     console.log('Before decryption:\n', logger());
 
-    const decryptPromises = enterpriseApps.map((spec) => this.#decryptAppSpec(spec));
-
-    // these don't reject
-    const decryptedSpecs = await Promise.all(decryptPromises);
+    const decryptTasks = enterpriseApps.map(
+      (spec) => () => this.#decryptAppSpec(spec),
+    );
+    const decryptResults = await runWithConcurrency(decryptTasks, 5);
+    const decryptedSpecs = decryptResults
+      .filter((r) => r.status === 'fulfilled')
+      .map((r) => r.value);
 
     specMapper(decryptedSpecs);
 
     console.log('After decryption:\n', logger());
 
     this.emit('appSpecsUpdated', { gApps: gAppsMap, nonGApps: nonGAppsMap, appFqdns });
+  }
+
+  async getDecryptedSpecs() {
+    const getRes = await this.doAppSpecsHttpGet();
+    if (!getRes) return [];
+
+    const { payload } = getRes;
+    const allSpecs = [];
+    const enterpriseApps = [];
+
+    for (const spec of payload) {
+      if (!spec) continue;
+      const isEnterprise = Boolean(spec.version >= 8 && spec.enterprise);
+      if (isEnterprise) {
+        enterpriseApps.push(spec);
+      } else {
+        allSpecs.push(spec);
+      }
+    }
+
+    if (enterpriseApps.length) {
+      const decryptTasks = enterpriseApps.map(
+        (spec) => () => this.#decryptAppSpec(spec),
+      );
+      const results = await runWithConcurrency(decryptTasks, 5);
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+          allSpecs.push(result.value);
+        }
+      }
+    }
+
+    return allSpecs;
   }
 
   async getAndProcessPermMessages() {

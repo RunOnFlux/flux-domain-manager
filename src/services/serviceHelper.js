@@ -146,6 +146,22 @@ function timeout(ms) {
   });
 }
 
+async function runWithConcurrency(tasks, limit) {
+  const results = [];
+  const executing = new Set();
+  for (const task of tasks) {
+    // eslint-disable-next-line no-loop-func
+    const p = task().finally(() => executing.delete(p));
+    executing.add(p);
+    results.push(p);
+    if (executing.size >= limit) {
+      // eslint-disable-next-line no-await-in-loop
+      await Promise.race(executing);
+    }
+  }
+  return Promise.allSettled(results);
+}
+
 function createDataMessage(data) {
   const successMessage = {
     status: 'success',
@@ -328,4 +344,5 @@ module.exports = {
   createErrorMessage,
   matchRule,
   sortIPAddresses,
+  runWithConcurrency,
 };

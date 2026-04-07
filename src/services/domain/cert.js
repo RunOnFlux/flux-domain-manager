@@ -88,21 +88,6 @@ certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
   }
 }
 
-async function runWithConcurrency(tasks, limit) {
-  const results = [];
-  const executing = new Set();
-  for (const task of tasks) {
-    const p = task().then((r) => { executing.delete(p); return r; });
-    executing.add(p);
-    results.push(p);
-    if (executing.size >= limit) {
-      // eslint-disable-next-line no-await-in-loop
-      await Promise.race(executing);
-    }
-  }
-  return Promise.allSettled(results);
-}
-
 async function getCertDaysRemaining(domain) {
   try {
     const pemPath = `${CERT_DIR}/${domain}.pem`;
@@ -282,7 +267,7 @@ async function executeCertificateOperations(domains, type, fdmOrIP, myIP) {
     const checkTasks = domains.map(
       (domain) => () => checkDomainAction(domain, type, fdmOrIP, myIP),
     );
-    const results = await runWithConcurrency(checkTasks, CONCURRENCY_LIMIT);
+    const results = await serviceHelper.runWithConcurrency(checkTasks, CONCURRENCY_LIMIT);
 
     const actions = results
       .filter((r) => r.status === 'fulfilled')

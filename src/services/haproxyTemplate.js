@@ -353,11 +353,11 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     };
   });
 
-  // API backend with load balancing based on real client IP (CF-Connecting-IP)
+  // API backend with source-based load balancing (for session persistence)
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance hdr(CF-Connecting-IP)
+    balance source
     # FAILOVER: Allow fallback to other servers if primary fails
     option redispatch
     # RETRY: Retry failed requests automatically

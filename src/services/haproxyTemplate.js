@@ -353,11 +353,11 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     };
   });
 
-  // API backend with source-based load balancing (for session persistence)
+  // API backend with load balancing based on real client IP (CF-Connecting-IP)
   let apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance source
+    balance hdr(CF-Connecting-IP)
     # FAILOVER: Allow fallback to other servers if primary fails
     option redispatch
     # RETRY: Retry failed requests automatically
@@ -392,11 +392,11 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     # Health check with faster detection of failed servers
     default-server check inter 10s fall 2 rise 3 maxconn 100`;
 
-  // UI backend with source-based load balancing
+  // UI backend with load balancing based on real client IP (CF-Connecting-IP)
   let uiBackend = `backend ${uiB}backend
     http-response set-header FLUXNODE %s
     mode http
-    balance source
+    balance hdr(CF-Connecting-IP)
     # FAILOVER: Allow fallback when primary server fails
     option redispatch
     # RETRY: Retry failed requests

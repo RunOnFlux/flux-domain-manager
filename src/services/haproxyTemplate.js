@@ -479,6 +479,8 @@ function createAppsHaproxyConfig(appConfig) {
   // acls += '  acl forbiddenacl hdr(host) dao.ecko.finance\n';
   acls += '  acl forbiddenacl hdr(host) racecoursejebelali.com\n';
   acls += '  acl forbiddenacl hdr(host) www.racecoursejebelali.com\n';
+  acls += '  acl forbiddenacl hdr(host) sofiteldowntown.com\n';
+  acls += '  acl forbiddenacl hdr(host) www.sofiteldowntown.com\n';
   acls += '  acl forbiddenacl path_beg -i /product/litty-cat-thc-bars-1000mg\n';
   usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
   const domains = [];

@@ -80,7 +80,12 @@ function getAppIpsAPI(req, res) {
       return res.status(404).json(errMessage);
     }
 
-    const uniqueIps = [...new Set(matchingApps.flatMap((app) => app.ips.map((ip) => ip.split(':')[0])))];
+    // Return the full ip:port socket address. FluxOS' masterSlaveApps uses this to
+    // identify the primary node, and a bare IP gets normalized to the default API port
+    // (16127), which never matches a UPnP node running on a non-default port (e.g. :16157).
+    // Preserving the port lets the consumer compare socket addresses directly. For
+    // default-port nodes the stored address is already bare, so it passes through unchanged.
+    const uniqueIps = [...new Set(matchingApps.flatMap((app) => app.ips))];
 
     const resMessage = serviceHelper.createDataMessage({
       appName: matchingApps[0].name,

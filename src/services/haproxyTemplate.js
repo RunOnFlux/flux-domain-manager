@@ -305,6 +305,11 @@ backend ${domainUsed}backend
     }
 
     domainBackend += ' inter 3s fall 2 rise 2 fastinter 500';
+    // A draining backend stays configured but takes no new connections; existing
+    // ones finish naturally. The node is shutting this app down gracefully.
+    if (app.drainingIps && app.drainingIps.includes(ip)) {
+      domainBackend += ' disabled';
+    }
     if (app.isRdata) {
       if (app.ips[0] !== ip) {
         domainBackend += ' backup';
@@ -622,4 +627,5 @@ module.exports = {
   createMainHaproxyConfig,
   createAppsHaproxyConfig,
   restartProxy,
+  generateDomainBackend,
 };

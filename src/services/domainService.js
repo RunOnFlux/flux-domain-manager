@@ -329,6 +329,28 @@ async function addAppIps(app, ip) {
 }
 
 /**
+ * Split app locations by their load-balancer lifecycle state. Backends the node
+ * is stopping are dropped (treated as absent); draining backends stay routable
+ * (so existing connections finish) but are returned separately so haproxy can
+ * disable them (no new connections). Original order is preserved so primary-IP
+ * and sort behaviour are unchanged. Missing/unknown state is treated as active.
+ *
+ * @param {Array<{ip: string, state?: string}>} appLocations
+ * @returns {{ routable: Array, drainingIps: string[] }}
+ */
+function classifyBackends(appLocations) {
+  const routable = [];
+  const drainingIps = [];
+  for (const location of appLocations) {
+    const state = location.state || 'active';
+    if (state === 'stopping') continue;
+    routable.push(location);
+    if (state === 'draining') drainingIps.push(location.ip);
+  }
+  return { routable, drainingIps };
+}
+
+/**
  * To delay by a number of milliseconds.
  * @param {number} ms Number of milliseconds.
  * @returns {Promise} Promise object.
@@ -362,7 +384,8 @@ async function updateHaproxy(haproxyAppsConfig) {
   }
 }
 
-function addConfigurations(configuredApps, app, appIps, gMode) {
+function addConfigurations(configuredApps, app, appIps, gMode, drainingIps = []) {
+  const configStartIndex = configuredApps.length;
   const domains = getUnifiedDomains(app);
   const customConfigs = getCustomConfigs(app, gMode);
   let timeout = null;
@@ -631,6 +654,11 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
       }
     }
   }
+  // Tag every backend config just produced for this app with its draining IPs,
+  // so haproxy can disable those servers (no new connections, existing finish).
+  for (let i = configStartIndex; i < configuredApps.length; i += 1) {
+    configuredApps[i].drainingIps = drainingIps;
+  }
 }
 
 /**
@@ -728,12 +756,13 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         appLocations.push({ ip: '[2001:41d0:d00:b800::92]:9131' });
       }
       if (appLocations.length > 0) {
+        const { routable: routableLocations, drainingIps } = classifyBackends(appLocations);
         let appIps = [];
         app.isRdata = false;
         const applicationWithChecks = applicationChecks.applicationWithChecks(app);
         if (applicationWithChecks) {
           let promiseArray = [];
-          for (const [i, location] of appLocations.entries()) {
+          for (const [i, location] of routableLocations.entries()) {
             // run coded checks for app
             promiseArray.push(addAppIps(app, location.ip));
             if ((i + 1) % 10 === 0) {
@@ -771,7 +800,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         ) {
           // app using sharedDB project
           app.isRdata = true;
-          appIps = appLocations.map((location) => location.ip);
+          appIps = routableLocations.map((location) => location.ip);
           const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
           log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
           if (
@@ -873,7 +902,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             });
           }
         } else {
-          appIps = appLocations.map((location) => location.ip);
+          appIps = routableLocations.map((location) => location.ip);
         }
         if (app.name === 'explorer') {
           log.info(appIps);
@@ -881,7 +910,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
-        addConfigurations(configuredApps, app, appIps, false);
+        addConfigurations(configuredApps, app, appIps, false, drainingIps);
         log.info(
           `Non G Application ${app.name} with specific checks: ${applicationWithChecks} is OK. Proceeding to FDM`,
         );
@@ -983,10 +1012,14 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
       }
 
       if (appLocations.length > 0) {
+        const { routable: routableLocations, drainingIps } = classifyBackends(appLocations);
         const appIps = [];
 
-        // if its G data application, use just one IP
-        const locationIps = appLocations.map((location) => location.ip);
+        // G apps use a single sticky IP. Prefer a live (non-draining) backend so
+        // we evacuate a draining node; fall back to the full routable set only if
+        // every remaining backend is draining.
+        const liveIps = routableLocations.filter((location) => !drainingIps.includes(location.ip)).map((location) => location.ip);
+        const locationIps = liveIps.length ? liveIps : routableLocations.map((location) => location.ip);
         // eslint-disable-next-line no-await-in-loop
         const selectedIP = await selectIPforG(locationIps, app);
         if (selectedIP) {
@@ -1263,4 +1296,5 @@ function getConfiguredApps() {
 module.exports = {
   start,
   getConfiguredApps,
+  classifyBackends,
 };

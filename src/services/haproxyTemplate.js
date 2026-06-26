@@ -384,7 +384,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     retries 3
     # Enhanced WebSocket support
     timeout tunnel 7200s
-    timeout server 30s
+    timeout server 120s
     timeout connect 5s
     # WebSocket connection handling
     option http-keep-alive

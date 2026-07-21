@@ -32,7 +32,7 @@ const usesOrderedData = (spec) => markerPresent(spec, 'r:');
 // The backend-config bag one spec produces on its own, with fixed inputs.
 function bagForSpec(spec) {
   const singleInstance = routesToSingleInstance(spec);
-  const app = { ...spec, isRdata: usesOrderedData(spec) };
+  const app = { ...spec, syncFirst: usesOrderedData(spec) };
   const ips = singleInstance ? SINGLE_NODE_IP : MULTI_NODE_IPS;
   const bag = [];
   addConfigurations(bag, app, ips, singleInstance);

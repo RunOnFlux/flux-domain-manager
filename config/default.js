@@ -2,6 +2,7 @@ const cloudflareConfig = require('./cloudflareConfig');
 const pDNSConfig = require('./PDNSConfig');
 const appsConfig = require('./appsConfig');
 const guardsConfig = require('./guardsConfig');
+const customConfigs = require('./customConfigs');
 
 module.exports = {
   server: {
@@ -56,6 +57,7 @@ module.exports = {
     // Discord webhook for operator alerts; empty sends nothing.
     discordWebhookUrl: '',
   },
+  customConfigs,
   appSubDomain: 'app2',
   fdmAppDomain: 'fdm-lb-2-1.runonflux.io',
   uiName: 'home',

@@ -940,7 +940,7 @@ async function selectActiveStandbyPrimaries(apps, locations, options = {}) {
  * and not one reporting none, with consecutive configs differing by 998 and 842
  * lines that were the same servers in a new order.
  *
- * For an isRdata app it is NOT cosmetic. haproxy marks every server after the
+ * For a syncFirst app it is NOT cosmetic. haproxy marks every server after the
  * first as `backup` (haproxyTemplate.js), so position zero is the only live one -
  * the write target of a replicated app.
  *
@@ -1162,7 +1162,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
         domain: domains[i],
         port: app.ports[i],
         ips: appIps,
-        isRdata: app.isRdata,
+        syncFirst: app.syncFirst,
         ...customConfigs[i],
         timeout,
       };
@@ -1208,7 +1208,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
                 domain: portDomain,
                 port: app.ports[i],
                 ips: appIps,
-                isRdata: app.isRdata,
+                syncFirst: app.syncFirst,
                 ...customConfigs[i],
                 timeout,
               };
@@ -1224,7 +1224,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
                   domain: wwwAdjustedDomain,
                   port: app.ports[i],
                   ips: appIps,
-                  isRdata: app.isRdata,
+                  syncFirst: app.syncFirst,
                   ...customConfigs[i],
                   timeout,
                 };
@@ -1242,7 +1242,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
                   domain: testAdjustedDomain,
                   port: app.ports[i],
                   ips: appIps,
-                  isRdata: app.isRdata,
+                  syncFirst: app.syncFirst,
                   ...customConfigs[i],
                   timeout,
                 };
@@ -1259,7 +1259,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
       domain: domains[domains.length - 1],
       port: app.ports[0],
       ips: appIps,
-      isRdata: app.isRdata,
+      syncFirst: app.syncFirst,
       ...customConfigs[customConfigs.length - 1],
       timeout,
     };
@@ -1279,7 +1279,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
           domain: domains[j],
           port: component.ports[i],
           ips: appIps,
-          isRdata: app.isRdata,
+          syncFirst: app.syncFirst,
           ...customConfigs[j],
           timeout,
         };
@@ -1329,7 +1329,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
                     domain: portDomain,
                     port: component.ports[i],
                     ips: appIps,
-                    isRdata: app.isRdata,
+                    syncFirst: app.syncFirst,
                     ...customConfigs[j],
                     timeout,
                   };
@@ -1346,7 +1346,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
                       domain: wwwAdjustedDomain,
                       port: component.ports[i],
                       ips: appIps,
-                      isRdata: app.isRdata,
+                      syncFirst: app.syncFirst,
                       ...customConfigs[j],
                       timeout,
                     };
@@ -1364,7 +1364,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
                       domain: testAdjustedDomain,
                       port: component.ports[i],
                       ips: appIps,
-                      isRdata: app.isRdata,
+                      syncFirst: app.syncFirst,
                       ...customConfigs[j],
                       timeout,
                     };
@@ -1389,7 +1389,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
             domain: domains[domains.length - 1],
             port: app.compose[q].ports[w],
             ips: appIps,
-            isRdata: app.isRdata,
+            syncFirst: app.syncFirst,
             ...customConfigs[customConfigs.length - 1],
           };
           configuredApps.push(mainApp);
@@ -1511,7 +1511,7 @@ async function generateActiveActiveHaproxyConfig() {
       }
       if (appLocations.length > 0) {
         let appIps = [];
-        app.isRdata = false;
+        app.syncFirst = false;
         const applicationWithChecks = applicationChecks.applicationWithChecks(app);
         if (applicationWithChecks) {
           let promiseArray = [];
@@ -1553,14 +1553,14 @@ async function generateActiveActiveHaproxyConfig() {
         ) {
           // app using sharedDB project.
           //
-          // isRdata makes haproxy mark every server after the first as `backup`,
+          // syncFirst makes haproxy mark every server after the first as `backup`,
           // so position zero is the only one taking traffic - the write target of
           // a database whose members must not be written to concurrently. It is
           // set here and nowhere else: an `r:` volume is syncthing-replicated
           // across instances that are ALL meant to run and ALL meant to serve, so
           // pinning those to one node would defeat the point of deploying them.
           // An app that needs a single serving instance says so with `g:`.
-          app.isRdata = true;
+          app.syncFirst = true;
           // Ordered before the cluster has its say, so the fallbacks below start
           // from a fixed order rather than from whatever the locations API
           // happened to return this time.

@@ -318,6 +318,13 @@ async function collectionStats(database, collection) {
   return result;
 }
 
+// Flatten several iterables (Map keys/values, arrays, ...) into one array — e.g.
+// the union of the active-standby and active-active app groups, so callers read
+// them as a single collection instead of spreading each group inline.
+function concatIterables(...iterables) {
+  return iterables.flatMap((iterable) => [...iterable]);
+}
+
 module.exports = {
   httpGetRequest,
   httpPostRequest,
@@ -345,4 +352,5 @@ module.exports = {
   matchRule,
   sortIPAddresses,
   runWithConcurrency,
+  concatIterables,
 };

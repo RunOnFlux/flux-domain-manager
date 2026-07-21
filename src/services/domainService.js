@@ -26,24 +26,24 @@ let myFDMnameORip = null;
 let unifiedAppsDomains = [];
 const mapOfNamesIps = {};
 const mapOfNamesIpsLastHealthy = {}; // timestamp of last successful health check per app
-const G_APP_HEALTH_RETRY_COUNT = 3;
-const G_APP_HEALTH_RETRY_DELAY_MS = 3000;
-const G_APP_UNHEALTHY_THRESHOLD_MS = 90 * 1000; // 90 seconds before switching away from sticky IP
+const ACTIVE_STANDBY_HEALTH_RETRY_COUNT = 3;
+const ACTIVE_STANDBY_HEALTH_RETRY_DELAY_MS = 3000;
+const ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS = 90 * 1000; // 90 seconds before switching away from sticky IP
 let recentlyConfiguredApps = [];
-let recentlyConfiguredGApps = [];
-let nonGAppsInitialized = false;
-let gAppsInitialized = false;
+let recentlyConfiguredActiveStandbyApps = [];
+let activeActiveAppsInitialized = false;
+let activeStandbyAppsInitialized = false;
 
 let dataFetcher = null;
 
 let permanentMessages = [];
-let nonGApps = new Map();
-let gApps = new Map();
+let activeActiveApps = new Map();
+let activeStandbyApps = new Map();
 let appsLocations = new Map();
 
 const runQueue = {
-  gApps: { running: false, queued: false },
-  nonGApps: { running: false, queued: false },
+  activeStandbyApps: { running: false, queued: false },
+  activeActiveApps: { running: false, queued: false },
 };
 
 async function checkDomainOwnership(domain, appName) {
@@ -250,7 +250,7 @@ function selectLowestDigitSumIp(ips) {
   return chosenIp;
 }
 
-async function checkAppRunningWithRetries(ip, appName, retries = G_APP_HEALTH_RETRY_COUNT) {
+async function checkAppRunningWithRetries(ip, appName, retries = ACTIVE_STANDBY_HEALTH_RETRY_COUNT) {
   for (let attempt = 1; attempt <= retries; attempt += 1) {
     // eslint-disable-next-line no-await-in-loop
     const isOk = await applicationChecks.checkAppRunning(ip, appName);
@@ -258,15 +258,15 @@ async function checkAppRunningWithRetries(ip, appName, retries = G_APP_HEALTH_RE
       return true;
     }
     if (attempt < retries) {
-      log.info(`G App ${appName} health check attempt ${attempt}/${retries} failed for ${ip}, retrying...`);
+      log.info(`Active-Standby App ${appName} health check attempt ${attempt}/${retries} failed for ${ip}, retrying...`);
       // eslint-disable-next-line no-await-in-loop
-      await serviceHelper.timeout(G_APP_HEALTH_RETRY_DELAY_MS);
+      await serviceHelper.timeout(ACTIVE_STANDBY_HEALTH_RETRY_DELAY_MS);
     }
   }
   return false;
 }
 
-async function selectIPforG(ips, app) {
+async function selectActiveInstanceIp(ips, app) {
   // choose the ip address whose sum of digits is the lowest
   if (ips && ips.length) {
     const lowestDigitSumIp = selectLowestDigitSumIp(ips);
@@ -284,14 +284,14 @@ async function selectIPforG(ips, app) {
       // based on how recently it was last seen healthy
       const lastHealthy = mapOfNamesIpsLastHealthy[app.name] || 0;
       const timeSinceHealthy = Date.now() - lastHealthy;
-      if (lastHealthy > 0 && timeSinceHealthy < G_APP_UNHEALTHY_THRESHOLD_MS) {
+      if (lastHealthy > 0 && timeSinceHealthy < ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS) {
         log.warn(
-          `G App ${app.name} sticky IP ${stickyIp} failed health check but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
+          `Active-Standby App ${app.name} sticky IP ${stickyIp} failed health check but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
         );
         return stickyIp;
       }
       log.warn(
-        `G App ${app.name} sticky IP ${stickyIp} failed health check for >${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s, selecting new IP`,
+        `Active-Standby App ${app.name} sticky IP ${stickyIp} failed health check for >${ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS / 1000}s, selecting new IP`,
       );
     }
 
@@ -362,9 +362,9 @@ async function updateHaproxy(haproxyAppsConfig) {
   }
 }
 
-function addConfigurations(configuredApps, app, appIps, gMode) {
+function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
   const domains = getUnifiedDomains(app);
-  const customConfigs = getCustomConfigs(app, gMode);
+  const customConfigs = getCustomConfigs(app, isActiveStandby);
   let timeout = null;
   if (app.version <= 3) {
     const timeoutConfig = app.enviromentParameters?.find((att) => typeof att === 'string' && att.toLowerCase().startsWith('timeout='));
@@ -635,17 +635,17 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
 
 /**
  *
- * @param {Map<string, Object>} globalAppSpecs Pre filtered NonG Applications
+ * @param {Map<string, Object>} globalAppSpecs Pre filtered active-active applications
  */
-async function generateAndReplaceMainApplicationHaproxyConfig() {
+async function generateActiveActiveHaproxyConfig() {
   const startTime = process.hrtime.bigint();
   let appsProcessingTimeNs = 0;
 
   try {
-    log.info('Non G Mode STARTED');
+    log.info('Active-Active Mode STARTED');
 
     // just use the map in the future
-    const globalAppSpecs = nonGApps.values();
+    const globalAppSpecs = activeActiveApps.values();
 
     // filter applications based on config
     const applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
@@ -681,7 +681,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     for (const app of appsOK) {
       const appStartTime = process.hrtime.bigint();
 
-      log.info(`Configuring Non G App ${app.name}`);
+      log.info(`Configuring Active-Active App ${app.name}`);
 
       const appLocations = appsLocations.get(app.name) || [];
 
@@ -883,10 +883,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         }
         addConfigurations(configuredApps, app, appIps, false);
         log.info(
-          `Non G Application ${app.name} with specific checks: ${applicationWithChecks} is OK. Proceeding to FDM`,
+          `Active-Active Application ${app.name} with specific checks: ${applicationWithChecks} is OK. Proceeding to FDM`,
         );
       } else {
-        log.warn(`Non G Application ${app.name} is excluded. Not running properly?`);
+        log.warn(`Active-Active Application ${app.name} is excluded. Not running properly?`);
         if (config.mandatoryApps.includes(app.name)) {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
@@ -895,11 +895,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       const elapsedNs = Number(process.hrtime.bigint() - appStartTime);
       const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
       appsProcessingTimeNs += elapsedNs;
-      log.info(`Non G App: ${app.name}, Elapsed: ${elapsedS}`);
+      log.info(`Active-Active App: ${app.name}, Elapsed: ${elapsedS}`);
     }
 
     const elapsedAppsS = Math.round((appsProcessingTimeNs / 1_000_000_000) * 100) / 100;
-    log.info(`Total Non G apps processing time. Elapsed: ${elapsedAppsS}`);
+    log.info(`Total Active-Active apps processing time. Elapsed: ${elapsedAppsS}`);
 
     if (configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');
@@ -909,24 +909,24 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     const lastSerializedApps = JSON.stringify(recentlyConfiguredApps);
 
     if (serializedApps === lastSerializedApps) {
-      log.info('No changes in Non G Mode configuration detected');
+      log.info('No changes in Active-Active Mode configuration detected');
       return;
     }
 
     let haproxyAppsConfig = [];
     recentlyConfiguredApps = configuredApps;
-    nonGAppsInitialized = true;
+    activeActiveAppsInitialized = true;
 
-    // if g apps haven't completed once - we don't update the config
-    if (!recentlyConfiguredGApps.length) return;
+    // if active-standby apps haven't completed once - we don't update the config
+    if (!recentlyConfiguredActiveStandbyApps.length) return;
 
-    log.info('Changes in Non G Mode configuration detected');
+    log.info('Changes in Active-Active Mode configuration detected');
 
     // we need to put always in same order to avoid. non g first g at end
-    haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps);
+    haproxyAppsConfig = configuredApps.concat(recentlyConfiguredActiveStandbyApps);
 
     log.info(
-      `Non G Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
+      `Active-Active Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
     );
     await updateHaproxy(haproxyAppsConfig);
   } catch (error) {
@@ -934,17 +934,17 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
   } finally {
     const elapsedNs = Number(process.hrtime.bigint() - startTime);
     const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
-    log.info(`Non G Mode ENDED. Elapsed: ${elapsedS}s`);
+    log.info(`Active-Active Mode ENDED. Elapsed: ${elapsedS}s`);
   }
 }
 
-async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
+async function generateActiveStandbyHaproxyConfig() {
   const startTime = process.hrtime.bigint();
 
   try {
-    log.info('G Mode STARTED');
+    log.info('Active-Standby Mode STARTED');
 
-    const globalAppSpecs = gApps.values();
+    const globalAppSpecs = activeStandbyApps.values();
 
     // filter applications based on config
     const applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
@@ -988,12 +988,12 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
         // if its G data application, use just one IP
         const locationIps = appLocations.map((location) => location.ip);
         // eslint-disable-next-line no-await-in-loop
-        const selectedIP = await selectIPforG(locationIps, app);
+        const selectedIP = await selectActiveInstanceIp(locationIps, app);
         if (selectedIP) {
           appIps.push(selectedIP);
           addConfigurations(configuredApps, app, appIps, true);
           log.info(
-            `G Application ${app.name} is OK selected IP is ${selectedIP}. Proceeding to FDM`,
+            `Active-Standby Application ${app.name} is OK selected IP is ${selectedIP}. Proceeding to FDM`,
           );
         }
 
@@ -1002,7 +1002,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
         }
       } else {
         log.warn(
-          `G Application ${app.name} is excluded. Not running properly?`,
+          `Active-Standby Application ${app.name} is excluded. Not running properly?`,
         );
         if (config.mandatoryApps.includes(app.name)) {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
@@ -1011,27 +1011,27 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     }
 
     const serializedApps = JSON.stringify(configuredApps);
-    const lastSerializedApps = JSON.stringify(recentlyConfiguredGApps);
+    const lastSerializedApps = JSON.stringify(recentlyConfiguredActiveStandbyApps);
 
     if (serializedApps === lastSerializedApps) {
-      log.info('No changes in G Mode configuration detected');
+      log.info('No changes in Active-Standby Mode configuration detected');
       return;
     }
 
-    log.info('Changes in G Mode configuration detected');
+    log.info('Changes in Active-Standby Mode configuration detected');
 
     let haproxyAppsConfig = [];
 
-    recentlyConfiguredGApps = configuredApps;
-    gAppsInitialized = true;
+    recentlyConfiguredActiveStandbyApps = configuredApps;
+    activeStandbyAppsInitialized = true;
 
-    // if non g apps haven't completed once - we don't update the config
+    // if active-active apps haven't completed once - we don't update the config
     if (!recentlyConfiguredApps.length) return;
 
     haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
 
     log.info(
-      `G Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
+      `Active-Standby Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
     );
     await updateHaproxy(haproxyAppsConfig);
   } catch (error) {
@@ -1039,7 +1039,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
   } finally {
     const elapsedNs = Number(process.hrtime.bigint() - startTime);
     const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
-    log.info(`G Mode ENDED. Elapsed: ${elapsedS}s`);
+    log.info(`Active-Standby Mode ENDED. Elapsed: ${elapsedS}s`);
   }
 }
 
@@ -1140,8 +1140,8 @@ async function startApplicationProcessing() {
     };
 
     const promises = [
-      handler('gApps', runQueue.gApps, generateAndReplaceMainApplicationHaproxyGAppsConfig),
-      handler('nonGApps', runQueue.nonGApps, generateAndReplaceMainApplicationHaproxyConfig),
+      handler('activeStandbyApps', runQueue.activeStandbyApps, generateActiveStandbyHaproxyConfig),
+      handler('activeActiveApps', runQueue.activeActiveApps, generateActiveActiveHaproxyConfig),
     ];
 
     await Promise.all(promises);
@@ -1151,8 +1151,8 @@ async function startApplicationProcessing() {
     'appSpecsUpdated',
     async (specs) => {
       unifiedAppsDomains = specs.appFqdns;
-      nonGApps = specs.nonGApps;
-      gApps = specs.gApps;
+      activeActiveApps = specs.activeActiveApps;
+      activeStandbyApps = specs.activeStandbyApps;
     },
   );
 
@@ -1255,10 +1255,10 @@ async function start() {
 
 function getConfiguredApps() {
   return {
-    nonGApps: recentlyConfiguredApps,
-    gApps: recentlyConfiguredGApps,
-    nonGAppsInitialized,
-    gAppsInitialized,
+    activeActiveApps: recentlyConfiguredApps,
+    activeStandbyApps: recentlyConfiguredActiveStandbyApps,
+    activeActiveAppsInitialized,
+    activeStandbyAppsInitialized,
   };
 }
 

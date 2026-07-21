@@ -157,7 +157,7 @@ class FdmDataFetcher extends EventEmitter {
    * @param {Object} spec
    * @returns {boolean}
    */
-  static #isGApp(spec) {
+  static #isActiveStandby(spec) {
     const matcher = spec.version <= 3
       ? () => spec.containerData.includes('g:')
       : () => spec.compose.some((comp) => comp.containerData.includes('g:'));
@@ -520,8 +520,8 @@ class FdmDataFetcher extends EventEmitter {
   }
 
   async processAppSpecs(specs) {
-    const gAppsMap = new Map();
-    const nonGAppsMap = new Map();
+    const activeStandbyAppsMap = new Map();
+    const activeActiveAppsMap = new Map();
     const appFqdns = [];
     const enterpriseApps = [];
 
@@ -540,8 +540,8 @@ class FdmDataFetcher extends EventEmitter {
             return;
           }
 
-          const isGApp = FdmDataFetcher.#isGApp(spec);
-          const appMap = isGApp ? gAppsMap : nonGAppsMap;
+          const isActiveStandby = FdmDataFetcher.#isActiveStandby(spec);
+          const appMap = isActiveStandby ? activeStandbyAppsMap : activeActiveAppsMap;
 
           appMap.set(spec.name, spec);
 
@@ -558,10 +558,10 @@ class FdmDataFetcher extends EventEmitter {
     specMapper(specs);
 
     const logger = () => ({
-      GApps: gAppsMap.size,
-      NonGApps: nonGAppsMap.size,
+      activeStandby: activeStandbyAppsMap.size,
+      activeActive: activeActiveAppsMap.size,
       Enterprise: enterpriseApps.length,
-      Total: gAppsMap.size + nonGAppsMap.size,
+      Total: activeStandbyAppsMap.size + activeActiveAppsMap.size,
     });
 
     console.log('Before decryption:\n', logger());
@@ -578,7 +578,7 @@ class FdmDataFetcher extends EventEmitter {
 
     console.log('After decryption:\n', logger());
 
-    this.emit('appSpecsUpdated', { gApps: gAppsMap, nonGApps: nonGAppsMap, appFqdns });
+    this.emit('appSpecsUpdated', { activeStandbyApps: activeStandbyAppsMap, activeActiveApps: activeActiveAppsMap, appFqdns });
   }
 
   async getDecryptedSpecs() {
@@ -906,8 +906,8 @@ async function main() {
   dataFetcher.startAppsLocationsLoop();
   dataFetcher.on('appSpecsUpdated', (specs) => console.log(
     'Received appSpecsUpdated event with spec sizes:',
-    specs.gApps.size,
-    specs.nonGApps.size,
+    specs.activeStandbyApps.size,
+    specs.activeActiveApps.size,
   ));
   dataFetcher.on('permMessagesUpdated', (messages) => console.log(
     'Received permMessagesUpdated event with spec size:',

@@ -6,7 +6,7 @@ const { expect } = chai;
 const domainService = require('../src/services/domainService');
 
 const {
-  selectGPrimaries, getGStickyIp, setGStickyState, resetGStickyState,
+  selectActiveStandbyPrimaries, getActiveStandbyStickyIp, setActiveStandbyStickyState, resetActiveStandbyStickyState,
 } = domainService;
 
 // zizy: the app component holds the g: volume, mysql has its own local storage.
@@ -59,17 +59,17 @@ describe('g: app primary selection', () => {
 
   afterEach(() => {
     while (servers.length) servers.pop().close();
-    resetGStickyState(zizySpec.name);
+    resetActiveStandbyStickyState(zizySpec.name);
   });
 
   // One retry: the production backoff is 3 attempts three seconds apart, and this
   // suite is proving ordering, not the retry ladder.
   //
-  // Driven through selectGPrimaries, which is what the pass runs. The single-app
+  // Driven through selectActiveStandbyPrimaries, which is what the pass runs. The single-app
   // entry point this used to call stopped being called by production and then
   // silently missed a fix, so it is gone.
   const select = async (ips) => {
-    const chosen = await selectGPrimaries([zizySpec], new Map([[zizySpec.name, ips]]), { retries: 1 });
+    const chosen = await selectActiveStandbyPrimaries([zizySpec], new Map([[zizySpec.name, ips]]), { retries: 1 });
     return chosen.get(zizySpec.name);
   };
 
@@ -105,7 +105,7 @@ describe('g: app primary selection', () => {
   it('records the held master as sticky, so a later pass does not re-derive it', async () => {
     const holder = await node({ running: [], held: ['fluxapp_zizy'] });
     await select([holder]);
-    expect(getGStickyIp(zizySpec.name)).to.equal(holder);
+    expect(getActiveStandbyStickyIp(zizySpec.name)).to.equal(holder);
   });
 
   it('prefers the previous primary when more than one node reports holding', async () => {
@@ -113,7 +113,7 @@ describe('g: app primary selection', () => {
     // only the sticky says which one owned the writable copy.
     const other = await node({ running: [], held: ['fluxapp_zizy'] });
     const previousPrimary = await node({ running: [], held: ['fluxapp_zizy'] });
-    setGStickyState(zizySpec.name, previousPrimary, 0);
+    setActiveStandbyStickyState(zizySpec.name, previousPrimary, 0);
     expect(await select([other, previousPrimary])).to.equal(previousPrimary);
   });
 
@@ -150,7 +150,7 @@ describe('g: app primary selection', () => {
   describe('what reaches warn.log', () => {
     // eslint-disable-next-line global-require
     const log = require('../src/lib/log');
-    const G_APP_MIN_CONFIRMATIONS = 3;
+    const ACTIVE_STANDBY_MIN_CONFIRMATIONS = 3;
     let warns = [];
     let realWarn;
 
@@ -166,7 +166,7 @@ describe('g: app primary selection', () => {
       const idle = await node({ running: [], held: [] });
       // Healthy long enough ago that the grace and the confirmations are both
       // spent, which is the steady state after a stop.
-      setGStickyState(zizySpec.name, holder, domainService.monotonicMs() - 600_000);
+      setActiveStandbyStickyState(zizySpec.name, holder, domainService.monotonicMs() - 600_000);
       // Spend the two confirmations the running phase owes a primary.
       await select([holder, idle]);
       await select([holder, idle]);
@@ -191,9 +191,9 @@ describe('g: app primary selection', () => {
       // Last healthy well outside the 90s grace, which a test running in
       // milliseconds cannot otherwise leave. The confirmations are spent one
       // pass at a time below - release needs BOTH.
-      setGStickyState(zizySpec.name, addr(first), domainService.monotonicMs() - 600_000);
+      setActiveStandbyStickyState(zizySpec.name, addr(first), domainService.monotonicMs() - 600_000);
 
-      for (let pass = 1; pass < G_APP_MIN_CONFIRMATIONS; pass += 1) {
+      for (let pass = 1; pass < ACTIVE_STANDBY_MIN_CONFIRMATIONS; pass += 1) {
         // eslint-disable-next-line no-await-in-loop
         expect(await select([addr(first), addr(second)])).to.equal(addr(first));
       }
@@ -231,12 +231,12 @@ describe('g: app primary selection', () => {
       // so a single warm-up length can pass by luck. Every length must move on
       // the next pass, not just the convenient one.
       for (let held = 3; held <= 8; held += 1) {
-        resetGStickyState(zizySpec.name);
+        resetActiveStandbyStickyState(zizySpec.name);
         // eslint-disable-next-line no-await-in-loop
         const holder = await nodeServer({ running: [], held: ['fluxapp_zizy'] });
         // eslint-disable-next-line no-await-in-loop
         const other = await nodeServer({ running: [], held: [] });
-        setGStickyState(zizySpec.name, addr(holder), domainService.monotonicMs() - 600_000);
+        setActiveStandbyStickyState(zizySpec.name, addr(holder), domainService.monotonicMs() - 600_000);
         for (let pass = 0; pass < held; pass += 1) {
           // eslint-disable-next-line no-await-in-loop
           expect(await select([addr(holder), addr(other)])).to.equal(addr(holder));

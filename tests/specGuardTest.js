@@ -79,7 +79,7 @@ describe('spec-list guard', () => {
 
   it('accepts a normal list and publishes it', () => {
     expect(updates).to.have.lengthOf(1);
-    expect(updates[0].nonGApps.size).to.equal(20);
+    expect(updates[0].activeActiveApps.size).to.equal(20);
     expect(fetcher.endpoints.globalAppSpecs.etag).to.equal('W/"a-20"');
   });
 
@@ -106,7 +106,7 @@ describe('spec-list guard', () => {
     api.serve({ status: 'success', data: specs(18) }, 'W/"a-18"');
     await fetcher.getAndProcessAppSpecs();
     expect(updates).to.have.lengthOf(2);
-    expect(updates[1].nonGApps.size).to.equal(18);
+    expect(updates[1].activeActiveApps.size).to.equal(18);
   });
 
   it('refuses a first list below the floor', async () => {

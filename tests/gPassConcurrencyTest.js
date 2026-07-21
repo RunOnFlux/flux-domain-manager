@@ -7,7 +7,7 @@ const domainService = require('../src/services/domainService');
 const log = require('../src/lib/log');
 
 const {
-  selectGPrimaries, setGStickyState, resetGStickyState, getGStickyIp,
+  selectActiveStandbyPrimaries, setActiveStandbyStickyState, resetActiveStandbyStickyState, getActiveStandbyStickyIp,
   monotonicMs, resetNodeReachability,
 } = domainService;
 
@@ -91,16 +91,16 @@ describe('g: pass - probing cost and what silence means', () => {
       if (s.releaseHeld) s.releaseHeld();
       s.close();
     }
-    while (names.length) resetGStickyState(names.pop());
+    while (names.length) resetActiveStandbyStickyState(names.pop());
     resetNodeReachability();
   });
   const track = (n) => { names.push(n); return n; };
 
-  // One app, driven through selectGPrimaries - the pass production runs. There is
+  // One app, driven through selectActiveStandbyPrimaries - the pass production runs. There is
   // no single-app entry point any more: there was one, it stopped being called,
   // and it quietly missed a fix because nothing exercised it.
   const selectFor = async (ips, name, options) => {
-    const chosen = await selectGPrimaries([spec(name)], new Map([[name, ips]]), options);
+    const chosen = await selectActiveStandbyPrimaries([spec(name)], new Map([[name, ips]]), options);
     return chosen.get(name);
   };
 
@@ -149,7 +149,7 @@ describe('g: pass - probing cost and what silence means', () => {
     const shared = await node({ running: ['fluxapp_a1'] });
     const apps = ['a1', 'a2', 'a3'].map((n) => spec(track(n)));
     const locations = new Map(apps.map((a) => [a.name, [addr(shared)]]));
-    const chosen = await selectGPrimaries(apps, locations, { retries: 1 });
+    const chosen = await selectActiveStandbyPrimaries(apps, locations, { retries: 1 });
     expect(chosen.get('a1')).to.equal(addr(shared));
     expect(chosen.get('a2')).to.equal(null);
     expect(chosen.get('a3')).to.equal(null);
@@ -164,14 +164,14 @@ describe('g: pass - probing cost and what silence means', () => {
     const name = track('zizy');
     const primary = await node({ running: [`fluxapp_${name}`] });
     const standby = await node({ running: [] });
-    setGStickyState(name, addr(primary), undefined);
+    setActiveStandbyStickyState(name, addr(primary), undefined);
     // Seed the sticky, then measure a steady-state pass.
     const apps = [spec(name)];
     const locations = new Map([[name, [addr(primary), addr(standby)]]]);
-    await selectGPrimaries(apps, locations, { retries: 1 });
+    await selectActiveStandbyPrimaries(apps, locations, { retries: 1 });
     primary.hits.running = 0;
     standby.hits.running = 0;
-    const chosen = await selectGPrimaries(apps, locations, { retries: 1 });
+    const chosen = await selectActiveStandbyPrimaries(apps, locations, { retries: 1 });
     expect(chosen.get(name)).to.equal(addr(primary));
     expect(primary.hits.running).to.equal(1);
     expect(standby.hits.running).to.equal(0);
@@ -182,8 +182,8 @@ describe('g: pass - probing cost and what silence means', () => {
     const name = track('zizy');
     const standby = await node({ running: [`fluxapp_${name}`] });
     const dead = await node({ running: [] });
-    setGStickyState(name, addr(dead), undefined);
-    const chosen = await selectGPrimaries([spec(name)], new Map([[name, [addr(dead), addr(standby)]]]), { retries: 1 });
+    setActiveStandbyStickyState(name, addr(dead), undefined);
+    const chosen = await selectActiveStandbyPrimaries([spec(name)], new Map([[name, [addr(dead), addr(standby)]]]), { retries: 1 });
     expect(chosen.get(name)).to.equal(addr(standby));
   });
 
@@ -194,7 +194,7 @@ describe('g: pass - probing cost and what silence means', () => {
     const name = track('zizy');
     const primary = await node({ running: [] });
     const other = await node({ running: [`fluxapp_${name}`] });
-    setGStickyState(name, addr(primary), monotonicMs());
+    setActiveStandbyStickyState(name, addr(primary), monotonicMs());
     expect(await select([addr(primary), addr(other)], name)).to.equal(addr(primary));
   });
 
@@ -208,7 +208,7 @@ describe('g: pass - probing cost and what silence means', () => {
     const other = await node({ running: [`fluxapp_${name}`] });
     const ips = [addr(primary), addr(other)];
     // Healthy long ago: the 90s grace is already spent.
-    setGStickyState(name, addr(primary), monotonicMs() - (200 * 1000));
+    setActiveStandbyStickyState(name, addr(primary), monotonicMs() - (200 * 1000));
 
     expect(await select(ips, name)).to.equal(addr(primary)); // failure 1 of 3
     expect(await select(ips, name)).to.equal(addr(primary)); // failure 2 of 3
@@ -221,7 +221,7 @@ describe('g: pass - probing cost and what silence means', () => {
     const primary = await node({ running: [] });
     const other = await node({ running: [`fluxapp_${name}`] });
     const ips = [addr(primary), addr(other)];
-    setGStickyState(name, addr(primary), monotonicMs() - (200 * 1000));
+    setActiveStandbyStickyState(name, addr(primary), monotonicMs() - (200 * 1000));
 
     await select(ips, name); // failure 1
     await select(ips, name); // failure 2
@@ -240,7 +240,7 @@ describe('g: pass - probing cost and what silence means', () => {
     const ips = [addr(holder), addr(idle)];
 
     // Pass 1: it holds, and is recorded.
-    setGStickyState(name, addr(holder), 0);
+    setActiveStandbyStickyState(name, addr(holder), 0);
     expect(await select(ips, name)).to.equal(addr(holder));
 
     // Pass 2: it retracts.
@@ -264,7 +264,7 @@ describe('g: pass - probing cost and what silence means', () => {
     const ips = [addr(holder), addr(other)];
 
     // Pass 1: the holder answers, and is recorded as the primary.
-    setGStickyState(name, addr(holder), 0);
+    setActiveStandbyStickyState(name, addr(holder), 0);
     expect(await selectFor(ips, name, { retries: 1 })).to.equal(addr(holder));
 
     // Pass 2: the holder cannot answer. The other node still claims to hold it.
@@ -272,7 +272,7 @@ describe('g: pass - probing cost and what silence means', () => {
     holder.close();
     servers.splice(servers.indexOf(holder), 1);
     expect(await selectFor(ips, name, { retries: 1, delayMs: 5 })).to.equal(holderAddr);
-    expect(getGStickyIp(name)).to.equal(holderAddr);
+    expect(getActiveStandbyStickyIp(name)).to.equal(holderAddr);
   });
 
   // The incumbent is kept on silence, not forever. An explicit "I am not holding
@@ -281,7 +281,7 @@ describe('g: pass - probing cost and what silence means', () => {
     const name = track('zizy');
     const holder = await node({ running: [], held: [] });
     const other = await node({ running: [], held: [`fluxapp_${name}`] });
-    setGStickyState(name, addr(holder), 0);
+    setActiveStandbyStickyState(name, addr(holder), 0);
     const chosen = await selectFor([addr(holder), addr(other)], name, { retries: 1 });
     expect(chosen).to.equal(addr(other));
   });
@@ -322,18 +322,18 @@ describe('g: pass - probing cost and what silence means', () => {
     const primary = await node({ running: [`fluxapp_${gone}`, `fluxapp_${other}`] });
     const opts = { retries: 1, delayMs: 5 };
     await selectFor([addr(primary)], gone, opts);
-    expect(getGStickyIp(gone)).to.equal(addr(primary));
+    expect(getActiveStandbyStickyIp(gone)).to.equal(addr(primary));
 
     // A pass it is absent from, well inside the ttl: nothing is forgotten.
     const locs = new Map([[other, [addr(primary)]]]);
-    await selectGPrimaries([spec(other)], locs, { ...opts, appStateTtlMs: 60000 });
-    expect(getGStickyIp(gone)).to.equal(addr(primary));
+    await selectActiveStandbyPrimaries([spec(other)], locs, { ...opts, appStateTtlMs: 60000 });
+    expect(getActiveStandbyStickyIp(gone)).to.equal(addr(primary));
 
     // Absent past the ttl, and it is dropped.
-    await selectGPrimaries([spec(other)], locs, { ...opts, appStateTtlMs: 0 });
-    expect(getGStickyIp(gone)).to.equal(undefined);
+    await selectActiveStandbyPrimaries([spec(other)], locs, { ...opts, appStateTtlMs: 0 });
+    expect(getActiveStandbyStickyIp(gone)).to.equal(undefined);
     // The app that WAS in the pass keeps everything.
-    expect(getGStickyIp(other)).to.equal(addr(primary));
+    expect(getActiveStandbyStickyIp(other)).to.equal(addr(primary));
   });
 
   // THE ORDER MUST NOT DEPEND ON ARRIVAL ORDER. The old comparator found the
@@ -349,7 +349,7 @@ describe('g: pass - probing cost and what silence means', () => {
     const b = await node({ running: [`fluxapp_${name}`] });
     const opts = { retries: 1, delayMs: 5 };
     const first = await selectFor([addr(a), addr(b)], name, opts);
-    resetGStickyState(name);
+    resetActiveStandbyStickyState(name);
     resetNodeReachability();
     const reversed = await selectFor([addr(b), addr(a)], name, opts);
     expect(reversed).to.equal(first);
@@ -478,7 +478,7 @@ describe('g: pass - probing cost and what silence means', () => {
     const healthy = await node({ running: [`fluxapp_${name}`] });
     // The silent node is the sticky, so phase 1 burns the whole deadline on it;
     // the healthy candidate is only reached in phase 2.
-    setGStickyState(name, addr(silent), undefined);
+    setActiveStandbyStickyState(name, addr(silent), undefined);
     const chosen = await selectFor([addr(silent), addr(healthy)], name, {
       retries: 3, delayMs: 200, timeoutMs: 500, deadlineMs: 400,
     });

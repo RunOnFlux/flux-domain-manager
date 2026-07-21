@@ -1,4 +1,4 @@
-function getCustomConfigs(specifications, isGsyncthingApp) {
+function getCustomConfigs(specifications, isActiveStandby) {
   const configs = [];
   const defaultConfig = {
     ssl: false,
@@ -38,7 +38,7 @@ function getCustomConfigs(specifications, isGsyncthingApp) {
     defaultConfig.mode = 'tcp';
   }
 
-  if (isGsyncthingApp) {
+  if (isActiveStandby) {
     defaultConfig.mode = 'tcp';
     defaultConfig.check = false;
   }

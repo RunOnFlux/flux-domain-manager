@@ -35,16 +35,16 @@ const mapOfNamesIpsFailures = {}; // consecutive failed checks of the sticky, pe
 const mapOfNamesLastSeen = {}; // monotonic ms an app was last present in a pass
 const mapOfNamesLastChosen = {}; // the primary the previous pass actually selected
 const mapOfNamesExcluded = {}; // apps currently reported as excluded, by pass and name
-const G_APP_HEALTH_RETRY_COUNT = 3;
-const G_APP_HEALTH_RETRY_DELAY_MS = 3000;
-const G_APP_UNHEALTHY_THRESHOLD_MS = 90 * 1000; // 90 seconds before switching away from sticky IP
-// How many node probes may be in flight at once during a G pass.
+const ACTIVE_STANDBY_HEALTH_RETRY_COUNT = 3;
+const ACTIVE_STANDBY_HEALTH_RETRY_DELAY_MS = 3000;
+const ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS = 90 * 1000; // 90 seconds before switching away from sticky IP
+// How many node probes may be in flight at once during a active-standby pass.
 //
 // The probes are independent reads of different nodes, so the only thing this
-// bounds is our own socket use. Measured on fdm-eu-1-03: 336 g: apps, one
+// bounds is our own socket use. Measured on fdm-eu-1-03: 336 active-standby apps, one
 // snapshot probe each, median 0.21s - so 32 in flight turns a pass that walked
 // them one at a time into roughly one round trip's worth of wall clock.
-const G_PASS_CONCURRENCY = 32;
+const ACTIVE_STANDBY_PASS_CONCURRENCY = 32;
 // What a node ALREADY believed unreachable is given before we stop waiting.
 //
 // The first-contact timeout buys headroom for a node that is merely slow. This
@@ -52,7 +52,7 @@ const G_PASS_CONCURRENCY = 32;
 // down. On the dev FDM one such node was taken through the full ladder 24 times
 // in 10 minutes for an answer that had not changed since the first. 2s is still
 // more than 3x the slowest real answer measured across 306 fleet primaries.
-const G_PROBE_KNOWN_BAD_TIMEOUT_MS = 2000;
+const ACTIVE_STANDBY_PROBE_KNOWN_BAD_TIMEOUT_MS = 2000;
 // When the pass stops paying for RETRIES. It does not cut short the first ask.
 //
 // The unbounded part of a pass is the ladder: one silent node costs
@@ -66,11 +66,11 @@ const G_PROBE_KNOWN_BAD_TIMEOUT_MS = 2000;
 // written off in a single pass on the dev FDM - each of which answered a direct
 // probe in under 0.8s. A node that was never fairly asked has told us nothing:
 // it reads UNKNOWN for this pass, and it is NOT remembered as unreachable.
-const G_PASS_DEADLINE_MS = 20 * 1000;
+const ACTIVE_STANDBY_PASS_DEADLINE_MS = 20 * 1000;
 // How long a node stays written off after its last failure. Refreshed on every
 // pass it fails, so a node that is genuinely down never ages out; one that
 // leaves the fleet does, rather than sitting in the map forever.
-const G_UNREACHABLE_TTL_MS = 10 * 60 * 1000;
+const ACTIVE_STANDBY_UNREACHABLE_TTL_MS = 10 * 60 * 1000;
 // How long an app's sticky and health survive after it stops appearing in a pass.
 //
 // The four per-app maps are keyed by name and nothing removed a deleted app, so
@@ -84,7 +84,7 @@ const G_UNREACHABLE_TTL_MS = 10 * 60 * 1000;
 // came back would be defended by nothing for a whole grace period. A day of
 // absence is ~3,400 consecutive passes: nothing transient reaches it, and an app
 // genuinely gone that long is being reinstalled rather than resumed.
-const G_APP_STATE_TTL_MS = 24 * 60 * 60 * 1000;
+const ACTIVE_STANDBY_STATE_TTL_MS = 24 * 60 * 60 * 1000;
 // How often a written-off node is given the FULL timeout again.
 //
 // Without this the short timeout is a trap of its own: a node that answers in
@@ -92,21 +92,21 @@ const G_APP_STATE_TTL_MS = 24 * 60 * 60 * 1000;
 // long enough one to prove otherwise, so it would stay written off forever on
 // the strength of a budget chosen because we thought it was dead. The recheck
 // costs one full-length probe a minute per bad node.
-const G_UNREACHABLE_RECHECK_MS = 60 * 1000;
+const ACTIVE_STANDBY_UNREACHABLE_RECHECK_MS = 60 * 1000;
 // Nodes that failed a whole ladder: ip -> { failedAt, lastFullAt } in monotonic
 // ms. They are still asked once per pass, so a node that recovers is taken back
 // within one - and periodically asked with the full timeout, so a node that is
 // slow rather than gone can prove it.
 const unreachableNodes = new Map();
-// The shortest gap between two G passes, measured start to start.
+// The shortest gap between two active-standby passes, measured start to start.
 //
 // Chosen against the grace above, not picked for feel. A sticky that fails its
-// check is kept while `now - lastHealthy < G_APP_UNHEALTHY_THRESHOLD_MS`, and
+// check is kept while `now - lastHealthy < ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS`, and
 // lastHealthy is stamped on the last SUCCESSFUL check - so the number of failed
 // checks that land inside the grace is how many times FDM confirms a primary is
 // gone before it moves the app. At 25s those fall at 25s, 50s and 75s:
 //
-//     3 x 25000 = 75000 < 90000 = G_APP_UNHEALTHY_THRESHOLD_MS
+//     3 x 25000 = 75000 < 90000 = ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS
 //
 // Three confirmations with 15s to spare, and the move happens on the fourth
 // check at 100s. 30s would put the third check at exactly 90000, where
@@ -125,26 +125,26 @@ const unreachableNodes = new Map();
 // never taken. So this floor governs while a pass stays under 25s. It does not
 // bound the cadence when a pass runs long, which is why the confirmation count
 // below is counted rather than inferred from timing.
-const G_PASS_MIN_INTERVAL_MS = 25 * 1000;
+const ACTIVE_STANDBY_PASS_MIN_INTERVAL_MS = 25 * 1000;
 // A primary is never moved on fewer than this many CONSECUTIVE failed checks,
 // whatever the cadence turns out to be.
 //
 // The grace above answers "has it been unhealthy long enough". This answers
 // "have we actually asked enough times", and they are different questions. The
-// cadence is max(G_PASS_MIN_INTERVAL_MS, how long the pass took), so it is not
+// cadence is max(ACTIVE_STANDBY_PASS_MIN_INTERVAL_MS, how long the pass took), so it is not
 // ours to fix: one node that accepts connections and never replies stretches a
 // pass by a full probe ladder, and at a 90s cadence `floor(90000 / 90000) = 1`
 // - a single failed check would move a domain. Counting the checks makes the
 // three confirmations a property of the code rather than an arithmetic accident
 // of how fast the pass happened to run.
-const G_APP_MIN_CONFIRMATIONS = 3;
+const ACTIVE_STANDBY_MIN_CONFIRMATIONS = 3;
 // Attempts at the per-app location lookup for an app the bulk feed omitted.
-const G_LOCATION_SEARCH_ATTEMPTS = 5;
-let lastGPassStartedAt = 0;
+const ACTIVE_STANDBY_LOCATION_SEARCH_ATTEMPTS = 5;
+let lastActiveStandbyPassStartedAt = 0;
 let recentlyConfiguredApps = [];
-let recentlyConfiguredGApps = [];
-let nonGAppsInitialized = false;
-let gAppsInitialized = false;
+let recentlyConfiguredActiveStandbyApps = [];
+let activeActiveAppsInitialized = false;
+let activeStandbyAppsInitialized = false;
 // The size each half last published, for the guard in admitConfiguredHalf.
 let configuredHalfStore = sharedGuardStore();
 let configuredHalfGuards = {
@@ -159,13 +159,13 @@ let haproxyRetryPending = false;
 let dataFetcher = null;
 
 let permanentMessages = [];
-let nonGApps = new Map();
-let gApps = new Map();
+let activeActiveApps = new Map();
+let activeStandbyApps = new Map();
 let appsLocations = new Map();
 
 const runQueue = {
-  gApps: { running: false, queued: false },
-  nonGApps: { running: false, queued: false },
+  activeStandbyApps: { running: false, queued: false },
+  activeActiveApps: { running: false, queued: false },
 };
 
 async function checkDomainOwnership(domain, appName) {
@@ -358,8 +358,8 @@ function filterMandatoryApps(apps) {
  *
  * Every elapsed-time decision here uses this, never Date.now(). These values
  * decide whether a primary moves: the sticky grace holds an app while
- * `now - lastHealthy < G_APP_UNHEALTHY_THRESHOLD_MS`, and the pass floor holds a
- * pass while `now - lastGPassStartedAt < G_PASS_MIN_INTERVAL_MS`. A wall clock
+ * `now - lastHealthy < ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS`, and the pass floor holds a
+ * pass while `now - lastActiveStandbyPassStartedAt < ACTIVE_STANDBY_PASS_MIN_INTERVAL_MS`. A wall clock
  * steps - an NTP correction forward expires a grace that has not expired and
  * moves a healthy app; a step backward makes the difference negative, which
  * compares as inside every window and pins a dead one until the clock catches up.
@@ -378,7 +378,7 @@ function monotonicMs() {
 /** When this pass must stop, as monotonic ms. Explicit wins, then relative, then the default. */
 function passDeadline(options = {}) {
   if (options.deadlineAt) return options.deadlineAt;
-  const { deadlineMs = G_PASS_DEADLINE_MS } = options;
+  const { deadlineMs = ACTIVE_STANDBY_PASS_DEADLINE_MS } = options;
   return monotonicMs() + deadlineMs;
 }
 
@@ -392,7 +392,7 @@ function passDeadline(options = {}) {
  */
 function noteReachable(ip) {
   if (unreachableNodes.delete(ip)) {
-    log.warn(`G pass: ${ip} is answering again, no longer written off`);
+    log.warn(`active-standby pass: ${ip} is answering again, no longer written off`);
   }
 }
 
@@ -407,7 +407,7 @@ function noteUnreachable(ip, gotFullTimeout) {
   const now = monotonicMs();
   const prior = unreachableNodes.get(ip);
   if (!prior) {
-    log.warn(`G pass: ${ip} written off after a full ladder - asked once per pass from here until it answers`);
+    log.warn(`active-standby pass: ${ip} written off after a full ladder - asked once per pass from here until it answers`);
   }
   unreachableNodes.set(ip, {
     failedAt: now,
@@ -423,7 +423,7 @@ function noteUnreachable(ip, gotFullTimeout) {
  * gone. Marked on every pass the app appears in, so only a real disappearance
  * ages out.
  */
-function pruneGAppState(seenNames, ttlMs = G_APP_STATE_TTL_MS) {
+function pruneActiveStandbyAppState(seenNames, ttlMs = ACTIVE_STANDBY_STATE_TTL_MS) {
   const now = monotonicMs();
   for (const name of seenNames) mapOfNamesLastSeen[name] = now;
   for (const name of Object.keys(mapOfNamesLastSeen)) {
@@ -442,7 +442,7 @@ function pruneGAppState(seenNames, ttlMs = G_APP_STATE_TTL_MS) {
 function pruneUnreachable() {
   const now = monotonicMs();
   for (const [ip, entry] of unreachableNodes) {
-    if (now - entry.failedAt > G_UNREACHABLE_TTL_MS) unreachableNodes.delete(ip);
+    if (now - entry.failedAt > ACTIVE_STANDBY_UNREACHABLE_TTL_MS) unreachableNodes.delete(ip);
   }
 }
 
@@ -497,13 +497,13 @@ function resetNodeReachability() {
  */
 async function buildNodeSnapshot(ips, fetcher, options = {}, into = null) {
   const {
-    retries = G_APP_HEALTH_RETRY_COUNT,
-    delayMs = G_APP_HEALTH_RETRY_DELAY_MS,
-    concurrency = G_PASS_CONCURRENCY,
+    retries = ACTIVE_STANDBY_HEALTH_RETRY_COUNT,
+    delayMs = ACTIVE_STANDBY_HEALTH_RETRY_DELAY_MS,
+    concurrency = ACTIVE_STANDBY_PASS_CONCURRENCY,
     timeoutMs = applicationChecks.PROBE_TIMEOUT_MS,
-    knownBadTimeoutMs = G_PROBE_KNOWN_BAD_TIMEOUT_MS,
-    unreachableRecheckMs = G_UNREACHABLE_RECHECK_MS,
-    deadlineAt = monotonicMs() + G_PASS_DEADLINE_MS,
+    knownBadTimeoutMs = ACTIVE_STANDBY_PROBE_KNOWN_BAD_TIMEOUT_MS,
+    unreachableRecheckMs = ACTIVE_STANDBY_UNREACHABLE_RECHECK_MS,
+    deadlineAt = monotonicMs() + ACTIVE_STANDBY_PASS_DEADLINE_MS,
   } = options;
 
   const snapshot = into || new Map();
@@ -526,7 +526,7 @@ async function buildNodeSnapshot(ips, fetcher, options = {}, into = null) {
       // leaves nothing to go and check by hand.
       const named = pending.slice(0, 5).join(', ');
       const andMore = pending.length > 5 ? ` (+${pending.length - 5} more)` : '';
-      log.info(`G pass: ${pending.length} node(s) could not be read, retry ${attempt}/${retries}: ${named}${andMore}`);
+      log.info(`active-standby pass: ${pending.length} node(s) could not be read, retry ${attempt}/${retries}: ${named}${andMore}`);
       // eslint-disable-next-line no-await-in-loop
       await serviceHelper.timeout(delayMs);
       if (monotonicMs() >= deadlineAt) { deadlineCut = true; break; }
@@ -640,7 +640,7 @@ function decideStickyPrimary(app, ips, snapshot) {
   }
 
   // Failed the check. It is released only when it has been unhealthy long
-  // enough AND been asked enough times - see G_APP_MIN_CONFIRMATIONS for why
+  // enough AND been asked enough times - see ACTIVE_STANDBY_MIN_CONFIRMATIONS for why
   // the second condition is not implied by the first.
   const failures = (mapOfNamesIpsFailures[app.name] || 0) + 1;
   mapOfNamesIpsFailures[app.name] = failures;
@@ -654,12 +654,12 @@ function decideStickyPrimary(app, ips, snapshot) {
   // has since gone quiet), and defending a guess for three passes would keep an
   // app pointed at a node that has never answered for it.
   const established = lastHealthy > 0;
-  const withinGrace = established && timeSinceHealthy < G_APP_UNHEALTHY_THRESHOLD_MS;
-  const tooFewChecks = established && failures < G_APP_MIN_CONFIRMATIONS;
+  const withinGrace = established && timeSinceHealthy < ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS;
+  const tooFewChecks = established && failures < ACTIVE_STANDBY_MIN_CONFIRMATIONS;
 
   if (withinGrace || tooFewChecks) {
     log.warn(
-      `G App ${app.name} sticky IP ${stickyIp} failed health check ${failures}/${G_APP_MIN_CONFIRMATIONS} but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
+      `Active-Standby App ${app.name} sticky IP ${stickyIp} failed health check ${failures}/${ACTIVE_STANDBY_MIN_CONFIRMATIONS} but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
     );
     return stickyIp;
   }
@@ -726,7 +726,7 @@ function decideHeldPrimary(app, ips, snapshot) {
     if (state === ProbeState.RUNNING) {
       mapOfNamesIpsLastHeld[app.name] = monotonicMs();
       log.info(
-        `G App ${app.name} is not running anywhere, but ${stickyIp} reports holding it (operator-stopped) - keeping it as primary`,
+        `Active-Standby App ${app.name} is not running anywhere, but ${stickyIp} reports holding it (operator-stopped) - keeping it as primary`,
       );
       return stickyIp;
     }
@@ -740,9 +740,9 @@ function decideHeldPrimary(app, ips, snapshot) {
     if (state === ProbeState.UNKNOWN) {
       const lastHeld = mapOfNamesIpsLastHeld[app.name] || 0;
       const sinceHeld = monotonicMs() - lastHeld;
-      if (lastHeld > 0 && sinceHeld < G_APP_UNHEALTHY_THRESHOLD_MS) {
+      if (lastHeld > 0 && sinceHeld < ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS) {
         log.warn(
-          `G App ${app.name} holder ${stickyIp} could not say what it holds, but confirmed holding ${Math.round(sinceHeld / 1000)}s ago - keeping it as primary`,
+          `Active-Standby App ${app.name} holder ${stickyIp} could not say what it holds, but confirmed holding ${Math.round(sinceHeld / 1000)}s ago - keeping it as primary`,
         );
         return stickyIp;
       }
@@ -767,7 +767,7 @@ function decideHeldPrimary(app, ips, snapshot) {
       delete mapOfNamesIpsFailures[app.name];
       delete mapOfNamesIpsLastHealthy[app.name];
       log.info(
-        `G App ${app.name} is not running anywhere, but ${candidate} reports holding it (operator-stopped) - keeping it as primary`,
+        `Active-Standby App ${app.name} is not running anywhere, but ${candidate} reports holding it (operator-stopped) - keeping it as primary`,
       );
       return candidate;
     }
@@ -800,7 +800,7 @@ function reportExclusion(label, name, excluded) {
 }
 
 /**
- * The one thing about a g: app worth keeping in warn.log: its primary changed.
+ * The one thing about an active-standby app worth keeping in warn.log: its primary changed.
  *
  * Compared against what the LAST PASS CHOSE, not against the sticky. A released
  * sticky is not a move - the held phase re-pins the same node most of the time -
@@ -815,33 +815,33 @@ function reportPrimaryChanges(chosen) {
     mapOfNamesLastChosen[name] = ip;
     if (previous === undefined) {
       // First pass this app has been in. Nothing moved; nothing to report.
-      if (ip) log.info(`G App ${name} primary is ${ip}`);
-      else log.warn(`G App ${name} has no primary - nothing is running or holding it`);
+      if (ip) log.info(`Active-Standby App ${name} primary is ${ip}`);
+      else log.warn(`Active-Standby App ${name} has no primary - nothing is running or holding it`);
     } else if (ip && previous) {
-      log.warn(`G App ${name} PRIMARY MOVED ${previous} -> ${ip}`);
+      log.warn(`Active-Standby App ${name} PRIMARY MOVED ${previous} -> ${ip}`);
     } else if (ip) {
-      log.warn(`G App ${name} has a primary again: ${ip}`);
+      log.warn(`Active-Standby App ${name} has a primary again: ${ip}`);
     } else {
-      log.warn(`G App ${name} lost its primary ${previous} - nothing is running or holding it`);
+      log.warn(`Active-Standby App ${name} lost its primary ${previous} - nothing is running or holding it`);
     }
   });
 }
 
 /**
- * Pick the primary for every g: app in one pass.
+ * Pick the primary for every active-standby app in one pass.
  *
  * Two snapshots and two pure decisions. The held snapshot covers only the apps
  * nothing is running - 28 of 336 on fdm-eu-1-03 - so the endpoint most of a
  * mixed-version fleet cannot serve yet is asked about almost nowhere.
  *
- * @param {Object[]} apps g: application specifications
+ * @param {Object[]} apps active-standby application specifications
  * @param {Map<string, Array>} locations app name -> location records, or bare ips
  * @param {Object} [options]
  * @returns {Promise<Map<string, string|null>>} app name -> chosen ip
  */
-async function selectGPrimaries(apps, locations, options = {}) {
+async function selectActiveStandbyPrimaries(apps, locations, options = {}) {
   pruneUnreachable();
-  pruneGAppState(apps.map((a) => a.name), options.appStateTtlMs);
+  pruneActiveStandbyAppState(apps.map((a) => a.name), options.appStateTtlMs);
   // ONE deadline for the pass, not one per phase - the phases run in series, and
   // it is the total that sets the cadence.
   const passOptions = { ...options, deadlineAt: passDeadline(options) };
@@ -1058,7 +1058,7 @@ async function updateHaproxy(haproxyAppsConfig) {
 /**
  * Whether a half's freshly computed list may replace what it last published.
  *
- * A half that collapses - every G app missing because the spec list briefly came
+ * A half that collapses - every active-standby app missing because the spec list briefly came
  * back empty, a location outage - would otherwise be published whole, and the
  * frontends it drops release their ports. The rule is lib/listGuard's; a refused
  * list leaves the published half untouched.
@@ -1146,9 +1146,9 @@ function createConfiguredApps() {
   };
 }
 
-function addConfigurations(configuredApps, app, appIps, gMode) {
+function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
   const domains = getUnifiedDomains(app);
-  const customConfigs = getCustomConfigs(app, gMode);
+  const customConfigs = getCustomConfigs(app, isActiveStandby);
   let timeout = null;
   if (app.version <= 3) {
     const timeoutConfig = app.enviromentParameters?.find((att) => typeof att === 'string' && att.toLowerCase().startsWith('timeout='));
@@ -1403,18 +1403,18 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
  *
  * @param {Map<string, Object>} globalAppSpecs Pre filtered NonG Applications
  */
-async function generateAndReplaceMainApplicationHaproxyConfig() {
+async function generateActiveActiveHaproxyConfig() {
   const startTime = process.hrtime.bigint();
   let appsProcessingTimeNs = 0;
   let slowestApp = { name: null, ns: 0 };
-  // What the pass cost api.runonflux.io - see the g: pass for the reasoning.
+  // What the pass cost api.runonflux.io - see the active-standby pass for the reasoning.
   let searchRequests = 0;
 
   try {
-    log.info('Non G Mode STARTED');
+    log.info('Active-Active Mode STARTED');
 
     // just use the map in the future
-    const globalAppSpecs = nonGApps.values();
+    const globalAppSpecs = activeActiveApps.values();
 
     // filter applications based on config
     const applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
@@ -1449,7 +1449,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         // config.mandatoryApps. Throwing here froze every node of a letter
         // bucket for days when a test canary was cancelled (themok6, Sept
         // 2026): no new or changed app in the bucket got a backend.
-        if (!nonGApps.has(mandatoryApp)) {
+        if (!activeActiveApps.has(mandatoryApp)) {
           log.error(`Mandatory app ${mandatoryApp} is not registered on the network; it cannot act as a canary. Remove it from config.mandatoryApps.`);
           // eslint-disable-next-line no-continue
           continue;
@@ -1464,10 +1464,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
       const appLocations = appsLocations.get(app.name) || [];
 
-      // Same rule as the G pass: the attempts are for an API that could not be
+      // Same rule as the active-standby pass: the attempts are for an API that could not be
       // reached. An explicit "nothing is running it" is final.
       if (!appLocations.length) {
-        for (let attempt = 1; attempt <= G_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
+        for (let attempt = 1; attempt <= ACTIVE_STANDBY_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
           searchRequests += 1;
           // eslint-disable-next-line no-await-in-loop
           const { answered, locations: found } = await fluxService
@@ -1606,7 +1606,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               // No operator could be reached, so the cluster cannot say who its
               // master is and this has to choose one. Oldest instance first: for
               // a replicated app it is the one most likely to hold the complete
-              // data, and it is the same key FluxOS's own g: master election
+              // data, and it is the same key FluxOS's own active-standby election
               // uses (compareInstanceSeniority, runningSince ascending).
               //
               // This is a degraded path that has never actually ordered anything.
@@ -1643,9 +1643,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         addConfigurations(configuredApps, app, appIps, false);
-        reportExclusion('Non G', app.name, false);
+        reportExclusion('Active-Active', app.name, false);
       } else {
-        reportExclusion('Non G', app.name, true);
+        reportExclusion('Active-Active', app.name, true);
         if (config.mandatoryApps.includes(app.name)) {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
@@ -1658,7 +1658,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
     const elapsedAppsS = Math.round((appsProcessingTimeNs / 1_000_000_000) * 100) / 100;
     const slowestS = Math.round((slowestApp.ns / 1_000_000_000) * 100) / 100;
-    log.info(`Total Non G apps processing time. Elapsed: ${elapsedAppsS}, slowest ${slowestApp.name} at ${slowestS}, location searches: ${searchRequests}`);
+    log.info(`Total Active-Active apps processing time. Elapsed: ${elapsedAppsS}, slowest ${slowestApp.name} at ${slowestS}, location searches: ${searchRequests}`);
 
     if (!admitConfiguredHalf('nonG', configuredApps.length)) return;
 
@@ -1667,26 +1667,26 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     const lastSerializedApps = JSON.stringify(recentlyConfiguredApps);
 
     if (serializedApps === lastSerializedApps && !haproxyRetryPending) {
-      log.info('No changes in Non G Mode configuration detected');
+      log.info('No changes in Active-Active Mode configuration detected');
       return;
     }
 
     let haproxyAppsConfig = [];
     recentlyConfiguredApps = configuredAppsList;
-    nonGAppsInitialized = true;
+    activeActiveAppsInitialized = true;
 
-    // if g apps haven't completed once - we don't update the config
-    if (!recentlyConfiguredGApps.length) return;
+    // if active-standby apps haven't completed once - we don't update the config
+    if (!recentlyConfiguredActiveStandbyApps.length) return;
 
     log.info(haproxyRetryPending
-      ? 'Non G Mode republishing after a failed haproxy update'
-      : 'Changes in Non G Mode configuration detected');
+      ? 'Active-Active Mode republishing after a failed haproxy update'
+      : 'Changes in Active-Active Mode configuration detected');
 
-    // we need to put always in same order to avoid. non g first g at end
-    haproxyAppsConfig = configuredAppsList.concat(recentlyConfiguredGApps);
+    // we need to put always in same order to avoid. active-active first, active-standby at end
+    haproxyAppsConfig = configuredAppsList.concat(recentlyConfiguredActiveStandbyApps);
 
     log.info(
-      `Non G Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
+      `Active-Active Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
     );
     await updateHaproxy(haproxyAppsConfig);
   } catch (error) {
@@ -1694,18 +1694,18 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
   } finally {
     const elapsedNs = Number(process.hrtime.bigint() - startTime);
     const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
-    log.info(`Non G Mode ENDED. Elapsed: ${elapsedS}s`);
+    log.info(`Active-Active Mode ENDED. Elapsed: ${elapsedS}s`);
   }
 }
 
-async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
-  const sinceLast = monotonicMs() - lastGPassStartedAt;
-  if (lastGPassStartedAt && sinceLast < G_PASS_MIN_INTERVAL_MS) {
-    const waitMs = G_PASS_MIN_INTERVAL_MS - sinceLast;
-    log.info(`G Mode holding ${Math.round(waitMs / 1000)}s - the previous pass started ${Math.round(sinceLast / 1000)}s ago and the nodes would answer from the same cache`);
+async function generateActiveStandbyHaproxyConfig() {
+  const sinceLast = monotonicMs() - lastActiveStandbyPassStartedAt;
+  if (lastActiveStandbyPassStartedAt && sinceLast < ACTIVE_STANDBY_PASS_MIN_INTERVAL_MS) {
+    const waitMs = ACTIVE_STANDBY_PASS_MIN_INTERVAL_MS - sinceLast;
+    log.info(`Active-Standby Mode holding ${Math.round(waitMs / 1000)}s - the previous pass started ${Math.round(sinceLast / 1000)}s ago and the nodes would answer from the same cache`);
     await serviceHelper.timeout(waitMs);
   }
-  lastGPassStartedAt = monotonicMs();
+  lastActiveStandbyPassStartedAt = monotonicMs();
   const startTime = process.hrtime.bigint();
   // What the pass cost api.runonflux.io, reported with its duration. An
   // application absent from the bulk feed is asked about directly, and that is
@@ -1713,9 +1713,9 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
   let searchRequests = 0;
 
   try {
-    log.info('G Mode STARTED');
+    log.info('Active-Standby Mode STARTED');
 
-    const globalAppSpecs = gApps.values();
+    const globalAppSpecs = activeStandbyApps.values();
 
     // filter applications based on config
     const applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
@@ -1761,7 +1761,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
       const searched = await serviceHelper.runWithConcurrency(
         needSearch.map((app) => async () => {
           let requests = 0;
-          for (let attempt = 1; attempt <= G_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
+          for (let attempt = 1; attempt <= ACTIVE_STANDBY_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
             requests += 1;
             // eslint-disable-next-line no-await-in-loop
             const { answered, locations: found } = await fluxService
@@ -1774,7 +1774,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
           }
           return [app.name, [], requests];
         }),
-        G_PASS_CONCURRENCY,
+        ACTIVE_STANDBY_PASS_CONCURRENCY,
       );
       for (const result of searched) {
         if (result.status === 'fulfilled') {
@@ -1785,7 +1785,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
       }
     }
 
-    const selected = await selectGPrimaries(appsOK, locationsForPass);
+    const selected = await selectActiveStandbyPrimaries(appsOK, locationsForPass);
 
     // continue with appsOK
     const configuredApps = createConfiguredApps();
@@ -1795,7 +1795,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
       if (appLocations.length > 0) {
         const appIps = [];
 
-        // if its G data application, use just one IP
+        // if it is an active-standby application, use just one IP
         const selectedIP = selected.get(app.name);
         if (selectedIP) {
           appIps.push(selectedIP);
@@ -1818,29 +1818,29 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
 
     const configuredAppsList = configuredApps.list();
     const serializedApps = JSON.stringify(configuredAppsList);
-    const lastSerializedApps = JSON.stringify(recentlyConfiguredGApps);
+    const lastSerializedApps = JSON.stringify(recentlyConfiguredActiveStandbyApps);
 
     if (serializedApps === lastSerializedApps && !haproxyRetryPending) {
-      log.info('No changes in G Mode configuration detected');
+      log.info('No changes in Active-Standby Mode configuration detected');
       return;
     }
 
     log.info(haproxyRetryPending
-      ? 'G Mode republishing after a failed haproxy update'
-      : 'Changes in G Mode configuration detected');
+      ? 'Active-Standby Mode republishing after a failed haproxy update'
+      : 'Changes in Active-Standby Mode configuration detected');
 
     let haproxyAppsConfig = [];
 
-    recentlyConfiguredGApps = configuredAppsList;
-    gAppsInitialized = true;
+    recentlyConfiguredActiveStandbyApps = configuredAppsList;
+    activeStandbyAppsInitialized = true;
 
-    // if non g apps haven't completed once - we don't update the config
+    // if active-active apps haven't completed once - we don't update the config
     if (!recentlyConfiguredApps.length) return;
 
     haproxyAppsConfig = recentlyConfiguredApps.concat(configuredAppsList);
 
     log.info(
-      `G Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
+      `Active-Standby Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
     );
     await updateHaproxy(haproxyAppsConfig);
   } catch (error) {
@@ -1848,7 +1848,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
   } finally {
     const elapsedNs = Number(process.hrtime.bigint() - startTime);
     const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
-    log.info(`G Mode ENDED. Elapsed: ${elapsedS}s, location searches: ${searchRequests}`);
+    log.info(`Active-Standby Mode ENDED. Elapsed: ${elapsedS}s, location searches: ${searchRequests}`);
   }
 }
 
@@ -1949,8 +1949,8 @@ async function startApplicationProcessing() {
     };
 
     const promises = [
-      handler('gApps', runQueue.gApps, generateAndReplaceMainApplicationHaproxyGAppsConfig),
-      handler('nonGApps', runQueue.nonGApps, generateAndReplaceMainApplicationHaproxyConfig),
+      handler('activeStandbyApps', runQueue.activeStandbyApps, generateActiveStandbyHaproxyConfig),
+      handler('activeActiveApps', runQueue.activeActiveApps, generateActiveActiveHaproxyConfig),
     ];
 
     await Promise.all(promises);
@@ -1960,8 +1960,8 @@ async function startApplicationProcessing() {
     'appSpecsUpdated',
     async (specs) => {
       unifiedAppsDomains = specs.appFqdns;
-      nonGApps = specs.nonGApps;
-      gApps = specs.gApps;
+      activeActiveApps = specs.activeActiveApps;
+      activeStandbyApps = specs.activeStandbyApps;
     },
   );
 
@@ -2064,22 +2064,22 @@ async function start() {
 
 function getConfiguredApps() {
   return {
-    nonGApps: recentlyConfiguredApps,
-    gApps: recentlyConfiguredGApps,
-    nonGAppsInitialized,
-    gAppsInitialized,
+    activeActiveApps: recentlyConfiguredApps,
+    activeStandbyApps: recentlyConfiguredActiveStandbyApps,
+    activeActiveAppsInitialized,
+    activeStandbyAppsInitialized,
   };
 }
 
-// Exported for tests. selectGPrimaries' decision rests on module-level sticky state,
+// Exported for tests. selectActiveStandbyPrimaries' decision rests on module-level sticky state,
 // and the ordering it enforces - a node RUNNING the app always outranks one that
 // is merely holding it - is the property that makes the held fallback safe to
 // deploy ahead of the FluxOS release that serves /apps/heldcomponents.
-function getGStickyIp(appName) {
+function getActiveStandbyStickyIp(appName) {
   return mapOfNamesIps[appName];
 }
 
-function setGStickyState(appName, ip, lastHealthyMs) {
+function setActiveStandbyStickyState(appName, ip, lastHealthyMs) {
   mapOfNamesIps[appName] = ip;
   delete mapOfNamesIpsFailures[appName];
   if (lastHealthyMs === undefined) {
@@ -2089,11 +2089,11 @@ function setGStickyState(appName, ip, lastHealthyMs) {
   }
 }
 
-function resetGStickyState(appName) {
+function resetActiveStandbyStickyState(appName) {
   delete mapOfNamesLastSeen[appName];
   delete mapOfNamesLastChosen[appName];
   delete mapOfNamesExcluded[`G:${appName}`];
-  delete mapOfNamesExcluded[`Non G:${appName}`];
+  delete mapOfNamesExcluded[`Active-Active:${appName}`];
   delete mapOfNamesIps[appName];
   delete mapOfNamesIpsLastHealthy[appName];
   delete mapOfNamesIpsLastHeld[appName];
@@ -2103,13 +2103,13 @@ function resetGStickyState(appName) {
 module.exports = {
   start,
   getConfiguredApps,
-  selectGPrimaries,
+  selectActiveStandbyPrimaries,
   orderBySeniority,
   orderByCluster,
   monotonicMs,
-  getGStickyIp,
-  setGStickyState,
-  resetGStickyState,
+  getActiveStandbyStickyIp,
+  setActiveStandbyStickyState,
+  resetActiveStandbyStickyState,
   resetNodeReachability,
   reportExclusion,
   admitConfiguredHalf,

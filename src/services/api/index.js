@@ -59,10 +59,10 @@ function getAppIpsAPI(req, res) {
 
     const appNameLower = appname.toLowerCase();
     const {
-      nonGApps, gApps, nonGAppsInitialized, gAppsInitialized,
+      activeActiveApps, activeStandbyApps, activeActiveAppsInitialized, activeStandbyAppsInitialized,
     } = domainService.getConfiguredApps();
 
-    if (!nonGAppsInitialized || !gAppsInitialized) {
+    if (!activeActiveAppsInitialized || !activeStandbyAppsInitialized) {
       const errMessage = serviceHelper.createErrorMessage(
         'Service is starting up - initial application processing has not completed yet',
         'ServiceUnavailable',
@@ -71,7 +71,7 @@ function getAppIpsAPI(req, res) {
       return res.status(503).json(errMessage);
     }
 
-    const allApps = [...nonGApps, ...gApps];
+    const allApps = serviceHelper.concatIterables(activeActiveApps, activeStandbyApps);
 
     const matchingApps = allApps.filter((app) => app.name.toLowerCase() === appNameLower);
 

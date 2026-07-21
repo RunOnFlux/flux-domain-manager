@@ -282,7 +282,7 @@ backend ${domainUsed}backend
       }
       if (app.timeout) {
         domainBackend += `\n  timeout server ${app.timeout}`;
-      } else if (app.isRdata) {
+      } else if (app.syncFirst) {
         domainBackend += '\n  timeout server 20s';
       } else {
         domainBackend += '\n  timeout server 25s';
@@ -305,7 +305,7 @@ backend ${domainUsed}backend
     }
 
     domainBackend += ' inter 3s fall 2 rise 2 fastinter 500';
-    if (app.isRdata) {
+    if (app.syncFirst) {
       if (app.ips[0] !== ip) {
         domainBackend += ' backup';
       }

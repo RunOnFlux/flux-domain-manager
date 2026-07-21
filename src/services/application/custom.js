@@ -1,5 +1,12 @@
-function getCustomConfigs(specifications, isActiveStandby) {
-  const configs = [];
+// Per-app HAProxy tuning. buildDefaultConfig carries the name-driven overrides
+// (protocol, TLS, health checks); the per-route rules — keyed
+// {hostPort}.{component}.{app} — live in config (config/customConfigs.json).
+// resolveCustomConfig is version-blind: it keys off resolved names and host ports,
+// so legacy and v9 routes look up the same rules (legacy specs simply match none
+// and fall to the default).
+const config = require('config');
+
+function buildDefaultConfig(name, isActiveStandby) {
   const defaultConfig = {
     ssl: false,
     timeout: false,
@@ -12,171 +19,77 @@ function getCustomConfigs(specifications, isActiveStandby) {
     check: true,
   };
 
-  if (specifications.name.toLowerCase().includes('wordpress')) {
+  const lower = name.toLowerCase();
+
+  if (lower.includes('wordpress')) {
     defaultConfig.headers = ['http-request add-header X-Forwarded-Proto https'];
     defaultConfig.healthcheck = ['option httpchk', 'http-check send meth GET uri /'];
   }
-
-  if (specifications.name.toLowerCase().includes('bittensor')) {
+  if (lower.includes('bittensor')) {
     defaultConfig.mode = 'tcp';
   }
-
-  if (specifications.name.toLowerCase().includes('trilium')) {
+  if (lower.includes('trilium')) {
     defaultConfig.ssl = true;
   }
-
-  if (specifications.name.toLowerCase().includes('whooglessl')) {
+  if (lower.includes('whooglessl')) {
     defaultConfig.ssl = true;
   }
-
-  if (specifications.name.toLowerCase().startsWith('kaspanode')
-    || specifications.name.toLowerCase().startsWith('kaspatestnet')) {
+  if (lower.startsWith('kaspanode') || lower.startsWith('kaspatestnet')) {
     defaultConfig.mode = 'tcp';
   }
-
-  if (specifications.name.toLowerCase().includes('devstack')) {
+  if (lower.includes('devstack')) {
     defaultConfig.mode = 'tcp';
   }
-
   if (isActiveStandby) {
     defaultConfig.mode = 'tcp';
     defaultConfig.check = false;
   }
 
-  const customConfigs = {
-    '31350.kmdsapactapi.kmdsapactapi': {
-      ssl: true,
-      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
-      serverConfig: 'port 31352 inter 30s fall 2 rise 2',
-    },
-    '31351.kmdsapactapi.kmdsapactapi': {
-      timeout: 90000,
-      loadBalance: '\n  balance roundrobin',
-      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
-      serverConfig: 'port 31352 inter 30s fall 2 rise 2',
-    },
-    '31352.kmdsapactapi.kmdsapactapi': {
-      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
-      serverConfig: 'inter 30s fall 2 rise 2',
-    },
-    '31350.KadefiPactAPI.KadefiMoneyPactAPI': {
-      ssl: true,
-      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
-      serverConfig: 'port 31352 inter 30s fall 2 rise 2',
-    },
-    '31351.KadefiPactAPI.KadefiMoneyPactAPI': {
-      timeout: 90000,
-      loadBalance: '\n  balance roundrobin',
-      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
-      serverConfig: 'port 31352 inter 30s fall 2 rise 2',
-    },
-    '31352.KadenaChainWebData.Kadena3': {
-      timeout: 90000,
-      loadBalance: '\n  balance roundrobin',
-    },
-    '31352.KadefiPactAPI.KadefiMoneyPactAPI': {
-      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
-      serverConfig: 'inter 30s fall 2 rise 2',
-    },
-    '33952.wp.wordpressonflux': {
-      timeout: 3000,
-      headers: ['http-request add-header X-Forwarded-Proto https'],
-      healthcheck: ['option httpchk', 'http-check send meth GET uri /', 'http-check expect status 200'],
-      serverConfig: 'inter 3s fall 2 rise 1',
-    },
-    '36117.KadefiMoneyUDFServer.KadefiMoneyUDFServer': {
-      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
-      serverConfig: 'inter 30s fall 2 rise 2',
-    },
-    '33016.kmdsaudfserver.kmdsaudfserver': {
-      healthcheck: ['option httpchk', 'http-check send meth GET uri /health', 'http-check expect status 200'],
-      serverConfig: 'inter 30s fall 2 rise 2',
-    },
-    '39185.insightfluxexplorer.explorer': {
-      loadBalance: '\n  balance roundrobin',
-    },
-    '8332.btcnode.bitcoinnode': {
-      mode: 'tcp',
-    },
-    '18332.btcnodetestnet.bitcoinnodetestnet': {
-      mode: 'tcp',
-    },
-    '38332.btcnodesignet.bitcoinnodesignet': {
-      mode: 'tcp',
-    },
-    '992.vpn.openvpn': {
-      mode: 'tcp',
-    },
-    '5555.vpn.openvpn': {
-      mode: 'tcp',
-    },
-    '1701.vpn.openvpn': {
-      mode: 'tcp',
-    },
-    '31750.node.HavenNodeMainnet': {
-      ssl: true,
-    },
-    '35432.rakkupgbouncer.rakkupgbouncer': {
-      mode: 'tcp',
-    },
-    '34443.onlyoffice.onlyoffice': {
-      ssl: true,
-      mode: 'tcp',
-    },
-    '38888.nginx.owncloudssl': {
-      ssl: true,
-      headers: ['http-response set-header X-Frame-Options SAMEORIGIN', 'http-response set-header X-XSS-Protection "0"', 'http-response set-header X-Content-Type-Options nosniff'],
-    },
-    '38443.nginx.whoogleflux': {
-      ssl: true,
-    },
-    '34044.mesh.meshcentral': {
-      mode: 'tcp',
-    },
-    '38443.nginx.listmonkflux': {
-      ssl: true,
-    },
-    '39443.nginx.budibasemysql': {
-      ssl: true,
-    },
-    '33443.nginx.formbricks': {
-      ssl: true,
-    },
-    '3000.adguard.adguard': {
-      ssl: true,
-      mode: 'tcp',
-    },
-    '31443.nginx.ghostflux': {
-      ssl: true,
-      headers: ['http-request set-header X-Forwarded-For %[src]', 'http-request set-header X-Forwarded-Proto https', 'http-request set-header X-Real-IP %[src]', 'http-request set-header Host %[hdr(host)]'],
-    },
+  return defaultConfig;
+}
+
+// The tuning for one route, keyed {hostPort}.{component}.{app}: the name-driven
+// default with any matching per-route rule merged on top.
+function resolveCustomConfig(name, componentName, port, isActiveStandby) {
+  const defaultConfig = buildDefaultConfig(name, isActiveStandby);
+  const rule = config.customConfigs[`${port}.${componentName}.${name}`];
+  return rule ? { ...defaultConfig, ...rule } : defaultConfig;
+}
+
+// Legacy positional projection — one config per port in compose order, plus a
+// trailing main-domain config. Kept for the characterization net; the routing
+// path uses resolveCustomConfig directly.
+function getCustomConfigs(specifications, isActiveStandby) {
+  const configs = [];
+  let mainPort = '';
+  const merge = (key) => {
+    const rule = config.customConfigs[key];
+    const defaultConfig = buildDefaultConfig(specifications.name, isActiveStandby);
+    return rule ? { ...defaultConfig, ...rule } : defaultConfig;
   };
 
-  let mainPort = '';
   if (specifications.version <= 3) {
     for (let i = 0; i < specifications.ports.length; i += 1) {
       const portName = `${specifications.ports[i]}.${specifications.name}`;
       if (i === 0) {
         mainPort = portName;
       }
-      const appCustomConfig = customConfigs[portName] ? ({ ...defaultConfig, ...customConfigs[portName] }) : defaultConfig;
-      configs.push(appCustomConfig);
+      configs.push(merge(portName));
     }
   } else {
     // eslint-disable-next-line no-restricted-syntax
     for (const component of specifications.compose) {
       for (let i = 0; i < component.ports.length; i += 1) {
-        const portName = `${component.ports[i]}.${component.name}.${specifications.name}`;
-        const appCustomConfig = customConfigs[portName] ? ({ ...defaultConfig, ...customConfigs[portName] }) : defaultConfig;
-        configs.push(appCustomConfig);
+        configs.push(resolveCustomConfig(specifications.name, component.name, component.ports[i], isActiveStandby));
       }
     }
   }
-  const appCustomConfig = customConfigs[mainPort] ? ({ ...defaultConfig, ...customConfigs[mainPort] }) : defaultConfig;
-  configs.push(appCustomConfig);
+  configs.push(merge(mainPort));
   return configs;
 }
 
 module.exports = {
   getCustomConfigs,
+  resolveCustomConfig,
+  buildDefaultConfig,
 };

@@ -378,7 +378,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
         domain: domains[i],
         port: app.ports[i],
         ips: appIps,
-        isRdata: app.isRdata,
+        syncFirst: app.syncFirst,
         ...customConfigs[i],
         timeout,
       };
@@ -428,7 +428,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
                 domain: portDomain,
                 port: app.ports[i],
                 ips: appIps,
-                isRdata: app.isRdata,
+                syncFirst: app.syncFirst,
                 ...customConfigs[i],
                 timeout,
               };
@@ -446,7 +446,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
                   domain: wwwAdjustedDomain,
                   port: app.ports[i],
                   ips: appIps,
-                  isRdata: app.isRdata,
+                  syncFirst: app.syncFirst,
                   ...customConfigs[i],
                   timeout,
                 };
@@ -466,7 +466,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
                   domain: testAdjustedDomain,
                   port: app.ports[i],
                   ips: appIps,
-                  isRdata: app.isRdata,
+                  syncFirst: app.syncFirst,
                   ...customConfigs[i],
                   timeout,
                 };
@@ -483,7 +483,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
       domain: domains[domains.length - 1],
       port: app.ports[0],
       ips: appIps,
-      isRdata: app.isRdata,
+      syncFirst: app.syncFirst,
       ...customConfigs[customConfigs.length - 1],
       timeout,
     };
@@ -503,7 +503,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
           domain: domains[j],
           port: component.ports[i],
           ips: appIps,
-          isRdata: app.isRdata,
+          syncFirst: app.syncFirst,
           ...customConfigs[j],
           timeout,
         };
@@ -557,7 +557,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
                     domain: portDomain,
                     port: component.ports[i],
                     ips: appIps,
-                    isRdata: app.isRdata,
+                    syncFirst: app.syncFirst,
                     ...customConfigs[j],
                     timeout,
                   };
@@ -576,7 +576,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
                       domain: wwwAdjustedDomain,
                       port: component.ports[i],
                       ips: appIps,
-                      isRdata: app.isRdata,
+                      syncFirst: app.syncFirst,
                       ...customConfigs[j],
                       timeout,
                     };
@@ -596,7 +596,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
                       domain: testAdjustedDomain,
                       port: component.ports[i],
                       ips: appIps,
-                      isRdata: app.isRdata,
+                      syncFirst: app.syncFirst,
                       ...customConfigs[j],
                       timeout,
                     };
@@ -623,7 +623,7 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
             domain: domains[domains.length - 1],
             port: app.compose[q].ports[w],
             ips: appIps,
-            isRdata: app.isRdata,
+            syncFirst: app.syncFirst,
             ...customConfigs[customConfigs.length - 1],
           };
           configuredApps.push(mainApp);
@@ -677,7 +677,7 @@ async function generateActiveActiveHaproxyConfig() {
       }
     }
     // continue with appsOK
-    const configuredApps = []; // object of domain, port, ips for backend and isRdata
+    const configuredApps = []; // object of domain, port, ips for backend and syncFirst
     for (const app of appsOK) {
       const appStartTime = process.hrtime.bigint();
 
@@ -729,7 +729,7 @@ async function generateActiveActiveHaproxyConfig() {
       }
       if (appLocations.length > 0) {
         let appIps = [];
-        app.isRdata = false;
+        app.syncFirst = false;
         const applicationWithChecks = applicationChecks.applicationWithChecks(app);
         if (applicationWithChecks) {
           let promiseArray = [];
@@ -770,7 +770,7 @@ async function generateActiveActiveHaproxyConfig() {
           && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'))
         ) {
           // app using sharedDB project
-          app.isRdata = true;
+          app.syncFirst = true;
           appIps = appLocations.map((location) => location.ip);
           const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
           log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
@@ -849,7 +849,7 @@ async function generateActiveActiveHaproxyConfig() {
             || (app.compose
               && app.compose.find((comp) => comp.containerData.includes('r:')))
           ) {
-            app.isRdata = true;
+            app.syncFirst = true;
             appIps.sort((a, b) => {
               if (!a.runningSince && b.runningSince) {
                 return -1;
@@ -966,7 +966,7 @@ async function generateActiveStandbyHaproxyConfig() {
     );
 
     // continue with appsOK
-    const configuredApps = []; // object of domain, port, ips for backend and isRdata
+    const configuredApps = []; // object of domain, port, ips for backend and syncFirst
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
 

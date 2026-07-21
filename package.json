@@ -29,6 +29,10 @@
   },
   "dependencies": {
     "@isaacs/ttlcache": "^1.4.1",
+    "@runonflux/flux-spec": "file:../flux-spec/packages/spec",
+    "@runonflux/flux-spec-backend": "file:../flux-spec/packages/spec-backend",
+    "@runonflux/flux-spec-cjs": "file:../flux-spec/packages/flux-spec-cjs",
+    "@runonflux/flux-spec-policy": "file:../flux-spec/packages/spec-policy",
     "apicache": "^1.6.3",
     "axios": "^1.10.0",
     "chai": "^4.3.6",

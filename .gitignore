@@ -7,6 +7,10 @@ yarn-debug.log*
 yarn-error.log*
 *.cfg
 
+# Local characterization net — real production spec data, never committed
+tests/local/corpus-raw.json
+tests/local/sweep-output.json
+
 # Editor directories and files
 .idea
 .vscode

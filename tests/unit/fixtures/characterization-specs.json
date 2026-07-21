@@ -1,0 +1,1844 @@
+[
+  {
+    "version": 7,
+    "name": "wordpress1677413615318",
+    "description": "WordPress on Flux",
+    "owner": "1AnonOwner0000FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "wp",
+        "description": "wp",
+        "repotag": "runonflux/wp-nginx:latest",
+        "ports": [
+          38286
+        ],
+        "domains": [
+          "www.anon0.com"
+        ],
+        "environmentParameters": [
+          "F_S_ENV=https://storage.runonflux.io/v1/env/22983862419051"
+        ],
+        "commands": [],
+        "containerPorts": [
+          80
+        ],
+        "containerData": "r:/var/www/html/",
+        "cpu": 2,
+        "ram": 4000,
+        "hdd": 5,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      },
+      {
+        "name": "mysql",
+        "description": "mysql",
+        "repotag": "mysql:8.3.0",
+        "ports": [],
+        "domains": [],
+        "environmentParameters": [
+          "F_S_ENV=https://storage.runonflux.io/v1/env/833991240306131"
+        ],
+        "commands": [
+          "--disable-log-bin"
+        ],
+        "containerPorts": [],
+        "containerData": "/var/lib/mysql",
+        "cpu": 0.7,
+        "ram": 3000,
+        "hdd": 5,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      },
+      {
+        "name": "operator",
+        "description": "operator",
+        "repotag": "runonflux/shared-db:latest",
+        "ports": [
+          34328,
+          36562,
+          34252
+        ],
+        "domains": [
+          "",
+          "",
+          ""
+        ],
+        "environmentParameters": [
+          "F_S_ENV=https://storage.runonflux.io/v1/env/154003993276325"
+        ],
+        "commands": [],
+        "containerPorts": [
+          3307,
+          7071,
+          8008
+        ],
+        "containerData": "s:/app/dumps",
+        "cpu": 0.5,
+        "ram": 700,
+        "hdd": 2,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [
+      "F_S_CONTACTS=https://storage.runonflux.io/v1/contacts/548797833871795"
+    ],
+    "geolocation": [
+      "acNA"
+    ],
+    "expire": 589856,
+    "nodes": [],
+    "staticip": false,
+    "hash": "anonhash0000",
+    "height": 2308745
+  },
+  {
+    "version": 3,
+    "name": "anonapp1",
+    "description": "A Global Deployment of the Bitcoin Whitepaper for Data Retention Purposes on the FluxOS Network",
+    "owner": "1AnonOwner0001FixtureXXXXXXXXXXXX",
+    "repotag": "littlestache/bitcoinwhitepaper:latest",
+    "ports": [
+      "35051"
+    ],
+    "domains": [
+      ""
+    ],
+    "enviromentParameters": [],
+    "commands": [],
+    "containerPorts": [
+      "80"
+    ],
+    "containerData": "/bitcoinwhitepaper",
+    "cpu": 0.1,
+    "ram": 100,
+    "hdd": 1,
+    "tiered": false,
+    "instances": 3,
+    "hash": "anonhash0001",
+    "height": 2764314
+  },
+  {
+    "version": 8,
+    "name": "anonapp2",
+    "description": "Tracks flux stats",
+    "owner": "1AnonOwner0002FixtureXXXXXXXXXXXX",
+    "compose": [],
+    "instances": 3,
+    "contacts": [],
+    "geolocation": [],
+    "expire": 694265,
+    "nodes": [],
+    "staticip": false,
+    "enterprise": "l/CKxfdabV5B...anon",
+    "hash": "anonhash0002",
+    "height": 2433396
+  },
+  {
+    "version": 6,
+    "name": "anonapp3",
+    "description": "Aave is a decentralised non-custodial liquidity market protocol",
+    "owner": "1AnonOwner0003FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp3_0",
+        "description": "www",
+        "repotag": "smartico/aave:latest",
+        "ports": [
+          33702
+        ],
+        "domains": [
+          ""
+        ],
+        "environmentParameters": [],
+        "commands": [],
+        "containerPorts": [
+          3000
+        ],
+        "containerData": "/tmp",
+        "cpu": 1,
+        "ram": 1000,
+        "hdd": 5,
+        "tiered": false
+      }
+    ],
+    "instances": 6,
+    "contacts": [],
+    "geolocation": [],
+    "expire": 88000,
+    "hash": "anonhash0003",
+    "height": 2758925
+  },
+  {
+    "version": 7,
+    "name": "anonapp4",
+    "description": "Abiotic Factor is a survival crafting experience for 1-6 players set in the depths of an underground research facility. Caught between paranormal containment failure, a military crusade, and chaos from a dozen realms.",
+    "owner": "1AnonOwner0004FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp4_0",
+        "description": "AbioticFactor server",
+        "repotag": "littlestache/abioticfactorserver:latest",
+        "ports": [
+          7777,
+          27015
+        ],
+        "domains": [
+          "",
+          ""
+        ],
+        "environmentParameters": [
+          "Port=7777",
+          "QueryPort=27015",
+          "MaxServerPlayers=6"
+        ],
+        "commands": [],
+        "containerPorts": [
+          7777,
+          27015
+        ],
+        "containerData": "g:/server/AbioticFactor/Saved",
+        "cpu": 4,
+        "ram": 16000,
+        "hdd": 50,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": "-----BEGIN PGP MESSAGE-----\n\nwV4DPCiGJkr1hsoSAQdAOY/bqQ4aHxRDe5hNVCH7Ms9J3aVJhwM4VbgJwHk0\nQRUwGlfPpDzzZO0ZNmuAJPOvDEJZwlBqnV3eUzNHm0E81MpWpCteS+Yv2dxR\ndsdlgMF8wV4D0fcgLbFVQogSAQdA9VBugKoTh32ChJYnElv0X0pFODeoeZUF\noJ9ti1FHwQswL0a9ukAu4TZOeKcM2/AehOy4QHkZIJUhb46MOjoquyseyUuu\nIqhlqkAxSLhrzfnCwV4DtuQvwKGRGxoSAQdACftiHiIzgJKKqHkDPpZMR+zK\nkIZDb2fG442qNsAGKF0wuNMKnfl3vCIxWtbSU/fi3HCyASobrPf15D9NbQCM\n7XahnHwNc2ANodXH9WItwa7YwV4Dlt4or/zwSF8SAQdAecxxdWjRUx4PdPU+\nAm8KNixWoytiqTbNd9eohB4MnFswb8Wqd6RLY9HL8JgHQkRQsSyhaq6ILxg7\ntOcuFXBohWZTzdSA10/WdLnFKia3SRRHwV4DmwJsenrSd3cSAQdA91PTRCLy\n4QYMOpMA+BJNcjYt33s3jAZc2O38a+gPwDkwJJzp9kMPF2v3gNeKb3ZJr4G3\nTYW2V9UQbA5ronEOEldHY9N7vQD9r3WWo4KkZKnUwV4DsCEDeWXJr6wSAQdA\nMpSGE8itVweT3btRMNzF8zAk9iEDqqE3v3czSJylB0IwP3EMSO/KPH33Z2+t\n7J0m+lunwervFyEjAizPL9YKgEIkt3229Mj01nFJAtR9JZMxwV4DyEXAB5t1\ny3wSAQdAxo3trrL0ZPRNQR601CiiOkl4DHnA+KC5qmwxkrIpaB0wqVkbgDDz\nf50P+C9HULt8J0TInW0v2Tu0oWgdJdOBuQLoVO1TBptTqwbPTIypo/ZJwV4D\nd54dh+1FbWcSAQdAuNplfMh6XlveO9in4p3Eo2FahLBUrnv/1S1SpJUGxTcw\nGmXJpu0ZefwF0HoqN9RiVDW0XBQ+sw5SrCmF/aYaRVkqKAEA5br20JLMM4Qi\ntVpwwV4DWMyfciAm2RQSAQdAd4O8aPc8XIyXiD0/ZUot+SmhzlQP40xbgXmQ\noOZcIDQwNFc2Ks1CjtLBFFXJZDl0tDfstIK+8IZ9sV3hn+HBmQnhfXBDI3hF\n+LbQcKf9tteXwV4DuedeYklCXB0SAQdAdK9tpM/lzVzlZix314VHJcayCVMs\nWjsHIIAckRvymlMwJHKu6EBxK5gNOBg5SyHKVPKMCA/wOZ6EBwC9hAopOrkh\nLWFbEeLnTO1ah9KZYO6X0mQBBI24FyG4FCteZ0je2qcFvJg9cQgBB2HA0aDB\nvDo/xPzF4vm01qF0VCuWdpbkkDoq1AEnHNgjj7G/31U61Kq2eWfjtPEzBc1v\nOEyh2AgS3w7Cczu6At4np/06HfJEIJV7OjzJ\n=/QWn\n-----END PGP MESSAGE-----\n"
+      }
+    ],
+    "instances": 3,
+    "contacts": [],
+    "geolocation": [],
+    "expire": 88000,
+    "nodes": [
+      "162.55.245.240",
+      "65.109.52.131",
+      "65.109.121.74",
+      "65.109.52.132",
+      "65.108.23.185",
+      "65.108.23.186",
+      "65.108.192.148",
+      "162.55.84.7",
+      "65.108.197.160",
+      "65.108.197.161"
+    ],
+    "staticip": false,
+    "hash": "anonhash0004",
+    "height": 2764291
+  },
+  {
+    "version": 5,
+    "name": "anonapp5",
+    "description": "DiBi-Fetch is a decentralised oracle for fetching markets and rates about many cryptocurrencies",
+    "owner": "1AnonOwner0005FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp5_0",
+        "description": "DiBi-Fetch is a decentralised oracle for fetching markets and rates about many cryptocurrencies",
+        "repotag": "zelcash/dibi-fetch:latest",
+        "ports": [
+          36919
+        ],
+        "domains": [
+          "anon1.com"
+        ],
+        "environmentParameters": [],
+        "commands": [],
+        "containerPorts": [
+          80
+        ],
+        "containerData": "/tmp",
+        "cpu": 0.1,
+        "ram": 100,
+        "hdd": 1,
+        "tiered": false
+      }
+    ],
+    "instances": 3,
+    "contacts": [],
+    "geolocation": [],
+    "hash": "anonhash0005",
+    "height": 2763130
+  },
+  {
+    "version": 2,
+    "name": "anonapp6",
+    "description": "Firo Nodes running on the FluxOS Network",
+    "owner": "1AnonOwner0006FixtureXXXXXXXXXXXX",
+    "repotag": "firoorg/firod:latest",
+    "ports": [
+      "31588",
+      "31589"
+    ],
+    "domains": [
+      "",
+      ""
+    ],
+    "enviromentParameters": [],
+    "commands": [],
+    "containerPorts": [
+      "8168",
+      "8888"
+    ],
+    "containerData": "/firod",
+    "cpu": 1.7,
+    "ram": 1300,
+    "hdd": 80,
+    "tiered": false,
+    "hash": "anonhash0006",
+    "height": 2758667
+  },
+  {
+    "version": 4,
+    "name": "anonapp7",
+    "description": "PoUW at Flux layer 2 network. Folding@home is a project focused on disease research. Client Visit was disabled, to check Run On Flux team stats go to https://stats.foldingathome.org/team/262156",
+    "owner": "1AnonOwner0007FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp7_0",
+        "description": "Folding @ Home for AMD64 Devices.",
+        "repotag": "yurinnick/folding-at-home:latest",
+        "ports": [
+          35555
+        ],
+        "domains": [
+          ""
+        ],
+        "environmentParameters": [
+          "TEAM=262156",
+          "USER=runonflux.io"
+        ],
+        "commands": [],
+        "containerPorts": [
+          7396
+        ],
+        "containerData": "/config",
+        "cpu": 1,
+        "ram": 700,
+        "hdd": 3,
+        "tiered": false
+      }
+    ],
+    "instances": 3,
+    "hash": "anonhash0007",
+    "height": 2759911
+  },
+  {
+    "version": 8,
+    "name": "anonapp8",
+    "description": "A Sacramento Barber",
+    "owner": "1AnonOwner0008FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp8_0",
+        "description": "A Sacramento Barber",
+        "repotag": "saxbonsai/bookabarber916:latest",
+        "ports": [
+          36769
+        ],
+        "domains": [
+          "anon2.com,www.anon3.com"
+        ],
+        "environmentParameters": [],
+        "commands": [],
+        "containerPorts": [
+          80
+        ],
+        "containerData": "/tmp",
+        "cpu": 0.3,
+        "ram": 1000,
+        "hdd": 1,
+        "repoauth": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [
+      "F_S_CONTACTS=https://storage.runonflux.io/v1/contacts/544832846205152"
+    ],
+    "geolocation": [
+      "acNA_US"
+    ],
+    "expire": 1053197,
+    "nodes": [],
+    "staticip": false,
+    "enterprise": "",
+    "hash": "anonhash0008",
+    "height": 2365341
+  },
+  {
+    "version": 8,
+    "name": "anonapp9",
+    "description": "1",
+    "owner": "1AnonOwner0009FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp9_0",
+        "description": "1",
+        "repotag": "siomiz/softethervpn:5.02.5185",
+        "ports": [
+          31443
+        ],
+        "domains": [
+          ""
+        ],
+        "environmentParameters": [],
+        "commands": [],
+        "containerPorts": [
+          443
+        ],
+        "containerData": "/tmp",
+        "cpu": 0.1,
+        "ram": 100,
+        "hdd": 1,
+        "repoauth": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [
+      "F_S_CONTACTS=https://storage.runonflux.io/v1/contacts/233559149528276"
+    ],
+    "geolocation": [
+      "acNA_CA"
+    ],
+    "expire": 88000,
+    "nodes": [],
+    "staticip": false,
+    "enterprise": "",
+    "hash": "anonhash0009",
+    "height": 2743233
+  },
+  {
+    "version": 7,
+    "name": "anonapp10",
+    "description": "Games, Lore and memes",
+    "owner": "1AnonOwner0010FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp10_0",
+        "description": "CompoenetDesc1",
+        "repotag": "cctechvishal/chaincade-website:0.1",
+        "ports": [
+          33333
+        ],
+        "domains": [
+          "anon4.com"
+        ],
+        "environmentParameters": [],
+        "commands": [],
+        "containerPorts": [
+          8080
+        ],
+        "containerData": "/tmp",
+        "cpu": 0.2,
+        "ram": 1000,
+        "hdd": 1,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [
+      "dev@chaincade.com",
+      "vishal@lazydevgames.com"
+    ],
+    "geolocation": [],
+    "expire": 264000,
+    "nodes": [],
+    "staticip": false,
+    "hash": "anonhash0010",
+    "height": 1958598
+  },
+  {
+    "version": 7,
+    "name": "anonapp11",
+    "description": "Open source text annotation tool for machine learning practitioner.",
+    "owner": "1AnonOwner0011FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp11_0",
+        "description": "docanno",
+        "repotag": "doccano/doccano:latest",
+        "ports": [
+          38454
+        ],
+        "domains": [
+          ""
+        ],
+        "environmentParameters": [
+          "F_S_ENV=https://storage.runonflux.io/v1/env/777210342462760"
+        ],
+        "commands": [],
+        "containerPorts": [
+          8000
+        ],
+        "containerData": "/tmp",
+        "cpu": 0.8,
+        "ram": 1000,
+        "hdd": 1,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [],
+    "geolocation": [],
+    "expire": 88000,
+    "nodes": [],
+    "staticip": false,
+    "hash": "anonhash0011",
+    "height": 2759063
+  },
+  {
+    "version": 6,
+    "name": "anonapp12",
+    "description": "Ethereum Node Geth in Snap Sync mode",
+    "owner": "1AnonOwner0012FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp12_0",
+        "description": "Geth Client",
+        "repotag": "ethereum/client-go:stable",
+        "ports": [
+          31301,
+          31302,
+          31303,
+          31304
+        ],
+        "domains": [
+          "anon5.io",
+          "anon6.io",
+          "",
+          ""
+        ],
+        "environmentParameters": [],
+        "commands": [
+          "--http",
+          "--http.addr=0.0.0.0",
+          "--http.api=eth,web3,net",
+          "--http.corsdomain=*",
+          "--http.vhosts=*",
+          "--syncmode=snap"
+        ],
+        "containerPorts": [
+          8545,
+          8546,
+          30303,
+          30304
+        ],
+        "containerData": "/root/.ethereum",
+        "cpu": 2,
+        "ram": 4000,
+        "hdd": 50,
+        "tiered": false
+      }
+    ],
+    "instances": 10,
+    "contacts": [],
+    "geolocation": [],
+    "expire": 88000,
+    "hash": "anonhash0012",
+    "height": 2774759
+  },
+  {
+    "version": 8,
+    "name": "anonapp13",
+    "description": "FluxFoundation",
+    "owner": "1AnonOwner0013FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp13_0",
+        "description": "FluxFoundation",
+        "repotag": "jefke/flux-foundation-site:latest",
+        "ports": [
+          36512
+        ],
+        "domains": [
+          "anon7.io"
+        ],
+        "environmentParameters": [],
+        "commands": [],
+        "containerPorts": [
+          8080
+        ],
+        "containerData": "/tmp",
+        "cpu": 0.5,
+        "ram": 2000,
+        "hdd": 1,
+        "repoauth": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [
+      "F_S_CONTACTS=https://storage.runonflux.io/v1/contacts/870495006016027"
+    ],
+    "geolocation": [
+      "a!cEU_RU_NONE"
+    ],
+    "expire": 263995,
+    "nodes": [],
+    "staticip": false,
+    "enterprise": "",
+    "hash": "anonhash0013",
+    "height": 1998777
+  },
+  {
+    "version": 3,
+    "name": "anonapp14",
+    "description": "Flux Rosetta Node offering a unified API according to the standard proposed by Coinbase.",
+    "owner": "1AnonOwner0014FixtureXXXXXXXXXXXX",
+    "repotag": "runonflux/rosetta-server:latest",
+    "ports": [
+      "38080",
+      "38081"
+    ],
+    "domains": [
+      "anon8.io",
+      "anon9.io"
+    ],
+    "enviromentParameters": [],
+    "commands": [],
+    "containerPorts": [
+      "8080",
+      "8081"
+    ],
+    "containerData": "/data/utxo",
+    "cpu": 0.8,
+    "ram": 1800,
+    "hdd": 10,
+    "tiered": false,
+    "instances": 3,
+    "hash": "anonhash0014",
+    "height": 2760086
+  },
+  {
+    "version": 7,
+    "name": "FluxWordPress",
+    "description": "Flux WordPress Landing Page",
+    "owner": "1AnonOwner0015FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "FluxWordPress",
+        "description": "FluxWordPress",
+        "repotag": "runonflux/wordpresslanding:latest",
+        "ports": [
+          38016
+        ],
+        "domains": [
+          "anon10.io"
+        ],
+        "environmentParameters": [],
+        "commands": [],
+        "containerPorts": [
+          80
+        ],
+        "containerData": "/data",
+        "cpu": 0.1,
+        "ram": 100,
+        "hdd": 1,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      }
+    ],
+    "instances": 5,
+    "contacts": [],
+    "geolocation": [],
+    "expire": 88000,
+    "nodes": [],
+    "staticip": false,
+    "hash": "anonhash0015",
+    "height": 2785484
+  },
+  {
+    "version": 7,
+    "name": "anonapp16",
+    "description": "showcase website GF65",
+    "owner": "1AnonOwner0016FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp16_0",
+        "description": "Showcase website of GF65",
+        "repotag": "nicolasbertuol/website-nginx:latest",
+        "ports": [
+          31000
+        ],
+        "domains": [
+          "www.anon11.fr"
+        ],
+        "environmentParameters": [
+          "WEBSITE_CONTENT_GDRIVE_ZIP_FILEID=1OV_3eWg571XK74DvL6fyAvZicj0vUjwj"
+        ],
+        "commands": [],
+        "containerPorts": [
+          80
+        ],
+        "containerData": "/tmp",
+        "cpu": 0.3,
+        "ram": 100,
+        "hdd": 1,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [
+      "F_S_CONTACTS=https://storage.runonflux.io/v1/contacts/846356482946797"
+    ],
+    "geolocation": [
+      "acEU_FR"
+    ],
+    "expire": 1056000,
+    "nodes": [],
+    "staticip": false,
+    "hash": "anonhash0016",
+    "height": 2219242
+  },
+  {
+    "version": 7,
+    "name": "anonapp17",
+    "description": "like ifconfig.me... but on Flux.\n\ncurl -L ipshow.me",
+    "owner": "1AnonOwner0017FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp17_0",
+        "description": "",
+        "repotag": "megachips/ipshow:web",
+        "ports": [],
+        "domains": [],
+        "environmentParameters": [],
+        "commands": [],
+        "containerPorts": [],
+        "containerData": "/tmp",
+        "cpu": 0.5,
+        "ram": 1200,
+        "hdd": 5,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      },
+      {
+        "name": "anoncomp17_1",
+        "description": "",
+        "repotag": "megachips/ipshow:proxy",
+        "ports": [
+          32323
+        ],
+        "domains": [
+          "anon12.me"
+        ],
+        "environmentParameters": [],
+        "commands": [],
+        "containerPorts": [
+          32323
+        ],
+        "containerData": "/tmp",
+        "cpu": 0.3,
+        "ram": 800,
+        "hdd": 2,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [
+      "F_S_CONTACTS=https://storage.runonflux.io/v1/contacts/188685834041726"
+    ],
+    "geolocation": [],
+    "expire": 1056000,
+    "nodes": [],
+    "staticip": false,
+    "hash": "anonhash0017",
+    "height": 2554044
+  },
+  {
+    "version": 8,
+    "name": "KaspaNode08",
+    "description": "Matched deployment for community event - KaspaNode16GB1762355439313",
+    "owner": "1AnonOwner0018FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "kaspad",
+        "description": "The Kaspad Container",
+        "repotag": "kaspanet/rusty-kaspad:latest",
+        "ports": [
+          15110,
+          15111,
+          17110,
+          18110
+        ],
+        "domains": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "environmentParameters": [],
+        "commands": [
+          "kaspad",
+          "--yes",
+          "--nologfiles",
+          "--disable-upnp",
+          "--utxoindex",
+          "--listen=0.0.0.0:15111",
+          "--rpclisten=0.0.0.0:15110",
+          "--rpclisten-borsh=0.0.0.0:17110",
+          "--rpclisten-json=0.0.0.0:18110",
+          "--ram-scale=0.8",
+          "--uacomment=FluxCloud"
+        ],
+        "containerPorts": [
+          15110,
+          15111,
+          17110,
+          18110
+        ],
+        "containerData": "/app/data",
+        "cpu": 7,
+        "ram": 16000,
+        "hdd": 256,
+        "repoauth": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [],
+    "geolocation": [],
+    "expire": 1056000,
+    "nodes": [],
+    "staticip": true,
+    "enterprise": "",
+    "hash": "anonhash0018",
+    "height": 2050659
+  },
+  {
+    "version": 7,
+    "name": "KaspaNode16GB1760556657255",
+    "description": "Host your Kaspa Node on FluxCloud with 16GB RAM",
+    "owner": "1AnonOwner0019FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "kaspad",
+        "description": "The Kaspad Container",
+        "repotag": "kaspanet/rusty-kaspad:latest",
+        "ports": [
+          15110,
+          15111,
+          17110,
+          18110
+        ],
+        "domains": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "environmentParameters": [],
+        "commands": [
+          "kaspad",
+          "--yes",
+          "--nologfiles",
+          "--disable-upnp",
+          "--utxoindex",
+          "--listen=0.0.0.0:15111",
+          "--rpclisten=0.0.0.0:15110",
+          "--rpclisten-borsh=0.0.0.0:17110",
+          "--rpclisten-json=0.0.0.0:18110",
+          "--ram-scale=0.8",
+          "--uacomment=FluxCloud"
+        ],
+        "containerPorts": [
+          15110,
+          15111,
+          17110,
+          18110
+        ],
+        "containerData": "/app/data",
+        "cpu": 8,
+        "ram": 16000,
+        "hdd": 256,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [],
+    "geolocation": [],
+    "expire": 264000,
+    "nodes": [],
+    "staticip": true,
+    "hash": "anonhash0019",
+    "height": 2012908
+  },
+  {
+    "version": 7,
+    "name": "anonapp20",
+    "description": "Metatron Discovery is a big data analysis platform supports overall process from data cleansing to visualization.",
+    "owner": "1AnonOwner0020FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp20_0",
+        "description": "",
+        "repotag": "metatronapp/discovery:latest",
+        "ports": [
+          8081
+        ],
+        "domains": [
+          ""
+        ],
+        "environmentParameters": [
+          "PERSIST_DISCOVERY=TRUE"
+        ],
+        "commands": [],
+        "containerPorts": [
+          8081
+        ],
+        "containerData": "r:/root",
+        "cpu": 8,
+        "ram": 12000,
+        "hdd": 500,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [],
+    "geolocation": [
+      "acNA",
+      "a!cNA_US_Hawaii"
+    ],
+    "expire": 88000,
+    "nodes": [],
+    "staticip": false,
+    "hash": "anonhash0020",
+    "height": 2758876
+  },
+  {
+    "version": 5,
+    "name": "anonapp21",
+    "description": "Woot",
+    "owner": "1AnonOwner0021FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp21_0",
+        "description": "woot",
+        "repotag": "itzg/minecraft-server:latest",
+        "ports": [
+          33333
+        ],
+        "domains": [
+          ""
+        ],
+        "environmentParameters": [
+          "SERVER_NAME=RunOnFlux.io",
+          "EULA=TRUE"
+        ],
+        "commands": [],
+        "containerPorts": [
+          25565
+        ],
+        "containerData": "/data",
+        "cpu": 2,
+        "ram": 3500,
+        "hdd": 10,
+        "tiered": false
+      }
+    ],
+    "instances": 3,
+    "contacts": [],
+    "geolocation": [],
+    "hash": "anonhash0021",
+    "height": 2759745
+  },
+  {
+    "version": 8,
+    "name": "anonapp22",
+    "description": "Minecraft",
+    "owner": "1AnonOwner0022FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp22_0",
+        "description": "minecraft server",
+        "repotag": "itzg/minecraft-server:latest",
+        "ports": [
+          25565
+        ],
+        "domains": [
+          ""
+        ],
+        "environmentParameters": [
+          "EULA=TRUE",
+          "ENABLE_ROLLING_LOGS=TRUE",
+          "SERVER_NAME=RunOnFlux.com",
+          "TYPE=VANILLA",
+          "DIFFICULTY=normal",
+          "ENABLE_COMMAND_BLOCK\t=false",
+          "HARDCORE=false",
+          "SPAWN_MONSTERS=true",
+          "MODE=survival",
+          "PVP=true"
+        ],
+        "commands": [],
+        "containerPorts": [
+          25565
+        ],
+        "containerData": "g:/data",
+        "cpu": 1.5,
+        "ram": 2000,
+        "hdd": 20,
+        "repoauth": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [],
+    "geolocation": [],
+    "expire": 88000,
+    "nodes": [],
+    "staticip": false,
+    "enterprise": "",
+    "hash": "anonhash0022",
+    "height": 2773195
+  },
+  {
+    "version": 7,
+    "name": "anonapp23",
+    "description": "RustDesk is a full-featured open source remote control alternative for self-hosting and security with minimal configuration.",
+    "owner": "1AnonOwner0023FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp23_0",
+        "description": "hbbs",
+        "repotag": "rustdesk/rustdesk-server:latest",
+        "ports": [
+          21115,
+          21116,
+          21118
+        ],
+        "domains": [
+          "",
+          "",
+          ""
+        ],
+        "environmentParameters": [],
+        "commands": [
+          "hbbs"
+        ],
+        "containerPorts": [
+          21115,
+          21116,
+          21118
+        ],
+        "containerData": "r:/root",
+        "cpu": 0.2,
+        "ram": 500,
+        "hdd": 4,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      },
+      {
+        "name": "anoncomp23_1",
+        "description": "hbbr",
+        "repotag": "rustdesk/rustdesk-server:latest",
+        "ports": [
+          21117,
+          21119
+        ],
+        "domains": [
+          "",
+          ""
+        ],
+        "environmentParameters": [],
+        "commands": [
+          "hbbr"
+        ],
+        "containerPorts": [
+          21117,
+          21119
+        ],
+        "containerData": "r:/root",
+        "cpu": 0.2,
+        "ram": 500,
+        "hdd": 3,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [],
+    "geolocation": [
+      "acEU"
+    ],
+    "expire": 88000,
+    "nodes": [],
+    "staticip": false,
+    "hash": "anonhash0023",
+    "height": 2724087
+  },
+  {
+    "version": 7,
+    "name": "anonapp24",
+    "description": "test",
+    "owner": "1AnonOwner0024FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp24_0",
+        "description": "test",
+        "repotag": "travelping/nettools:latest",
+        "ports": [
+          35855
+        ],
+        "domains": [
+          ""
+        ],
+        "environmentParameters": [
+          "LOG=COLLECT"
+        ],
+        "commands": [
+          "/bin/sh",
+          "-c",
+          "while true; do echo \"collect Log: $(date)\"; sleep 10; done"
+        ],
+        "containerPorts": [
+          35855
+        ],
+        "containerData": "/tmp",
+        "cpu": 0.5,
+        "ram": 100,
+        "hdd": 1,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      },
+      {
+        "name": "anoncomp24_1",
+        "description": "test",
+        "repotag": "travelping/nettools:latest",
+        "ports": [
+          37663
+        ],
+        "domains": [
+          ""
+        ],
+        "environmentParameters": [
+          "LOG=SEND"
+        ],
+        "commands": [
+          "/bin/sh",
+          "-c",
+          "while true; do echo \"sender1 Log: $(date)\"; sleep 10; done"
+        ],
+        "containerPorts": [
+          37663
+        ],
+        "containerData": "/tmp",
+        "cpu": 0.1,
+        "ram": 100,
+        "hdd": 1,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      },
+      {
+        "name": "anoncomp24_2",
+        "description": "test",
+        "repotag": "travelping/nettools:latest",
+        "ports": [
+          31922
+        ],
+        "domains": [
+          ""
+        ],
+        "environmentParameters": [
+          "LOG=SEND"
+        ],
+        "commands": [
+          "/bin/sh",
+          "-c",
+          "while true; do echo \"sender2 Log: $(date)\"; sleep 10; done"
+        ],
+        "containerPorts": [
+          31922
+        ],
+        "containerData": "/tmp",
+        "cpu": 0.1,
+        "ram": 100,
+        "hdd": 1,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [],
+    "geolocation": [],
+    "expire": 88000,
+    "nodes": [],
+    "staticip": false,
+    "hash": "anonhash0024",
+    "height": 2758906
+  },
+  {
+    "version": 8,
+    "name": "anonapp25",
+    "description": "company website",
+    "owner": "1AnonOwner0025FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp25_0",
+        "description": "",
+        "repotag": "cheesesause/bu:latest",
+        "ports": [
+          34517
+        ],
+        "domains": [
+          "anon13.com"
+        ],
+        "environmentParameters": [],
+        "commands": [],
+        "containerPorts": [
+          80
+        ],
+        "containerData": "r:/data",
+        "cpu": 1,
+        "ram": 1000,
+        "hdd": 5,
+        "repoauth": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [
+      "F_S_CONTACTS=https://storage.runonflux.io/v1/contacts/638859272011087"
+    ],
+    "geolocation": [
+      "acEU"
+    ],
+    "expire": 88000,
+    "nodes": [],
+    "staticip": false,
+    "enterprise": "",
+    "hash": "anonhash0025",
+    "height": 2718260
+  },
+  {
+    "version": 7,
+    "name": "budibasemysql",
+    "description": "The Budibase all in one image, for use as a single image which provides all necessary services. Includes Flux Shared-DB containers.",
+    "owner": "1AnonOwner0026FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "budibase",
+        "description": "The Budibase all in one image, for use as a single image which provides all necessary services. ",
+        "repotag": "budibase/budibase:latest",
+        "ports": [
+          34419
+        ],
+        "domains": [
+          ""
+        ],
+        "environmentParameters": [],
+        "commands": [],
+        "containerPorts": [
+          80
+        ],
+        "containerData": "r:/data",
+        "cpu": 2,
+        "ram": 2000,
+        "hdd": 20,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      },
+      {
+        "name": "nginx",
+        "description": "",
+        "repotag": "wirewrex/nginx-hns:fix",
+        "ports": [
+          39443,
+          39080
+        ],
+        "domains": [
+          "",
+          ""
+        ],
+        "environmentParameters": [
+          "CERT=self",
+          "UPSTREAM=fluxbudibase_budibasemysql:80",
+          "SERVERNAME=budibasemysql.app2.runonflux.io",
+          "EXTRANAMES=budibasemysql.app.runonflux.io"
+        ],
+        "commands": [],
+        "containerPorts": [
+          443,
+          80
+        ],
+        "containerData": "r:/etc/letsencrypt",
+        "cpu": 0.5,
+        "ram": 500,
+        "hdd": 1,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      },
+      {
+        "name": "mysql",
+        "description": "mysql",
+        "repotag": "mysql:8.3.0",
+        "ports": [],
+        "domains": [],
+        "environmentParameters": [
+          "MYSQL_ROOT_PASSWORD=123secret",
+          "MYSQL_ROOT_HOST=172.0.0.0/255.0.0.0"
+        ],
+        "commands": [],
+        "containerPorts": [],
+        "containerData": "/var/lib/mysql",
+        "cpu": 2,
+        "ram": 2000,
+        "hdd": 40,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      },
+      {
+        "name": "operator",
+        "description": "",
+        "repotag": "runonflux/shared-db:latest",
+        "ports": [
+          36477,
+          38451,
+          32069
+        ],
+        "domains": [
+          "",
+          "",
+          ""
+        ],
+        "environmentParameters": [
+          "DB_COMPONENT_NAME=fluxmysql_budibasemysql",
+          "DB_INIT_PASS=123secret",
+          "CLIENT_APPNAME=budibasemysql",
+          "DB_APPNAME=budibasemysql",
+          "API_PORT=38451",
+          "DB_PORT=36477"
+        ],
+        "commands": [],
+        "containerPorts": [
+          3307,
+          7071,
+          8008
+        ],
+        "containerData": "/var/lib/operator",
+        "cpu": 1,
+        "ram": 1000,
+        "hdd": 2,
+        "tiered": false,
+        "repoauth": "",
+        "secrets": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [],
+    "geolocation": [
+      "acNA"
+    ],
+    "expire": 88000,
+    "nodes": [],
+    "staticip": false,
+    "hash": "anonhash0026",
+    "height": 2717570
+  },
+  {
+    "version": 8,
+    "name": "anonapp27",
+    "description": "switzerland",
+    "owner": "1AnonOwner0027FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp27_0",
+        "description": "ssh",
+        "repotag": "sandmanshiri/ssh:latest",
+        "ports": [
+          32442,
+          32409
+        ],
+        "domains": [
+          "",
+          ""
+        ],
+        "environmentParameters": [
+          "FLUXVPN_AUTH_TOKEN=eyJkZXBsb3ltZW50X2lkIjoiZjYxN2Y4Y2UtN2RmZC00MzY3LWJjODEtOWJjYzY2NzNkYTE0IiwicHJvdG9jb2wiOiJzc2giLCJpbnN0YW5jZV9pZCI6ImNoLXp1ci0wMS1zc2giLCJjcmVhdGVkX2F0IjoiMjAyNi0wNS0yOVQyMjoyNDozNy4wNDAzMTZaIiwiZXhwaXJlc19hdCI6IjIwMzYtMDUtMjZUMjI6MjQ6MzcuMDQwMzE2WiIsIm5vbmNlIjoiYmUyODZiMDQ5ZWEwNjJmYjgzNzY1MThmMWYwYzA2MDkifQ==.r576VvhgSvYNTLzsPalv3KtM7LLpwUhnq9mNZdJ2bhw",
+          "FLUXVPN_API_URL=https://api.fluxvpn.io",
+          "FLUXVPN_INSTANCE_ID=ch-zur-01-ssh",
+          "TELEMETRY_PORT=9090"
+        ],
+        "commands": [],
+        "containerPorts": [
+          2222,
+          9090
+        ],
+        "containerData": "r:/data",
+        "cpu": 0.3,
+        "ram": 300,
+        "hdd": 2,
+        "repoauth": ""
+      },
+      {
+        "name": "anoncomp27_1",
+        "description": "shadowsocks",
+        "repotag": "sandmanshiri/shadowsocks:latest",
+        "ports": [
+          37734,
+          35382,
+          37483
+        ],
+        "domains": [
+          "",
+          "",
+          ""
+        ],
+        "environmentParameters": [
+          "FLUXVPN_AUTH_TOKEN=eyJkZXBsb3ltZW50X2lkIjoiNmJlMDcxMDctMTRmMS00MjNjLThkYmQtNTBhN2ViODg0ZmU5IiwicHJvdG9jb2wiOiJzaGFkb3dzb2NrcyIsImluc3RhbmNlX2lkIjoiY2gtenVyLTAxLXNoYWRvd3NvY2tzIiwiY3JlYXRlZF9hdCI6IjIwMjYtMDUtMjlUMjI6MjQ6MzcuMDQwNDI3WiIsImV4cGlyZXNfYXQiOiIyMDM2LTA1LTI2VDIyOjI0OjM3LjA0MDQyN1oiLCJub25jZSI6IjNkZDIxMjk2YTg5Yzc0YWU4NjYxOTdmN2NhYmExNjNmIn0=.yAJloNT5nccDaLivXCpFl5KL5Evw-RNVHG4w7yowsp8",
+          "FLUXVPN_API_URL=https://api.fluxvpn.io",
+          "FLUXVPN_INSTANCE_ID=ch-zur-01-shadowsocks",
+          "TELEMETRY_PORT=9091"
+        ],
+        "commands": [],
+        "containerPorts": [
+          8388,
+          9091,
+          1080
+        ],
+        "containerData": "r:/data",
+        "cpu": 0.3,
+        "ram": 500,
+        "hdd": 2,
+        "repoauth": ""
+      },
+      {
+        "name": "anoncomp27_2",
+        "description": "vless",
+        "repotag": "sandmanshiri/vless:latest",
+        "ports": [
+          34083,
+          33035
+        ],
+        "domains": [
+          "",
+          ""
+        ],
+        "environmentParameters": [
+          "FLUXVPN_AUTH_TOKEN=eyJkZXBsb3ltZW50X2lkIjoiOWU0MzMxZjktN2YwNS00ZDRhLWE5OWMtMjAwY2Q3YTczYTUxIiwicHJvdG9jb2wiOiJ2bGVzcyIsImluc3RhbmNlX2lkIjoiY2gtenVyLTAxLXZsZXNzIiwiY3JlYXRlZF9hdCI6IjIwMjYtMDUtMjlUMjI6MjQ6MzcuMDQwNDYzWiIsImV4cGlyZXNfYXQiOiIyMDM2LTA1LTI2VDIyOjI0OjM3LjA0MDQ2M1oiLCJub25jZSI6ImUwYTU2ZmRmODI5OTQwOTAyMjFkMGQxMTVjOWI1YTVhIn0=.5M1rtoEpdZwWEcci-9-nCrNcHZBPph9g1FQfimf743o",
+          "FLUXVPN_API_URL=https://api.fluxvpn.io",
+          "FLUXVPN_INSTANCE_ID=ch-zur-01-vless",
+          "TELEMETRY_PORT=9092"
+        ],
+        "commands": [],
+        "containerPorts": [
+          443,
+          9092
+        ],
+        "containerData": "r:/data",
+        "cpu": 0.3,
+        "ram": 300,
+        "hdd": 2,
+        "repoauth": ""
+      },
+      {
+        "name": "anoncomp27_3",
+        "description": "trojan",
+        "repotag": "sandmanshiri/trojan:latest",
+        "ports": [
+          31889,
+          38979
+        ],
+        "domains": [
+          "",
+          ""
+        ],
+        "environmentParameters": [
+          "FLUXVPN_AUTH_TOKEN=eyJkZXBsb3ltZW50X2lkIjoiZWNhMjk1ZDktMThkOS00YTZlLWExMjQtYTc2Mjc1MzUyYjZlIiwicHJvdG9jb2wiOiJ0cm9qYW4iLCJpbnN0YW5jZV9pZCI6ImNoLXp1ci0wMS10cm9qYW4iLCJjcmVhdGVkX2F0IjoiMjAyNi0wNS0yOVQyMjoyNDozNy4wNDA0OTdaIiwiZXhwaXJlc19hdCI6IjIwMzYtMDUtMjZUMjI6MjQ6MzcuMDQwNDk3WiIsIm5vbmNlIjoiYjg2ZTBiN2Q5Y2UzN2U1OTQ1OTA1OTUxYzRiZDRmMGQifQ==.EZdLcBdEeJu6VvvFsGrNiY_XfjttWZxRqt5k4nca6Qg",
+          "FLUXVPN_API_URL=https://api.fluxvpn.io",
+          "FLUXVPN_INSTANCE_ID=ch-zur-01-trojan",
+          "TELEMETRY_PORT=9093"
+        ],
+        "commands": [],
+        "containerPorts": [
+          8443,
+          9093
+        ],
+        "containerData": "r:/data",
+        "cpu": 0.3,
+        "ram": 300,
+        "hdd": 2,
+        "repoauth": ""
+      },
+      {
+        "name": "anoncomp27_4",
+        "description": "outline",
+        "repotag": "sandmanshiri/outline:latest",
+        "ports": [
+          38527,
+          30752
+        ],
+        "domains": [
+          "",
+          ""
+        ],
+        "environmentParameters": [
+          "FLUXVPN_AUTH_TOKEN=eyJkZXBsb3ltZW50X2lkIjoiMTg2NDRlOWUtMWRjOS00ZTY4LTlhZWYtYWZkZDk1OWI3ODA0IiwicHJvdG9jb2wiOiJvdXRsaW5lIiwiaW5zdGFuY2VfaWQiOiJjaC16dXItMDEtb3V0bGluZSIsImNyZWF0ZWRfYXQiOiIyMDI2LTA1LTI5VDIyOjI0OjM3LjA0MDUyN1oiLCJleHBpcmVzX2F0IjoiMjAzNi0wNS0yNlQyMjoyNDozNy4wNDA1MjdaIiwibm9uY2UiOiJkZGExYTM5YjhmOGEwMDI0OGIxNzBkZGEyYTNhN2U5NCJ9.mMHSh7px_e4r9D7hPcDlOMygvBeUb_inyu9aFis4910",
+          "FLUXVPN_API_URL=https://api.fluxvpn.io",
+          "FLUXVPN_INSTANCE_ID=ch-zur-01-outline",
+          "TELEMETRY_PORT=9094"
+        ],
+        "commands": [],
+        "containerPorts": [
+          9443,
+          9094
+        ],
+        "containerData": "r:/data",
+        "cpu": 0.3,
+        "ram": 300,
+        "hdd": 2,
+        "repoauth": ""
+      },
+      {
+        "name": "anoncomp27_5",
+        "description": "httpproxy",
+        "repotag": "sandmanshiri/http-proxy:latest",
+        "ports": [
+          31868,
+          36220
+        ],
+        "domains": [
+          "",
+          ""
+        ],
+        "environmentParameters": [
+          "FLUXVPN_AUTH_TOKEN=eyJkZXBsb3ltZW50X2lkIjoiNTgxM2Y5NjgtMGNlNC00YTNhLTlkYTctNGNiYTJjOTViNjU4IiwicHJvdG9jb2wiOiJodHRwLXByb3h5IiwiaW5zdGFuY2VfaWQiOiJjaC16dXItMDEtaHR0cC1wcm94eSIsImNyZWF0ZWRfYXQiOiIyMDI2LTA1LTI5VDIyOjQyOjMzLjYwMTE5NloiLCJleHBpcmVzX2F0IjoiMjAzNi0wNS0yNlQyMjo0MjozMy42MDExOTZaIiwibm9uY2UiOiIzMTg3OTg5ODEzYzJkZTA1Y2E5OGFlN2ExNTBmZmM1MiJ9.LW-_cOknus92VuJ781rMkd7DxLzRffgQZnwjVevb4lU",
+          "FLUXVPN_API_URL=https://api.fluxvpn.io",
+          "FLUXVPN_INSTANCE_ID=ch-zur-01-http-proxy",
+          "TELEMETRY_PORT=9095"
+        ],
+        "commands": [],
+        "containerPorts": [
+          3128,
+          9095
+        ],
+        "containerData": "r:/data",
+        "cpu": 0.3,
+        "ram": 300,
+        "hdd": 2,
+        "repoauth": ""
+      }
+    ],
+    "instances": 6,
+    "contacts": [
+      "F_S_CONTACTS=https://storage.runonflux.io/v1/contacts/148714121290245"
+    ],
+    "geolocation": [
+      "acEU_CH",
+      "acEU_PL",
+      "acEU_DE_Bavaria",
+      "acEU_FR_Hauts-de-France",
+      "acEU_FR_Provence-Alpes-Côte d'Azur"
+    ],
+    "expire": 90558,
+    "nodes": [],
+    "staticip": false,
+    "enterprise": "",
+    "hash": "anonhash0027",
+    "height": 2769385
+  },
+  {
+    "version": 8,
+    "name": "anonapp28",
+    "description": "DCMS backend on Flux for uploading files to Arweave on behalf of the user. <95KB chunks maximum size so that ArDrive Turbo uploads are free. ",
+    "owner": "1AnonOwner0028FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp28_0",
+        "description": "",
+        "repotag": "vinnydev1/dcms-flux-backend:1.1.0",
+        "ports": [
+          8080
+        ],
+        "domains": [
+          ""
+        ],
+        "environmentParameters": [
+          "ARWEAVE_ENV_VARS_TXID=t8bhUPur0NMZjy0Gcq1IfOiQpCJHpqcfH1A6U1oZMYM"
+        ],
+        "commands": [],
+        "containerPorts": [
+          8080
+        ],
+        "containerData": "r:/data",
+        "cpu": 0.5,
+        "ram": 2000,
+        "hdd": 40,
+        "repoauth": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [
+      "F_S_CONTACTS=https://storage.runonflux.io/v1/contacts/427341940985584"
+    ],
+    "geolocation": [],
+    "expire": 272005,
+    "nodes": [],
+    "staticip": true,
+    "enterprise": "",
+    "hash": "anonhash0028",
+    "height": 2712365
+  },
+  {
+    "version": 8,
+    "name": "anonapp29",
+    "description": "Doius bot Flux deployment chunked env",
+    "owner": "1AnonOwner0029FixtureXXXXXXXXXXXX",
+    "compose": [
+      {
+        "name": "anoncomp29_0",
+        "description": "Doius Telegram main bot service",
+        "repotag": "manhvcl/doiusbot:v11",
+        "ports": [
+          18080,
+          16379
+        ],
+        "domains": [
+          "anon14.com",
+          ""
+        ],
+        "environmentParameters": [
+          "FLUX_ENV_01=TUFJTkJPVF9NT0RFPXdlYmhvb2sKV0VCSE9PS19QT1JUPTgwODAKTUFJTkJPVF9QT1JUPTgwODAKVEVMRUdSQU1fTUFJTl9XRUJIT09LX1BBVEg9L3dlYmhvb2svdGVsZWdyYW0vbWFpbgpQVUJMSUNfQkFTRV9VUkw9aHR0cHM6Ly9ib3QuZG9pdXNib3QuY29tCkFETUlOX1dFQkhPT0tfQVBJX0tFWT0zZDNkZDQ2NWFhMWY3ZDM4YzE1Y2NkZGYxZjcxZDRiMThhMWYxMjBmZmJkNjM2OTIyYTA4NmRmMDMzNDk3MjIwClRFTEVHUkFNX01BSU5fV0VCSE9PS19TRUNSRVQ9NzQzZDczODIwNGU0NDM4NmZjMjY4",
+          "FLUX_ENV_02=MTE3YzM4YjU5YjhjNzMwNGQ0MTY3ODc4NmFmNjA2MmUzYTcxZWUyOGIwMgpSRUNPVkVSWV9LRVlfUEVQUEVSPTk2MzIyYzU5YjQ5NjJlY2ZmZjA4N2ZhOWNiNTdlNjQ4YmI1NmM2ZDk3MDQ1OTg5NjU2NDQ5YzIyOGRkYjk3YjIKTk9ERV9JRD1mbHV4LW1haW5ib3QKREVQTE9ZX0NPTVBPTkVOVD1tYWluYm90ClBPUlQ9ODA4MApSVU5fTUFJTkJPVD10cnVlClNFUlZJQ0VfUk9MRT1hY3RpdmUKTUFJTkJPVF9MRUFTRV9FTkFCTEVEPWZhbHNlCk1BSU5CT1RfTEVBU0VfTkFNRT1tYWluYm90LWFjdGl2ZQpN",
+          "FLUX_ENV_03=QUlOQk9UX0xFQVNFX1RUTF9TRUNPTkRTPTQ1Ck1BSU5CT1RfTEVBU0VfUkVORVdfU0VDT05EUz0xMApURUxFR1JBTV9CT1RfVE9LRU49Nzk4ODcyMzE1NDpBQUhpaHcySGk4QWtiUVlEUmVKbVNVd1U4V19WNFBid1EwbwpMT0dfVEVMRUdSQU1fQk9UX1RPS0VOPTg2MjYwMTA5Njc6QUFFVm4tQ2tjR2JzdTZyc2x4dmFMbXo5YklRVEtYSVcwR0EKTE9HX1RFTEVHUkFNX0NIQVRfSUQ9LTEwMDM5MTczMzg2NzIKQURNSU5fVEVMRUdSQU1fSURTPTgwNDQ1ODUwMjkKU1VQRVJBRE1JTl9URUxFR1JBTV9JRFM9",
+          "FLUX_ENV_04=ODA0NDU4NTAyOQpQQVlNRU5UX1dBTExFVFNfQlNDPTB4ZkE1MzRGMTMwNTdBMzFGMTVjMTdERjUzOTUyN0M1ZDYxNjQyOTA0MSwgMHgwQzQwOTMzNTExNmYwRjg2MjlFQUIyQTU0MDRhYzY1NDAwNDIzM2E0LCAweDEwQzc1M2MwRTY3NTI4MTQzZjM3MjlGNDBENzgzMDBBNkMwRmMxNTkKUEFZTUVOVF9XQUxMRVRTX1RSQzIwPVRRbWpTRUhpUUhkZWoxa2F3YXlWdUFuc3NpMmYyejJ5N0ssIFRYY3pYTjdwdVNuOEhraXk1RzJYNDVLdVVGZ2Z4cXpyTkgsIFRFMjNLWkIxN3dQN1hRaThGNGdReWNNZVZkcW5M",
+          "FLUX_ENV_05=REpSc3EKUEFZTUVOVF9XQUxMRVRTX1NPTD04eXB3blpaMkhLQ0c4NnFwR3RxSmhzUHk5cURkUHpaeWpYS2h6RXFib3NLcywgRVFiMzV0bndIQ1lxYXZVTEdNUXZLaG5RRTE1ejNEUkJSY2ljVVZCYXoyNmksIDJmSmVSdHp0N3lxSFVhaGFIcGtyY2VQdTZwY2V3YmY4WjJZZlBOVVZEdFlUClNUT1JBR0VfQkFDS0VORD1teXNxbApNWVNRTF9VUkk9bXlzcWw6Ly9kb2l1c2JvdDowOGZjZDY0NzlkYTA2YTdjMzA1NjNjZjA1MzIzNjg2OThlNjZiY2Q1MzVhZjllMjhAbXlzcWwuZG9pdXNib3QuY29tOjMzMDYv",
+          "FLUX_ENV_06=ZG9pdXNib3Q/Y29ubmVjdF90aW1lb3V0PTUmcmVhZF90aW1lb3V0PTEwJndyaXRlX3RpbWVvdXQ9MTAKTVlTUUxfTUFTVEVSX1JFRlJFU0hfU0VDT05EUz0xCk1ZU1FMX01BU1RFUl9DQUNIRV9TRUNPTkRTPTMKTVlTUUxfQ09OTkVDVF9SRVRSSUVTPTYwCk1ZU1FMX0NPTk5FQ1RfUkVUUllfREVMQVlfU0VDT05EUz0xClJFRElTX1VSTD1yZWRpczovLzpmZGFjNjQ4Y2I1MjdlZDA3YzhmNzMyZTQyNTQ3YTdiMTMxMzQ3NGE4YzljYTE2YmNAMTI3LjAuMC4xOjE2Mzc5LzAKQ09ORklHX1NFU1NJT05fUkVE",
+          "FLUX_ENV_07=SVNfUFJFRklYPWRvaXVzYm90OmNvbmZpZ19zZXNzaW9uCkNPTkZJR19EUkFGVF9ESVNLX0RJUj0vZGF0YS9kb2l1c2JvdF9jb25maWdfZHJhZnRzCkNPTkZJR19TRVNTSU9OX1JFRElTX1JFVFJZX1NFQ09ORFM9NQpNRU1CRVJTSElQX1JBTktfQ0FDSEVfRU5BQkxFRD10cnVlCk1FTUJFUlNISVBfUkFOS19SRUZSRVNIX1NFQ09ORFM9MTIwCk1FTUJFUlNISVBfUkFOS19DQUNIRV9QQVRIPS9kYXRhL21haW5ib3RfcmFua19jYWNoZS5qc29uCk1FTUJFUlNISVBfUkFOS19SRURJU19LRVk9ZG9pdXNib3Q6",
+          "FLUX_ENV_08=bWVtYmVyc2hpcF9yYW5rClFVSUNLTk9ERV9BUElfS0VZPVFOXzg1NjE0ZmQ2YzQyNjQ3NGE4Njg4YTExZmI4NTYxY2ZlCkZMT1dfU1RBVEVfRElTS19ESVI9L2RhdGEvZmxvd19zdGF0ZQpXRUJIT09LX09VVEJPWF9ESVI9L2RhdGEvb3V0Ym94Ck1BSU5CT1RfREJfT1VUQk9YX0VOQUJMRUQ9dHJ1ZQpNQUlOQk9UX0RCX09VVEJPWF9QQVRIPS9kYXRhL291dGJveC9tYWluYm90X2RiLnNxbGl0ZTMKVVNFUl9XQUxMRVRfQ0FDSEVfRU5BQkxFRD10cnVlClVTRVJfV0FMTEVUX0NBQ0hFX1BBVEg9L2RhdGEv",
+          "FLUX_ENV_09=b3V0Ym94L3VzZXJfd2FsbGV0cy5zcWxpdGUzCkZMT1dfU1RBVEVfUkVESVNfUFJFRklYPWRvaXVzYm90OmZsb3dfc3RhdGUKVVNFUl9XQUxMRVRfQ0FDSEVfUkVESVNfUFJFRklYPWRvaXVzYm90OnVzZXJfd2FsbGV0cwpVSV9TRVNTSU9OX1JFRElTX1BSRUZJWD1kb2l1c2JvdDp1aV9zZXNzaW9uClZBTEtFWV9DT05ORUNUX1RJTUVPVVRfU0VDT05EUz0wLjUKVkFMS0VZX1NPQ0tFVF9USU1FT1VUX1NFQ09ORFM9MC41ClZBTEtFWV9GTFVYX0xPQ0FUSU9OX1RJTUVPVVRfU0VDT05EUz0wLjI1ClVTRVJf",
+          "FLUX_ENV_10=REJfQ0FDSEVfVFRMX1NFQ09ORFM9MTIwClVJX0NBQ0hFX1RUTF9TRUNPTkRTPTEyMApWQUxLRVlfVVJMPXJlZGlzOi8vOmZkYWM2NDhjYjUyN2VkMDdjOGY3MzJlNDI1NDdhN2IxMzEzNDc0YThjOWNhMTZiY0AxMjcuMC4wLjE6MTYzNzkvMApWQUxLRVlfRkxVWF9BUFBfTkFNRT1kb2l1c2JvdHQKTVlTUUxfTUFTVEVSX1JFU09MVkVfTU9ERT1zdGF0aWMKTVlTUUxfUFVCTElDX0hPU1Q9bXlzcWwuZG9pdXNib3QuY29tCk1ZU1FMX0hPU1RfRkFJTFVSRV9DT09MRE9XTl9TRUNPTkRTPTEwCldFQkhPT0tf",
+          "FLUX_ENV_11=T1VUQk9YX0VOQUJMRUQ9dHJ1ZQpWQUxLRVlfUFVCTElDX0hPU1Q9dmFsa2V5LmRvaXVzYm90LmNvbQpXRUJIT09LX1NFQ1JFVD03NDNkNzM4MjA0ZTQ0Mzg2ZmMyNjgxMTdjMzhiNTliOGM3MzA0ZDQxNjc4Nzg2YWY2MDYyZTNhNzFlZTI4YjAyCkJVTk5ZX1NUT1JBR0VfWk9ORT1kb2l1c2JvdApCVU5OWV9TVE9SQUdFX0FDQ0VTU19LRVk9ZWM1MmUyZDctNTMwNC00NDYzLWEyOWZhOGRkYWQ0Yi1iYmQxLTQzMmIKTVlTUUxfQkFDS1VQX0lOVEVSVkFMX1NFQ09ORFM9MjE2MDAKTVlTUUxfQkFDS1VQX01J",
+          "FLUX_ENV_12=Tl9CWVRFUz04MTkyCk1ZU1FMX1JFU1RPUkVfRlJPTV9CVU5OWT1hdXRvCk1ZU1FMX1JFU1RPUkVfU0VMRUNUPWxhdGVzdC1tYW51YWwsbGF0ZXN0LG5ld2VzdCxsYXJnZXN0Ck1ZU1FMX1JFU1RPUkVfTUlOX0JZVEVTPTgxOTIKTVlTUUxfQVVUT19ESVNDT1ZFUl9GTFVYX05PREVTPXRydWUKTVlTUUxfRkxVWF9BUFBfTkFNRT1kb2l1c2JvdHQKVFJBQ0tJTkdfSU5URVJOQUxfQkFTRV9VUkw9aHR0cHM6Ly90cmFja2luZy5kb2l1c2JvdC5jb20KUEFZTUVOVF9JTlRFUk5BTF9CQVNFX1VSTD1odHRwczov",
+          "FLUX_ENV_13=L3BheW1lbnQuZG9pdXNib3QuY29tClZBTEtFWV9QQVNTV09SRD1mZGFjNjQ4Y2I1MjdlZDA3YzhmNzMyZTQyNTQ3YTdiMTMxMzQ3NGE4YzljYTE2YmMKVkFMS0VZX1NFTEZfSVBfRElTQ09WRVJZX1VSTD1odHRwczovL2FwaS5pcGlmeS5vcmcKVkFMS0VZX01BWE1FTU9SWT0yMDAwbWIKUEFZTUVOVF9JTlRFUk5BTF9BUElfS0VZPWFlNTNiYTNmZDlkMDAyNDE5Nzk1YjY1MWUwNTA5ODc1M2E3NDBmZGFjZjg2MWMzZmNkMWZlNmVlYTlkNzRiZTIKVFJBQ0tJTkdfSU5URVJOQUxfQVBJX0tFWT03OWU5Mzc5",
+          "FLUX_ENV_14=Y2Q0YjA4YTRmM2U5NWU3MWQ3ODNhY2Y4NTViMzJkMTdhYmNhZmJjYzYwNmE1YzNjNjYyOWYwMjA1ClZBTEtFWV9TSURFQ0FSX0VOQUJMRUQ9dHJ1ZQo="
+        ],
+        "commands": [],
+        "containerPorts": [
+          8080,
+          16379
+        ],
+        "containerData": "r:/data",
+        "cpu": 3,
+        "ram": 3000,
+        "hdd": 10,
+        "repoauth": ""
+      },
+      {
+        "name": "anoncomp29_1",
+        "description": "Doius payment webhook service",
+        "repotag": "manhvcl/doiusbot:v11",
+        "ports": [
+          18081
+        ],
+        "domains": [
+          "anon15.com"
+        ],
+        "environmentParameters": [
+          "FLUX_ENV_01=UFVCTElDX0JBU0VfVVJMPWh0dHBzOi8vcGF5bWVudC5kb2l1c2JvdC5jb20KQURNSU5fV0VCSE9PS19BUElfS0VZPTNkM2RkNDY1YWExZjdkMzhjMTVjY2RkZjFmNzFkNGIxOGExZjEyMGZmYmQ2MzY5MjJhMDg2ZGYwMzM0OTcyMjAKTk9ERV9JRD1mbHV4LXBheW1lbnQKREVQTE9ZX0NPTVBPTkVOVD1wYXltZW50ClBPUlQ9ODA4MApQQVlNRU5UX1BPUlQ9ODA4MApTRVJWSUNFX1JPTEU9YWN0aXZlClJFQ09WRVJZX0tFWV9QRVBQRVI9OTYzMjJjNTliNDk2MmVjZmZmMDg3ZmE5Y2I1N2U2NDhiYjU2YzZk",
+          "FLUX_ENV_02=OTcwNDU5ODk2NTY0NDljMjI4ZGRiOTdiMgpURUxFR1JBTV9CT1RfVE9LRU49Nzk4ODcyMzE1NDpBQUhpaHcySGk4QWtiUVlEUmVKbVNVd1U4V19WNFBid1EwbwpMT0dfVEVMRUdSQU1fQk9UX1RPS0VOPTg2MjYwMTA5Njc6QUFFVm4tQ2tjR2JzdTZyc2x4dmFMbXo5YklRVEtYSVcwR0EKTE9HX1RFTEVHUkFNX0NIQVRfSUQ9LTEwMDM5MTczMzg2NzIKQURNSU5fVEVMRUdSQU1fSURTPTgwNDQ1ODUwMjkKU1VQRVJBRE1JTl9URUxFR1JBTV9JRFM9ODA0NDU4NTAyOQpRVUlDS05PREVfV0VCSE9PS19TRUNS",
+          "FLUX_ENV_03=RVQ9YzIzM2I1MjM5MTBkYzVkNzc4NDAyMzgwZTg5Yzk2NGI4MjM5NTgwZDI0Y2ZjODFkNTA2MzE0NDQyNjlhNDE0OQpRVUlDS05PREVfQVBJX0tFWT1RTl84NTYxNGZkNmM0MjY0NzRhODY4OGExMWZiODU2MWNmZQpRVUlDS05PREVfS1ZfU1RBUlRVUF9TWU5DPWZhbHNlClFVSUNLTk9ERV9QQVlNRU5UX0tWX1NUQVJUVVBfU1lOQz1mYWxzZQpRVUlDS05PREVfU1RSRUFNX1NUQVJUVVBfQUNUSVZBVEU9dHJ1ZQpRVUlDS05PREVfQlNDX1JQQ19VUkw9aHR0cHM6Ly9hbGllbi1jb252aW5jaW5nLWRheWxp",
+          "FLUX_ENV_04=Z2h0LmJzYy5xdWlrbm9kZS5wcm8vODEwZDI0NzJhOWUyNDMwZjdlMDU1ZDNlZmNmMTI3YTc4MTVkNTMyMQpRVUlDS05PREVfVFJPTl9SUENfVVJMPWh0dHBzOi8vYWxpZW4tY29udmluY2luZy1kYXlsaWdodC50cm9uLW1haW5uZXQucXVpa25vZGUucHJvLzgxMGQyNDcyYTllMjQzMGY3ZTA1NWQzZWZjZjEyN2E3ODE1ZDUzMjEvanNvbnJwYwpRVUlDS05PREVfU09MQU5BX1JQQ19VUkw9aHR0cHM6Ly9hbGllbi1jb252aW5jaW5nLWRheWxpZ2h0LnNvbGFuYS1tYWlubmV0LnF1aWtub2RlLnByby84MTBk",
+          "FLUX_ENV_05=MjQ3MmE5ZTI0MzBmN2UwNTVkM2VmY2YxMjdhNzgxNWQ1MzIxClBBWU1FTlRfV0FMTEVUU19CU0M9MHhmQTUzNEYxMzA1N0EzMUYxNWMxN0RGNTM5NTI3QzVkNjE2NDI5MDQxLCAweDBDNDA5MzM1MTE2ZjBGODYyOUVBQjJBNTQwNGFjNjU0MDA0MjMzYTQsIDB4MTBDNzUzYzBFNjc1MjgxNDNmMzcyOUY0MEQ3ODMwMEE2QzBGYzE1OQpQQVlNRU5UX1dBTExFVFNfVFJDMjA9VFFtalNFSGlRSGRlajFrYXdheVZ1QW5zc2kyZjJ6Mnk3SywgVFhjelhON3B1U244SGtpeTVHMlg0NUt1VUZnZnhxenJOSCwgVEUy",
+          "FLUX_ENV_06=M0taQjE3d1A3WFFpOEY0Z1F5Y01lVmRxbkxESlJzcQpQQVlNRU5UX1dBTExFVFNfU09MPTh5cHduWloySEtDRzg2cXBHdHFKaHNQeTlxRGRQelp5alhLaHpFcWJvc0tzLCBFUWIzNXRud0hDWXFhdlVMR01RdktoblFFMTV6M0RSQlJjaWNVVkJhejI2aSwgMmZKZVJ0enQ3eXFIVWFoYUhwa3JjZVB1NnBjZXdiZjhaMllmUE5VVkR0WVQKU1RPUkFHRV9CQUNLRU5EPW15c3FsCk1ZU1FMX1VSST1teXNxbDovL2RvaXVzYm90OjA4ZmNkNjQ3OWRhMDZhN2MzMDU2M2NmMDUzMjM2ODY5OGU2NmJjZDUzNWFmOWUy",
+          "FLUX_ENV_07=OEBteXNxbC5kb2l1c2JvdC5jb206MzMwNi9kb2l1c2JvdD9jb25uZWN0X3RpbWVvdXQ9NSZyZWFkX3RpbWVvdXQ9MTAmd3JpdGVfdGltZW91dD0xMApNWVNRTF9NQVNURVJfUkVGUkVTSF9TRUNPTkRTPTEKTVlTUUxfTUFTVEVSX0NBQ0hFX1NFQ09ORFM9MwpNWVNRTF9DT05ORUNUX1JFVFJJRVM9NjAKTVlTUUxfQ09OTkVDVF9SRVRSWV9ERUxBWV9TRUNPTkRTPTEKV0VCSE9PS19PVVRCT1hfRU5BQkxFRD10cnVlCldFQkhPT0tfT1VUQk9YX0RJUj0vZGF0YS9vdXRib3gKV0VCSE9PS19PVVRCT1hfUkVQ",
+          "FLUX_ENV_08=TEFZX0lOVEVSVkFMX1NFQ09ORFM9MgpXRUJIT09LX09VVEJPWF9SRVBMQVlfQkFUQ0hfU0laRT0yMApNWVNRTF9NQVNURVJfUkVTT0xWRV9NT0RFPXN0YXRpYwpNWVNRTF9QVUJMSUNfSE9TVD1teXNxbC5kb2l1c2JvdC5jb20KTVlTUUxfSE9TVF9GQUlMVVJFX0NPT0xET1dOX1NFQ09ORFM9MTAKTVlTUUxfQVVUT19ESVNDT1ZFUl9GTFVYX05PREVTPXRydWUKTVlTUUxfRkxVWF9BUFBfTkFNRT1kb2l1c2JvdHQKVFJBQ0tJTkdfSU5URVJOQUxfQkFTRV9VUkw9aHR0cHM6Ly90cmFja2luZy5kb2l1c2Jv",
+          "FLUX_ENV_09=dC5jb20KQU5LUl9BUElfS0VZPWEzM2IyZGMyZDI1ODllZTc2ZjkwYjQ4N2U4YmNiMzRhNGI2MjM1MzQzZjdhNDdjYzIwMzFjNTZkYzkxZTA4MDgKUEFZTUVOVF9PVVRCT1hfTUFYX0FUVEVNUFRTPTIwClBBWU1FTlRfSU5URVJOQUxfQVBJX0tFWT1hZTUzYmEzZmQ5ZDAwMjQxOTc5NWI2NTFlMDUwOTg3NTNhNzQwZmRhY2Y4NjFjM2ZjZDFmZTZlZWE5ZDc0YmUyCg=="
+        ],
+        "commands": [],
+        "containerPorts": [
+          8080
+        ],
+        "containerData": "r:/data",
+        "cpu": 1,
+        "ram": 1000,
+        "hdd": 10,
+        "repoauth": ""
+      },
+      {
+        "name": "anoncomp29_2",
+        "description": "Doius tracking webhook service",
+        "repotag": "manhvcl/doiusbot:v11",
+        "ports": [
+          18082
+        ],
+        "domains": [
+          "anon16.com"
+        ],
+        "environmentParameters": [
+          "FLUX_ENV_01=UFVCTElDX0JBU0VfVVJMPWh0dHBzOi8vdHJhY2tpbmcuZG9pdXNib3QuY29tCkFETUlOX1dFQkhPT0tfQVBJX0tFWT0zZDNkZDQ2NWFhMWY3ZDM4YzE1Y2NkZGYxZjcxZDRiMThhMWYxMjBmZmJkNjM2OTIyYTA4NmRmMDMzNDk3MjIwCk5PREVfSUQ9Zmx1eC10cmFja2luZwpERVBMT1lfQ09NUE9ORU5UPXRyYWNraW5nClBPUlQ9ODA4MApUUkFDS0lOR19QT1JUPTgwODAKU0VSVklDRV9ST0xFPWFjdGl2ZQpBTktSX0FQSV9LRVk9YTMzYjJkYzJkMjU4OWVlNzZmOTBiNDg3ZThiY2IzNGE0YjYyMzUzNDNm",
+          "FLUX_ENV_02=N2E0N2NjMjAzMWM1NmRjOTFlMDgwOApURUxFR1JBTV9CT1RfVE9LRU49Nzk4ODcyMzE1NDpBQUhpaHcySGk4QWtiUVlEUmVKbVNVd1U4V19WNFBid1EwbwpMT0dfVEVMRUdSQU1fQk9UX1RPS0VOPTg2MjYwMTA5Njc6QUFFVm4tQ2tjR2JzdTZyc2x4dmFMbXo5YklRVEtYSVcwR0EKTE9HX1RFTEVHUkFNX0NIQVRfSUQ9LTEwMDM5MTczMzg2NzIKQURNSU5fVEVMRUdSQU1fSURTPTgwNDQ1ODUwMjkKU1VQRVJBRE1JTl9URUxFR1JBTV9JRFM9ODA0NDU4NTAyOQpRVUlDS05PREVfV0VCSE9PS19TRUNSRVQ9",
+          "FLUX_ENV_03=YzIzM2I1MjM5MTBkYzVkNzc4NDAyMzgwZTg5Yzk2NGI4MjM5NTgwZDI0Y2ZjODFkNTA2MzE0NDQyNjlhNDE0OQpRVUlDS05PREVfQVBJX0tFWT1RTl84NTYxNGZkNmM0MjY0NzRhODY4OGExMWZiODU2MWNmZQpRVUlDS05PREVfS1ZfU1RBUlRVUF9TWU5DPWZhbHNlClFVSUNLTk9ERV9QQVlNRU5UX0tWX1NUQVJUVVBfU1lOQz1mYWxzZQpRVUlDS05PREVfU1RSRUFNX1NUQVJUVVBfQUNUSVZBVEU9dHJ1ZQpRVUlDS05PREVfQlNDX1JQQ19VUkw9aHR0cHM6Ly9hbGllbi1jb252aW5jaW5nLWRheWxpZ2h0",
+          "FLUX_ENV_04=LmJzYy5xdWlrbm9kZS5wcm8vODEwZDI0NzJhOWUyNDMwZjdlMDU1ZDNlZmNmMTI3YTc4MTVkNTMyMQpRVUlDS05PREVfVFJPTl9SUENfVVJMPWh0dHBzOi8vYWxpZW4tY29udmluY2luZy1kYXlsaWdodC50cm9uLW1haW5uZXQucXVpa25vZGUucHJvLzgxMGQyNDcyYTllMjQzMGY3ZTA1NWQzZWZjZjEyN2E3ODE1ZDUzMjEvanNvbnJwYwpRVUlDS05PREVfU09MQU5BX1JQQ19VUkw9aHR0cHM6Ly9hbGllbi1jb252aW5jaW5nLWRheWxpZ2h0LnNvbGFuYS1tYWlubmV0LnF1aWtub2RlLnByby84MTBkMjQ3",
+          "FLUX_ENV_05=MmE5ZTI0MzBmN2UwNTVkM2VmY2YxMjdhNzgxNWQ1MzIxClRSQUNLSU5HX0xBQkVMX0FQSV9LRVlfSEVBREVSPUF1dGhvcml6YXRpb24KVFJBQ0tJTkdfQUNUSVZJVFlfUFJPQkVfRU5BQkxFRD0xClRSQUNLSU5HX0JMT0NLX1NBTVBMRV9TSVpFPTUKVFJBQ0tJTkdfQkxPQ0tfU0FNUExFX1dJTkRPVz0yMDAKVFJBQ0tJTkdfTUFYX1RYX1BFUl9TQU1QTEVEX0JMT0NLPTUKVFJBQ0tJTkdfTUFYX0JTQ19UWF9QRVJfU0FNUExFRF9CTE9DSz0yClRSQUNLSU5HX01BWF9UUk9OX1RYX1BFUl9TQU1QTEVEX0JM",
+          "FLUX_ENV_06=T0NLPTIKVFJBQ0tJTkdfSEFSRF9NQVhfVFhfUEVSX1NBTVBMRURfQkxPQ0s9MTUKVFJBQ0tJTkdfSEFSRF9NQVhfQlNDX1RYX1BFUl9TQU1QTEVEX0JMT0NLPTE1ClRSQUNLSU5HX0hBUkRfTUFYX1RST05fVFhfUEVSX1NBTVBMRURfQkxPQ0s9MTUKVFJBQ0tJTkdfU09MX1NJR05BVFVSRV9TQU1QTEVfTElNSVQ9MTAwClRSQUNLSU5HX01BWF9TT0xfU0lHTkFUVVJFX1NBTVBMRT0yClRSQUNLSU5HX0hBUkRfTUFYX1NPTF9TSUdOQVRVUkVfU0FNUExFPTIwClBBWU1FTlRfV0FMTEVUU19CU0M9MHhmQTUz",
+          "FLUX_ENV_07=NEYxMzA1N0EzMUYxNWMxN0RGNTM5NTI3QzVkNjE2NDI5MDQxLCAweDBDNDA5MzM1MTE2ZjBGODYyOUVBQjJBNTQwNGFjNjU0MDA0MjMzYTQsIDB4MTBDNzUzYzBFNjc1MjgxNDNmMzcyOUY0MEQ3ODMwMEE2QzBGYzE1OQpQQVlNRU5UX1dBTExFVFNfVFJDMjA9VFFtalNFSGlRSGRlajFrYXdheVZ1QW5zc2kyZjJ6Mnk3SywgVFhjelhON3B1U244SGtpeTVHMlg0NUt1VUZnZnhxenJOSCwgVEUyM0taQjE3d1A3WFFpOEY0Z1F5Y01lVmRxbkxESlJzcQpQQVlNRU5UX1dBTExFVFNfU09MPTh5cHduWloySEtD",
+          "FLUX_ENV_08=Rzg2cXBHdHFKaHNQeTlxRGRQelp5alhLaHpFcWJvc0tzLCBFUWIzNXRud0hDWXFhdlVMR01RdktoblFFMTV6M0RSQlJjaWNVVkJhejI2aSwgMmZKZVJ0enQ3eXFIVWFoYUhwa3JjZVB1NnBjZXdiZjhaMllmUE5VVkR0WVQKU1RPUkFHRV9CQUNLRU5EPW15c3FsCk1ZU1FMX1VSST1teXNxbDovL2RvaXVzYm90OjA4ZmNkNjQ3OWRhMDZhN2MzMDU2M2NmMDUzMjM2ODY5OGU2NmJjZDUzNWFmOWUyOEBteXNxbC5kb2l1c2JvdC5jb206MzMwNi9kb2l1c2JvdD9jb25uZWN0X3RpbWVvdXQ9NSZyZWFkX3RpbWVv",
+          "FLUX_ENV_09=dXQ9MTAmd3JpdGVfdGltZW91dD0xMApNWVNRTF9NQVNURVJfUkVGUkVTSF9TRUNPTkRTPTEKTVlTUUxfTUFTVEVSX0NBQ0hFX1NFQ09ORFM9MwpNWVNRTF9DT05ORUNUX1JFVFJJRVM9NjAKTVlTUUxfQ09OTkVDVF9SRVRSWV9ERUxBWV9TRUNPTkRTPTEKV0VCSE9PS19PVVRCT1hfRU5BQkxFRD10cnVlCldFQkhPT0tfT1VUQk9YX0RJUj0vZGF0YS9vdXRib3gKV0VCSE9PS19PVVRCT1hfUkVQTEFZX0lOVEVSVkFMX1NFQ09ORFM9MgpXRUJIT09LX09VVEJPWF9SRVBMQVlfQkFUQ0hfU0laRT0yMApNWVNR",
+          "FLUX_ENV_10=TF9NQVNURVJfUkVTT0xWRV9NT0RFPXN0YXRpYwpNWVNRTF9QVUJMSUNfSE9TVD1teXNxbC5kb2l1c2JvdC5jb20KTVlTUUxfSE9TVF9GQUlMVVJFX0NPT0xET1dOX1NFQ09ORFM9MTAKTVlTUUxfQVVUT19ESVNDT1ZFUl9GTFVYX05PREVTPXRydWUKTVlTUUxfRkxVWF9BUFBfTkFNRT1kb2l1c2JvdHQKVFJBQ0tJTkdfT1VUQk9YX01BWF9BVFRFTVBUUz0yMApUUkFDS0lOR19JTlRFUk5BTF9BUElfS0VZPTc5ZTkzNzljZDRiMDhhNGYzZTk1ZTcxZDc4M2FjZjg1NWIzMmQxN2FiY2FmYmNjNjA2YTVjM2M2",
+          "FLUX_ENV_11=NjI5ZjAyMDUK"
+        ],
+        "commands": [],
+        "containerPorts": [
+          8080
+        ],
+        "containerData": "r:/data",
+        "cpu": 4,
+        "ram": 4000,
+        "hdd": 20,
+        "repoauth": ""
+      },
+      {
+        "name": "anoncomp29_3",
+        "description": "Doius monitor worker service",
+        "repotag": "manhvcl/doiusbot:v11",
+        "ports": [
+          18083
+        ],
+        "domains": [
+          "anon17.com"
+        ],
+        "environmentParameters": [
+          "FLUX_ENV_01=TU9OSVRPUl9QT1JUPTgwODAKTk9ERV9JRD1mbHV4LW1vbml0b3IKREVQTE9ZX0NPTVBPTkVOVD1tb25pdG9yClBPUlQ9ODA4MApSVU5fTUFJTkJPVD1mYWxzZQpTRVJWSUNFX1JPTEU9YWN0aXZlCk1PTklUT1JfRU5BQkxFRD10cnVlCk1PTklUT1JfVEVMRUdSQU1fQ09NTUFORFM9ZmFsc2UKTU9OSVRPUl9DT01NQU5EX0xFQVNFX05BTUU9bW9uaXRvci10ZWxlZ3JhbS1jb21tYW5kcwpNT05JVE9SX0NPTU1BTkRfTEVBU0VfVFRMX1NFQ09ORFM9NDUKTU9OSVRPUl9JTlRFUlZBTF9TRUNPTkRTPTYwCk1P",
+          "FLUX_ENV_02=TklUT1JfU0VSVklDRV9DSEVDS1M9bWFpbmJvdCxwYXltZW50X3dlYmhvb2ssdHJhY2tpbmdfYW5rcgpNT05JVE9SX0hUVFBfVElNRU9VVF9TRUNPTkRTPTUKTU9OSVRPUl9OT19EQVRBX0hFQUxUSFk9ZmFsc2UKUEFZTUVOVF9XRUJIT09LX0hFQUxUSF9VUkw9aHR0cHM6Ly9wYXltZW50LmRvaXVzYm90LmNvbS9oZWFsdGgKVFJBQ0tJTkdfV0VCSE9PS19IRUFMVEhfVVJMPWh0dHBzOi8vdHJhY2tpbmcuZG9pdXNib3QuY29tL2hlYWx0aApCVU5OWV9BUElfS0VZPWFjNGRkYmI3LWVhYTItNGE1MS04YWUy",
+          "FLUX_ENV_03=LTg0N2JjOWYzZDUxZWFlZmU2NmZiLTI2NWItNGIzMi1hMjg5LTYwMzA4ZDVkODNhZQpCVU5OWV9ETlNfWk9ORV9JRD03ODI3NjkKTVlTUUxfRE5TX0ZBSUxPVkVSX0VOQUJMRUQ9dHJ1ZQpNWVNRTF9ETlNfUkVDT1JEX05BTUU9bXlzcWwKTVlTUUxfRE5TX1JFQ09SRF9UVEw9MTUKVkFMS0VZX0ROU19GQUlMT1ZFUl9FTkFCTEVEPXRydWUKVkFMS0VZX0ROU19SRUNPUkRfTkFNRT12YWxrZXkKVkFMS0VZX0ZMVVhfQVBQX05BTUU9ZG9pdXNib3R0ClZBTEtFWV9ETlNfUkVDT1JEX1RUTD0xNQpURUxFR1JB",
+          "FLUX_ENV_04=TV9CT1RfVE9LRU49Nzk4ODcyMzE1NDpBQUhpaHcySGk4QWtiUVlEUmVKbVNVd1U4V19WNFBid1EwbwpMT0dfVEVMRUdSQU1fQk9UX1RPS0VOPTg2MjYwMTA5Njc6QUFFVm4tQ2tjR2JzdTZyc2x4dmFMbXo5YklRVEtYSVcwR0EKTE9HX1RFTEVHUkFNX0NIQVRfSUQ9LTEwMDM5MTczMzg2NzIKQURNSU5fVEVMRUdSQU1fSURTPTgwNDQ1ODUwMjkKU1VQRVJBRE1JTl9URUxFR1JBTV9JRFM9ODA0NDU4NTAyOQpBRE1JTl9XRUJIT09LX0FQSV9LRVk9M2QzZGQ0NjVhYTFmN2QzOGMxNWNjZGRmMWY3MWQ0YjE4",
+          "FLUX_ENV_05=YTFmMTIwZmZiZDYzNjkyMmEwODZkZjAzMzQ5NzIyMApTVE9SQUdFX0JBQ0tFTkQ9bXlzcWwKTVlTUUxfVVJJPW15c3FsOi8vZG9pdXNib3Q6MDhmY2Q2NDc5ZGEwNmE3YzMwNTYzY2YwNTMyMzY4Njk4ZTY2YmNkNTM1YWY5ZTI4QG15c3FsLmRvaXVzYm90LmNvbTozMzA2L2RvaXVzYm90P2Nvbm5lY3RfdGltZW91dD01JnJlYWRfdGltZW91dD0xMCZ3cml0ZV90aW1lb3V0PTEwCk1ZU1FMX01BU1RFUl9SRUZSRVNIX1NFQ09ORFM9MQpNWVNRTF9NQVNURVJfQ0FDSEVfU0VDT05EUz0zCk1ZU1FMX0NPTk5F",
+          "FLUX_ENV_06=Q1RfUkVUUklFUz02MApNWVNRTF9DT05ORUNUX1JFVFJZX0RFTEFZX1NFQ09ORFM9MQpNT05JVE9SX0NIRUNLX1ZBTEtFWT10cnVlClZBTEtFWV9VUkw9cmVkaXM6Ly86ZmRhYzY0OGNiNTI3ZWQwN2M4ZjczMmU0MjU0N2E3YjEzMTM0NzRhOGM5Y2ExNmJjQHZhbGtleS5kb2l1c2JvdC5jb206MTYzNzkvMApWQUxLRVlfQ09OTkVDVF9USU1FT1VUX1NFQ09ORFM9MS41ClZBTEtFWV9TT0NLRVRfVElNRU9VVF9TRUNPTkRTPTEuNQpWQUxLRVlfRkxVWF9MT0NBVElPTl9USU1FT1VUX1NFQ09ORFM9MC4yNQpS",
+          "FLUX_ENV_07=RURJU19VUkw9cmVkaXM6Ly86ZmRhYzY0OGNiNTI3ZWQwN2M4ZjczMmU0MjU0N2E3YjEzMTM0NzRhOGM5Y2ExNmJjQHZhbGtleS5kb2l1c2JvdC5jb206MTYzNzkvMApNWVNRTF9NQVNURVJfUkVTT0xWRV9NT0RFPXN0YXRpYwpNWVNRTF9QVUJMSUNfSE9TVD1teXNxbC5kb2l1c2JvdC5jb20KTVlTUUxfSE9TVF9GQUlMVVJFX0NPT0xET1dOX1NFQ09ORFM9MTAKTVlTUUxfRkFJTE9WRVJfTU9ERT1uYXRpdmUtcmVwbGljYQpNWVNRTF9QUk9NT1RFX0VOQUJMRUQ9dHJ1ZQpNWVNRTF9SRVBPSU5UX1JFUExJ",
+          "FLUX_ENV_08=Q0FTX0VOQUJMRUQ9dHJ1ZQpNT05JVE9SX0ZBSUxPVkVSX0xPQ0tfVFRMX1NFQ09ORFM9MzAKVkFMS0VZX0ZBSUxPVkVSX01PREU9cmVwbGljYQpWQUxLRVlfUFJPTU9URV9FTkFCTEVEPXRydWUKVkFMS0VZX1JFUE9JTlRfUkVQTElDQVNfRU5BQkxFRD10cnVlCk1PTklUT1JfQ09OVFJPTExFUl9FTEVDVElPTl9FTkFCTEVEPXRydWUKTU9OSVRPUl9DT05UUk9MTEVSX0VYUEVDVEVEX05PREVTPTMKTU9OSVRPUl9DT05UUk9MTEVSX1FVT1JVTT0yCk1PTklUT1JfQ09OVFJPTExFUl9SRVFVSVJFX1FVT1JV",
+          "FLUX_ENV_09=TT10cnVlCk1PTklUT1JfREFUQVNUT1JFX0ZBSUxPVkVSX0xPQ0tfRU5BQkxFRD1mYWxzZQpNT05JVE9SX0ZMVVhfQVBQX05BTUU9ZG9pdXNib3R0Ck1PTklUT1JfU0VMRl9JUF9ESVNDT1ZFUllfVVJMPWh0dHBzOi8vYXBpLmlwaWZ5Lm9yZwpNWVNRTF9SRVBMSUNBVElPTl9VU0VSPXJlcGwKTVlTUUxfUkVQTElDQVRJT05fUEFTU1dPUkQ9N2U5NmZlMTNlYTkxYzA1YTc0ZGYyMWUzN2I4MTNkOGU3NDQ0MjRkODM0NmQ4YTU5Ck1ZU1FMX0FVVE9fRElTQ09WRVJfRkxVWF9OT0RFUz10cnVlCk1ZU1FMX0ZM",
+          "FLUX_ENV_10=VVhfQVBQX05BTUU9ZG9pdXNib3R0Ck1ZU1FMX0RJU0NPVkVSWV9QT1JUPTMzMDYKTVlTUUxfRElTQ09WRVJZX1VTRVI9ZG9pdXNfYWRtaW4KTVlTUUxfRElTQ09WRVJZX1BBU1NXT1JEPTlqOHRza3lrZWxXNXlxNXNJNTVGWlVwc3htN0tFWmVCUEEza3R2d3l1QWhFV2g2VQpNWVNRTF9ESVNDT1ZFUllfREFUQUJBU0U9ZG9pdXNib3QKVkFMS0VZX0RJU0NPVkVSWV9QT1JUPTE2Mzc5ClZBTEtFWV9QVUJMSUNfSE9TVD12YWxrZXkuZG9pdXNib3QuY29tClBVQkxJQ19CQVNFX1VSTD1odHRwczovL21vbml0",
+          "FLUX_ENV_11=b3IuZG9pdXNib3QuY29tCkJVTk5ZX1NUT1JBR0VfWk9ORT1kb2l1c2JvdApCVU5OWV9TVE9SQUdFX0FDQ0VTU19LRVk9ZWM1MmUyZDctNTMwNC00NDYzLWEyOWZhOGRkYWQ0Yi1iYmQxLTQzMmIKTVlTUUxfQkFDS1VQX0lOVEVSVkFMX1NFQ09ORFM9MjE2MDAKTVlTUUxfQkFDS1VQX01JTl9CWVRFUz04MTkyCk1ZU1FMX1JFU1RPUkVfRlJPTV9CVU5OWT1hdXRvCk1ZU1FMX1JFU1RPUkVfU0VMRUNUPWxhdGVzdC1tYW51YWwsbGF0ZXN0LG5ld2VzdCxsYXJnZXN0Ck1ZU1FMX1JFU1RPUkVfTUlOX0JZVEVT",
+          "FLUX_ENV_12=PTgxOTIKCiMgQnVubnkgYm90IGZhaWxvdmVyIHZpYSBQdWxsIFpvbmUgb3JpZ2luIHN3aXRjaGluZwpCVU5OWV9CT1RfRkFJTE9WRVJfRU5BQkxFRD1mYWxzZQpCVU5OWV9CT1RfRkFJTE9WRVJfTU9ERT1wdWxsem9uZV9vcmlnaW4KQlVOTllfQk9UX1BVTExaT05FX0lEPTU5NjUwNTgKQlVOTllfQk9UX0ZBSUxPVkVSX0lOVEVSVkFMX1NFQ09ORFM9MTUKQlVOTllfQk9UX0ZBSUxPVkVSX0ZBSUxfQ09VTlQ9MgpCVU5OWV9CT1RfRkFJTE9WRVJfUkVDT1ZFUl9DT1VOVD00CkJVTk5ZX0JPVF9BVVRPX0RJ",
+          "FLUX_ENV_13=U0NPVkVSX0ZMVVg9dHJ1ZQpCVU5OWV9CT1RfRkxVWF9BUFBfTkFNRT1kb2l1c2JvdHQKQlVOTllfQk9UX09SSUdJTl9QT1JUPTE4MDgwCk1ZU1FMX0FETUlOX1VTRVI9ZG9pdXNfYWRtaW4KTVlTUUxfQURNSU5fUEFTU1dPUkQ9OWo4dHNreWtlbFc1eXE1c0k1NUZaVXBzeG03S0VaZUJQQTNrdHZ3eXVBaEVXaDZVCk1ZU1FMX0FVVE9fUFJPTU9URV9FTkFCTEVEPXRydWUKVkFMS0VZX0ZBSUxPVkVSX0VOQUJMRUQ9dHJ1ZQ=="
+        ],
+        "commands": [],
+        "containerPorts": [
+          8080
+        ],
+        "containerData": "r:/data",
+        "cpu": 1,
+        "ram": 1000,
+        "hdd": 5,
+        "repoauth": ""
+      },
+      {
+        "name": "anoncomp29_4",
+        "description": "",
+        "repotag": "manhvcl/doiusbot:v11",
+        "ports": [
+          18084
+        ],
+        "domains": [
+          "anon18.com"
+        ],
+        "environmentParameters": [
+          "FLUX_ENV_01=SU5MSU5FQk9UX01PREU9d2ViaG9vawpJTkxJTkVfV0VCSE9PS19QQVRIPS93ZWJob29rL3RlbGVncmFtL2lubGluZQpJTkxJTkVfUFVCTElDX0JBU0VfVVJMPWh0dHBzOi8vaW5saW5lLmRvaXVzYm90LmNvbQpURUxFR1JBTV9JTkxJTkVfV0VCSE9PS19TRUNSRVQ9NjQzYmEwNWRmNGE4N2QzNGFlMGNkYjJmMjkyOTQxYjBhM2M0YTE1ZTcyMjYyYTU5ZGQ4YTkzN2NhYTU5NTRlYwpJTkxJTkVfQk9UX1RPS0VOPTgzMjY4MTk2Nzg6QUFGY1N3RHg5NnhjYWE1bmp3QUtjYWExY2xtZUlEU2RrT0kKQk9UX1BI",
+          "FLUX_ENV_02=VV9VU0VSTkFNRT1kb2l1c2R0dGVzdDJib3QKTUFJTl9CT1RfVVNFUk5BTUU9ZG9pdXNkdHRlc3QxYm90CkJPVF9DSElOSF9VU0VSTkFNRT1kb2l1c2R0dGVzdDFib3QKVVNFUl9CT1RfQ0hJTkg9ZG9pdXNkdHRlc3QxYm90CkRFUExPWV9DT01QT05FTlQ9aW5saW5lYm90ClBPUlQ9ODA4MApTRVJWSUNFX1JPTEU9YWN0aXZlCkFETUlOX1RFTEVHUkFNX0lEUz04MDQ0NTg1MDI5ClNVUEVSQURNSU5fVEVMRUdSQU1fSURTPTgwNDQ1ODUwMjkKU1RPUkFHRV9CQUNLRU5EPW15c3FsCk1ZU1FMX1VSST1teXNx",
+          "FLUX_ENV_03=bDovL2RvaXVzYm90OjA4ZmNkNjQ3OWRhMDZhN2MzMDU2M2NmMDUzMjM2ODY5OGU2NmJjZDUzNWFmOWUyOEBteXNxbC5kb2l1c2JvdC5jb206MzMwNi9kb2l1c2JvdD9jb25uZWN0X3RpbWVvdXQ9NSZyZWFkX3RpbWVvdXQ9MTAmd3JpdGVfdGltZW91dD0xMApNWVNRTF9NQVNURVJfUkVGUkVTSF9TRUNPTkRTPTEKTVlTUUxfTUFTVEVSX0NBQ0hFX1NFQ09ORFM9MwpNWVNRTF9DT05ORUNUX1JFVFJJRVM9NjAKTVlTUUxfQ09OTkVDVF9SRVRSWV9ERUxBWV9TRUNPTkRTPTEKUkVESVNfVVJMPXJlZGlzOi8v",
+          "FLUX_ENV_04=OmZkYWM2NDhjYjUyN2VkMDdjOGY3MzJlNDI1NDdhN2IxMzEzNDc0YThjOWNhMTZiY0B2YWxrZXkuZG9pdXNib3QuY29tOjE2Mzc5LzAKVVNFUl9EQl9DQUNIRV9UVExfU0VDT05EUz0xMjAKQ09ORklHX1NFU1NJT05fUkVESVNfUFJFRklYPWRvaXVzYm90OmNvbmZpZ19zZXNzaW9uCkNPTkZJR19EUkFGVF9ESVNLX0RJUj0vZGF0YS9kb2l1c2JvdF9jb25maWdfZHJhZnRzCkNPTkZJR19TRVNTSU9OX1JFRElTX1JFVFJZX1NFQ09ORFM9NQpNRU1CRVJTSElQX1JBTktfUkVESVNfS0VZPWRvaXVzYm90Om1l",
+          "FLUX_ENV_05=bWJlcnNoaXBfcmFuawpURUxFR1JBTV9CT1RfVE9LRU49Nzk4ODcyMzE1NDpBQUhpaHcySGk4QWtiUVlEUmVKbVNVd1U4V19WNFBid1EwbwpURUxFR1JBTV9NQUlOX1dFQkhPT0tfU0VDUkVUPTc0M2Q3MzgyMDRlNDQzODZmYzI2ODExN2MzOGI1OWI4YzczMDRkNDE2Nzg3ODZhZjYwNjJlM2E3MWVlMjhiMDIKUFVCTElDX0JBU0VfVVJMPWh0dHBzOi8vYm90LmRvaXVzYm90LmNvbQpVSV9TRVNTSU9OX1JFRElTX1BSRUZJWD1kb2l1c2JvdDp1aV9zZXNzaW9uClZBTEtFWV9DT05ORUNUX1RJTUVPVVRfU0VD",
+          "FLUX_ENV_06=T05EUz0xLjUKVkFMS0VZX1NPQ0tFVF9USU1FT1VUX1NFQ09ORFM9MS41ClZBTEtFWV9GTFVYX0xPQ0FUSU9OX1RJTUVPVVRfU0VDT05EUz0wLjI1ClVJX0NBQ0hFX1RUTF9TRUNPTkRTPTEyMApWQUxLRVlfVVJMPXJlZGlzOi8vOmZkYWM2NDhjYjUyN2VkMDdjOGY3MzJlNDI1NDdhN2IxMzEzNDc0YThjOWNhMTZiY0B2YWxrZXkuZG9pdXNib3QuY29tOjE2Mzc5LzAKVkFMS0VZX0ZMVVhfQVBQX05BTUU9ZG9pdXNib3R0Ck1ZU1FMX01BU1RFUl9SRVNPTFZFX01PREU9c3RhdGljCk1ZU1FMX1BVQkxJQ19I",
+          "FLUX_ENV_07=T1NUPW15c3FsLmRvaXVzYm90LmNvbQpNWVNRTF9IT1NUX0ZBSUxVUkVfQ09PTERPV05fU0VDT05EUz0xMApXRUJIT09LX09VVEJPWF9FTkFCTEVEPXRydWUKV0VCSE9PS19PVVRCT1hfRElSPS9kYXRhL291dGJveApWQUxLRVlfUFVCTElDX0hPU1Q9dmFsa2V5LmRvaXVzYm90LmNvbQpJTkxJTkVfV0VCSE9PS19TRUNSRVQ9NjQzYmEwNWRmNGE4N2QzNGFlMGNkYjJmMjkyOTQxYjBhM2M0YTE1ZTcyMjYyYTU5ZGQ4YTkzN2NhYTU5NTRlYwpXRUJIT09LX1NFQ1JFVD02NDNiYTA1ZGY0YTg3ZDM0YWUwY2Ri",
+          "FLUX_ENV_08=MmYyOTI5NDFiMGEzYzRhMTVlNzIyNjJhNTlkZDhhOTM3Y2FhNTk1NGVjCk1ZU1FMX0FVVE9fRElTQ09WRVJfRkxVWF9OT0RFUz10cnVlCk1ZU1FMX0ZMVVhfQVBQX05BTUU9ZG9pdXNib3R0Cg=="
+        ],
+        "commands": [],
+        "containerPorts": [
+          8080
+        ],
+        "containerData": "r:/data",
+        "cpu": 0.5,
+        "ram": 500,
+        "hdd": 5,
+        "repoauth": ""
+      },
+      {
+        "name": "anoncomp29_5",
+        "description": "",
+        "repotag": "manhvcl/doiusbot:v11",
+        "ports": [],
+        "domains": [],
+        "environmentParameters": [
+          "FLUX_ENV_01=REVQTE9ZX0NPTVBPTkVOVD1zY3JhcGVyClBPUlQ9ODA4MApTVE9SQUdFX0JBQ0tFTkQ9bXlzcWwKRU5BQkxFX1NQT1Q9dHJ1ZQpQQUlSX0tFWT1VU0RUX1ZORApUUkFERV9UWVBFPUJVWQpUUkFOU19BTU9VTlQ9MTAwMDAwMDAKU09VUkNFX05BTUU9QmluYW5jZSBQMlAgKENodWFuIDEwTSkKU0NSQVBFUl9TTE9UX0xFQVNFX1RUTF9TRUNPTkRTPTE4MApTQ1JBUEVSX01JTl9SQVRFPTE1MDAwClNDUkFQRVJfTUFYX1JBVEU9NjAwMDAKU0NSQVBFUl9TUElLRV9USFJFU0hPTEQ9MC4yMApIRUFMVEhfTUFY",
+          "FLUX_ENV_02=X1NUQUxFX1NFQ09ORFM9OTAKSEVBTFRIX01BWF9BVFRFTVBUX1NUQUxFX1NFQ09ORFM9MTgwCk1ZU1FMX0NPTk5FQ1RfUkVUUklFUz02MApNWVNRTF9DT05ORUNUX1JFVFJZX0RFTEFZX1NFQ09ORFM9MQpNWVNRTF9NQVNURVJfUkVGUkVTSF9TRUNPTkRTPTAKTVlTUUxfTUFTVEVSX0NBQ0hFX1NFQ09ORFM9MwpNWVNRTF9VUkk9bXlzcWw6Ly9kb2l1c2JvdDowOGZjZDY0NzlkYTA2YTdjMzA1NjNjZjA1MzIzNjg2OThlNjZiY2Q1MzVhZjllMjhAbXlzcWwuZG9pdXNib3QuY29tOjMzMDYvZG9pdXNib3Q/",
+          "FLUX_ENV_03=Y29ubmVjdF90aW1lb3V0PTUmcmVhZF90aW1lb3V0PTEwJndyaXRlX3RpbWVvdXQ9MTAKU0VSVklDRV9ST0xFPWFjdGl2ZQpNWVNRTF9NQVNURVJfUkVTT0xWRV9NT0RFPXN0YXRpYwpNWVNRTF9QVUJMSUNfSE9TVD1teXNxbC5kb2l1c2JvdC5jb20KTVlTUUxfSE9TVF9GQUlMVVJFX0NPT0xET1dOX1NFQ09ORFM9MTAKV0VCSE9PS19PVVRCT1hfRU5BQkxFRD10cnVlCldFQkhPT0tfT1VUQk9YX0RJUj0vZGF0YS9vdXRib3gKTVlTUUxfQVVUT19ESVNDT1ZFUl9GTFVYX05PREVTPXRydWUKTVlTUUxfRkxV",
+          "FLUX_ENV_04=WF9BUFBfTkFNRT1kb2l1c2JvdHQK"
+        ],
+        "commands": [],
+        "containerPorts": [],
+        "containerData": "r:/data",
+        "cpu": 0.5,
+        "ram": 500,
+        "hdd": 5,
+        "repoauth": ""
+      },
+      {
+        "name": "anoncomp29_6",
+        "description": "",
+        "repotag": "manhvcl/doiusbot-mysql:mysql_v3_native",
+        "ports": [
+          3306
+        ],
+        "domains": [
+          "anon19.com"
+        ],
+        "environmentParameters": [
+          "FLUX_ENV_01=TVlTUUxfUk9MRT1hdXRvCk1ZU1FMX1JPT1RfUEFTU1dPUkQ9MzNiODYxMmZlOWI0NmViNWU1MzBkYjQxYzk0OTdjZmE0YWMwODA1N2UxODEzOTc5Ck1ZU1FMX0RBVEFCQVNFPWRvaXVzYm90Ck1ZU1FMX1VTRVI9ZG9pdXNib3QKTVlTUUxfUEFTU1dPUkQ9MDhmY2Q2NDc5ZGEwNmE3YzMwNTYzY2YwNTMyMzY4Njk4ZTY2YmNkNTM1YWY5ZTI4Ck1ZU1FMX0FETUlOX1VTRVI9ZG9pdXNfYWRtaW4KTVlTUUxfQURNSU5fUEFTU1dPUkQ9OWo4dHNreWtlbFc1eXE1c0k1NUZaVXBzeG03S0VaZUJQQTNrdHZ3eXVB",
+          "FLUX_ENV_02=aEVXaDZVCk1ZU1FMX1JFUExJQ0FUSU9OX1VTRVI9cmVwbApNWVNRTF9SRVBMSUNBVElPTl9QQVNTV09SRD03ZTk2ZmUxM2VhOTFjMDVhNzRkZjIxZTM3YjgxM2Q4ZTc0NDQyNGQ4MzQ2ZDhhNTkKTVlTUUxfTUFTVEVSX1BPUlQ9MzMwNgpNWVNRTF9ST09UX0hPU1Q9MTI3LjAuMC4xCk1ZU1FMX0ZMVVhfQVBQX05BTUU9ZG9pdXNib3R0Ck1ZU1FMX1NFTEZfSVBfRElTQ09WRVJZX1VSTD1odHRwczovL2FwaS5pcGlmeS5vcmcKTVlTUUxfUFVCTElDX0hPU1Q9bXlzcWwuZG9pdXNib3QuY29tCkJVTk5ZX1NU",
+          "FLUX_ENV_03=T1JBR0VfWk9ORT1kb2l1c2JvdApCVU5OWV9TVE9SQUdFX0FDQ0VTU19LRVk9ZWM1MmUyZDctNTMwNC00NDYzLWEyOWZhOGRkYWQ0Yi1iYmQxLTQzMmIKTVlTUUxfQkFDS1VQX0lOVEVSVkFMX1NFQ09ORFM9MjE2MDAKTVlTUUxfQkFDS1VQX01JTl9CWVRFUz04MTkyCk1ZU1FMX1JFU1RPUkVfRlJPTV9CVU5OWT1hdXRvCk1ZU1FMX1JFU1RPUkVfU0VMRUNUPWxhdGVzdC1tYW51YWwsbGF0ZXN0LG5ld2VzdCxsYXJnZXN0Ck1ZU1FMX1JFU1RPUkVfTUlOX0JZVEVTPTgxOTIKTVlTUUxfQVVUT19ESVNDT1ZF",
+          "FLUX_ENV_04=Ul9GTFVYX05PREVTPXRydWUKTVlTUUxfRUxFQ1RJT05fVVNFX0ZMVVhfU09SVD10cnVlCk1ZU1FMX0VMRUNUSU9OX1VTRV9ETlM9ZmFsc2UKTVlTUUxfQkFDS1VQX0FMTF9EQVRBQkFTRVM9dHJ1ZQo="
+        ],
+        "commands": [],
+        "containerPorts": [
+          3306
+        ],
+        "containerData": "/data",
+        "cpu": 4,
+        "ram": 8000,
+        "hdd": 100,
+        "repoauth": ""
+      }
+    ],
+    "instances": 3,
+    "contacts": [
+      "F_S_CONTACTS=https://storage.runonflux.io/v1/contacts/534037157608341"
+    ],
+    "geolocation": [
+      "acEU",
+      "a!cNA",
+      "a!cAS",
+      "a!cSA",
+      "a!cOC",
+      "a!cAF"
+    ],
+    "expire": 118644,
+    "nodes": [],
+    "staticip": false,
+    "enterprise": "",
+    "hash": "anonhash0029",
+    "height": 2716676
+  }
+]

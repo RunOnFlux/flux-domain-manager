@@ -409,7 +409,15 @@ class FdmDataFetcher extends EventEmitter {
   async loop(runner, dataStore) {
     const store = dataStore;
 
-    const ms = await runner();
+    let ms;
+    try {
+      ms = await runner();
+    } catch (error) {
+      // A failed poll must reschedule, not kill the loop — and must never surface
+      // as an unhandled rejection that exits the process.
+      ms = store.defaultFetchMs || 30_000;
+      log.error(`app spec loop error, retrying in ${ms}ms: ${error.message}`);
+    }
 
     if (this.#aborted) return;
 
@@ -522,22 +530,28 @@ class FdmDataFetcher extends EventEmitter {
         // this can happen if we give up trying to get owner or sas key etc
         if (!spec) return;
 
-        const { version, enterprise } = spec;
+        try {
+          const { version, enterprise } = spec;
 
-        const isEnterprise = Boolean(version >= 8 && enterprise);
+          const isEnterprise = Boolean(version >= 8 && enterprise);
 
-        if (isEnterprise) {
-          enterpriseApps.push(spec);
-          return;
+          if (isEnterprise) {
+            enterpriseApps.push(spec);
+            return;
+          }
+
+          const isGApp = FdmDataFetcher.#isGApp(spec);
+          const appMap = isGApp ? gAppsMap : nonGAppsMap;
+
+          appMap.set(spec.name, spec);
+
+          const fqdns = FdmDataFetcher.#buildFqdnMap(spec);
+          appFqdns.push(fqdns);
+        } catch (error) {
+          // One malformed or not-yet-supported spec (a shape this FDM can't read)
+          // must not abort processing of every other app.
+          log.error(`skipping spec ${spec.name}: ${error.message}`);
         }
-
-        const isGApp = FdmDataFetcher.#isGApp(spec);
-        const appMap = isGApp ? gAppsMap : nonGAppsMap;
-
-        appMap.set(spec.name, spec);
-
-        const fqdns = FdmDataFetcher.#buildFqdnMap(spec);
-        appFqdns.push(fqdns);
       });
     };
 

@@ -10,6 +10,7 @@ const { runWithConcurrency } = require('../serviceHelper');
 
 // const log = require('./log');
 const log = require('../../lib/log');
+const specLibs = require('./specLibs');
 
 /**
  * @typedef {{}} AppSpec
@@ -150,21 +151,6 @@ class FdmDataFetcher extends EventEmitter {
     }
 
     return parsed;
-  }
-
-  /**
-   * If the passed in specification uses the g: parameter
-   * @param {Object} spec
-   * @returns {boolean}
-   */
-  static #isActiveStandby(spec) {
-    const matcher = spec.version <= 3
-      ? () => spec.containerData.includes('g:')
-      : () => spec.compose.some((comp) => comp.containerData.includes('g:'));
-
-    const match = matcher();
-
-    return match;
   }
 
   /**
@@ -525,46 +511,49 @@ class FdmDataFetcher extends EventEmitter {
     const appFqdns = [];
     const enterpriseApps = [];
 
-    const specMapper = (_specs) => {
-      _specs.forEach((spec) => {
-        // this can happen if we give up trying to get owner or sas key etc
-        if (!spec) return;
-
-        try {
-          const { version, enterprise } = spec;
-
-          const isEnterprise = Boolean(version >= 8 && enterprise);
-
-          if (isEnterprise) {
-            enterpriseApps.push(spec);
-            return;
-          }
-
-          const isActiveStandby = FdmDataFetcher.#isActiveStandby(spec);
-          const appMap = isActiveStandby ? activeStandbyAppsMap : activeActiveAppsMap;
-
-          appMap.set(spec.name, spec);
-
-          const fqdns = FdmDataFetcher.#buildFqdnMap(spec);
-          appFqdns.push(fqdns);
-        } catch (error) {
-          // One malformed or not-yet-supported spec (a shape this FDM can't read)
-          // must not abort processing of every other app.
-          log.error(`skipping spec ${spec.name}: ${error.message}`);
+    // Deserialize each spec through flux-spec and classify it by its resolved
+    // shape — active-standby (a component runs the active-standby sync mode) vs
+    // active-active — for every version alike. Still-sealed specs are set aside for
+    // decryption. A spec this node can't read is logged and skipped, never
+    // aborting the rest of the batch.
+    const classify = async (spec) => {
+      if (!spec) return; // a decrypt that gave up returns null
+      try {
+        const instance = await specLibs.deserialize(spec);
+        if (instance.sealed) {
+          enterpriseApps.push(spec);
+          return;
         }
-      });
+        const deployment = await specLibs.resolveDeployment(instance, null);
+        const isActiveStandby = Object.values(deployment.components)
+          .some((component) => component.hasActiveStandbySyncthing());
+        (isActiveStandby ? activeStandbyAppsMap : activeActiveAppsMap).set(spec.name, spec);
+        // Custom-domain FQDNs feed the cross-app ownership check; that map reads
+        // legacy compose/ports shape, which only v1-8 carry.
+        if (spec.version <= 8) appFqdns.push(FdmDataFetcher.#buildFqdnMap(spec));
+      } catch (error) {
+        log.error(`skipping spec ${spec && spec.name}: ${error.message}`);
+      }
     };
 
-    specMapper(specs);
+    // Sequential so map insertion order stays deterministic — it feeds the order
+    // apps are rendered into the config.
+    const classifyAll = async (list) => {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const spec of list) {
+        // eslint-disable-next-line no-await-in-loop
+        await classify(spec);
+      }
+    };
 
-    const logger = () => ({
+    const counts = () => JSON.stringify({
       activeStandby: activeStandbyAppsMap.size,
       activeActive: activeActiveAppsMap.size,
-      Enterprise: enterpriseApps.length,
-      Total: activeStandbyAppsMap.size + activeActiveAppsMap.size,
+      enterprise: enterpriseApps.length,
     });
 
-    console.log('Before decryption:\n', logger());
+    await classifyAll(specs);
+    log.info(`app specs classified (pre-decrypt): ${counts()}`);
 
     const decryptTasks = enterpriseApps.map(
       (spec) => () => this.#decryptAppSpec(spec),
@@ -574,11 +563,14 @@ class FdmDataFetcher extends EventEmitter {
       .filter((r) => r.status === 'fulfilled')
       .map((r) => r.value);
 
-    specMapper(decryptedSpecs);
+    await classifyAll(decryptedSpecs);
+    log.info(`app specs classified (post-decrypt): ${counts()}`);
 
-    console.log('After decryption:\n', logger());
-
-    this.emit('appSpecsUpdated', { activeStandbyApps: activeStandbyAppsMap, activeActiveApps: activeActiveAppsMap, appFqdns });
+    this.emit('appSpecsUpdated', {
+      activeStandbyApps: activeStandbyAppsMap,
+      activeActiveApps: activeActiveAppsMap,
+      appFqdns,
+    });
   }
 
   async getDecryptedSpecs() {

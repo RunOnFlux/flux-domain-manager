@@ -16,12 +16,14 @@ const path = require('path');
 const { getUnifiedDomains, getCustomDomains } = require('../../src/services/domain/index.js');
 const { getCustomConfigs } = require('../../src/services/application/custom.js');
 const { getApplicationsToProcess } = require('../../src/services/application/subset.js');
+const { bagForSpec, renderConfig } = require('./fixtures/renderPipeline');
 
 const { expect } = chai;
 
 const FIX = path.join(__dirname, 'fixtures');
 const specs = JSON.parse(fs.readFileSync(path.join(FIX, 'characterization-specs.json'), 'utf8'));
 const golden = JSON.parse(fs.readFileSync(path.join(FIX, 'characterization-golden.json'), 'utf8'));
+const renderedGolden = fs.readFileSync(path.join(FIX, 'characterization-haproxy.txt'), 'utf8');
 const call = (fn) => { try { return fn(); } catch (e) { return { __throws: e.message }; } };
 
 describe('characterization — pure spec-shape functions vs golden (real anonymized specs)', function () {
@@ -38,11 +40,18 @@ describe('characterization — pure spec-shape functions vs golden (real anonymi
       it('getCustomConfigs matches golden', function () {
         expect(call(() => getCustomConfigs(s))).to.deep.equal(g.customConfigs);
       });
+      it('addConfigurations bag matches golden', function () {
+        expect(call(() => bagForSpec(s))).to.deep.equal(g.configuredApps);
+      });
     });
   });
 
   it('getApplicationsToProcess matches golden', function () {
     expect(call(() => getApplicationsToProcess(specs).map((a) => a.name)))
       .to.deep.equal(golden.__getApplicationsToProcess);
+  });
+
+  it('the full assembled haproxy config matches golden byte-for-byte', function () {
+    expect(renderConfig(specs)).to.equal(renderedGolden);
   });
 });

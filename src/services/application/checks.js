@@ -1113,7 +1113,7 @@ async function checkApplication(app, ip) {
   return isOK;
 }
 
-setInterval(async () => {
+async function refreshFluxBlockheight() {
   try {
     const response = await httpClients.explorer.get('https://explorer.runonflux.io/api/status', { timeout });
     const height = response.data.info.blocks;
@@ -1123,9 +1123,21 @@ setInterval(async () => {
   } catch (error) {
     log.error(`Error obtaining flux height: ${error.message}`);
   }
-}, 120 * 1000);
+}
+
+let blockheightRefreshTimer = null;
+
+// Begin the periodic flux-height refresh. Importing this module does nothing on
+// its own; the boot sequence calls this once. Idempotent, and the timer is
+// unref'd so the refresh alone never holds the process open.
+function startBlockheightRefresh() {
+  if (blockheightRefreshTimer) return;
+  blockheightRefreshTimer = setInterval(refreshFluxBlockheight, 120 * 1000);
+  blockheightRefreshTimer.unref();
+}
 
 module.exports = {
+  startBlockheightRefresh,
   checkMainFlux,
   checkKadenaApplication,
   checkRunOnFluxWebsite,

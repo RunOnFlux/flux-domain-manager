@@ -5,25 +5,39 @@
 // silent golden update.
 //
 // Usage (from repo root):  node tests/unit/fixtures/generate-golden.js
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 const { getUnifiedDomains, getCustomDomains } = require('../../../src/services/domain/index.js');
 const { getCustomConfigs } = require('../../../src/services/application/custom.js');
 const { getApplicationsToProcess } = require('../../../src/services/application/subset.js');
+const { bagForSpec, renderConfig } = require('./renderPipeline');
 
-const specs = JSON.parse(fs.readFileSync(path.join(__dirname, 'characterization-specs.json'), 'utf8'));
 const call = (fn) => { try { return fn(); } catch (e) { return { __throws: e.message }; } };
 
-const golden = {};
-for (const s of specs) {
-  golden[s.name] = {
-    version: s.version,
-    unifiedDomains: call(() => getUnifiedDomains(s)),
-    customDomains: call(() => getCustomDomains(s)),
-    customConfigs: call(() => getCustomConfigs(s)),
-  };
-}
-golden.__getApplicationsToProcess = call(() => getApplicationsToProcess(specs).map((a) => a.name));
+async function main() {
+  const specs = JSON.parse(await fs.readFile(path.join(__dirname, 'characterization-specs.json'), 'utf8'));
 
-fs.writeFileSync(path.join(__dirname, 'characterization-golden.json'), `${JSON.stringify(golden, null, 2)}\n`);
-console.log(`golden written for ${specs.length} specs`);
+  const golden = {};
+  for (const s of specs) {
+    golden[s.name] = {
+      version: s.version,
+      unifiedDomains: call(() => getUnifiedDomains(s)),
+      customDomains: call(() => getCustomDomains(s)),
+      customConfigs: call(() => getCustomConfigs(s)),
+      configuredApps: call(() => bagForSpec(s)),
+    };
+  }
+  golden.__getApplicationsToProcess = call(() => getApplicationsToProcess(specs).map((a) => a.name));
+
+  await fs.writeFile(path.join(__dirname, 'characterization-golden.json'), `${JSON.stringify(golden, null, 2)}\n`);
+
+  // The full assembled haproxy config for the whole fixture set — the exact text
+  // the renderer rewrite must still produce.
+  await fs.writeFile(path.join(__dirname, 'characterization-haproxy.txt'), renderConfig(specs));
+  process.stdout.write(`golden written for ${specs.length} specs\n`);
+}
+
+main().catch((error) => {
+  process.stderr.write(`${error.stack}\n`);
+  process.exitCode = 1;
+});

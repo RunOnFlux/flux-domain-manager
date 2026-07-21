@@ -1,0 +1,1932 @@
+
+
+global
+  lua-load /etc/haproxy/haproxy_minecraft.lua
+  maxconn 50000
+  log /dev/log    local0 info alert
+  log /dev/log    local1 warning alert
+  chroot /var/lib/haproxy
+  stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+  stats timeout 30s
+  user haproxy
+  group haproxy
+  daemon
+  server-state-file /tmp/server-state             # State file path
+
+  # Default SSL material locations
+  ca-base /etc/ssl/certs
+  crt-base /etc/ssl/private
+
+  # intermediate configuration
+  ssl-default-bind-curves X25519:prime256v1:secp384r1
+  ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+  ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+  ssl-default-bind-options prefer-client-ciphers ssl-min-ver TLSv1.2 no-tls-tickets
+
+  ssl-default-server-curves X25519:prime256v1:secp384r1
+  ssl-default-server-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+  ssl-default-server-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+  ssl-default-server-options ssl-min-ver TLSv1.2 no-tls-tickets
+
+  # curl https://ssl-config.mozilla.org/ffdhe4096.txt > /etc/haproxy/dhparam
+  ssl-dh-param-file /etc/haproxy/dhparam
+
+defaults
+  load-server-state-from-file global
+  log     global
+  mode    http
+#  option  httplog
+  option  dontlognull
+  timeout connect 10000
+  timeout client  120000
+  timeout server  120000
+  maxconn 100000
+  errorfile 400 /etc/haproxy/errors/400.http
+  errorfile 403 /etc/haproxy/errors/403.http
+  errorfile 408 /etc/haproxy/errors/408.http
+  errorfile 500 /etc/haproxy/errors/500.http
+  errorfile 502 /etc/haproxy/errors/502.http
+  errorfile 503 /etc/haproxy/errors/503.http
+  errorfile 504 /etc/haproxy/errors/504.http
+
+frontend wwwhttp
+  bind *:80
+  option forwardfor except 127.0.0.0/8
+  http-request add-header X-Forwarded-Proto http
+  http-response add-header Access-Control-Expose-Headers '*' unless { res.hdr(Access-Control-Expose-Headers) -m found }
+  http-after-response add-header Access-Control-Allow-Origin "*" unless { res.hdr(Access-Control-Allow-Origin) -m found }
+
+  acl letsencrypt-acl path_beg /.well-known/acme-challenge/
+  acl cloudflare-flux-acl path_beg /.well-known/pki-validation/
+  redirect scheme https if !letsencrypt-acl !cloudflare-flux-acl
+  use_backend letsencrypt-backend if letsencrypt-acl
+  use_backend cloudflare-flux-backend if cloudflare-flux-acl
+
+
+  acl forbiddenacl hdr(host) racecoursejebelali.com
+  acl forbiddenacl hdr(host) www.racecoursejebelali.com
+  acl forbiddenacl hdr(host) sofiteldowntown.com
+  acl forbiddenacl hdr(host) www.sofiteldowntown.com
+  acl forbiddenacl hdr(host) livelo.digitaisx.mov
+  acl forbiddenacl hdr(host) www.livelo.digitaisx.mov
+  acl forbiddenacl path_beg -i /product/litty-cat-thc-bars-1000mg
+  acl wordpress1677413615318_38286app2runonfluxio hdr(host) wordpress1677413615318_38286.app2.runonflux.io
+  acl wordpress1677413615318_38286app2runonfluxio hdr(host) anon0.com
+  acl wordpress1677413615318_38286app2runonfluxio hdr(host) www.anon0.com
+  acl wordpress1677413615318_38286app2runonfluxio hdr(host) test.anon0.com
+  acl wordpress1677413615318_34328app2runonfluxio hdr(host) wordpress1677413615318_34328.app2.runonflux.io
+  acl wordpress1677413615318_36562app2runonfluxio hdr(host) wordpress1677413615318_36562.app2.runonflux.io
+  acl wordpress1677413615318_34252app2runonfluxio hdr(host) wordpress1677413615318_34252.app2.runonflux.io
+  acl wordpress1677413615318_38286app2runonfluxio hdr(host) wordpress1677413615318.app2.runonflux.io
+  acl anonapp1_35051app2runonfluxio hdr(host) anonapp1_35051.app2.runonflux.io
+  acl anonapp1_35051app2runonfluxio hdr(host) anonapp1.app2.runonflux.io
+  acl anonapp3_33702app2runonfluxio hdr(host) anonapp3_33702.app2.runonflux.io
+  acl anonapp3_33702app2runonfluxio hdr(host) anonapp3.app2.runonflux.io
+  acl anonapp5_36919app2runonfluxio hdr(host) anonapp5_36919.app2.runonflux.io
+  acl anonapp5_36919app2runonfluxio hdr(host) anon1.com
+  acl anonapp5_36919app2runonfluxio hdr(host) www.anon1.com
+  acl anonapp5_36919app2runonfluxio hdr(host) test.anon1.com
+  acl anonapp5_36919app2runonfluxio hdr(host) anonapp5.app2.runonflux.io
+  acl anonapp6_31588app2runonfluxio hdr(host) anonapp6_31588.app2.runonflux.io
+  acl anonapp6_31589app2runonfluxio hdr(host) anonapp6_31589.app2.runonflux.io
+  acl anonapp6_31588app2runonfluxio hdr(host) anonapp6.app2.runonflux.io
+  acl anonapp7_35555app2runonfluxio hdr(host) anonapp7_35555.app2.runonflux.io
+  acl anonapp7_35555app2runonfluxio hdr(host) anonapp7.app2.runonflux.io
+  acl anonapp8_36769app2runonfluxio hdr(host) anonapp8_36769.app2.runonflux.io
+  acl anonapp8_36769app2runonfluxio hdr(host) anon2.com
+  acl anonapp8_36769app2runonfluxio hdr(host) www.anon2.com
+  acl anonapp8_36769app2runonfluxio hdr(host) test.anon2.com
+  acl anonapp8_36769app2runonfluxio hdr(host) anon3.com
+  acl anonapp8_36769app2runonfluxio hdr(host) www.anon3.com
+  acl anonapp8_36769app2runonfluxio hdr(host) test.anon3.com
+  acl anonapp8_36769app2runonfluxio hdr(host) anonapp8.app2.runonflux.io
+  acl anonapp9_31443app2runonfluxio hdr(host) anonapp9_31443.app2.runonflux.io
+  acl anonapp9_31443app2runonfluxio hdr(host) anonapp9.app2.runonflux.io
+  acl anonapp10_33333app2runonfluxio hdr(host) anonapp10_33333.app2.runonflux.io
+  acl anonapp10_33333app2runonfluxio hdr(host) anon4.com
+  acl anonapp10_33333app2runonfluxio hdr(host) www.anon4.com
+  acl anonapp10_33333app2runonfluxio hdr(host) test.anon4.com
+  acl anonapp10_33333app2runonfluxio hdr(host) anonapp10.app2.runonflux.io
+  acl anonapp11_38454app2runonfluxio hdr(host) anonapp11_38454.app2.runonflux.io
+  acl anonapp11_38454app2runonfluxio hdr(host) anonapp11.app2.runonflux.io
+  acl anonapp12_31301app2runonfluxio hdr(host) anonapp12_31301.app2.runonflux.io
+  acl anonapp12_31301app2runonfluxio hdr(host) anon5.io
+  acl anonapp12_31301app2runonfluxio hdr(host) www.anon5.io
+  acl anonapp12_31301app2runonfluxio hdr(host) test.anon5.io
+  acl anonapp12_31302app2runonfluxio hdr(host) anonapp12_31302.app2.runonflux.io
+  acl anonapp12_31302app2runonfluxio hdr(host) anon6.io
+  acl anonapp12_31302app2runonfluxio hdr(host) www.anon6.io
+  acl anonapp12_31302app2runonfluxio hdr(host) test.anon6.io
+  acl anonapp12_31303app2runonfluxio hdr(host) anonapp12_31303.app2.runonflux.io
+  acl anonapp12_31304app2runonfluxio hdr(host) anonapp12_31304.app2.runonflux.io
+  acl anonapp12_31301app2runonfluxio hdr(host) anonapp12.app2.runonflux.io
+  acl anonapp13_36512app2runonfluxio hdr(host) anonapp13_36512.app2.runonflux.io
+  acl anonapp13_36512app2runonfluxio hdr(host) anon7.io
+  acl anonapp13_36512app2runonfluxio hdr(host) www.anon7.io
+  acl anonapp13_36512app2runonfluxio hdr(host) test.anon7.io
+  acl anonapp13_36512app2runonfluxio hdr(host) anonapp13.app2.runonflux.io
+  acl anonapp14_38080app2runonfluxio hdr(host) anonapp14_38080.app2.runonflux.io
+  acl anonapp14_38080app2runonfluxio hdr(host) anon8.io
+  acl anonapp14_38080app2runonfluxio hdr(host) www.anon8.io
+  acl anonapp14_38080app2runonfluxio hdr(host) test.anon8.io
+  acl anonapp14_38081app2runonfluxio hdr(host) anonapp14_38081.app2.runonflux.io
+  acl anonapp14_38081app2runonfluxio hdr(host) anon9.io
+  acl anonapp14_38081app2runonfluxio hdr(host) www.anon9.io
+  acl anonapp14_38081app2runonfluxio hdr(host) test.anon9.io
+  acl anonapp14_38080app2runonfluxio hdr(host) anonapp14.app2.runonflux.io
+  acl fluxwordpress_38016app2runonfluxio hdr(host) fluxwordpress_38016.app2.runonflux.io
+  acl fluxwordpress_38016app2runonfluxio hdr(host) anon10.io
+  acl fluxwordpress_38016app2runonfluxio hdr(host) www.anon10.io
+  acl fluxwordpress_38016app2runonfluxio hdr(host) test.anon10.io
+  acl fluxwordpress_38016app2runonfluxio hdr(host) fluxwordpress.app2.runonflux.io
+  acl anonapp16_31000app2runonfluxio hdr(host) anonapp16_31000.app2.runonflux.io
+  acl anonapp16_31000app2runonfluxio hdr(host) anon11.fr
+  acl anonapp16_31000app2runonfluxio hdr(host) www.anon11.fr
+  acl anonapp16_31000app2runonfluxio hdr(host) test.anon11.fr
+  acl anonapp16_31000app2runonfluxio hdr(host) anonapp16.app2.runonflux.io
+  acl anonapp17_32323app2runonfluxio hdr(host) anonapp17_32323.app2.runonflux.io
+  acl anonapp17_32323app2runonfluxio hdr(host) anon12.me
+  acl anonapp17_32323app2runonfluxio hdr(host) www.anon12.me
+  acl anonapp17_32323app2runonfluxio hdr(host) test.anon12.me
+  acl anonapp17_32323app2runonfluxio hdr(host) anonapp17.app2.runonflux.io
+  acl kaspanode08_15110app2runonfluxio hdr(host) kaspanode08_15110.app2.runonflux.io
+  acl kaspanode08_15111app2runonfluxio hdr(host) kaspanode08_15111.app2.runonflux.io
+  acl kaspanode08_17110app2runonfluxio hdr(host) kaspanode08_17110.app2.runonflux.io
+  acl kaspanode08_18110app2runonfluxio hdr(host) kaspanode08_18110.app2.runonflux.io
+  acl kaspanode08_15110app2runonfluxio hdr(host) kaspanode08.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15110app2runonfluxio hdr(host) kaspanode16gb1760556657255_15110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15111app2runonfluxio hdr(host) kaspanode16gb1760556657255_15111.app2.runonflux.io
+  acl kaspanode16gb1760556657255_17110app2runonfluxio hdr(host) kaspanode16gb1760556657255_17110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_18110app2runonfluxio hdr(host) kaspanode16gb1760556657255_18110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15110app2runonfluxio hdr(host) kaspanode16gb1760556657255.app2.runonflux.io
+  acl anonapp20_8081app2runonfluxio hdr(host) anonapp20_8081.app2.runonflux.io
+  acl anonapp20_8081app2runonfluxio hdr(host) anonapp20.app2.runonflux.io
+  acl anonapp21_33333app2runonfluxio hdr(host) anonapp21_33333.app2.runonflux.io
+  acl anonapp21_33333app2runonfluxio hdr(host) anonapp21.app2.runonflux.io
+  acl anonapp23_21115app2runonfluxio hdr(host) anonapp23_21115.app2.runonflux.io
+  acl anonapp23_21116app2runonfluxio hdr(host) anonapp23_21116.app2.runonflux.io
+  acl anonapp23_21118app2runonfluxio hdr(host) anonapp23_21118.app2.runonflux.io
+  acl anonapp23_21117app2runonfluxio hdr(host) anonapp23_21117.app2.runonflux.io
+  acl anonapp23_21119app2runonfluxio hdr(host) anonapp23_21119.app2.runonflux.io
+  acl anonapp23_21115app2runonfluxio hdr(host) anonapp23.app2.runonflux.io
+  acl anonapp24_35855app2runonfluxio hdr(host) anonapp24_35855.app2.runonflux.io
+  acl anonapp24_37663app2runonfluxio hdr(host) anonapp24_37663.app2.runonflux.io
+  acl anonapp24_31922app2runonfluxio hdr(host) anonapp24_31922.app2.runonflux.io
+  acl anonapp24_35855app2runonfluxio hdr(host) anonapp24.app2.runonflux.io
+  acl anonapp25_34517app2runonfluxio hdr(host) anonapp25_34517.app2.runonflux.io
+  acl anonapp25_34517app2runonfluxio hdr(host) anon13.com
+  acl anonapp25_34517app2runonfluxio hdr(host) www.anon13.com
+  acl anonapp25_34517app2runonfluxio hdr(host) test.anon13.com
+  acl anonapp25_34517app2runonfluxio hdr(host) anonapp25.app2.runonflux.io
+  acl budibasemysql_34419app2runonfluxio hdr(host) budibasemysql_34419.app2.runonflux.io
+  acl budibasemysql_39443app2runonfluxio hdr(host) budibasemysql_39443.app2.runonflux.io
+  acl budibasemysql_39080app2runonfluxio hdr(host) budibasemysql_39080.app2.runonflux.io
+  acl budibasemysql_36477app2runonfluxio hdr(host) budibasemysql_36477.app2.runonflux.io
+  acl budibasemysql_38451app2runonfluxio hdr(host) budibasemysql_38451.app2.runonflux.io
+  acl budibasemysql_32069app2runonfluxio hdr(host) budibasemysql_32069.app2.runonflux.io
+  acl budibasemysql_34419app2runonfluxio hdr(host) budibasemysql.app2.runonflux.io
+  acl anonapp27_32442app2runonfluxio hdr(host) anonapp27_32442.app2.runonflux.io
+  acl anonapp27_32409app2runonfluxio hdr(host) anonapp27_32409.app2.runonflux.io
+  acl anonapp27_37734app2runonfluxio hdr(host) anonapp27_37734.app2.runonflux.io
+  acl anonapp27_35382app2runonfluxio hdr(host) anonapp27_35382.app2.runonflux.io
+  acl anonapp27_37483app2runonfluxio hdr(host) anonapp27_37483.app2.runonflux.io
+  acl anonapp27_34083app2runonfluxio hdr(host) anonapp27_34083.app2.runonflux.io
+  acl anonapp27_33035app2runonfluxio hdr(host) anonapp27_33035.app2.runonflux.io
+  acl anonapp27_31889app2runonfluxio hdr(host) anonapp27_31889.app2.runonflux.io
+  acl anonapp27_38979app2runonfluxio hdr(host) anonapp27_38979.app2.runonflux.io
+  acl anonapp27_38527app2runonfluxio hdr(host) anonapp27_38527.app2.runonflux.io
+  acl anonapp27_30752app2runonfluxio hdr(host) anonapp27_30752.app2.runonflux.io
+  acl anonapp27_31868app2runonfluxio hdr(host) anonapp27_31868.app2.runonflux.io
+  acl anonapp27_36220app2runonfluxio hdr(host) anonapp27_36220.app2.runonflux.io
+  acl anonapp27_32442app2runonfluxio hdr(host) anonapp27.app2.runonflux.io
+  acl anonapp28_8080app2runonfluxio hdr(host) anonapp28_8080.app2.runonflux.io
+  acl anonapp28_8080app2runonfluxio hdr(host) anonapp28.app2.runonflux.io
+  acl anonapp29_18080app2runonfluxio hdr(host) anonapp29_18080.app2.runonflux.io
+  acl anonapp29_18080app2runonfluxio hdr(host) anon14.com
+  acl anonapp29_18080app2runonfluxio hdr(host) www.anon14.com
+  acl anonapp29_18080app2runonfluxio hdr(host) test.anon14.com
+  acl anonapp29_16379app2runonfluxio hdr(host) anonapp29_16379.app2.runonflux.io
+  acl anonapp29_18081app2runonfluxio hdr(host) anonapp29_18081.app2.runonflux.io
+  acl anonapp29_18081app2runonfluxio hdr(host) anon15.com
+  acl anonapp29_18081app2runonfluxio hdr(host) www.anon15.com
+  acl anonapp29_18081app2runonfluxio hdr(host) test.anon15.com
+  acl anonapp29_18082app2runonfluxio hdr(host) anonapp29_18082.app2.runonflux.io
+  acl anonapp29_18082app2runonfluxio hdr(host) anon16.com
+  acl anonapp29_18082app2runonfluxio hdr(host) www.anon16.com
+  acl anonapp29_18082app2runonfluxio hdr(host) test.anon16.com
+  acl anonapp29_18083app2runonfluxio hdr(host) anonapp29_18083.app2.runonflux.io
+  acl anonapp29_18083app2runonfluxio hdr(host) anon17.com
+  acl anonapp29_18083app2runonfluxio hdr(host) www.anon17.com
+  acl anonapp29_18083app2runonfluxio hdr(host) test.anon17.com
+  acl anonapp29_18084app2runonfluxio hdr(host) anonapp29_18084.app2.runonflux.io
+  acl anonapp29_18084app2runonfluxio hdr(host) anon18.com
+  acl anonapp29_18084app2runonfluxio hdr(host) www.anon18.com
+  acl anonapp29_18084app2runonfluxio hdr(host) test.anon18.com
+  acl anonapp29_3306app2runonfluxio hdr(host) anonapp29_3306.app2.runonflux.io
+  acl anonapp29_3306app2runonfluxio hdr(host) anon19.com
+  acl anonapp29_3306app2runonfluxio hdr(host) www.anon19.com
+  acl anonapp29_3306app2runonfluxio hdr(host) test.anon19.com
+  acl anonapp29_18080app2runonfluxio hdr(host) anonapp29.app2.runonflux.io
+  acl anonapp4_7777app2runonfluxio hdr(host) anonapp4_7777.app2.runonflux.io
+  acl anonapp4_27015app2runonfluxio hdr(host) anonapp4_27015.app2.runonflux.io
+  acl anonapp4_7777app2runonfluxio hdr(host) anonapp4.app2.runonflux.io
+  acl anonapp22_25565app2runonfluxio hdr(host) anonapp22_25565.app2.runonflux.io
+  acl anonapp22_25565app2runonfluxio hdr(host) anonapp22.app2.runonflux.io
+
+  use_backend forbidden-backend if forbiddenacl
+  use_backend wordpress1677413615318_38286app2runonfluxiobackend if wordpress1677413615318_38286app2runonfluxio
+  use_backend wordpress1677413615318_34328app2runonfluxiobackend if wordpress1677413615318_34328app2runonfluxio
+  use_backend wordpress1677413615318_36562app2runonfluxiobackend if wordpress1677413615318_36562app2runonfluxio
+  use_backend wordpress1677413615318_34252app2runonfluxiobackend if wordpress1677413615318_34252app2runonfluxio
+  use_backend anonapp1_35051app2runonfluxiobackend if anonapp1_35051app2runonfluxio
+  use_backend anonapp3_33702app2runonfluxiobackend if anonapp3_33702app2runonfluxio
+  use_backend anonapp5_36919app2runonfluxiobackend if anonapp5_36919app2runonfluxio
+  use_backend anonapp6_31588app2runonfluxiobackend if anonapp6_31588app2runonfluxio
+  use_backend anonapp6_31589app2runonfluxiobackend if anonapp6_31589app2runonfluxio
+  use_backend anonapp7_35555app2runonfluxiobackend if anonapp7_35555app2runonfluxio
+  use_backend anonapp8_36769app2runonfluxiobackend if anonapp8_36769app2runonfluxio
+  use_backend anonapp9_31443app2runonfluxiobackend if anonapp9_31443app2runonfluxio
+  use_backend anonapp10_33333app2runonfluxiobackend if anonapp10_33333app2runonfluxio
+  use_backend anonapp11_38454app2runonfluxiobackend if anonapp11_38454app2runonfluxio
+  use_backend anonapp12_31301app2runonfluxiobackend if anonapp12_31301app2runonfluxio
+  use_backend anonapp12_31302app2runonfluxiobackend if anonapp12_31302app2runonfluxio
+  use_backend anonapp12_31303app2runonfluxiobackend if anonapp12_31303app2runonfluxio
+  use_backend anonapp12_31304app2runonfluxiobackend if anonapp12_31304app2runonfluxio
+  use_backend anonapp13_36512app2runonfluxiobackend if anonapp13_36512app2runonfluxio
+  use_backend anonapp14_38080app2runonfluxiobackend if anonapp14_38080app2runonfluxio
+  use_backend anonapp14_38081app2runonfluxiobackend if anonapp14_38081app2runonfluxio
+  use_backend fluxwordpress_38016app2runonfluxiobackend if fluxwordpress_38016app2runonfluxio
+  use_backend anonapp16_31000app2runonfluxiobackend if anonapp16_31000app2runonfluxio
+  use_backend anonapp17_32323app2runonfluxiobackend if anonapp17_32323app2runonfluxio
+  use_backend kaspanode08_15110app2runonfluxiobackend if kaspanode08_15110app2runonfluxio
+  use_backend kaspanode08_15111app2runonfluxiobackend if kaspanode08_15111app2runonfluxio
+  use_backend kaspanode08_17110app2runonfluxiobackend if kaspanode08_17110app2runonfluxio
+  use_backend kaspanode08_18110app2runonfluxiobackend if kaspanode08_18110app2runonfluxio
+  use_backend kaspanode16gb1760556657255_15110app2runonfluxiobackend if kaspanode16gb1760556657255_15110app2runonfluxio
+  use_backend kaspanode16gb1760556657255_15111app2runonfluxiobackend if kaspanode16gb1760556657255_15111app2runonfluxio
+  use_backend kaspanode16gb1760556657255_17110app2runonfluxiobackend if kaspanode16gb1760556657255_17110app2runonfluxio
+  use_backend kaspanode16gb1760556657255_18110app2runonfluxiobackend if kaspanode16gb1760556657255_18110app2runonfluxio
+  use_backend anonapp20_8081app2runonfluxiobackend if anonapp20_8081app2runonfluxio
+  use_backend anonapp21_33333app2runonfluxiobackend if anonapp21_33333app2runonfluxio
+  use_backend anonapp23_21115app2runonfluxiobackend if anonapp23_21115app2runonfluxio
+  use_backend anonapp23_21116app2runonfluxiobackend if anonapp23_21116app2runonfluxio
+  use_backend anonapp23_21118app2runonfluxiobackend if anonapp23_21118app2runonfluxio
+  use_backend anonapp23_21117app2runonfluxiobackend if anonapp23_21117app2runonfluxio
+  use_backend anonapp23_21119app2runonfluxiobackend if anonapp23_21119app2runonfluxio
+  use_backend anonapp24_35855app2runonfluxiobackend if anonapp24_35855app2runonfluxio
+  use_backend anonapp24_37663app2runonfluxiobackend if anonapp24_37663app2runonfluxio
+  use_backend anonapp24_31922app2runonfluxiobackend if anonapp24_31922app2runonfluxio
+  use_backend anonapp25_34517app2runonfluxiobackend if anonapp25_34517app2runonfluxio
+  use_backend budibasemysql_34419app2runonfluxiobackend if budibasemysql_34419app2runonfluxio
+  use_backend budibasemysql_39443app2runonfluxiobackend if budibasemysql_39443app2runonfluxio
+  use_backend budibasemysql_39080app2runonfluxiobackend if budibasemysql_39080app2runonfluxio
+  use_backend budibasemysql_36477app2runonfluxiobackend if budibasemysql_36477app2runonfluxio
+  use_backend budibasemysql_38451app2runonfluxiobackend if budibasemysql_38451app2runonfluxio
+  use_backend budibasemysql_32069app2runonfluxiobackend if budibasemysql_32069app2runonfluxio
+  use_backend anonapp27_32442app2runonfluxiobackend if anonapp27_32442app2runonfluxio
+  use_backend anonapp27_32409app2runonfluxiobackend if anonapp27_32409app2runonfluxio
+  use_backend anonapp27_37734app2runonfluxiobackend if anonapp27_37734app2runonfluxio
+  use_backend anonapp27_35382app2runonfluxiobackend if anonapp27_35382app2runonfluxio
+  use_backend anonapp27_37483app2runonfluxiobackend if anonapp27_37483app2runonfluxio
+  use_backend anonapp27_34083app2runonfluxiobackend if anonapp27_34083app2runonfluxio
+  use_backend anonapp27_33035app2runonfluxiobackend if anonapp27_33035app2runonfluxio
+  use_backend anonapp27_31889app2runonfluxiobackend if anonapp27_31889app2runonfluxio
+  use_backend anonapp27_38979app2runonfluxiobackend if anonapp27_38979app2runonfluxio
+  use_backend anonapp27_38527app2runonfluxiobackend if anonapp27_38527app2runonfluxio
+  use_backend anonapp27_30752app2runonfluxiobackend if anonapp27_30752app2runonfluxio
+  use_backend anonapp27_31868app2runonfluxiobackend if anonapp27_31868app2runonfluxio
+  use_backend anonapp27_36220app2runonfluxiobackend if anonapp27_36220app2runonfluxio
+  use_backend anonapp28_8080app2runonfluxiobackend if anonapp28_8080app2runonfluxio
+  use_backend anonapp29_18080app2runonfluxiobackend if anonapp29_18080app2runonfluxio
+  use_backend anonapp29_16379app2runonfluxiobackend if anonapp29_16379app2runonfluxio
+  use_backend anonapp29_18081app2runonfluxiobackend if anonapp29_18081app2runonfluxio
+  use_backend anonapp29_18082app2runonfluxiobackend if anonapp29_18082app2runonfluxio
+  use_backend anonapp29_18083app2runonfluxiobackend if anonapp29_18083app2runonfluxio
+  use_backend anonapp29_18084app2runonfluxiobackend if anonapp29_18084app2runonfluxio
+  use_backend anonapp29_3306app2runonfluxiobackend if anonapp29_3306app2runonfluxio
+  use_backend anonapp4_7777app2runonfluxiobackend if anonapp4_7777app2runonfluxio
+  use_backend anonapp4_27015app2runonfluxiobackend if anonapp4_27015app2runonfluxio
+  use_backend anonapp22_25565app2runonfluxiobackend if anonapp22_25565app2runonfluxio
+
+
+
+
+
+
+frontend tcp_app_7777
+  bind 0.0.0.0:7777
+  mode tcp
+  option tcplog
+  option tcp-check
+  tcp-request inspect-delay 5s
+  tcp-request content accept if { req_ssl_hello_type 1 }
+  acl anonapp4_7777app2runonfluxio var(txn.mc_host) -i -m dom anonapp4_7777.app2.runonflux.io
+  acl anonapp4_7777app2runonfluxio req.payload(4,14) -m sub anonapp4_7777.
+  acl anonapp4_7777app2runonfluxio req.payload(5,14) -m sub anonapp4_7777.
+  acl anonapp4_7777app2runonfluxio req.payload(7,14) -m sub anonapp4_7777.
+  acl anonapp4_7777app2runonfluxio req.payload(8,14) -m sub anonapp4_7777.
+  acl anonapp4_7777app2runonfluxio req.payload(1,31) -m sub anonapp4_7777.app2.runonflux.io
+  acl anonapp4_7777app2runonfluxio req.payload(2,31) -m sub anonapp4_7777.app2.runonflux.io
+  acl anonapp4_7777app2runonfluxio req.payload(3,31) -m sub anonapp4_7777.app2.runonflux.io
+  acl anonapp4_7777app2runonfluxio req.ssl_sni -i anonapp4_7777.app2.runonflux.io
+  acl anonapp4app2runonfluxio var(txn.mc_host) -i -m dom anonapp4.app2.runonflux.io
+  acl anonapp4app2runonfluxio req.payload(4,9) -m sub anonapp4.
+  acl anonapp4app2runonfluxio req.payload(5,9) -m sub anonapp4.
+  acl anonapp4app2runonfluxio req.payload(7,9) -m sub anonapp4.
+  acl anonapp4app2runonfluxio req.payload(8,9) -m sub anonapp4.
+  acl anonapp4app2runonfluxio req.payload(1,26) -m sub anonapp4.app2.runonflux.io
+  acl anonapp4app2runonfluxio req.payload(2,26) -m sub anonapp4.app2.runonflux.io
+  acl anonapp4app2runonfluxio req.payload(3,26) -m sub anonapp4.app2.runonflux.io
+  acl anonapp4app2runonfluxio req.ssl_sni -i anonapp4.app2.runonflux.io
+  default_backend anonapp4_7777app2runonfluxio_tcp_backend
+  use_backend anonapp4_7777app2runonfluxio_tcp_backend if anonapp4_7777app2runonfluxio
+  use_backend anonapp4app2runonfluxio_tcp_backend if anonapp4app2runonfluxio
+
+
+backend anonapp4_7777app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 135.148.60.40:16127 135.148.60.40:7777   inter 3s fall 2 rise 2 fastinter 500
+
+backend anonapp4app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 135.148.60.40:16127 135.148.60.40:7777   inter 3s fall 2 rise 2 fastinter 500
+
+
+frontend tcp_app_15110
+  bind 0.0.0.0:15110
+  mode tcp
+  option tcplog
+  option tcp-check
+  tcp-request inspect-delay 5s
+  tcp-request content accept if { req_ssl_hello_type 1 }
+  acl kaspanode08_15110app2runonfluxio var(txn.mc_host) -i -m dom kaspanode08_15110.app2.runonflux.io
+  acl kaspanode08_15110app2runonfluxio req.payload(4,18) -m sub kaspanode08_15110.
+  acl kaspanode08_15110app2runonfluxio req.payload(5,18) -m sub kaspanode08_15110.
+  acl kaspanode08_15110app2runonfluxio req.payload(7,18) -m sub kaspanode08_15110.
+  acl kaspanode08_15110app2runonfluxio req.payload(8,18) -m sub kaspanode08_15110.
+  acl kaspanode08_15110app2runonfluxio req.payload(1,35) -m sub kaspanode08_15110.app2.runonflux.io
+  acl kaspanode08_15110app2runonfluxio req.payload(2,35) -m sub kaspanode08_15110.app2.runonflux.io
+  acl kaspanode08_15110app2runonfluxio req.payload(3,35) -m sub kaspanode08_15110.app2.runonflux.io
+  acl kaspanode08_15110app2runonfluxio req.ssl_sni -i kaspanode08_15110.app2.runonflux.io
+  acl kaspanode08app2runonfluxio var(txn.mc_host) -i -m dom kaspanode08.app2.runonflux.io
+  acl kaspanode08app2runonfluxio req.payload(4,12) -m sub kaspanode08.
+  acl kaspanode08app2runonfluxio req.payload(5,12) -m sub kaspanode08.
+  acl kaspanode08app2runonfluxio req.payload(7,12) -m sub kaspanode08.
+  acl kaspanode08app2runonfluxio req.payload(8,12) -m sub kaspanode08.
+  acl kaspanode08app2runonfluxio req.payload(1,29) -m sub kaspanode08.app2.runonflux.io
+  acl kaspanode08app2runonfluxio req.payload(2,29) -m sub kaspanode08.app2.runonflux.io
+  acl kaspanode08app2runonfluxio req.payload(3,29) -m sub kaspanode08.app2.runonflux.io
+  acl kaspanode08app2runonfluxio req.ssl_sni -i kaspanode08.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15110app2runonfluxio var(txn.mc_host) -i -m dom kaspanode16gb1760556657255_15110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15110app2runonfluxio req.payload(4,33) -m sub kaspanode16gb1760556657255_15110.
+  acl kaspanode16gb1760556657255_15110app2runonfluxio req.payload(5,33) -m sub kaspanode16gb1760556657255_15110.
+  acl kaspanode16gb1760556657255_15110app2runonfluxio req.payload(7,33) -m sub kaspanode16gb1760556657255_15110.
+  acl kaspanode16gb1760556657255_15110app2runonfluxio req.payload(8,33) -m sub kaspanode16gb1760556657255_15110.
+  acl kaspanode16gb1760556657255_15110app2runonfluxio req.payload(1,50) -m sub kaspanode16gb1760556657255_15110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15110app2runonfluxio req.payload(2,50) -m sub kaspanode16gb1760556657255_15110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15110app2runonfluxio req.payload(3,50) -m sub kaspanode16gb1760556657255_15110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15110app2runonfluxio req.ssl_sni -i kaspanode16gb1760556657255_15110.app2.runonflux.io
+  acl kaspanode16gb1760556657255app2runonfluxio var(txn.mc_host) -i -m dom kaspanode16gb1760556657255.app2.runonflux.io
+  acl kaspanode16gb1760556657255app2runonfluxio req.payload(4,27) -m sub kaspanode16gb1760556657255.
+  acl kaspanode16gb1760556657255app2runonfluxio req.payload(5,27) -m sub kaspanode16gb1760556657255.
+  acl kaspanode16gb1760556657255app2runonfluxio req.payload(7,27) -m sub kaspanode16gb1760556657255.
+  acl kaspanode16gb1760556657255app2runonfluxio req.payload(8,27) -m sub kaspanode16gb1760556657255.
+  acl kaspanode16gb1760556657255app2runonfluxio req.payload(1,44) -m sub kaspanode16gb1760556657255.app2.runonflux.io
+  acl kaspanode16gb1760556657255app2runonfluxio req.payload(2,44) -m sub kaspanode16gb1760556657255.app2.runonflux.io
+  acl kaspanode16gb1760556657255app2runonfluxio req.payload(3,44) -m sub kaspanode16gb1760556657255.app2.runonflux.io
+  acl kaspanode16gb1760556657255app2runonfluxio req.ssl_sni -i kaspanode16gb1760556657255.app2.runonflux.io
+  default_backend kaspanode08_15110app2runonfluxio_tcp_backend
+  use_backend kaspanode08_15110app2runonfluxio_tcp_backend if kaspanode08_15110app2runonfluxio
+  use_backend kaspanode08app2runonfluxio_tcp_backend if kaspanode08app2runonfluxio
+  use_backend kaspanode16gb1760556657255_15110app2runonfluxio_tcp_backend if kaspanode16gb1760556657255_15110app2runonfluxio
+  use_backend kaspanode16gb1760556657255app2runonfluxio_tcp_backend if kaspanode16gb1760556657255app2runonfluxio
+
+
+backend kaspanode08_15110app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:15110 check   inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:15110 check   inter 3s fall 2 rise 2 fastinter 500
+
+backend kaspanode08app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:15110 check   inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:15110 check   inter 3s fall 2 rise 2 fastinter 500
+
+backend kaspanode16gb1760556657255_15110app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:15110 check   inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:15110 check   inter 3s fall 2 rise 2 fastinter 500
+
+backend kaspanode16gb1760556657255app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:15110 check   inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:15110 check   inter 3s fall 2 rise 2 fastinter 500
+
+
+frontend tcp_app_15111
+  bind 0.0.0.0:15111
+  mode tcp
+  option tcplog
+  option tcp-check
+  tcp-request inspect-delay 5s
+  tcp-request content accept if { req_ssl_hello_type 1 }
+  acl kaspanode08_15111app2runonfluxio var(txn.mc_host) -i -m dom kaspanode08_15111.app2.runonflux.io
+  acl kaspanode08_15111app2runonfluxio req.payload(4,18) -m sub kaspanode08_15111.
+  acl kaspanode08_15111app2runonfluxio req.payload(5,18) -m sub kaspanode08_15111.
+  acl kaspanode08_15111app2runonfluxio req.payload(7,18) -m sub kaspanode08_15111.
+  acl kaspanode08_15111app2runonfluxio req.payload(8,18) -m sub kaspanode08_15111.
+  acl kaspanode08_15111app2runonfluxio req.payload(1,35) -m sub kaspanode08_15111.app2.runonflux.io
+  acl kaspanode08_15111app2runonfluxio req.payload(2,35) -m sub kaspanode08_15111.app2.runonflux.io
+  acl kaspanode08_15111app2runonfluxio req.payload(3,35) -m sub kaspanode08_15111.app2.runonflux.io
+  acl kaspanode08_15111app2runonfluxio req.ssl_sni -i kaspanode08_15111.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15111app2runonfluxio var(txn.mc_host) -i -m dom kaspanode16gb1760556657255_15111.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15111app2runonfluxio req.payload(4,33) -m sub kaspanode16gb1760556657255_15111.
+  acl kaspanode16gb1760556657255_15111app2runonfluxio req.payload(5,33) -m sub kaspanode16gb1760556657255_15111.
+  acl kaspanode16gb1760556657255_15111app2runonfluxio req.payload(7,33) -m sub kaspanode16gb1760556657255_15111.
+  acl kaspanode16gb1760556657255_15111app2runonfluxio req.payload(8,33) -m sub kaspanode16gb1760556657255_15111.
+  acl kaspanode16gb1760556657255_15111app2runonfluxio req.payload(1,50) -m sub kaspanode16gb1760556657255_15111.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15111app2runonfluxio req.payload(2,50) -m sub kaspanode16gb1760556657255_15111.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15111app2runonfluxio req.payload(3,50) -m sub kaspanode16gb1760556657255_15111.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15111app2runonfluxio req.ssl_sni -i kaspanode16gb1760556657255_15111.app2.runonflux.io
+  default_backend kaspanode08_15111app2runonfluxio_tcp_backend
+  use_backend kaspanode08_15111app2runonfluxio_tcp_backend if kaspanode08_15111app2runonfluxio
+  use_backend kaspanode16gb1760556657255_15111app2runonfluxio_tcp_backend if kaspanode16gb1760556657255_15111app2runonfluxio
+
+
+backend kaspanode08_15111app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:15111 check   inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:15111 check   inter 3s fall 2 rise 2 fastinter 500
+
+backend kaspanode16gb1760556657255_15111app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:15111 check   inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:15111 check   inter 3s fall 2 rise 2 fastinter 500
+
+
+frontend tcp_app_17110
+  bind 0.0.0.0:17110
+  mode tcp
+  option tcplog
+  option tcp-check
+  tcp-request inspect-delay 5s
+  tcp-request content accept if { req_ssl_hello_type 1 }
+  acl kaspanode08_17110app2runonfluxio var(txn.mc_host) -i -m dom kaspanode08_17110.app2.runonflux.io
+  acl kaspanode08_17110app2runonfluxio req.payload(4,18) -m sub kaspanode08_17110.
+  acl kaspanode08_17110app2runonfluxio req.payload(5,18) -m sub kaspanode08_17110.
+  acl kaspanode08_17110app2runonfluxio req.payload(7,18) -m sub kaspanode08_17110.
+  acl kaspanode08_17110app2runonfluxio req.payload(8,18) -m sub kaspanode08_17110.
+  acl kaspanode08_17110app2runonfluxio req.payload(1,35) -m sub kaspanode08_17110.app2.runonflux.io
+  acl kaspanode08_17110app2runonfluxio req.payload(2,35) -m sub kaspanode08_17110.app2.runonflux.io
+  acl kaspanode08_17110app2runonfluxio req.payload(3,35) -m sub kaspanode08_17110.app2.runonflux.io
+  acl kaspanode08_17110app2runonfluxio req.ssl_sni -i kaspanode08_17110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_17110app2runonfluxio var(txn.mc_host) -i -m dom kaspanode16gb1760556657255_17110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_17110app2runonfluxio req.payload(4,33) -m sub kaspanode16gb1760556657255_17110.
+  acl kaspanode16gb1760556657255_17110app2runonfluxio req.payload(5,33) -m sub kaspanode16gb1760556657255_17110.
+  acl kaspanode16gb1760556657255_17110app2runonfluxio req.payload(7,33) -m sub kaspanode16gb1760556657255_17110.
+  acl kaspanode16gb1760556657255_17110app2runonfluxio req.payload(8,33) -m sub kaspanode16gb1760556657255_17110.
+  acl kaspanode16gb1760556657255_17110app2runonfluxio req.payload(1,50) -m sub kaspanode16gb1760556657255_17110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_17110app2runonfluxio req.payload(2,50) -m sub kaspanode16gb1760556657255_17110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_17110app2runonfluxio req.payload(3,50) -m sub kaspanode16gb1760556657255_17110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_17110app2runonfluxio req.ssl_sni -i kaspanode16gb1760556657255_17110.app2.runonflux.io
+  default_backend kaspanode08_17110app2runonfluxio_tcp_backend
+  use_backend kaspanode08_17110app2runonfluxio_tcp_backend if kaspanode08_17110app2runonfluxio
+  use_backend kaspanode16gb1760556657255_17110app2runonfluxio_tcp_backend if kaspanode16gb1760556657255_17110app2runonfluxio
+
+
+backend kaspanode08_17110app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:17110 check   inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:17110 check   inter 3s fall 2 rise 2 fastinter 500
+
+backend kaspanode16gb1760556657255_17110app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:17110 check   inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:17110 check   inter 3s fall 2 rise 2 fastinter 500
+
+
+frontend tcp_app_18110
+  bind 0.0.0.0:18110
+  mode tcp
+  option tcplog
+  option tcp-check
+  tcp-request inspect-delay 5s
+  tcp-request content accept if { req_ssl_hello_type 1 }
+  acl kaspanode08_18110app2runonfluxio var(txn.mc_host) -i -m dom kaspanode08_18110.app2.runonflux.io
+  acl kaspanode08_18110app2runonfluxio req.payload(4,18) -m sub kaspanode08_18110.
+  acl kaspanode08_18110app2runonfluxio req.payload(5,18) -m sub kaspanode08_18110.
+  acl kaspanode08_18110app2runonfluxio req.payload(7,18) -m sub kaspanode08_18110.
+  acl kaspanode08_18110app2runonfluxio req.payload(8,18) -m sub kaspanode08_18110.
+  acl kaspanode08_18110app2runonfluxio req.payload(1,35) -m sub kaspanode08_18110.app2.runonflux.io
+  acl kaspanode08_18110app2runonfluxio req.payload(2,35) -m sub kaspanode08_18110.app2.runonflux.io
+  acl kaspanode08_18110app2runonfluxio req.payload(3,35) -m sub kaspanode08_18110.app2.runonflux.io
+  acl kaspanode08_18110app2runonfluxio req.ssl_sni -i kaspanode08_18110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_18110app2runonfluxio var(txn.mc_host) -i -m dom kaspanode16gb1760556657255_18110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_18110app2runonfluxio req.payload(4,33) -m sub kaspanode16gb1760556657255_18110.
+  acl kaspanode16gb1760556657255_18110app2runonfluxio req.payload(5,33) -m sub kaspanode16gb1760556657255_18110.
+  acl kaspanode16gb1760556657255_18110app2runonfluxio req.payload(7,33) -m sub kaspanode16gb1760556657255_18110.
+  acl kaspanode16gb1760556657255_18110app2runonfluxio req.payload(8,33) -m sub kaspanode16gb1760556657255_18110.
+  acl kaspanode16gb1760556657255_18110app2runonfluxio req.payload(1,50) -m sub kaspanode16gb1760556657255_18110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_18110app2runonfluxio req.payload(2,50) -m sub kaspanode16gb1760556657255_18110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_18110app2runonfluxio req.payload(3,50) -m sub kaspanode16gb1760556657255_18110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_18110app2runonfluxio req.ssl_sni -i kaspanode16gb1760556657255_18110.app2.runonflux.io
+  default_backend kaspanode08_18110app2runonfluxio_tcp_backend
+  use_backend kaspanode08_18110app2runonfluxio_tcp_backend if kaspanode08_18110app2runonfluxio
+  use_backend kaspanode16gb1760556657255_18110app2runonfluxio_tcp_backend if kaspanode16gb1760556657255_18110app2runonfluxio
+
+
+backend kaspanode08_18110app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:18110 check   inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:18110 check   inter 3s fall 2 rise 2 fastinter 500
+
+backend kaspanode16gb1760556657255_18110app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:18110 check   inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:18110 check   inter 3s fall 2 rise 2 fastinter 500
+
+
+frontend tcp_app_25565
+  bind 0.0.0.0:25565
+  mode tcp
+  option tcplog
+  option tcp-check
+  tcp-request inspect-delay 5s
+  tcp-request content lua.mc_handshake
+  # tcp-request content reject if { var(txn.mc_proto) -m int 0 }
+  tcp-request content accept if { var(txn.mc_proto) -m found }
+  # tcp-request content reject if WAIT_END
+  acl anonapp22_25565app2runonfluxio var(txn.mc_host) -i -m dom anonapp22_25565.app2.runonflux.io
+  acl anonapp22_25565app2runonfluxio req.payload(4,16) -m sub anonapp22_25565.
+  acl anonapp22_25565app2runonfluxio req.payload(5,16) -m sub anonapp22_25565.
+  acl anonapp22_25565app2runonfluxio req.payload(7,16) -m sub anonapp22_25565.
+  acl anonapp22_25565app2runonfluxio req.payload(8,16) -m sub anonapp22_25565.
+  acl anonapp22_25565app2runonfluxio req.payload(1,33) -m sub anonapp22_25565.app2.runonflux.io
+  acl anonapp22_25565app2runonfluxio req.payload(2,33) -m sub anonapp22_25565.app2.runonflux.io
+  acl anonapp22_25565app2runonfluxio req.payload(3,33) -m sub anonapp22_25565.app2.runonflux.io
+  acl anonapp22_25565app2runonfluxio req.ssl_sni -i anonapp22_25565.app2.runonflux.io
+  acl anonapp22app2runonfluxio var(txn.mc_host) -i -m dom anonapp22.app2.runonflux.io
+  acl anonapp22app2runonfluxio req.payload(4,10) -m sub anonapp22.
+  acl anonapp22app2runonfluxio req.payload(5,10) -m sub anonapp22.
+  acl anonapp22app2runonfluxio req.payload(7,10) -m sub anonapp22.
+  acl anonapp22app2runonfluxio req.payload(8,10) -m sub anonapp22.
+  acl anonapp22app2runonfluxio req.payload(1,27) -m sub anonapp22.app2.runonflux.io
+  acl anonapp22app2runonfluxio req.payload(2,27) -m sub anonapp22.app2.runonflux.io
+  acl anonapp22app2runonfluxio req.payload(3,27) -m sub anonapp22.app2.runonflux.io
+  acl anonapp22app2runonfluxio req.ssl_sni -i anonapp22.app2.runonflux.io
+  default_backend anonapp22_25565app2runonfluxio_tcp_backend
+  use_backend anonapp22_25565app2runonfluxio_tcp_backend if anonapp22_25565app2runonfluxio
+  use_backend anonapp22app2runonfluxio_tcp_backend if anonapp22app2runonfluxio
+
+
+backend anonapp22_25565app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 135.148.60.40:16127 135.148.60.40:25565   inter 3s fall 2 rise 2 fastinter 500
+
+backend anonapp22app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 135.148.60.40:16127 135.148.60.40:25565   inter 3s fall 2 rise 2 fastinter 500
+
+
+frontend tcp_app_27015
+  bind 0.0.0.0:27015
+  mode tcp
+  option tcplog
+  option tcp-check
+  tcp-request inspect-delay 5s
+  tcp-request content accept if { req_ssl_hello_type 1 }
+  acl anonapp4_27015app2runonfluxio var(txn.mc_host) -i -m dom anonapp4_27015.app2.runonflux.io
+  acl anonapp4_27015app2runonfluxio req.payload(4,15) -m sub anonapp4_27015.
+  acl anonapp4_27015app2runonfluxio req.payload(5,15) -m sub anonapp4_27015.
+  acl anonapp4_27015app2runonfluxio req.payload(7,15) -m sub anonapp4_27015.
+  acl anonapp4_27015app2runonfluxio req.payload(8,15) -m sub anonapp4_27015.
+  acl anonapp4_27015app2runonfluxio req.payload(1,32) -m sub anonapp4_27015.app2.runonflux.io
+  acl anonapp4_27015app2runonfluxio req.payload(2,32) -m sub anonapp4_27015.app2.runonflux.io
+  acl anonapp4_27015app2runonfluxio req.payload(3,32) -m sub anonapp4_27015.app2.runonflux.io
+  acl anonapp4_27015app2runonfluxio req.ssl_sni -i anonapp4_27015.app2.runonflux.io
+  default_backend anonapp4_27015app2runonfluxio_tcp_backend
+  use_backend anonapp4_27015app2runonfluxio_tcp_backend if anonapp4_27015app2runonfluxio
+
+
+backend anonapp4_27015app2runonfluxio_tcp_backend
+  mode tcp
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 135.148.60.40:16127 135.148.60.40:27015   inter 3s fall 2 rise 2 fastinter 500
+
+
+frontend wwwhttps
+#  option httplog
+  option http-server-close
+  option forwardfor except 127.0.0.0/8
+  http-response add-header Access-Control-Expose-Headers '*' unless { res.hdr(Access-Control-Expose-Headers) -m found }
+  http-after-response add-header Access-Control-Allow-Origin "*" unless { res.hdr(Access-Control-Allow-Origin) -m found }
+
+  # stats in /fluxstatistics publicly available
+  stats enable
+  stats hide-version
+  stats uri     /fluxstatistics
+  stats realm   Flux\ Statistics
+
+  # The SSL CRT file is a combination of the public certificate and the private key
+  bind *:443 ssl crt /etc/ssl/fluxapps/  alpn h2,http/1.1
+
+  # FDM API routing - only for this FDM's domain
+  acl fdm-domain hdr(host) -i fdm-lb-2-1.runonflux.io
+  acl fdm-api-path path_beg /api/
+  use_backend fdm-api-backend if fdm-domain fdm-api-path
+
+
+  acl forbiddenacl hdr(host) racecoursejebelali.com
+  acl forbiddenacl hdr(host) www.racecoursejebelali.com
+  acl forbiddenacl hdr(host) sofiteldowntown.com
+  acl forbiddenacl hdr(host) www.sofiteldowntown.com
+  acl forbiddenacl hdr(host) livelo.digitaisx.mov
+  acl forbiddenacl hdr(host) www.livelo.digitaisx.mov
+  acl forbiddenacl path_beg -i /product/litty-cat-thc-bars-1000mg
+  acl wordpress1677413615318_38286app2runonfluxio hdr(host) wordpress1677413615318_38286.app2.runonflux.io
+  acl wordpress1677413615318_38286app2runonfluxio hdr(host) anon0.com
+  acl wordpress1677413615318_38286app2runonfluxio hdr(host) www.anon0.com
+  acl wordpress1677413615318_38286app2runonfluxio hdr(host) test.anon0.com
+  acl wordpress1677413615318_34328app2runonfluxio hdr(host) wordpress1677413615318_34328.app2.runonflux.io
+  acl wordpress1677413615318_36562app2runonfluxio hdr(host) wordpress1677413615318_36562.app2.runonflux.io
+  acl wordpress1677413615318_34252app2runonfluxio hdr(host) wordpress1677413615318_34252.app2.runonflux.io
+  acl wordpress1677413615318_38286app2runonfluxio hdr(host) wordpress1677413615318.app2.runonflux.io
+  acl anonapp1_35051app2runonfluxio hdr(host) anonapp1_35051.app2.runonflux.io
+  acl anonapp1_35051app2runonfluxio hdr(host) anonapp1.app2.runonflux.io
+  acl anonapp3_33702app2runonfluxio hdr(host) anonapp3_33702.app2.runonflux.io
+  acl anonapp3_33702app2runonfluxio hdr(host) anonapp3.app2.runonflux.io
+  acl anonapp5_36919app2runonfluxio hdr(host) anonapp5_36919.app2.runonflux.io
+  acl anonapp5_36919app2runonfluxio hdr(host) anon1.com
+  acl anonapp5_36919app2runonfluxio hdr(host) www.anon1.com
+  acl anonapp5_36919app2runonfluxio hdr(host) test.anon1.com
+  acl anonapp5_36919app2runonfluxio hdr(host) anonapp5.app2.runonflux.io
+  acl anonapp6_31588app2runonfluxio hdr(host) anonapp6_31588.app2.runonflux.io
+  acl anonapp6_31589app2runonfluxio hdr(host) anonapp6_31589.app2.runonflux.io
+  acl anonapp6_31588app2runonfluxio hdr(host) anonapp6.app2.runonflux.io
+  acl anonapp7_35555app2runonfluxio hdr(host) anonapp7_35555.app2.runonflux.io
+  acl anonapp7_35555app2runonfluxio hdr(host) anonapp7.app2.runonflux.io
+  acl anonapp8_36769app2runonfluxio hdr(host) anonapp8_36769.app2.runonflux.io
+  acl anonapp8_36769app2runonfluxio hdr(host) anon2.com
+  acl anonapp8_36769app2runonfluxio hdr(host) www.anon2.com
+  acl anonapp8_36769app2runonfluxio hdr(host) test.anon2.com
+  acl anonapp8_36769app2runonfluxio hdr(host) anon3.com
+  acl anonapp8_36769app2runonfluxio hdr(host) www.anon3.com
+  acl anonapp8_36769app2runonfluxio hdr(host) test.anon3.com
+  acl anonapp8_36769app2runonfluxio hdr(host) anonapp8.app2.runonflux.io
+  acl anonapp9_31443app2runonfluxio hdr(host) anonapp9_31443.app2.runonflux.io
+  acl anonapp9_31443app2runonfluxio hdr(host) anonapp9.app2.runonflux.io
+  acl anonapp10_33333app2runonfluxio hdr(host) anonapp10_33333.app2.runonflux.io
+  acl anonapp10_33333app2runonfluxio hdr(host) anon4.com
+  acl anonapp10_33333app2runonfluxio hdr(host) www.anon4.com
+  acl anonapp10_33333app2runonfluxio hdr(host) test.anon4.com
+  acl anonapp10_33333app2runonfluxio hdr(host) anonapp10.app2.runonflux.io
+  acl anonapp11_38454app2runonfluxio hdr(host) anonapp11_38454.app2.runonflux.io
+  acl anonapp11_38454app2runonfluxio hdr(host) anonapp11.app2.runonflux.io
+  acl anonapp12_31301app2runonfluxio hdr(host) anonapp12_31301.app2.runonflux.io
+  acl anonapp12_31301app2runonfluxio hdr(host) anon5.io
+  acl anonapp12_31301app2runonfluxio hdr(host) www.anon5.io
+  acl anonapp12_31301app2runonfluxio hdr(host) test.anon5.io
+  acl anonapp12_31302app2runonfluxio hdr(host) anonapp12_31302.app2.runonflux.io
+  acl anonapp12_31302app2runonfluxio hdr(host) anon6.io
+  acl anonapp12_31302app2runonfluxio hdr(host) www.anon6.io
+  acl anonapp12_31302app2runonfluxio hdr(host) test.anon6.io
+  acl anonapp12_31303app2runonfluxio hdr(host) anonapp12_31303.app2.runonflux.io
+  acl anonapp12_31304app2runonfluxio hdr(host) anonapp12_31304.app2.runonflux.io
+  acl anonapp12_31301app2runonfluxio hdr(host) anonapp12.app2.runonflux.io
+  acl anonapp13_36512app2runonfluxio hdr(host) anonapp13_36512.app2.runonflux.io
+  acl anonapp13_36512app2runonfluxio hdr(host) anon7.io
+  acl anonapp13_36512app2runonfluxio hdr(host) www.anon7.io
+  acl anonapp13_36512app2runonfluxio hdr(host) test.anon7.io
+  acl anonapp13_36512app2runonfluxio hdr(host) anonapp13.app2.runonflux.io
+  acl anonapp14_38080app2runonfluxio hdr(host) anonapp14_38080.app2.runonflux.io
+  acl anonapp14_38080app2runonfluxio hdr(host) anon8.io
+  acl anonapp14_38080app2runonfluxio hdr(host) www.anon8.io
+  acl anonapp14_38080app2runonfluxio hdr(host) test.anon8.io
+  acl anonapp14_38081app2runonfluxio hdr(host) anonapp14_38081.app2.runonflux.io
+  acl anonapp14_38081app2runonfluxio hdr(host) anon9.io
+  acl anonapp14_38081app2runonfluxio hdr(host) www.anon9.io
+  acl anonapp14_38081app2runonfluxio hdr(host) test.anon9.io
+  acl anonapp14_38080app2runonfluxio hdr(host) anonapp14.app2.runonflux.io
+  acl fluxwordpress_38016app2runonfluxio hdr(host) fluxwordpress_38016.app2.runonflux.io
+  acl fluxwordpress_38016app2runonfluxio hdr(host) anon10.io
+  acl fluxwordpress_38016app2runonfluxio hdr(host) www.anon10.io
+  acl fluxwordpress_38016app2runonfluxio hdr(host) test.anon10.io
+  acl fluxwordpress_38016app2runonfluxio hdr(host) fluxwordpress.app2.runonflux.io
+  acl anonapp16_31000app2runonfluxio hdr(host) anonapp16_31000.app2.runonflux.io
+  acl anonapp16_31000app2runonfluxio hdr(host) anon11.fr
+  acl anonapp16_31000app2runonfluxio hdr(host) www.anon11.fr
+  acl anonapp16_31000app2runonfluxio hdr(host) test.anon11.fr
+  acl anonapp16_31000app2runonfluxio hdr(host) anonapp16.app2.runonflux.io
+  acl anonapp17_32323app2runonfluxio hdr(host) anonapp17_32323.app2.runonflux.io
+  acl anonapp17_32323app2runonfluxio hdr(host) anon12.me
+  acl anonapp17_32323app2runonfluxio hdr(host) www.anon12.me
+  acl anonapp17_32323app2runonfluxio hdr(host) test.anon12.me
+  acl anonapp17_32323app2runonfluxio hdr(host) anonapp17.app2.runonflux.io
+  acl kaspanode08_15110app2runonfluxio hdr(host) kaspanode08_15110.app2.runonflux.io
+  acl kaspanode08_15111app2runonfluxio hdr(host) kaspanode08_15111.app2.runonflux.io
+  acl kaspanode08_17110app2runonfluxio hdr(host) kaspanode08_17110.app2.runonflux.io
+  acl kaspanode08_18110app2runonfluxio hdr(host) kaspanode08_18110.app2.runonflux.io
+  acl kaspanode08_15110app2runonfluxio hdr(host) kaspanode08.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15110app2runonfluxio hdr(host) kaspanode16gb1760556657255_15110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15111app2runonfluxio hdr(host) kaspanode16gb1760556657255_15111.app2.runonflux.io
+  acl kaspanode16gb1760556657255_17110app2runonfluxio hdr(host) kaspanode16gb1760556657255_17110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_18110app2runonfluxio hdr(host) kaspanode16gb1760556657255_18110.app2.runonflux.io
+  acl kaspanode16gb1760556657255_15110app2runonfluxio hdr(host) kaspanode16gb1760556657255.app2.runonflux.io
+  acl anonapp20_8081app2runonfluxio hdr(host) anonapp20_8081.app2.runonflux.io
+  acl anonapp20_8081app2runonfluxio hdr(host) anonapp20.app2.runonflux.io
+  acl anonapp21_33333app2runonfluxio hdr(host) anonapp21_33333.app2.runonflux.io
+  acl anonapp21_33333app2runonfluxio hdr(host) anonapp21.app2.runonflux.io
+  acl anonapp23_21115app2runonfluxio hdr(host) anonapp23_21115.app2.runonflux.io
+  acl anonapp23_21116app2runonfluxio hdr(host) anonapp23_21116.app2.runonflux.io
+  acl anonapp23_21118app2runonfluxio hdr(host) anonapp23_21118.app2.runonflux.io
+  acl anonapp23_21117app2runonfluxio hdr(host) anonapp23_21117.app2.runonflux.io
+  acl anonapp23_21119app2runonfluxio hdr(host) anonapp23_21119.app2.runonflux.io
+  acl anonapp23_21115app2runonfluxio hdr(host) anonapp23.app2.runonflux.io
+  acl anonapp24_35855app2runonfluxio hdr(host) anonapp24_35855.app2.runonflux.io
+  acl anonapp24_37663app2runonfluxio hdr(host) anonapp24_37663.app2.runonflux.io
+  acl anonapp24_31922app2runonfluxio hdr(host) anonapp24_31922.app2.runonflux.io
+  acl anonapp24_35855app2runonfluxio hdr(host) anonapp24.app2.runonflux.io
+  acl anonapp25_34517app2runonfluxio hdr(host) anonapp25_34517.app2.runonflux.io
+  acl anonapp25_34517app2runonfluxio hdr(host) anon13.com
+  acl anonapp25_34517app2runonfluxio hdr(host) www.anon13.com
+  acl anonapp25_34517app2runonfluxio hdr(host) test.anon13.com
+  acl anonapp25_34517app2runonfluxio hdr(host) anonapp25.app2.runonflux.io
+  acl budibasemysql_34419app2runonfluxio hdr(host) budibasemysql_34419.app2.runonflux.io
+  acl budibasemysql_39443app2runonfluxio hdr(host) budibasemysql_39443.app2.runonflux.io
+  acl budibasemysql_39080app2runonfluxio hdr(host) budibasemysql_39080.app2.runonflux.io
+  acl budibasemysql_36477app2runonfluxio hdr(host) budibasemysql_36477.app2.runonflux.io
+  acl budibasemysql_38451app2runonfluxio hdr(host) budibasemysql_38451.app2.runonflux.io
+  acl budibasemysql_32069app2runonfluxio hdr(host) budibasemysql_32069.app2.runonflux.io
+  acl budibasemysql_34419app2runonfluxio hdr(host) budibasemysql.app2.runonflux.io
+  acl anonapp27_32442app2runonfluxio hdr(host) anonapp27_32442.app2.runonflux.io
+  acl anonapp27_32409app2runonfluxio hdr(host) anonapp27_32409.app2.runonflux.io
+  acl anonapp27_37734app2runonfluxio hdr(host) anonapp27_37734.app2.runonflux.io
+  acl anonapp27_35382app2runonfluxio hdr(host) anonapp27_35382.app2.runonflux.io
+  acl anonapp27_37483app2runonfluxio hdr(host) anonapp27_37483.app2.runonflux.io
+  acl anonapp27_34083app2runonfluxio hdr(host) anonapp27_34083.app2.runonflux.io
+  acl anonapp27_33035app2runonfluxio hdr(host) anonapp27_33035.app2.runonflux.io
+  acl anonapp27_31889app2runonfluxio hdr(host) anonapp27_31889.app2.runonflux.io
+  acl anonapp27_38979app2runonfluxio hdr(host) anonapp27_38979.app2.runonflux.io
+  acl anonapp27_38527app2runonfluxio hdr(host) anonapp27_38527.app2.runonflux.io
+  acl anonapp27_30752app2runonfluxio hdr(host) anonapp27_30752.app2.runonflux.io
+  acl anonapp27_31868app2runonfluxio hdr(host) anonapp27_31868.app2.runonflux.io
+  acl anonapp27_36220app2runonfluxio hdr(host) anonapp27_36220.app2.runonflux.io
+  acl anonapp27_32442app2runonfluxio hdr(host) anonapp27.app2.runonflux.io
+  acl anonapp28_8080app2runonfluxio hdr(host) anonapp28_8080.app2.runonflux.io
+  acl anonapp28_8080app2runonfluxio hdr(host) anonapp28.app2.runonflux.io
+  acl anonapp29_18080app2runonfluxio hdr(host) anonapp29_18080.app2.runonflux.io
+  acl anonapp29_18080app2runonfluxio hdr(host) anon14.com
+  acl anonapp29_18080app2runonfluxio hdr(host) www.anon14.com
+  acl anonapp29_18080app2runonfluxio hdr(host) test.anon14.com
+  acl anonapp29_16379app2runonfluxio hdr(host) anonapp29_16379.app2.runonflux.io
+  acl anonapp29_18081app2runonfluxio hdr(host) anonapp29_18081.app2.runonflux.io
+  acl anonapp29_18081app2runonfluxio hdr(host) anon15.com
+  acl anonapp29_18081app2runonfluxio hdr(host) www.anon15.com
+  acl anonapp29_18081app2runonfluxio hdr(host) test.anon15.com
+  acl anonapp29_18082app2runonfluxio hdr(host) anonapp29_18082.app2.runonflux.io
+  acl anonapp29_18082app2runonfluxio hdr(host) anon16.com
+  acl anonapp29_18082app2runonfluxio hdr(host) www.anon16.com
+  acl anonapp29_18082app2runonfluxio hdr(host) test.anon16.com
+  acl anonapp29_18083app2runonfluxio hdr(host) anonapp29_18083.app2.runonflux.io
+  acl anonapp29_18083app2runonfluxio hdr(host) anon17.com
+  acl anonapp29_18083app2runonfluxio hdr(host) www.anon17.com
+  acl anonapp29_18083app2runonfluxio hdr(host) test.anon17.com
+  acl anonapp29_18084app2runonfluxio hdr(host) anonapp29_18084.app2.runonflux.io
+  acl anonapp29_18084app2runonfluxio hdr(host) anon18.com
+  acl anonapp29_18084app2runonfluxio hdr(host) www.anon18.com
+  acl anonapp29_18084app2runonfluxio hdr(host) test.anon18.com
+  acl anonapp29_3306app2runonfluxio hdr(host) anonapp29_3306.app2.runonflux.io
+  acl anonapp29_3306app2runonfluxio hdr(host) anon19.com
+  acl anonapp29_3306app2runonfluxio hdr(host) www.anon19.com
+  acl anonapp29_3306app2runonfluxio hdr(host) test.anon19.com
+  acl anonapp29_18080app2runonfluxio hdr(host) anonapp29.app2.runonflux.io
+  acl anonapp4_7777app2runonfluxio hdr(host) anonapp4_7777.app2.runonflux.io
+  acl anonapp4_27015app2runonfluxio hdr(host) anonapp4_27015.app2.runonflux.io
+  acl anonapp4_7777app2runonfluxio hdr(host) anonapp4.app2.runonflux.io
+  acl anonapp22_25565app2runonfluxio hdr(host) anonapp22_25565.app2.runonflux.io
+  acl anonapp22_25565app2runonfluxio hdr(host) anonapp22.app2.runonflux.io
+
+  use_backend forbidden-backend if forbiddenacl
+  use_backend wordpress1677413615318_38286app2runonfluxiobackend if wordpress1677413615318_38286app2runonfluxio
+  use_backend wordpress1677413615318_34328app2runonfluxiobackend if wordpress1677413615318_34328app2runonfluxio
+  use_backend wordpress1677413615318_36562app2runonfluxiobackend if wordpress1677413615318_36562app2runonfluxio
+  use_backend wordpress1677413615318_34252app2runonfluxiobackend if wordpress1677413615318_34252app2runonfluxio
+  use_backend anonapp1_35051app2runonfluxiobackend if anonapp1_35051app2runonfluxio
+  use_backend anonapp3_33702app2runonfluxiobackend if anonapp3_33702app2runonfluxio
+  use_backend anonapp5_36919app2runonfluxiobackend if anonapp5_36919app2runonfluxio
+  use_backend anonapp6_31588app2runonfluxiobackend if anonapp6_31588app2runonfluxio
+  use_backend anonapp6_31589app2runonfluxiobackend if anonapp6_31589app2runonfluxio
+  use_backend anonapp7_35555app2runonfluxiobackend if anonapp7_35555app2runonfluxio
+  use_backend anonapp8_36769app2runonfluxiobackend if anonapp8_36769app2runonfluxio
+  use_backend anonapp9_31443app2runonfluxiobackend if anonapp9_31443app2runonfluxio
+  use_backend anonapp10_33333app2runonfluxiobackend if anonapp10_33333app2runonfluxio
+  use_backend anonapp11_38454app2runonfluxiobackend if anonapp11_38454app2runonfluxio
+  use_backend anonapp12_31301app2runonfluxiobackend if anonapp12_31301app2runonfluxio
+  use_backend anonapp12_31302app2runonfluxiobackend if anonapp12_31302app2runonfluxio
+  use_backend anonapp12_31303app2runonfluxiobackend if anonapp12_31303app2runonfluxio
+  use_backend anonapp12_31304app2runonfluxiobackend if anonapp12_31304app2runonfluxio
+  use_backend anonapp13_36512app2runonfluxiobackend if anonapp13_36512app2runonfluxio
+  use_backend anonapp14_38080app2runonfluxiobackend if anonapp14_38080app2runonfluxio
+  use_backend anonapp14_38081app2runonfluxiobackend if anonapp14_38081app2runonfluxio
+  use_backend fluxwordpress_38016app2runonfluxiobackend if fluxwordpress_38016app2runonfluxio
+  use_backend anonapp16_31000app2runonfluxiobackend if anonapp16_31000app2runonfluxio
+  use_backend anonapp17_32323app2runonfluxiobackend if anonapp17_32323app2runonfluxio
+  use_backend kaspanode08_15110app2runonfluxiobackend if kaspanode08_15110app2runonfluxio
+  use_backend kaspanode08_15111app2runonfluxiobackend if kaspanode08_15111app2runonfluxio
+  use_backend kaspanode08_17110app2runonfluxiobackend if kaspanode08_17110app2runonfluxio
+  use_backend kaspanode08_18110app2runonfluxiobackend if kaspanode08_18110app2runonfluxio
+  use_backend kaspanode16gb1760556657255_15110app2runonfluxiobackend if kaspanode16gb1760556657255_15110app2runonfluxio
+  use_backend kaspanode16gb1760556657255_15111app2runonfluxiobackend if kaspanode16gb1760556657255_15111app2runonfluxio
+  use_backend kaspanode16gb1760556657255_17110app2runonfluxiobackend if kaspanode16gb1760556657255_17110app2runonfluxio
+  use_backend kaspanode16gb1760556657255_18110app2runonfluxiobackend if kaspanode16gb1760556657255_18110app2runonfluxio
+  use_backend anonapp20_8081app2runonfluxiobackend if anonapp20_8081app2runonfluxio
+  use_backend anonapp21_33333app2runonfluxiobackend if anonapp21_33333app2runonfluxio
+  use_backend anonapp23_21115app2runonfluxiobackend if anonapp23_21115app2runonfluxio
+  use_backend anonapp23_21116app2runonfluxiobackend if anonapp23_21116app2runonfluxio
+  use_backend anonapp23_21118app2runonfluxiobackend if anonapp23_21118app2runonfluxio
+  use_backend anonapp23_21117app2runonfluxiobackend if anonapp23_21117app2runonfluxio
+  use_backend anonapp23_21119app2runonfluxiobackend if anonapp23_21119app2runonfluxio
+  use_backend anonapp24_35855app2runonfluxiobackend if anonapp24_35855app2runonfluxio
+  use_backend anonapp24_37663app2runonfluxiobackend if anonapp24_37663app2runonfluxio
+  use_backend anonapp24_31922app2runonfluxiobackend if anonapp24_31922app2runonfluxio
+  use_backend anonapp25_34517app2runonfluxiobackend if anonapp25_34517app2runonfluxio
+  use_backend budibasemysql_34419app2runonfluxiobackend if budibasemysql_34419app2runonfluxio
+  use_backend budibasemysql_39443app2runonfluxiobackend if budibasemysql_39443app2runonfluxio
+  use_backend budibasemysql_39080app2runonfluxiobackend if budibasemysql_39080app2runonfluxio
+  use_backend budibasemysql_36477app2runonfluxiobackend if budibasemysql_36477app2runonfluxio
+  use_backend budibasemysql_38451app2runonfluxiobackend if budibasemysql_38451app2runonfluxio
+  use_backend budibasemysql_32069app2runonfluxiobackend if budibasemysql_32069app2runonfluxio
+  use_backend anonapp27_32442app2runonfluxiobackend if anonapp27_32442app2runonfluxio
+  use_backend anonapp27_32409app2runonfluxiobackend if anonapp27_32409app2runonfluxio
+  use_backend anonapp27_37734app2runonfluxiobackend if anonapp27_37734app2runonfluxio
+  use_backend anonapp27_35382app2runonfluxiobackend if anonapp27_35382app2runonfluxio
+  use_backend anonapp27_37483app2runonfluxiobackend if anonapp27_37483app2runonfluxio
+  use_backend anonapp27_34083app2runonfluxiobackend if anonapp27_34083app2runonfluxio
+  use_backend anonapp27_33035app2runonfluxiobackend if anonapp27_33035app2runonfluxio
+  use_backend anonapp27_31889app2runonfluxiobackend if anonapp27_31889app2runonfluxio
+  use_backend anonapp27_38979app2runonfluxiobackend if anonapp27_38979app2runonfluxio
+  use_backend anonapp27_38527app2runonfluxiobackend if anonapp27_38527app2runonfluxio
+  use_backend anonapp27_30752app2runonfluxiobackend if anonapp27_30752app2runonfluxio
+  use_backend anonapp27_31868app2runonfluxiobackend if anonapp27_31868app2runonfluxio
+  use_backend anonapp27_36220app2runonfluxiobackend if anonapp27_36220app2runonfluxio
+  use_backend anonapp28_8080app2runonfluxiobackend if anonapp28_8080app2runonfluxio
+  use_backend anonapp29_18080app2runonfluxiobackend if anonapp29_18080app2runonfluxio
+  use_backend anonapp29_16379app2runonfluxiobackend if anonapp29_16379app2runonfluxio
+  use_backend anonapp29_18081app2runonfluxiobackend if anonapp29_18081app2runonfluxio
+  use_backend anonapp29_18082app2runonfluxiobackend if anonapp29_18082app2runonfluxio
+  use_backend anonapp29_18083app2runonfluxiobackend if anonapp29_18083app2runonfluxio
+  use_backend anonapp29_18084app2runonfluxiobackend if anonapp29_18084app2runonfluxio
+  use_backend anonapp29_3306app2runonfluxiobackend if anonapp29_3306app2runonfluxio
+  use_backend anonapp4_7777app2runonfluxiobackend if anonapp4_7777app2runonfluxio
+  use_backend anonapp4_27015app2runonfluxiobackend if anonapp4_27015app2runonfluxio
+  use_backend anonapp22_25565app2runonfluxiobackend if anonapp22_25565app2runonfluxio
+
+
+
+
+backend wordpress1677413615318_38286app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  http-request add-header X-Forwarded-Proto https
+  option httpchk
+  http-check send meth GET uri /
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:38286 check  cookie 144.76.10.20:38286 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:38286 check  cookie 167.86.90.30:38286 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend wordpress1677413615318_34328app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  http-request add-header X-Forwarded-Proto https
+  option httpchk
+  http-check send meth GET uri /
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:34328 check  cookie 144.76.10.20:34328 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:34328 check  cookie 167.86.90.30:34328 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend wordpress1677413615318_36562app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  http-request add-header X-Forwarded-Proto https
+  option httpchk
+  http-check send meth GET uri /
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:36562 check  cookie 144.76.10.20:36562 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:36562 check  cookie 167.86.90.30:36562 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend wordpress1677413615318_34252app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  http-request add-header X-Forwarded-Proto https
+  option httpchk
+  http-check send meth GET uri /
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:34252 check  cookie 144.76.10.20:34252 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:34252 check  cookie 167.86.90.30:34252 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp1_35051app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:35051 check  cookie 144.76.10.20:35051 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:35051 check  cookie 167.86.90.30:35051 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp3_33702app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:33702 check  cookie 144.76.10.20:33702 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:33702 check  cookie 167.86.90.30:33702 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp5_36919app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:36919 check  cookie 144.76.10.20:36919 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:36919 check  cookie 167.86.90.30:36919 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp6_31588app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:31588 check  cookie 144.76.10.20:31588 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:31588 check  cookie 167.86.90.30:31588 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp6_31589app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:31589 check  cookie 144.76.10.20:31589 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:31589 check  cookie 167.86.90.30:31589 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp7_35555app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:35555 check  cookie 144.76.10.20:35555 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:35555 check  cookie 167.86.90.30:35555 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp8_36769app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:36769 check  cookie 144.76.10.20:36769 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:36769 check  cookie 167.86.90.30:36769 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp9_31443app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:31443 check  cookie 144.76.10.20:31443 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:31443 check  cookie 167.86.90.30:31443 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp10_33333app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:33333 check  cookie 144.76.10.20:33333 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:33333 check  cookie 167.86.90.30:33333 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp11_38454app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:38454 check  cookie 144.76.10.20:38454 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:38454 check  cookie 167.86.90.30:38454 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp12_31301app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:31301 check  cookie 144.76.10.20:31301 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:31301 check  cookie 167.86.90.30:31301 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp12_31302app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:31302 check  cookie 144.76.10.20:31302 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:31302 check  cookie 167.86.90.30:31302 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp12_31303app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:31303 check  cookie 144.76.10.20:31303 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:31303 check  cookie 167.86.90.30:31303 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp12_31304app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:31304 check  cookie 144.76.10.20:31304 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:31304 check  cookie 167.86.90.30:31304 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp13_36512app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:36512 check  cookie 144.76.10.20:36512 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:36512 check  cookie 167.86.90.30:36512 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp14_38080app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:38080 check  cookie 144.76.10.20:38080 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:38080 check  cookie 167.86.90.30:38080 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp14_38081app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:38081 check  cookie 144.76.10.20:38081 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:38081 check  cookie 167.86.90.30:38081 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend fluxwordpress_38016app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  http-request add-header X-Forwarded-Proto https
+  option httpchk
+  http-check send meth GET uri /
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:38016 check  cookie 144.76.10.20:38016 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:38016 check  cookie 167.86.90.30:38016 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp16_31000app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:31000 check  cookie 144.76.10.20:31000 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:31000 check  cookie 167.86.90.30:31000 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp17_32323app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:32323 check  cookie 144.76.10.20:32323 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:32323 check  cookie 167.86.90.30:32323 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend kaspanode08_15110app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:15110 check  cookie 144.76.10.20:15110 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:15110 check  cookie 167.86.90.30:15110 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend kaspanode08_15111app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:15111 check  cookie 144.76.10.20:15111 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:15111 check  cookie 167.86.90.30:15111 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend kaspanode08_17110app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:17110 check  cookie 144.76.10.20:17110 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:17110 check  cookie 167.86.90.30:17110 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend kaspanode08_18110app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:18110 check  cookie 144.76.10.20:18110 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:18110 check  cookie 167.86.90.30:18110 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend kaspanode16gb1760556657255_15110app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:15110 check  cookie 144.76.10.20:15110 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:15110 check  cookie 167.86.90.30:15110 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend kaspanode16gb1760556657255_15111app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:15111 check  cookie 144.76.10.20:15111 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:15111 check  cookie 167.86.90.30:15111 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend kaspanode16gb1760556657255_17110app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:17110 check  cookie 144.76.10.20:17110 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:17110 check  cookie 167.86.90.30:17110 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend kaspanode16gb1760556657255_18110app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:18110 check  cookie 144.76.10.20:18110 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:18110 check  cookie 167.86.90.30:18110 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp20_8081app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:8081 check  cookie 144.76.10.20:8081 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:8081 check  cookie 167.86.90.30:8081 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp21_33333app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:33333 check  cookie 144.76.10.20:33333 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:33333 check  cookie 167.86.90.30:33333 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp23_21115app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:21115 check  cookie 144.76.10.20:21115 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:21115 check  cookie 167.86.90.30:21115 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp23_21116app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:21116 check  cookie 144.76.10.20:21116 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:21116 check  cookie 167.86.90.30:21116 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp23_21118app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:21118 check  cookie 144.76.10.20:21118 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:21118 check  cookie 167.86.90.30:21118 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp23_21117app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:21117 check  cookie 144.76.10.20:21117 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:21117 check  cookie 167.86.90.30:21117 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp23_21119app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:21119 check  cookie 144.76.10.20:21119 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:21119 check  cookie 167.86.90.30:21119 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp24_35855app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:35855 check  cookie 144.76.10.20:35855 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:35855 check  cookie 167.86.90.30:35855 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp24_37663app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:37663 check  cookie 144.76.10.20:37663 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:37663 check  cookie 167.86.90.30:37663 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp24_31922app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:31922 check  cookie 144.76.10.20:31922 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:31922 check  cookie 167.86.90.30:31922 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp25_34517app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:34517 check  cookie 144.76.10.20:34517 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:34517 check  cookie 167.86.90.30:34517 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend budibasemysql_34419app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:34419 check  cookie 144.76.10.20:34419 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:34419 check  cookie 167.86.90.30:34419 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend budibasemysql_39443app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:39443 check  ssl verify none cookie 144.76.10.20:39443 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:39443 check  ssl verify none cookie 167.86.90.30:39443 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend budibasemysql_39080app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:39080 check  cookie 144.76.10.20:39080 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:39080 check  cookie 167.86.90.30:39080 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend budibasemysql_36477app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:36477 check  cookie 144.76.10.20:36477 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:36477 check  cookie 167.86.90.30:36477 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend budibasemysql_38451app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:38451 check  cookie 144.76.10.20:38451 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:38451 check  cookie 167.86.90.30:38451 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend budibasemysql_32069app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:32069 check  cookie 144.76.10.20:32069 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:32069 check  cookie 167.86.90.30:32069 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp27_32442app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:32442 check  cookie 144.76.10.20:32442 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:32442 check  cookie 167.86.90.30:32442 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp27_32409app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:32409 check  cookie 144.76.10.20:32409 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:32409 check  cookie 167.86.90.30:32409 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp27_37734app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:37734 check  cookie 144.76.10.20:37734 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:37734 check  cookie 167.86.90.30:37734 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp27_35382app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:35382 check  cookie 144.76.10.20:35382 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:35382 check  cookie 167.86.90.30:35382 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp27_37483app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:37483 check  cookie 144.76.10.20:37483 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:37483 check  cookie 167.86.90.30:37483 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp27_34083app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:34083 check  cookie 144.76.10.20:34083 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:34083 check  cookie 167.86.90.30:34083 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp27_33035app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:33035 check  cookie 144.76.10.20:33035 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:33035 check  cookie 167.86.90.30:33035 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp27_31889app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:31889 check  cookie 144.76.10.20:31889 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:31889 check  cookie 167.86.90.30:31889 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp27_38979app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:38979 check  cookie 144.76.10.20:38979 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:38979 check  cookie 167.86.90.30:38979 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp27_38527app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:38527 check  cookie 144.76.10.20:38527 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:38527 check  cookie 167.86.90.30:38527 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp27_30752app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:30752 check  cookie 144.76.10.20:30752 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:30752 check  cookie 167.86.90.30:30752 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp27_31868app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:31868 check  cookie 144.76.10.20:31868 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:31868 check  cookie 167.86.90.30:31868 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp27_36220app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:36220 check  cookie 144.76.10.20:36220 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:36220 check  cookie 167.86.90.30:36220 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp28_8080app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:8080 check  cookie 144.76.10.20:8080 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:8080 check  cookie 167.86.90.30:8080 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp29_18080app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:18080 check  cookie 144.76.10.20:18080 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:18080 check  cookie 167.86.90.30:18080 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp29_16379app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:16379 check  cookie 144.76.10.20:16379 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:16379 check  cookie 167.86.90.30:16379 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp29_18081app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:18081 check  cookie 144.76.10.20:18081 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:18081 check  cookie 167.86.90.30:18081 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp29_18082app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:18082 check  cookie 144.76.10.20:18082 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:18082 check  cookie 167.86.90.30:18082 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp29_18083app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:18083 check  cookie 144.76.10.20:18083 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:18083 check  cookie 167.86.90.30:18083 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp29_18084app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:18084 check  cookie 144.76.10.20:18084 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:18084 check  cookie 167.86.90.30:18084 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp29_3306app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
+  timeout http-request 15s
+  timeout server 20s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 144.76.10.20:16127 144.76.10.20:3306 check  cookie 144.76.10.20:3306 inter 3s fall 2 rise 2 fastinter 500
+  server 167.86.90.30:16127 167.86.90.30:3306 check  cookie 167.86.90.30:3306 inter 3s fall 2 rise 2 fastinter 500 backup
+
+
+backend anonapp4_7777app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 135.148.60.40:16127 135.148.60.40:7777  cookie 135.148.60.40:7777 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp4_27015app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 135.148.60.40:16127 135.148.60.40:27015  cookie 135.148.60.40:27015 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend anonapp22_25565app2runonfluxiobackend
+  mode http
+  balance roundrobin
+  timeout http-request 15s
+  timeout server 25s
+  retries 3
+  retry-on conn-failure response-timeout empty-response 500
+  option redispatch 1
+  server 135.148.60.40:16127 135.148.60.40:25565  cookie 135.148.60.40:25565 inter 3s fall 2 rise 2 fastinter 500
+
+
+backend letsencrypt-backend
+  server letsencrypt 5.39.57.42:8787
+
+backend cloudflare-flux-backend
+  server cloudflareflux 127.0.0.1:16130
+
+backend fdm-api-backend
+  http-request set-path %[path,regsub(^/api/,/)]
+  server fdm-api 127.0.0.1:16130
+
+backend forbidden-backend
+  mode http
+  http-request deny deny_status 403
+

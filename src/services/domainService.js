@@ -14,6 +14,8 @@ const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/ce
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
 const { getApplicationsToProcess } = require('./application/subset');
+const { buildRouteConfigs } = require('./haproxy/buildRouteConfigs');
+const specLibs = require('./flux/specLibs');
 const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
 const serviceHelper = require('./serviceHelper');
@@ -633,6 +635,15 @@ function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
   }
 }
 
+// Resolve an app to its version-normalized DeploymentSpec and append its backend
+// routes to the config. Version-blind: legacy and v9 apps take the same path. The
+// app has already been through processApplications, so any domain overrides it
+// applied are carried into the resolved routes via deserialize.
+async function appendRouteConfigs(configuredApps, app, appIps, isActiveStandby) {
+  const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
+  configuredApps.push(...buildRouteConfigs(deployment, app.name, appIps, isActiveStandby, app.syncFirst));
+}
+
 /**
  *
  * @param {Map<string, Object>} globalAppSpecs Pre filtered active-active applications
@@ -881,7 +892,8 @@ async function generateActiveActiveHaproxyConfig() {
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
-        addConfigurations(configuredApps, app, appIps, false);
+        // eslint-disable-next-line no-await-in-loop
+        await appendRouteConfigs(configuredApps, app, appIps, false);
         log.info(
           `Active-Active Application ${app.name} with specific checks: ${applicationWithChecks} is OK. Proceeding to FDM`,
         );
@@ -991,7 +1003,8 @@ async function generateActiveStandbyHaproxyConfig() {
         const selectedIP = await selectActiveInstanceIp(locationIps, app);
         if (selectedIP) {
           appIps.push(selectedIP);
-          addConfigurations(configuredApps, app, appIps, true);
+          // eslint-disable-next-line no-await-in-loop
+          await appendRouteConfigs(configuredApps, app, appIps, true);
           log.info(
             `Active-Standby Application ${app.name} is OK selected IP is ${selectedIP}. Proceeding to FDM`,
           );

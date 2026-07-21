@@ -1241,6 +1241,8 @@ function initializeServices() {
 async function start() {
   try {
     log.info('Initiating FDM API services...');
+    ipService.start();
+    applicationChecks.startBlockheightRefresh();
     initializeServices();
   } catch (e) {
     // restart service after 5 mins
@@ -1263,4 +1265,7 @@ function getConfiguredApps() {
 module.exports = {
   start,
   getConfiguredApps,
+  // Exposed so the characterization tests can pin the spec -> backend-config
+  // transform without standing up the full fetch/health-check loop.
+  addConfigurations,
 };

@@ -7,7 +7,12 @@ const { cmdAsync, TEMP_HAPROXY_CONFIG, HAPROXY_CONFIG } = require('./constants')
 const { matchRule } = require('./serviceHelper');
 const { getPrimaryIP } = require('./rsync/config');
 const { resolveBackendConfig } = require('./haproxy/resolveBackendConfig');
+const { resolveRouteExposure } = require('./haproxy/resolveRouteExposure');
 const { HaproxyConfig, Section, Directive } = require('./haproxy/configModel');
+
+// The loopback port the :443 SNI router hands terminating traffic to when a config has
+// v9 passthrough domains (see createAppsHaproxyConfig). Only used in that mode.
+const TERMINATE_PORT = configGlobal.haproxyRouting.terminateLoopbackPort;
 
 let lastHaproxyConfig;
 
@@ -68,6 +73,9 @@ function buildBaseConfig() {
     .add('errorfile', '503', '/etc/haproxy/errors/503.http')
     .add('errorfile', '504', '/etc/haproxy/errors/504.http');
 
+  // The :80 frontend stops at the ACME acls; the caller appends its http policy (the
+  // https redirect + ACME backends) via appendHttpTail, so per-app scheme handling
+  // (deny/serve) can be inserted ahead of the redirect.
   config.section('frontend', 'wwwhttp')
     .add('bind', '*:80')
     .add('option', 'forwardfor', 'except', '127.0.0.0/8')
@@ -75,12 +83,19 @@ function buildBaseConfig() {
     .raw(CORS_EXPOSE_HEADERS)
     .raw(CORS_ALLOW_ORIGIN)
     .add('acl', 'letsencrypt-acl', 'path_beg', '/.well-known/acme-challenge/')
-    .add('acl', 'cloudflare-flux-acl', 'path_beg', '/.well-known/pki-validation/')
-    .add('redirect', 'scheme', 'https', 'if', '!letsencrypt-acl', '!cloudflare-flux-acl')
-    .add('use_backend', 'letsencrypt-backend', 'if', 'letsencrypt-acl')
-    .add('use_backend', 'cloudflare-flux-backend', 'if', 'cloudflare-flux-acl');
+    .add('acl', 'cloudflare-flux-acl', 'path_beg', '/.well-known/pki-validation/');
 
   return config;
+}
+
+// Close the :80 frontend: redirect everything to https (except ACME and any excluded
+// hosts — e.g. httpOnly domains served on :80), then the ACME challenge backends. With
+// no exclusions this is byte-identical to the historical blanket redirect.
+function appendHttpTail(frontend, redirectExcept = []) {
+  frontend
+    .add('redirect', 'scheme', 'https', 'if', '!letsencrypt-acl', '!cloudflare-flux-acl', ...redirectExcept)
+    .add('use_backend', 'letsencrypt-backend', 'if', 'letsencrypt-acl')
+    .add('use_backend', 'cloudflare-flux-backend', 'if', 'cloudflare-flux-acl');
 }
 
 const h2Suffix = 'alpn h2,http/1.1';
@@ -100,7 +115,7 @@ const letsEncryptTarget = (() => {
 // The wwwhttps frontend's static skeleton — options/stats, the :443 TLS bind, and the
 // FDM-API routing — shared by the apps and main configs. The caller appends the app or
 // main routing. haproxy loads every cert in the crt directory.
-function buildWwwhttpsFrontend() {
+function buildWwwhttpsFrontend(internal = false) {
   const section = new Section('frontend', 'wwwhttps');
   section.add('option', 'http-server-close')
     .add('option', 'forwardfor', 'except', '127.0.0.0/8')
@@ -109,11 +124,46 @@ function buildWwwhttpsFrontend() {
     .add('stats', 'enable')
     .add('stats', 'hide-version')
     .add('stats', 'uri', '/fluxstatistics')
-    .raw('stats realm Flux\\ Statistics')
-    .add('bind', '*:443', 'ssl', 'crt', `/etc/ssl/${configGlobal.certFolder}/`, h2Suffix)
-    .add('acl', 'fdm-domain', 'hdr(host)', '-i', configGlobal.fdmAppDomain)
+    .raw('stats realm Flux\\ Statistics');
+  // Default: terminate on *:443. When a config has passthrough domains, this frontend
+  // becomes the internal terminating listener behind the SNI router — bound on loopback
+  // and accepting the client IP over PROXY protocol.
+  if (internal) {
+    section.add('bind', `127.0.0.1:${TERMINATE_PORT}`, 'ssl', 'crt', `/etc/ssl/${configGlobal.certFolder}/`, h2Suffix, 'accept-proxy');
+  } else {
+    section.add('bind', '*:443', 'ssl', 'crt', `/etc/ssl/${configGlobal.certFolder}/`, h2Suffix);
+  }
+  section.add('acl', 'fdm-domain', 'hdr(host)', '-i', configGlobal.fdmAppDomain)
     .add('acl', 'fdm-api-path', 'path_beg', '/api/')
     .add('use_backend', 'fdm-api-backend', 'if', 'fdm-domain', 'fdm-api-path');
+  return section;
+}
+
+// A v9 httpPassthrough backend: raw TLS forwarded to the app's own port (the backend
+// presents its own cert), so mode tcp and no ssl on the server line. Honors the
+// tcp-compatible tunables (balance, timeouts, health-check timing, maxconn); the
+// http-only ones (cookie stickiness, httpchk, backend re-encryption) don't apply to a
+// passthrough. Passthrough is v9-only, so the tunables are always present.
+function generatePassthroughBackend(app, domainUsed) {
+  const t = app.timeouts;
+  const section = new Section('backend', `${domainUsed}_passthrough_backend`)
+    .add('mode', 'tcp')
+    .add('balance', app.balancing)
+    .add('timeout', 'connect', t.connect)
+    .add('timeout', 'server', t.server)
+    .add('timeout', 'tunnel', t.tunnel);
+  const hc = app.healthCheck;
+  const timing = hc ? `inter ${hc.interval} rise ${hc.rise} fall ${hc.fall}` : '';
+  for (const ip of app.ips) {
+    const host = ip && ip.split(':')[0];
+    if (!host) {
+      log.error(`passthrough backend ${domainUsed}: bad ip ${ip}`);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    const apiPort = ip.split(':')[1] || 16127;
+    section.add('server', `${host}:${apiPort}`, `${host}:${app.port}`, 'check', timing, `maxconn ${app.maxConnectionsPerServer}`);
+  }
   return section;
 }
 
@@ -378,10 +428,13 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
   const redirectLine = 'http-request redirect code 301 location https://cloud.runonflux.com/dashboards/overview if { hdr(host) -i dashboard.zel.network }';
 
   // Assemble: static skeleton, both http frontends carrying the routing + redirect, then
-  // the backends.
+  // the backends. The main config has no per-app schemes, so the :80 tail is the blanket
+  // redirect.
   const config = buildBaseConfig();
+  const wwwhttp = config.sections.find((s) => s.name === 'wwwhttp');
   const wwwhttps = buildWwwhttpsFrontend();
-  [config.sections.find((s) => s.name === 'wwwhttp'), wwwhttps].forEach((frontend) => {
+  appendHttpTail(wwwhttp);
+  [wwwhttp, wwwhttps].forEach((frontend) => {
     routingAcls.forEach((directive) => frontend.push(directive));
     routingUseBackends.forEach((directive) => frontend.push(directive));
     frontend.raw(redirectLine);
@@ -409,6 +462,18 @@ function createAppsHaproxyConfig(appConfig) {
   const minecraftAppsMap = {};
   const tcpAppsMap = {};
 
+  // v9 scheme buckets — empty for the whole legacy population (every legacy/platform
+  // route terminates, so the loop below never fills these and the output is unchanged).
+  const denyHosts = []; // httpsOnly custom domains -> deny plain http on :80
+  const httpOnlyAcls = []; // httpOnly custom domains -> served on :80 (own http backend)
+  const httpOnlyUseBackends = [];
+  const httpOnlyRedirectExcept = []; // '!<acl>' — exclude httpOnly domains from the redirect
+  const httpOnlySeen = {};
+  const passthroughAcls = []; // httpPassthrough custom domains -> :443 SNI-routed, raw TLS
+  const passthroughUseBackends = [];
+  const passthroughBackends = [];
+  const passthroughSeen = {};
+
   configGlobal.haproxyRouting.forbiddenHosts
     .forEach((host) => routingAcls.push(new Directive('acl', ['forbiddenacl', 'hdr(host)', host])));
   configGlobal.haproxyRouting.forbiddenPaths
@@ -421,6 +486,46 @@ function createAppsHaproxyConfig(appConfig) {
       continue;
     }
     const domainUsed = app.domain.split('.').join('');
+    const exposure = resolveRouteExposure(app);
+
+    // v9 httpPassthrough: SNI-route the raw TLS connection to the app's own tcp backend
+    // (never terminated here). Additional domains of the same app alias the first's SNI.
+    if (exposure.passthrough) {
+      domains.push(app.domain);
+      if (app.appName in passthroughSeen) {
+        passthroughAcls.push(`acl ${passthroughSeen[app.appName]} req.ssl_sni -i ${app.domain}`);
+      } else {
+        passthroughSeen[app.appName] = domainUsed;
+        passthroughBackends.push(generatePassthroughBackend(app, domainUsed));
+        passthroughAcls.push(`acl ${domainUsed} req.ssl_sni -i ${app.domain}`);
+        passthroughUseBackends.push(`use_backend ${domainUsed}_passthrough_backend if ${domainUsed}`);
+      }
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
+    // v9 httpOnly: served on :80 only (no TLS, no cert, not on :443).
+    if (!exposure.terminates) {
+      domains.push(app.domain);
+      if (app.appName in httpOnlySeen) {
+        const seenDomainUsed = httpOnlySeen[app.appName];
+        httpOnlyAcls.push(new Directive('acl', [seenDomainUsed, 'hdr(host)', app.domain]));
+        if (!httpOnlyRedirectExcept.includes(`!${seenDomainUsed}`)) httpOnlyRedirectExcept.push(`!${seenDomainUsed}`);
+      } else {
+        httpOnlySeen[app.appName] = domainUsed;
+        backendSections.push(generateDomainBackend(app, 'http'));
+        httpOnlyAcls.push(new Directive('acl', [domainUsed, 'hdr(host)', app.domain]));
+        httpOnlyUseBackends.push(new Directive('use_backend', [`${domainUsed}backend`, 'if', domainUsed]));
+        httpOnlyRedirectExcept.push(`!${domainUsed}`);
+      }
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
+    // Terminating schemes (legacy, httpsRedirect, httpsOnly) take the path below;
+    // httpsOnly additionally denies plain http on :80.
+    if (exposure.httpPolicy === 'deny') denyHosts.push(app.domain);
+
     if (app.appName in seenApps) {
       domains.push(app.domain);
       routingAcls.push(new Directive('acl', [seenApps[app.appName], 'hdr(host)', app.domain]));
@@ -463,18 +568,47 @@ function createAppsHaproxyConfig(appConfig) {
     }
   }
 
-  // Append the app routing to frontend wwwhttp (acls first, then use_backends).
+  // Close the :80 frontend: httpsOnly deny + httpOnly serve first, then the redirect
+  // (excluding httpOnly domains so they reach their backend) + ACME, then the shared
+  // terminating routing. With no v9 schemes present all the scheme steps are empty and
+  // this is byte-identical to the historical blanket redirect.
+  if (denyHosts.length) {
+    wwwhttp.add('acl', 'httpsonly-hosts', 'hdr(host)', ...denyHosts)
+      .add('http-request', 'deny', 'if', 'httpsonly-hosts');
+  }
+  httpOnlyAcls.forEach((directive) => wwwhttp.push(directive));
+  httpOnlyUseBackends.forEach((directive) => wwwhttp.push(directive));
+  appendHttpTail(wwwhttp, httpOnlyRedirectExcept);
   routingAcls.forEach((directive) => wwwhttp.push(directive));
   routingUseBackends.forEach((directive) => wwwhttp.push(directive));
 
   // TCP frontends (+ their backends).
   generateAppsTCPSettings(tcpAppsMap).forEach((section) => config.sections.push(section));
 
-  // Frontend wwwhttps: the shared static skeleton, then the same app routing as wwwhttp.
-  const wwwhttps = buildWwwhttpsFrontend();
+  // :443. Without passthrough domains this terminates directly on *:443 (unchanged).
+  // With them, a tcp SNI router owns *:443 — passthrough domains go raw to their backend,
+  // everyone else is handed to this now-internal terminating listener over loopback.
+  const hasPassthrough = passthroughBackends.length > 0;
+  if (hasPassthrough) {
+    const router = new Section('frontend', 'https-sni-router')
+      .add('bind', '*:443')
+      .add('mode', 'tcp')
+      .add('tcp-request', 'inspect-delay', '5s')
+      .add('tcp-request', 'content', 'accept', 'if', '{ req_ssl_hello_type 1 }');
+    passthroughAcls.forEach((line) => router.raw(line));
+    passthroughUseBackends.forEach((line) => router.raw(line));
+    router.add('default_backend', 'https-terminate');
+    const loopback = new Section('backend', 'https-terminate')
+      .add('mode', 'tcp')
+      .add('server', 'terminate', `127.0.0.1:${TERMINATE_PORT}`, 'send-proxy-v2');
+    config.sections.push(router, loopback);
+  }
+
+  const wwwhttps = buildWwwhttpsFrontend(hasPassthrough);
   routingAcls.forEach((directive) => wwwhttps.push(directive));
   routingUseBackends.forEach((directive) => wwwhttps.push(directive));
   config.sections.push(wwwhttps);
+  passthroughBackends.forEach((section) => config.sections.push(section));
 
   // Backends: the app http backends, then the fixed platform backends.
   backendSections.forEach((section) => config.sections.push(section));

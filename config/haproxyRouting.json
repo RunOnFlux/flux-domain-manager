@@ -25,5 +25,6 @@
     "/apps/temporarymessages",
     "/apps/location",
     "/apps/testappinstall"
-  ]
+  ],
+  "terminateLoopbackPort": 8443
 }

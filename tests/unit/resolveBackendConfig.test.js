@@ -88,6 +88,7 @@ describe('resolveBackendConfig', () => {
         'timeout connect 5s',
         'timeout server 90s',
         'timeout tunnel 3600s',
+        'timeout http-request 10s',
         'retries 3',
         'retry-on conn-failure',
         'option redispatch',

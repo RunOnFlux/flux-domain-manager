@@ -757,11 +757,23 @@ async function obtainCertificatesMode() {
     applicationSpecifications = getApplicationsToProcess(
       applicationSpecifications,
     );
-    // Collect all unique custom domains across all apps for a single parallel batch
+    // Collect all unique custom domains across all apps for a single parallel batch.
+    // Version-blind: resolve each spec and read its cert-eligible custom domains; a spec
+    // that can't resolve is logged and skipped.
     const domainSet = new Set();
     for (const appSpecs of applicationSpecifications) {
-      const customDomains = getCustomDomains(appSpecs);
-      customDomains.forEach((d) => domainSet.add(d));
+      let deployment;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const instance = await specLibs.deserialize(appSpecs);
+        // eslint-disable-next-line no-await-in-loop
+        deployment = await specLibs.resolveDeployment(instance, null);
+      } catch (error) {
+        log.error(`skipping ${appSpecs.name}: ${error.message}`);
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      getCustomDomains(deployment).forEach((d) => domainSet.add(d));
     }
     const allCustomDomains = [...domainSet];
     let certsChanged = false;

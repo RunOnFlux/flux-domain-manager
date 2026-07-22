@@ -9,6 +9,7 @@
 const specLibs = require('../../../src/services/flux/specLibs');
 const { buildRouteConfigs } = require('../../../src/services/haproxy/buildRouteConfigs');
 const { createAppsHaproxyConfig } = require('../../../src/services/haproxyTemplate');
+const { getUnifiedDomains, getCustomDomains } = require('../../../src/services/domain');
 
 // Two nodes for the general case (exercises the multi-server cookie path), one
 // node for single-live-instance apps (which route to a single backend). Real
@@ -60,4 +61,14 @@ async function renderConfig(specs) {
   return createAppsHaproxyConfig(generalRouteConfigs.concat(singleInstanceRouteConfigs));
 }
 
-module.exports = { routeConfigsForSpec, renderConfig };
+// The platform + cert-eligible custom domains one spec produces, version-blind off its
+// resolved routes. Sealed specs are decrypted before this path in production, so they
+// have no offline projection — characterized as a sealed marker.
+async function domainsForSpec(spec) {
+  const instance = await specLibs.deserialize(spec);
+  if (instance.sealed) return { unifiedDomains: { __sealed: true }, customDomains: { __sealed: true } };
+  const deployment = await specLibs.resolveDeployment(instance, null);
+  return { unifiedDomains: getUnifiedDomains(deployment), customDomains: getCustomDomains(deployment) };
+}
+
+module.exports = { routeConfigsForSpec, domainsForSpec, renderConfig };

@@ -7,10 +7,9 @@
 // Usage (from repo root):  node tests/unit/fixtures/generate-golden.js
 const fs = require('fs').promises;
 const path = require('path');
-const { getUnifiedDomains, getCustomDomains } = require('../../../src/services/domain/index.js');
 const { getCustomConfigs } = require('../../../src/services/application/custom.js');
 const { getApplicationsToProcess } = require('../../../src/services/application/subset.js');
-const { routeConfigsForSpec, renderConfig } = require('./renderPipeline');
+const { routeConfigsForSpec, domainsForSpec, renderConfig } = require('./renderPipeline');
 
 const call = (fn) => { try { return fn(); } catch (e) { return { __throws: e.message }; } };
 const callAsync = async (fn) => { try { return await fn(); } catch (e) { return { __throws: e.message }; } };
@@ -20,10 +19,12 @@ async function main() {
 
   const golden = {};
   for (const s of specs) {
+    // eslint-disable-next-line no-await-in-loop
+    const d = await domainsForSpec(s);
     golden[s.name] = {
       version: s.version,
-      unifiedDomains: call(() => getUnifiedDomains(s)),
-      customDomains: call(() => getCustomDomains(s)),
+      unifiedDomains: d.unifiedDomains,
+      customDomains: d.customDomains,
       customConfigs: call(() => getCustomConfigs(s)),
       // eslint-disable-next-line no-await-in-loop
       configuredApps: await callAsync(() => routeConfigsForSpec(s)),

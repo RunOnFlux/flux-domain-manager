@@ -72,6 +72,9 @@ function resolveOnceLines(app) {
     line(`timeout connect ${t.connect}`),
     line(`timeout server ${t.server}`),
     line(`timeout tunnel ${t.tunnel}`),
+    // The shared :80/:443 frontends serve every app, so a per-app http-request timeout
+    // has to live on the backend, not the frontend.
+    line(`timeout http-request ${t.httpRequest}`),
     line(`retries ${r.count}`),
   ];
   if (r.retryOn && r.retryOn.length) lines.push(line(`retry-on ${r.retryOn.join(' ')}`));

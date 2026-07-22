@@ -3,6 +3,7 @@ const pDNSConfig = require('./PDNSConfig');
 const appsConfig = require('./appsConfig');
 const guardsConfig = require('./guardsConfig');
 const customConfigs = require('./customConfigs');
+const haproxyRouting = require('./haproxyRouting');
 
 module.exports = {
   server: {
@@ -58,6 +59,7 @@ module.exports = {
     discordWebhookUrl: '',
   },
   customConfigs,
+  haproxyRouting,
   appSubDomain: 'app2',
   fdmAppDomain: 'fdm-lb-2-1.runonflux.io',
   uiName: 'home',

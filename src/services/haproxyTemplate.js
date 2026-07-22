@@ -6,6 +6,7 @@ const log = require('../lib/log');
 const { cmdAsync, TEMP_HAPROXY_CONFIG, HAPROXY_CONFIG } = require('./constants');
 const { matchRule } = require('./serviceHelper');
 const { getPrimaryIP } = require('./rsync/config');
+const { resolveBackendConfig } = require('./haproxy/resolveBackendConfig');
 
 let lastHaproxyConfig;
 
@@ -227,32 +228,37 @@ ${forbiddenBackend}
   return config;
 }
 
+// Render the v9 server line: check, health-probe timing, per-server maxconn, backend
+// TLS, and the affinity cookie (server name) — a different clause order from legacy,
+// which is why the two shapes stay separate rather than forced into one template.
+function renderV9ServerLine(cfg, app, ip, apiPort) {
+  const host = ip.split(':')[0];
+  const serverName = `${host}:${apiPort}`;
+  const parts = [`server ${serverName} ${host}:${app.port}`, 'check'];
+  if (cfg.serverTiming) parts.push(cfg.serverTiming);
+  if (cfg.serverMaxconn) parts.push(cfg.serverMaxconn);
+  if (cfg.serverSsl) parts.push(cfg.serverSsl);
+  if (cfg.stickyV9) parts.push(`cookie ${serverName}`);
+  let out = `\n  ${parts.join(' ')}`;
+  if (app.syncFirst && app.ips[0] !== ip) out += ' backup';
+  return out;
+}
+
 function generateDomainBackend(app, mode) {
   let domainUsed = app.domain.split('.').join('');
   if (mode === 'tcp') {
     domainUsed += '_tcp_';
   }
+  const cfg = resolveBackendConfig(app, mode);
   let domainBackend = `
 backend ${domainUsed}backend
   mode ${mode}`;
-  if (app.loadBalance) {
-    domainBackend += app.loadBalance;
-  } else if (mode !== 'tcp') {
-    domainBackend += '\n  balance roundrobin';
-    if (app.ips.length > 1) {
-      domainBackend += '\n  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h';
-    }
-  }
-  if (app.headers) {
-    // eslint-disable-next-line no-loop-func
-    app.headers.forEach((header) => {
-      domainBackend += `\n  ${header}`;
-    });
-  }
-  // eslint-disable-next-line no-loop-func
-  app.healthcheck.forEach((hc) => {
-    domainBackend += `\n  ${hc}`;
-  });
+  // Backend-level directives — balance (+ affinity cookie), request headers, and the
+  // health-check probe — resolved version-blind by resolveBackendConfig.
+  for (const l of cfg.balanceLines) domainBackend += `\n  ${l}`;
+  for (const l of cfg.headerLines) domainBackend += `\n  ${l}`;
+  for (const l of cfg.healthCheckLines) domainBackend += `\n  ${l}`;
+
   for (const ip of app.ips) {
     if (!ip) {
       log.error('MISSING IP');
@@ -274,23 +280,18 @@ backend ${domainUsed}backend
       continue;
     }
 
+    // Backend timeouts + retries, emitted once (with the first server).
     if (app.ips[0] === ip) {
-      if (app.timeout) {
-        domainBackend += `\n  timeout http-request ${app.timeout}`;
-      } else {
-        domainBackend += '\n  timeout http-request 15s'; //  timeout connect 15s
-      }
-      if (app.timeout) {
-        domainBackend += `\n  timeout server ${app.timeout}`;
-      } else if (app.syncFirst) {
-        domainBackend += '\n  timeout server 20s';
-      } else {
-        domainBackend += '\n  timeout server 25s';
-      }
-      domainBackend += '\n  retries 3\n  retry-on conn-failure response-timeout empty-response 500\n  option redispatch 1';
+      for (const l of cfg.onceLines) domainBackend += `\n  ${l}`;
     }
 
     const apiPort = ip.split(':')[1] || 16127;
+    if (cfg.isV9) {
+      domainBackend += renderV9ServerLine(cfg, app, ip, apiPort);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
     let cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split(':')[0]}:${app.port}`;
     const isCheck = app.check ? 'check ' : '';
     if (ip.includes('[') && ip.includes(']')) { // ipv6 hardcoded
@@ -623,5 +624,8 @@ async function restartProxy(dataToWrite) {
 module.exports = {
   createMainHaproxyConfig,
   createAppsHaproxyConfig,
+  // Renders one route config into its haproxy backend block (mode/balance/timeouts/
+  // retries/servers), independent of the surrounding frontend and cert binds.
+  generateDomainBackend,
   restartProxy,
 };

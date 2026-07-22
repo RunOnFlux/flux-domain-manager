@@ -39,6 +39,18 @@ function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFir
     const { componentName, hostPort } = route;
     const backendName = `${appName}_${componentName}_${hostPort}`;
     const customConfig = resolveCustomConfig(appName, componentName, hostPort, isActiveStandby);
+    // v9 routes carry owner-declared LB tunables off the resolved loadBalancing entry;
+    // legacy routes carry none (balancing stays undefined), so the renderer takes the
+    // legacy path. resolveBackendConfig reads these to render version-blind.
+    const v9Tuning = route.balancing === undefined ? {} : {
+      balancing: route.balancing,
+      timeouts: route.timeouts,
+      retries: route.retries,
+      stickySessions: route.stickySessions,
+      healthCheck: route.healthCheck,
+      backendTls: route.backendTls,
+      maxConnectionsPerServer: route.maxConnectionsPerServer,
+    };
     const base = {
       name: appName,
       appName: backendName,
@@ -46,6 +58,7 @@ function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFir
       ips: appIps,
       syncFirst,
       ...customConfig,
+      ...v9Tuning,
       timeout: null,
     };
 

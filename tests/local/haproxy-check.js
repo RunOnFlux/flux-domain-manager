@@ -1,4 +1,4 @@
-// Validate rendered HTTP backends against real haproxy (`haproxy -c`). Local/dev
+// Validate rendered v9 HTTP backends against real haproxy (`haproxy -c`). Local/dev
 // only: needs docker + the haproxy:2.9 image. The committed unit test asserts the
 // directive strings; this proves haproxy actually accepts them, across the toggle
 // variants. Usage (from repo root): node tests/local/haproxy-check.js
@@ -6,27 +6,39 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { renderHttpBackend } = require('../../src/services/haproxy/renderHttpBackend');
+const { generateDomainBackend } = require('../../src/services/haproxyTemplate');
 
-const baseLb = {
-  provider: 'haproxy', mode: 'http', customDomains: ['shop.example.com'],
-  balancing: 'leastconn', maxConnectionsPerServer: 500,
-  timeouts: { server: '45s', connect: '5s', httpRequest: '10s', tunnel: '3600s' },
+// A resolved v9 route config (as buildRouteConfigs produces): domain + backend IPs +
+// the fully-filled loadBalancing tunables. ips are host:apiPort; port is the hostPort.
+const baseRoute = {
+  name: 'shop',
+  appName: 'shop_web_31000',
+  domain: 'shop.example.com',
+  port: 31000,
+  ips: ['172.30.0.11:16127', '172.30.0.12:16127'],
+  syncFirst: false,
+  check: true,
+  balancing: 'leastconn',
+  maxConnectionsPerServer: 500,
+  timeouts: {
+    server: '45s', connect: '5s', httpRequest: '10s', tunnel: '3600s',
+  },
   retries: { count: 5, retryOn: ['conn-failure', '503'], redispatch: true },
   stickySessions: { cookieName: 'SRVID', maxIdle: '30m', maxLife: '8h' },
-  healthCheck: { method: 'GET', expectedStatus: '200-399', interval: '5s', timeout: '3s', rise: 2, fall: 3, path: '/health' },
-  managedCertificates: false, scheme: 'httpsRedirect', backendTls: null, drain: null, hostPort: 31000,
+  healthCheck: {
+    method: 'GET', expectedStatus: '200-399', interval: '5s', timeout: '3s', rise: 2, fall: 3, path: '/health',
+  },
+  backendTls: null,
 };
-const servers = [{ name: 'r1', host: '172.30.0.11', port: 31000 }, { name: 'r2', host: '172.30.0.11', port: 31001 }];
 
 const variants = {
-  full: baseLb,
-  'toggles-off': { ...baseLb, stickySessions: null, healthCheck: null },
-  'backend-tls': { ...baseLb, backendTls: {} },
-  roundrobin: { ...baseLb, balancing: 'roundrobin', retries: { count: 0, retryOn: [], redispatch: false } },
+  full: baseRoute,
+  'toggles-off': { ...baseRoute, stickySessions: null, healthCheck: null },
+  'backend-tls': { ...baseRoute, backendTls: { verify: 'none' } },
+  roundrobin: { ...baseRoute, balancing: 'roundrobin', retries: { count: 0, retryOn: [], redispatch: false } },
 };
 
-const harness = (backend) => `global
+const harness = (backend, backendName) => `global
   maxconn 4096
 defaults
   mode http
@@ -35,16 +47,18 @@ defaults
   timeout server 30s
 frontend fe
   bind *:8080
-  default_backend app
+  default_backend ${backendName}
 ${backend}
 `;
 
 let ok = true;
-for (const [label, lb] of Object.entries(variants)) {
-  const backend = renderHttpBackend({ backendName: 'app', servers, lb });
+// eslint-disable-next-line no-restricted-syntax
+for (const [label, route] of Object.entries(variants)) {
+  const backend = generateDomainBackend(route, 'http');
+  const backendName = `${route.domain.split('.').join('')}backend`;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fdm-hap-'));
   const cfg = path.join(dir, 'h.cfg');
-  fs.writeFileSync(cfg, harness(backend));
+  fs.writeFileSync(cfg, harness(backend, backendName));
   try {
     execFileSync('docker', ['run', '--rm', '-v', `${cfg}:/cfg:ro`, 'haproxy:2.9', 'haproxy', '-c', '-f', '/cfg'], { stdio: 'pipe' });
     console.log(`✓ ${label}: valid`);

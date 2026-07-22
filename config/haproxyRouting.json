@@ -1,0 +1,29 @@
+{
+  "forbiddenHosts": [
+    "racecoursejebelali.com",
+    "www.racecoursejebelali.com",
+    "sofiteldowntown.com",
+    "www.sofiteldowntown.com",
+    "livelo.digitaisx.mov",
+    "www.livelo.digitaisx.mov"
+  ],
+  "forbiddenPaths": [
+    "/product/litty-cat-thc-bars-1000mg"
+  ],
+  "mainStickyEndpoints": [
+    "/id/loginphrase",
+    "/id/emergencyphrase",
+    "/id/providesign",
+    "/id/verifylogin"
+  ],
+  "mainRoundrobinEndpoints": [
+    "apps/calculatefiatandfluxprice",
+    "/apps/verifyappregistrationspecifications",
+    "/apps/verifyappupdatespecifications",
+    "/apps/appregister",
+    "/apps/appupdate",
+    "/apps/temporarymessages",
+    "/apps/location",
+    "/apps/testappinstall"
+  ]
+}

@@ -99,10 +99,6 @@ const httpsFdmApiPrefix = `
   use_backend fdm-api-backend if fdm-domain fdm-api-path
 `;
 
-const certificatePrefix = '  bind *:443 ssl ';
-
-const certificatesSuffix = ''; // 'ciphers kEECDH+aRSA+AES:kRSA+AES:+AES256:RC4-SHA:!kEDH:!LOW:!EXP:!MD5:!aNULL:!eNULL no-sslv3';
-
 const h2Suffix = 'alpn h2,http/1.1';
 
 const letsEncryptBackend = (() => {
@@ -135,16 +131,14 @@ const forbiddenBackend = `backend forbidden-backend
   mode http
   http-request deny deny_status 403
 `;
-// eslint-disable-next-line no-unused-vars
-function createCertificatesPaths(domains) {
-  // let path = '';
-  // domains.forEach((url) => {
-  //   path += `crt /etc/ssl/${configGlobal.certFolder}/${url}.pem `;
-  // });
-  // return path;
-  // ise directory
-  const path = `crt /etc/ssl/${configGlobal.certFolder}/ `;
-  return path;
+// The wwwhttps frontend's static skeleton — options/stats, the :443 TLS bind, and the
+// FDM-API routing — shared by the apps and main configs. The caller appends the app or
+// main routing. haproxy loads every cert in the crt directory.
+function buildWwwhttpsFrontend() {
+  const section = parse(httpsPrefix).sections[0];
+  section.add('bind', '*:443', 'ssl', 'crt', `/etc/ssl/${configGlobal.certFolder}/`, h2Suffix);
+  section.rawBlock(httpsFdmApiPrefix);
+  return section;
 }
 
 /*
@@ -198,35 +192,6 @@ ${portConf.backends.join('\n')}`;
   }
 
   return configs;
-}
-
-function generateHaproxyConfig(acls, usebackends, domains, backends, redirects, minecraftAppsMap = {}, tcpAppsMap = {}) {
-  // eslint-disable-next-line max-len
-  // const minecraftConfig = generateMinecraftSettings(minecraftAppsMap);
-  const tcpConfig = generateAppsTCPSettings(tcpAppsMap);
-  const config = `
-${haproxyPrefix}
-
-${acls}
-${usebackends}
-${redirects}
-
-${tcpConfig}
-
-${httpsPrefix}${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix} ${h2Suffix}
-${httpsFdmApiPrefix}
-
-${acls}
-${usebackends}
-${redirects}
-
-${backends}
-${letsEncryptBackend}
-${cloudflareFluxBackend}
-${fdmApiBackend}
-${forbiddenBackend}
-`;
-  return config;
 }
 
 // The per-server health-check timing legacy emits inline on every server line.
@@ -355,7 +320,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
   });
 
   // API backend with source-based load balancing (for session persistence)
-  let apiBackend = `backend ${apiB}backend
+  const apiBackend = `backend ${apiB}backend
     http-response set-header FLUXNODE %s
     mode http
     balance source
@@ -374,7 +339,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     default-server check inter 10s fall 2 rise 3 maxconn 100`;
 
   // Roundrobin API backend for specific endpoints that need random distribution
-  let apiRoundrobinBackend = `backend ${apiB}roundrobinbackend
+  const apiRoundrobinBackend = `backend ${apiB}roundrobinbackend
     http-response set-header FLUXNODE %s
     http-response set-header X-Flux-Mode "Roundrobin"
     mode http
@@ -394,7 +359,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     default-server check inter 10s fall 2 rise 3 maxconn 100`;
 
   // UI backend with load balancing based on real client IP (CF-Connecting-IP)
-  let uiBackend = `backend ${uiB}backend
+  const uiBackend = `backend ${uiB}backend
     http-response set-header FLUXNODE %s
     mode http
     balance hdr(CF-Connecting-IP)
@@ -408,64 +373,52 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     # Health check with faster failure detection
     default-server check inter 10s fall 2 rise 3 maxconn 100`;
 
-  for (const server of serverMapping) {
-    uiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.uiPort} check`;
-    apiBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.apiPort} check`;
-    apiRoundrobinBackend += `\n  server ${server.serverName} ${server.baseHost}:${server.apiPort} check`;
-  }
+  const uiBackendSection = parse(uiBackend).sections[0];
+  const apiBackendSection = parse(apiBackend).sections[0];
+  const apiRoundrobinSection = parse(apiRoundrobinBackend).sections[0];
+  serverMapping.forEach((server) => {
+    uiBackendSection.add('server', server.serverName, `${server.baseHost}:${server.uiPort}`, 'check');
+    apiBackendSection.add('server', server.serverName, `${server.baseHost}:${server.apiPort}`, 'check');
+    apiRoundrobinSection.add('server', server.serverName, `${server.baseHost}:${server.apiPort}`, 'check');
+  });
 
-  const redirects = '  http-request redirect code 301 location https://cloud.runonflux.com/dashboards/overview if { hdr(host) -i dashboard.zel.network }\n\n';
+  // Routing ACLs (endpoint stickiness/roundrobin, websocket, host -> ui/api backend).
+  const routingAcls = [];
+  configGlobal.haproxyRouting.mainStickyEndpoints
+    .forEach((p) => routingAcls.push(new Directive('acl', ['is_sticky_endpoint', 'path_beg', p])));
+  configGlobal.haproxyRouting.mainRoundrobinEndpoints
+    .forEach((p) => routingAcls.push(new Directive('acl', ['is_roundrobin_endpoint', 'path_beg', p])));
+  routingAcls.push(new Directive('acl', ['is_websocket', 'hdr(connection)', '-i', 'upgrade']));
+  routingAcls.push(new Directive('acl', ['is_websocket_upgrade', 'hdr(upgrade)', '-i', 'websocket']));
+  routingAcls.push(new Directive('acl', [uiB, 'hdr(host)', ui]));
+  routingAcls.push(new Directive('acl', [apiB, 'hdr(host)', api]));
+  if (uiPrimary) routingAcls.push(new Directive('acl', [uiB, 'hdr(host)', uiPrimary]));
+  if (apiPrimary) routingAcls.push(new Directive('acl', [apiB, 'hdr(host)', apiPrimary]));
+  routingAcls.push(new Directive('acl', [uiB, 'hdr(host)', cloudUi])); // cloud UI shares the home UI backend
+  if (cloudUiPrimary) routingAcls.push(new Directive('acl', [uiB, 'hdr(host)', cloudUiPrimary]));
 
-  // Enhanced ACLs with WebSocket detection and specific endpoint detection
-  const specificEndpointsAcl = `  acl is_sticky_endpoint path_beg /id/loginphrase
-  acl is_sticky_endpoint path_beg /id/emergencyphrase
-  acl is_sticky_endpoint path_beg /id/providesign
-  acl is_sticky_endpoint path_beg /id/verifylogin\n`;
+  const routingUseBackends = [
+    new Directive('use_backend', [`${apiB}backend`, 'if', 'is_websocket', apiB]),
+    new Directive('use_backend', [`${apiB}roundrobinbackend`, 'if', apiB, 'is_roundrobin_endpoint']),
+    new Directive('use_backend', [`${uiB}backend`, 'if', uiB]),
+    new Directive('use_backend', [`${apiB}backend`, 'if', apiB]),
+  ];
+  const redirectLine = 'http-request redirect code 301 location https://cloud.runonflux.com/dashboards/overview if { hdr(host) -i dashboard.zel.network }';
 
-  // ACLs for endpoints that should use roundrobin
-  const roundrobinEndpointsAcl = `  acl is_roundrobin_endpoint path_beg apps/calculatefiatandfluxprice
-  acl is_roundrobin_endpoint path_beg /apps/verifyappregistrationspecifications
-  acl is_roundrobin_endpoint path_beg /apps/verifyappupdatespecifications
-  acl is_roundrobin_endpoint path_beg /apps/appregister
-  acl is_roundrobin_endpoint path_beg /apps/appupdate
-  acl is_roundrobin_endpoint path_beg /apps/temporarymessages
-  acl is_roundrobin_endpoint path_beg /apps/location
-  acl is_roundrobin_endpoint path_beg /apps/testappinstall\n`;
+  // Assemble: static skeleton, both http frontends carrying the routing + redirect, then
+  // the backends.
+  const config = parse(haproxyPrefix);
+  const wwwhttps = buildWwwhttpsFrontend();
+  [config.sections.find((s) => s.name === 'wwwhttp'), wwwhttps].forEach((frontend) => {
+    routingAcls.forEach((directive) => frontend.push(directive));
+    routingUseBackends.forEach((directive) => frontend.push(directive));
+    frontend.raw(redirectLine);
+  });
+  config.sections.push(wwwhttps, uiBackendSection, apiBackendSection, apiRoundrobinSection);
+  [letsEncryptBackend, cloudflareFluxBackend, fdmApiBackend, forbiddenBackend]
+    .forEach((text) => parse(text).sections.forEach((section) => config.sections.push(section)));
 
-  const webSocketAcl = `  acl is_websocket hdr(connection) -i upgrade
-  acl is_websocket_upgrade hdr(upgrade) -i websocket\n`;
-
-  const uiAcl = `  acl ${uiB} hdr(host) ${ui}\n`;
-  const apiAcl = `  acl ${apiB} hdr(host) ${api}\n`;
-  let acls = specificEndpointsAcl + roundrobinEndpointsAcl + webSocketAcl + uiAcl + apiAcl;
-
-  if (uiPrimary) {
-    const uiPrimaryAcl = `  acl ${uiB} hdr(host) ${uiPrimary}\n`;
-    acls += uiPrimaryAcl;
-  }
-  if (apiPrimary) {
-    const apiPrimaryAcl = `  acl ${apiB} hdr(host) ${apiPrimary}\n`;
-    acls += apiPrimaryAcl;
-  }
-  // Cloud UI uses same backend as home UI
-  const cloudUiAcl = `  acl ${uiB} hdr(host) ${cloudUi}\n`;
-  acls += cloudUiAcl;
-  if (cloudUiPrimary) {
-    const cloudUiPrimaryAcl = `  acl ${uiB} hdr(host) ${cloudUiPrimary}\n`;
-    acls += cloudUiPrimaryAcl;
-  }
-
-  // Enhanced routing with roundrobin endpoints getting priority
-  const wsBackendUse = `  use_backend ${apiB}backend if is_websocket ${apiB}\n`;
-  const roundrobinBackendUse = `  use_backend ${apiB}roundrobinbackend if ${apiB} is_roundrobin_endpoint\n`;
-  const uiBackendUse = `  use_backend ${uiB}backend if ${uiB}\n`;
-  const apiBackendUse = `  use_backend ${apiB}backend if ${apiB}\n`;
-
-  const usebackends = wsBackendUse + roundrobinBackendUse + uiBackendUse + apiBackendUse;
-  const backends = `${uiBackend}\n\n${apiBackend}\n\n${apiRoundrobinBackend}`;
-  const urls = [ui, api, 'dashboard.zel.network', uiPrimary, apiPrimary, cloudUi, cloudUiPrimary];
-
-  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {}, {});
+  return config.render();
 }
 
 // appConfig is an array of object of domain, port, ips
@@ -485,13 +438,10 @@ function createAppsHaproxyConfig(appConfig) {
   const minecraftAppsMap = {};
   const tcpAppsMap = {};
 
-  const forbiddenHosts = [
-    'racecoursejebelali.com', 'www.racecoursejebelali.com',
-    'sofiteldowntown.com', 'www.sofiteldowntown.com',
-    'livelo.digitaisx.mov', 'www.livelo.digitaisx.mov',
-  ];
-  forbiddenHosts.forEach((host) => routingAcls.push(new Directive('acl', ['forbiddenacl', 'hdr(host)', host])));
-  routingAcls.push(new Directive('acl', ['forbiddenacl', 'path_beg', '-i', '/product/litty-cat-thc-bars-1000mg']));
+  configGlobal.haproxyRouting.forbiddenHosts
+    .forEach((host) => routingAcls.push(new Directive('acl', ['forbiddenacl', 'hdr(host)', host])));
+  configGlobal.haproxyRouting.forbiddenPaths
+    .forEach((p) => routingAcls.push(new Directive('acl', ['forbiddenacl', 'path_beg', '-i', p])));
   routingUseBackends.push(new Directive('use_backend', ['forbidden-backend', 'if', 'forbiddenacl']));
 
   for (const app of appConfig) {
@@ -544,10 +494,8 @@ function createAppsHaproxyConfig(appConfig) {
   // TCP frontends (+ their backends): reuse the string builder, fold into the model.
   parse(generateAppsTCPSettings(tcpAppsMap)).sections.forEach((section) => config.sections.push(section));
 
-  // Frontend wwwhttps: static body + the :443 bind + FDM-API routing, then the same
-  // app routing as wwwhttp.
-  const bindLine = `${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix} ${h2Suffix}`;
-  const wwwhttps = parse(`${httpsPrefix}${bindLine}\n${httpsFdmApiPrefix}`).sections[0];
+  // Frontend wwwhttps: the shared static skeleton, then the same app routing as wwwhttp.
+  const wwwhttps = buildWwwhttpsFrontend();
   routingAcls.forEach((directive) => wwwhttps.push(directive));
   routingUseBackends.forEach((directive) => wwwhttps.push(directive));
   config.sections.push(wwwhttps);

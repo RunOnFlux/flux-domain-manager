@@ -671,7 +671,7 @@ frontend wwwhttps
   stats uri     /fluxstatistics
   stats realm   Flux\ Statistics
   # The SSL CRT file is a combination of the public certificate and the private key
-  bind *:443 ssl crt /etc/ssl/fluxapps/  alpn h2,http/1.1
+  bind *:443 ssl crt /etc/ssl/fluxapps/ alpn h2,http/1.1
   # FDM API routing - only for this FDM's domain
   acl fdm-domain hdr(host) -i fdm-lb-2-1.runonflux.io
   acl fdm-api-path path_beg /api/

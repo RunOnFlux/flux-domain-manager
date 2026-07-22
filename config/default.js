@@ -2,6 +2,7 @@ const cloudflareConfig = require('./cloudflareConfig');
 const pDNSConfig = require('./PDNSConfig');
 const appsConfig = require('./appsConfig');
 const customConfigs = require('./customConfigs');
+const haproxyRouting = require('./haproxyRouting');
 
 module.exports = {
   server: {
@@ -52,6 +53,7 @@ module.exports = {
   blackListedApps: appsConfig.blackListedApps,
   minecraftApps: appsConfig.minecraftApps,
   customConfigs,
+  haproxyRouting,
   appSubDomain: 'app2',
   fdmAppDomain: 'fdm-lb-2-1.runonflux.io',
   uiName: 'home',

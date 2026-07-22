@@ -13,8 +13,19 @@ gitignored — they are real production spec data.
   curl -s https://api.runonflux.io/apps/globalappsspecifications > tests/local/corpus-raw.json
   ```
 
+- `locations.json` *(gitignored)* — live app→backend-IP assignments. Pull it with:
+
+  ```sh
+  curl -s https://api.runonflux.io/apps/locations > tests/local/locations.json
+  ```
+
 - `sweep.js` — run FDM's pure spec-shape functions over **every** real spec and
   write `sweep-output.json`.
+- `live-render-check.js` — render the full haproxy config over the live population
+  using each app's **real** location IPs (exercises the multi-IP branches the fixed-IP
+  sweep can't), then validate it against real **haproxy 2.9** (needs docker).
+- `haproxy-check.js` — validate rendered v9 backend variants against haproxy 2.9
+  (needs docker).
 - `curate.js` — regenerate the committed 30-spec anonymized fixture from the corpus
   (greedy branch-coverage select + owner/domain anonymization).
 - `sweep-output.json` *(gitignored)* — the sweep result.

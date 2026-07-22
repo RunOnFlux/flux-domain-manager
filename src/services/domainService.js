@@ -1599,7 +1599,7 @@ async function startApplicationProcessing() {
     certPath: '/etc/ssl/certs/fdm-arcane.pem',
     caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
     fluxApiBaseUrl: 'https://api.runonflux.io/',
-    sasApiBaseUrl: 'https://10.100.0.170/api/',
+    specDecrypt: config.specDecrypt,
   });
 
   const locationsHandler = async (appsLocs) => {
@@ -1689,7 +1689,7 @@ function initializeServices() {
           certPath: '/etc/ssl/certs/fdm-arcane.pem',
           caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
           fluxApiBaseUrl: 'https://api.runonflux.io/',
-          sasApiBaseUrl: 'https://10.100.0.170/api/',
+          specDecrypt: config.specDecrypt,
         });
       }
       obtainCertificatesMode();

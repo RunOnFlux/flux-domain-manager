@@ -4,6 +4,7 @@ const appsConfig = require('./appsConfig');
 const guardsConfig = require('./guardsConfig');
 const customConfigs = require('./customConfigs');
 const haproxyRouting = require('./haproxyRouting');
+const specDecrypt = require('./specDecrypt');
 
 module.exports = {
   server: {
@@ -60,6 +61,7 @@ module.exports = {
   },
   customConfigs,
   haproxyRouting,
+  specDecrypt,
   appSubDomain: 'app2',
   fdmAppDomain: 'fdm-lb-2-1.runonflux.io',
   uiName: 'home',

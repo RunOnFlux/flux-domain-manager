@@ -13,10 +13,9 @@
 const chai = require('chai');
 const fs = require('fs');
 const path = require('path');
-const { getUnifiedDomains, getCustomDomains } = require('../../src/services/domain/index.js');
 const { getCustomConfigs } = require('../../src/services/application/custom.js');
 const { getApplicationsToProcess } = require('../../src/services/application/subset.js');
-const { routeConfigsForSpec, renderConfig } = require('./fixtures/renderPipeline');
+const { routeConfigsForSpec, domainsForSpec, renderConfig } = require('./fixtures/renderPipeline');
 
 const { expect } = chai;
 
@@ -32,11 +31,11 @@ describe('characterization — pure spec-shape functions vs golden (real anonymi
     describe(`${s.name} (v${s.version})`, function () {
       const g = golden[s.name];
       it('has a golden entry', function () { expect(g, `no golden for ${s.name}`).to.be.an('object'); });
-      it('getUnifiedDomains matches golden', function () {
-        expect(call(() => getUnifiedDomains(s))).to.deep.equal(g.unifiedDomains);
+      it('getUnifiedDomains matches golden', async function () {
+        expect((await domainsForSpec(s)).unifiedDomains).to.deep.equal(g.unifiedDomains);
       });
-      it('getCustomDomains matches golden', function () {
-        expect(call(() => getCustomDomains(s))).to.deep.equal(g.customDomains);
+      it('getCustomDomains matches golden', async function () {
+        expect((await domainsForSpec(s)).customDomains).to.deep.equal(g.customDomains);
       });
       it('getCustomConfigs matches golden', function () {
         expect(call(() => getCustomConfigs(s))).to.deep.equal(g.customConfigs);

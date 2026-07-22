@@ -2,74 +2,47 @@
 const config = require('config');
 const log = require('../../lib/log');
 const serviceHelper = require('../serviceHelper');
+const specLibs = require('../flux/specLibs');
+const { resolveRouteExposure } = require('../haproxy/resolveRouteExposure');
 const { executeCertificateOperations } = require('./cert');
 const { DOMAIN_TYPE } = require('../constants');
 
-// generates domain names for a given app specificatoin
-function getUnifiedDomains(specifications) {
-  const domains = [];
-  const lowerCaseName = specifications.name.toLowerCase();
-  if (specifications.version <= 3) { // app v1 cannot be spawned and do not exist
-    // adding names for each port with new scheme {appname}_{portnumber}.app2.runonflux.io
-    for (let i = 0; i < specifications.ports.length; i += 1) {
-      const portDomain = `${lowerCaseName}_${specifications.ports[i]}.${config.appSubDomain}.${config.mainDomain}`;
-      domains.push(portDomain);
-    }
-  } else {
-    // composed app
-    for (const component of specifications.compose) {
-      // same for composed apps, adding for each port with new scheme {appname}_{portnumber}.app2.runonflux.io
-      for (let i = 0; i < component.ports.length; i += 1) {
-        const portDomain = `${lowerCaseName}_${component.ports[i]}.${config.appSubDomain}.${config.mainDomain}`;
-        domains.push(portDomain);
-      }
-    }
-  }
-  // finally push general name which is alias to first port
-  const mainDomain = `${lowerCaseName}.${config.appSubDomain}.${config.mainDomain}`;
-  domains.push(mainDomain);
+// The platform FQDNs an app is reachable on — one per routed port plus the main alias —
+// version-blind, sourced from the resolved loadBalancing routes rather than raw compose.
+// FDM owns these (app2.runonflux.io), so they always terminate and always need a cert.
+function getUnifiedDomains(deployment) {
+  const lowerCaseName = deployment.appName.toLowerCase();
+  const domains = deployment.routes().map(
+    (route) => `${lowerCaseName}_${route.hostPort}.${config.appSubDomain}.${config.mainDomain}`,
+  );
+  // The general name is an alias to the first port.
+  domains.push(`${lowerCaseName}.${config.appSubDomain}.${config.mainDomain}`);
   return domains;
 }
 
-// gets custom domains set by user for their applications
-function getCustomDomains(app) {
+// The owner custom domains FDM should obtain certificates for — version-blind, from the
+// resolved routes (flux-spec has already split the comma blob). A domain is included only
+// when its route both terminates at FDM and is FDM-managed (Part C): v9 passthrough /
+// httpOnly / owner-managed-DNS routes are skipped; legacy always qualifies. Each domain
+// contributes its www. and test. variants, matching the historical expansion.
+function getCustomDomains(deployment) {
   const domains = [];
-  if (app.version <= 3) {
-    for (let i = 0; i < app.ports.length; i += 1) {
-      if (typeof app.domains[i] === 'string') {
-        const portDomains = app.domains[i].split(',');
-        portDomains.forEach((portDomain) => {
-          if (portDomain && portDomain.includes('.') && portDomain.length >= 3 && !portDomain.toLowerCase().endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
-            let domain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
-            if (domain.includes('www.')) {
-              // eslint-disable-next-line prefer-destructuring
-              domain = domain.split('www.')[1];
-            }
-            domains.push(domain.toLowerCase());
-            domains.push(`www.${domain.toLowerCase()}`);
-            domains.push(`test.${domain.toLowerCase()}`);
-          }
-        });
-      }
+  const platformSuffix = `${config.appSubDomain}.${config.mainDomain}`;
+  for (const route of deployment.routes()) {
+    if (!resolveRouteExposure(route).needsCert) {
+      // eslint-disable-next-line no-continue
+      continue;
     }
-  } else {
-    for (const component of app.compose) {
-      for (let i = 0; i < component.ports.length; i += 1) {
-        if (typeof component.domains[i] === 'string') {
-          const portDomains = component.domains[i].split(',');
-          portDomains.forEach((portDomain) => {
-            if (portDomain && portDomain.includes('.') && portDomain.length >= 3 && !portDomain.toLowerCase().endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
-              let domain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
-              if (domain.includes('www.')) {
-                // eslint-disable-next-line prefer-destructuring
-                domain = domain.split('www.')[1];
-              }
-              domains.push(domain.toLowerCase());
-              domains.push(`www.${domain.toLowerCase()}`);
-              domains.push(`test.${domain.toLowerCase()}`);
-            }
-          });
+    for (const portDomain of route.customDomains || []) {
+      if (portDomain && portDomain.includes('.') && portDomain.length >= 3 && !portDomain.toLowerCase().endsWith(platformSuffix)) {
+        let domain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
+        if (domain.includes('www.')) {
+          // eslint-disable-next-line prefer-destructuring
+          domain = domain.split('www.')[1];
         }
+        domains.push(domain.toLowerCase());
+        domains.push(`www.${domain.toLowerCase()}`);
+        domains.push(`test.${domain.toLowerCase()}`);
       }
     }
   }
@@ -126,12 +99,23 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
     // else if (appSpecs.name === 'eckodao') {
     //   appSpecs.compose[0].domains = ['', '', '', '', ''];
     // }
-    const domains = getUnifiedDomains(appSpecs);
-    const customDomains = getCustomDomains(appSpecs);
-    const portLength = appSpecs.version <= 3 ? appSpecs.ports.length : appSpecs.compose.reduce(
-      (p, c) => p + c.ports.length, // ports += 1; // component name itself not required in new scheme
-      0,
-    );
+    // Resolve once, version-blind. This also carries the domain overrides applied above
+    // (they mutate the wire, which deserialize re-ingests). A spec that can't resolve is
+    // logged and skipped, never aborting the batch.
+    let deployment;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const instance = await specLibs.deserialize(appSpecs);
+      // eslint-disable-next-line no-await-in-loop
+      deployment = await specLibs.resolveDeployment(instance, null);
+    } catch (error) {
+      log.error(`skipping ${appSpecs.name}: ${error.message}`);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    const domains = getUnifiedDomains(deployment);
+    const customDomains = getCustomDomains(deployment);
+    const portLength = deployment.routes().length;
 
     if (domains.length === portLength + 1) {
       // eslint-disable-next-line no-await-in-loop

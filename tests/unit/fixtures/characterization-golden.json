@@ -374,10 +374,12 @@
   },
   "anonapp2": {
     "version": 8,
-    "unifiedDomains": [
-      "anonapp2.app2.runonflux.io"
-    ],
-    "customDomains": [],
+    "unifiedDomains": {
+      "__sealed": true
+    },
+    "customDomains": {
+      "__sealed": true
+    },
     "customConfigs": [
       {
         "ssl": false,

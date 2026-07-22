@@ -51,6 +51,13 @@ function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFir
       backendTls: route.backendTls,
       maxConnectionsPerServer: route.maxConnectionsPerServer,
     };
+    // Edge exposure (scheme + managed cert) applies to the owner's custom domains only;
+    // a v9 route carries a scheme, legacy carries none. Platform FQDNs never get this —
+    // FDM owns app2.runonflux.io, so those always terminate + redirect + cert.
+    const exposure = route.scheme === undefined ? {} : {
+      scheme: route.scheme,
+      managedCertificates: route.managedCertificates,
+    };
     const base = {
       name: appName,
       appName: backendName,
@@ -87,11 +94,11 @@ function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFir
         && !has(portDomain)
         && !portDomain.includes(platformTokenNoDot)
       ) {
-        if (!has(portDomain.toLowerCase())) configs.push({ ...base, domain: portDomain });
+        if (!has(portDomain.toLowerCase())) configs.push({ ...base, ...exposure, domain: portDomain });
         const www = `www.${portDomain.toLowerCase()}`;
-        if (!has(www)) configs.push({ ...base, domain: www });
+        if (!has(www)) configs.push({ ...base, ...exposure, domain: www });
         const test = `test.${portDomain.toLowerCase()}`;
-        if (!has(test)) configs.push({ ...base, domain: test });
+        if (!has(test)) configs.push({ ...base, ...exposure, domain: test });
       }
     }
   }

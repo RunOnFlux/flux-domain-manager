@@ -62,8 +62,9 @@ describe('v9 loadBalancing rendering (end-to-end)', () => {
     expect(backend).to.include('\n  retries 3');
     expect(backend).to.include('\n  option redispatch');
     expect(backend).to.include('\n  server 144.76.10.20:16127 144.76.10.20:31000 check inter 5s rise 2 fall 3 maxconn 500 ssl verify none cookie 144.76.10.20:16127');
-    // frontend-scoped httpRequest timeout is NOT in the backend
-    expect(backend).to.not.include('timeout http-request');
+    // The shared frontend serves every app, so the per-app http-request timeout is
+    // backend-scoped (httpRequest defaults to 10s here).
+    expect(backend).to.include('\n  timeout http-request 10s');
   });
 
   it('omits the cookie, probe and TLS when the v9 toggles are off', async () => {

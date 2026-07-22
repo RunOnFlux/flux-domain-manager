@@ -1,9 +1,12 @@
 // Version-blind replacement for domainService.addConfigurations: turns a resolved
-// DeploymentSpec + backend IPs into the haproxy backend-config entries (the "bag"
-// the renderer consumes), sourced from the spec's loadBalancing routes rather than
-// raw compose. Every version flows through one path — legacy apps route every port
+// DeploymentSpec + backend IPs into the haproxy route configs the renderer consumes,
+// sourced from the spec's loadBalancing routes rather than raw compose. Each route
+// config maps one domain to a backend (ips:port) plus its tuning. Every version flows
+// through one path — legacy apps route every port
 // (flux-spec synthesizes a loadBalancing entry per port), v9 apps route the ports
-// their owner configured.
+// their owner configured. flux-spec hands back one flat route per (component, port)
+// with custom domains already split into a clean array, so this reads routes rather
+// than walking components → loadBalancing by hand.
 //
 // The output matches addConfigurations field-for-field so the existing renderer
 // produces byte-identical config; the platform FQDN and custom-domain expansion
@@ -18,7 +21,10 @@ const sanitizeDomain = (domain) => domain
   .replace('http://', '')
   .replace(/[&/\\#,+()$~%'":*?<>{}]/g, '');
 
-function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFirst) {
+// `ownsDomain(domain)` decides whether this app may serve a custom domain (another
+// live app may own it — first-registrant-wins). Defaults to allow-all so callers that
+// don't arbitrate ownership (e.g. the characterization harness) get every route.
+function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFirst, ownsDomain = () => true) {
   const configs = [];
   const platformSuffix = `${config.appSubDomain}.${config.mainDomain}`;
   const lowerName = appName.toLowerCase();
@@ -29,51 +35,50 @@ function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFir
   const has = (domain) => configs.find((entry) => entry.domain === domain);
 
   // eslint-disable-next-line no-restricted-syntax
-  for (const [componentName, component] of Object.entries(deployment.components)) {
+  for (const route of deployment.routes()) {
+    const { componentName, hostPort } = route;
+    const backendName = `${appName}_${componentName}_${hostPort}`;
+    const customConfig = resolveCustomConfig(appName, componentName, hostPort, isActiveStandby);
+    const base = {
+      name: appName,
+      appName: backendName,
+      port: hostPort,
+      ips: appIps,
+      syncFirst,
+      ...customConfig,
+      timeout: null,
+    };
+
+    // Platform FQDN for this port.
+    configs.push({ ...base, domain: `${lowerName}_${hostPort}.${platformSuffix}` });
+
+    // Owner custom domains: flux-spec has already split them into individual, trimmed
+    // domains for every version, so we just sanitize each for the ACL.
     // eslint-disable-next-line no-restricted-syntax
-    for (const lb of Object.values(component.loadBalancing || {})) {
-      const { hostPort } = lb;
-      const bagAppName = `${appName}_${componentName}_${hostPort}`;
-      const customConfig = resolveCustomConfig(appName, componentName, hostPort, isActiveStandby);
-      const base = {
-        name: appName,
-        appName: bagAppName,
-        port: hostPort,
-        ips: appIps,
-        syncFirst,
-        ...customConfig,
-        timeout: null,
-      };
-
-      // Platform FQDN for this port.
-      configs.push({ ...base, domain: `${lowerName}_${hostPort}.${platformSuffix}` });
-
-      // Owner custom domains: legacy carries the raw (possibly comma-joined) string
-      // in a single customDomains element; v9 carries a proper array. Splitting on
-      // comma handles both.
-      // eslint-disable-next-line no-restricted-syntax
-      for (const rawDomain of lb.customDomains || []) {
-        // eslint-disable-next-line no-restricted-syntax
-        for (const entry of rawDomain.split(',')) {
-          let portDomain = sanitizeDomain(entry);
-          if (portDomain.includes('www.')) {
-            [, portDomain] = portDomain.split('www.');
-          }
-          if (
-            portDomain
-            && portDomain.includes('.')
-            && portDomain.length >= 3
-            && !portDomain.toLowerCase().includes(platformToken)
-            && !has(portDomain)
-            && !portDomain.includes(platformTokenNoDot)
-          ) {
-            if (!has(portDomain.toLowerCase())) configs.push({ ...base, domain: portDomain });
-            const www = `www.${portDomain.toLowerCase()}`;
-            if (!has(www)) configs.push({ ...base, domain: www });
-            const test = `test.${portDomain.toLowerCase()}`;
-            if (!has(test)) configs.push({ ...base, domain: test });
-          }
-        }
+    for (const customDomain of route.customDomains || []) {
+      let portDomain = sanitizeDomain(customDomain);
+      // Drop the whole domain (and its www./test. variants) if this app doesn't own
+      // it — checked before www-stripping, on the domain as registered.
+      if (!ownsDomain(portDomain)) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      if (portDomain.includes('www.')) {
+        [, portDomain] = portDomain.split('www.');
+      }
+      if (
+        portDomain
+        && portDomain.includes('.')
+        && portDomain.length >= 3
+        && !portDomain.toLowerCase().includes(platformToken)
+        && !has(portDomain)
+        && !portDomain.includes(platformTokenNoDot)
+      ) {
+        if (!has(portDomain.toLowerCase())) configs.push({ ...base, domain: portDomain });
+        const www = `www.${portDomain.toLowerCase()}`;
+        if (!has(www)) configs.push({ ...base, domain: www });
+        const test = `test.${portDomain.toLowerCase()}`;
+        if (!has(test)) configs.push({ ...base, domain: test });
       }
     }
   }

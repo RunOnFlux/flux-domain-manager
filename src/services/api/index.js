@@ -59,8 +59,8 @@ function getAppIpsAPI(req, res) {
 
     const appNameLower = appname.toLowerCase();
     const {
-      activeActiveApps, activeStandbyApps, activeActiveAppsInitialized, activeStandbyAppsInitialized,
-    } = domainService.getConfiguredApps();
+      activeActiveRouteConfigs, activeStandbyRouteConfigs, activeActiveAppsInitialized, activeStandbyAppsInitialized,
+    } = domainService.getRouteConfigs();
 
     if (!activeActiveAppsInitialized || !activeStandbyAppsInitialized) {
       const errMessage = serviceHelper.createErrorMessage(
@@ -71,9 +71,9 @@ function getAppIpsAPI(req, res) {
       return res.status(503).json(errMessage);
     }
 
-    const allApps = serviceHelper.concatIterables(activeActiveApps, activeStandbyApps);
+    const allRouteConfigs = serviceHelper.concatIterables(activeActiveRouteConfigs, activeStandbyRouteConfigs);
 
-    const matchingApps = allApps.filter((app) => app.name.toLowerCase() === appNameLower);
+    const matchingApps = allRouteConfigs.filter((routeConfig) => routeConfig.name.toLowerCase() === appNameLower);
 
     if (matchingApps.length === 0) {
       const errMessage = serviceHelper.createErrorMessage(`App '${appname}' not found in HAProxy configuration`, 'NotFoundError', 404);

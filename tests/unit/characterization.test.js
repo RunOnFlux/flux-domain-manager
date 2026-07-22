@@ -16,7 +16,7 @@ const path = require('path');
 const { getUnifiedDomains, getCustomDomains } = require('../../src/services/domain/index.js');
 const { getCustomConfigs } = require('../../src/services/application/custom.js');
 const { getApplicationsToProcess } = require('../../src/services/application/subset.js');
-const { bagForSpec, renderConfig } = require('./fixtures/renderPipeline');
+const { routeConfigsForSpec, renderConfig } = require('./fixtures/renderPipeline');
 
 const { expect } = chai;
 
@@ -25,6 +25,7 @@ const specs = JSON.parse(fs.readFileSync(path.join(FIX, 'characterization-specs.
 const golden = JSON.parse(fs.readFileSync(path.join(FIX, 'characterization-golden.json'), 'utf8'));
 const renderedGolden = fs.readFileSync(path.join(FIX, 'characterization-haproxy.txt'), 'utf8');
 const call = (fn) => { try { return fn(); } catch (e) { return { __throws: e.message }; } };
+const callAsync = async (fn) => { try { return await fn(); } catch (e) { return { __throws: e.message }; } };
 
 describe('characterization — pure spec-shape functions vs golden (real anonymized specs)', function () {
   specs.forEach((s) => {
@@ -40,8 +41,8 @@ describe('characterization — pure spec-shape functions vs golden (real anonymi
       it('getCustomConfigs matches golden', function () {
         expect(call(() => getCustomConfigs(s))).to.deep.equal(g.customConfigs);
       });
-      it('addConfigurations bag matches golden', function () {
-        expect(call(() => bagForSpec(s))).to.deep.equal(g.configuredApps);
+      it('route configs match golden', async function () {
+        expect(await callAsync(() => routeConfigsForSpec(s))).to.deep.equal(g.configuredApps);
       });
     });
   });
@@ -51,7 +52,7 @@ describe('characterization — pure spec-shape functions vs golden (real anonymi
       .to.deep.equal(golden.__getApplicationsToProcess);
   });
 
-  it('the full assembled haproxy config matches golden byte-for-byte', function () {
-    expect(renderConfig(specs)).to.equal(renderedGolden);
+  it('the full assembled haproxy config matches golden byte-for-byte', async function () {
+    expect(await renderConfig(specs)).to.equal(renderedGolden);
   });
 });

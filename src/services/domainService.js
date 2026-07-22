@@ -7,12 +7,11 @@ const fluxService = require('./flux');
 const haproxyTemplate = require('./haproxyTemplate');
 const {
   processApplications,
-  getUnifiedDomains,
   getCustomDomains,
 } = require('./domain');
+const { DomainOwnershipRegistry } = require('./domain/ownership');
 const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/cert');
 const applicationChecks = require('./application/checks');
-const { getCustomConfigs } = require('./application/custom');
 const { getApplicationsToProcess } = require('./application/subset');
 const { buildRouteConfigs } = require('./haproxy/buildRouteConfigs');
 const specLibs = require('./flux/specLibs');
@@ -29,7 +28,7 @@ const { FdmDataFetcher } = require('./flux/dataFetcher');
 let myIP = null;
 let myFDMnameORip = null;
 
-let unifiedAppsDomains = [];
+const ownership = new DomainOwnershipRegistry();
 const mapOfNamesIps = {};
 const mapOfNamesIpsLastHealthy = {}; // timestamp of last successful health check per app
 const mapOfNamesIpsLastHeld = {}; // timestamp of the last confirmed HELD answer per app
@@ -143,8 +142,8 @@ const ACTIVE_STANDBY_MIN_CONFIRMATIONS = 3;
 // Attempts at the per-app location lookup for an app the bulk feed omitted.
 const ACTIVE_STANDBY_LOCATION_SEARCH_ATTEMPTS = 5;
 let lastActiveStandbyPassStartedAt = 0;
-let recentlyConfiguredApps = [];
-let recentlyConfiguredActiveStandbyApps = [];
+let recentlyConfiguredActiveActiveRouteConfigs = [];
+let recentlyConfiguredActiveStandbyRouteConfigs = [];
 let activeActiveAppsInitialized = false;
 let activeStandbyAppsInitialized = false;
 // The size each half last published, for the guard in admitConfiguredHalf.
@@ -160,7 +159,6 @@ let haproxyRetryPending = false;
 
 let dataFetcher = null;
 
-let permanentMessages = [];
 let activeActiveApps = new Map();
 let activeStandbyApps = new Map();
 let appsLocations = new Map();
@@ -169,51 +167,6 @@ const runQueue = {
   activeStandbyApps: { running: false, queued: false },
   activeActiveApps: { running: false, queued: false },
 };
-
-async function checkDomainOwnership(domain, appName) {
-  try {
-    if (!domain) {
-      return true;
-    }
-    const filteredDomains = unifiedAppsDomains.filter((entry) => entry.domains.includes(domain.toLowerCase()));
-    const ourAppExists = filteredDomains.find(
-      (existing) => existing.name === appName,
-    );
-    if (filteredDomains.length >= 2 && ourAppExists) {
-      // we have multiple apps that has the same domain assigned;
-      // check permanent messages for these apps
-      const appNames = [];
-      filteredDomains.forEach((x) => {
-        appNames.push(x.name);
-      });
-      // now we have only the messages that touch the apps that have the domain
-      const filteredPermanentMessages = permanentMessages.filter((mes) => appNames.includes(mes.appSpecifications.name));
-      const adjustedFilteredPermMessages = [];
-      filteredPermanentMessages.forEach((message) => {
-        const stringedMessage = JSON.stringify(message).toLowerCase();
-        if (stringedMessage.includes(domain.toLowerCase())) {
-          adjustedFilteredPermMessages.push(message);
-        }
-      });
-      const sortedPermanentFilteredMessages = adjustedFilteredPermMessages.sort(
-        (a, b) => {
-          if (a.height < b.height) return -1;
-          if (a.height > b.height) return 1;
-          return 0;
-        },
-      );
-      const oldestMessage = sortedPermanentFilteredMessages[0];
-      if (oldestMessage.appSpecifications.name === appName) {
-        return true;
-      }
-      log.warn(`Custom domain ${domain} not owned by ${appName}`);
-      return false;
-    }
-    return true;
-  } catch (error) {
-    return true;
-  }
-}
 
 // Generates config file for HAProxy
 let fluxIPsForBalancing = []; // current nodes l
@@ -1034,15 +987,15 @@ function delay(ms) {
 }
 
 let updateHaproxyRunning = false;
-async function updateHaproxy(haproxyAppsConfig) {
+async function updateHaproxy(haproxyRouteConfigs) {
   try {
     if (updateHaproxyRunning) {
       await delay(1000);
-      await updateHaproxy(haproxyAppsConfig);
+      await updateHaproxy(haproxyRouteConfigs);
       return;
     }
     updateHaproxyRunning = true;
-    const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
+    const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyRouteConfigs);
     // stop logging entire ha proxy config to console
     // console.log(hc);
     const dataToWrite = hc;
@@ -1116,300 +1069,23 @@ function resetConfiguredHalfGuards(store = sharedGuardStore()) {
   };
 }
 
-/**
- * The configured-app list, and the one question anybody asks about it.
- *
- * Every guard in addConfigurations was a linear scan of the array for a matching
- * `domain` - nine of them per app, over an array that grows with every app. At
- * the 2,483 backends fdm-eu-1-03 carries that is ~55M string comparisons,
- * invisible inside a 479s pass; at 10k apps it is ~5.6 BILLION, and it is CPU on
- * the event loop, so no amount of concurrency touches it.
- *
- * The index lives in here rather than beside the array on purpose: there is no
- * way to add an entry without indexing it, so the two cannot drift apart.
- */
-function createConfiguredApps() {
-  const entries = [];
-  const domains = new Set();
-  return {
-    hasDomain(domain) {
-      return domains.has(domain);
-    },
-    push(...added) {
-      added.forEach((entry) => {
-        entries.push(entry);
-        domains.add(entry.domain);
-      });
-    },
-    get length() {
-      return entries.length;
-    },
-    list() {
-      return entries;
-    },
-  };
-}
-
-function addConfigurations(configuredApps, app, appIps, isActiveStandby) {
-  const domains = getUnifiedDomains(app);
-  const customConfigs = getCustomConfigs(app, isActiveStandby);
-  let timeout = null;
-  if (app.version <= 3) {
-    const timeoutConfig = app.enviromentParameters?.find((att) => typeof att === 'string' && att.toLowerCase().startsWith('timeout='));
-    if (timeoutConfig) {
-      [, timeout] = timeoutConfig.split('=');
-    }
-    for (let i = 0; i < app.ports.length; i += 1) {
-      const configuredApp = {
-        name: app.name,
-        appName: `${app.name}_${app.ports[i]}`,
-        domain: domains[i],
-        port: app.ports[i],
-        ips: appIps,
-        syncFirst: app.syncFirst,
-        ...customConfigs[i],
-        timeout,
-      };
-
-      configuredApps.push(configuredApp);
-      if (typeof app.domains[i] === 'string') {
-        const portDomains = app.domains[i].split(',');
-        for (let portDomain of portDomains) {
-          // eslint-disable-next-line no-param-reassign
-          portDomain = portDomain
-            .replace('https://', '')
-            .replace('http://', '')
-            .replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
-          const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
-          if (isDomainAllowed === false) {
-            // eslint-disable-next-line no-continue
-            continue;
-          }
-          // TODO here check on permanent apps if this app name is true owner of the portDomain
-          if (portDomain.includes('www.')) {
-            // eslint-disable-next-line prefer-destructuring, no-param-reassign
-            portDomain = portDomain.split('www.')[1];
-          }
-          // prevention for double backend on custom domains, can be improved
-          const domainAssigned = configuredApps.hasDomain(portDomain);
-          if (
-            portDomain
-            && portDomain.includes('.')
-            && portDomain.length > 3
-            && !portDomain
-              .toLowerCase()
-              .includes(
-                `${config.appSubDomain}.${config.mainDomain.split('.')[0]}`,
-              )
-            && !domainAssigned
-          ) {
-            // prevent double backend
-            const domainExists = configuredApps.hasDomain(portDomain.toLowerCase());
-            if (!domainExists) {
-              const configuredAppCustom = {
-                name: app.name,
-                appName: `${app.name}_${app.ports[i]}`,
-                domain: portDomain,
-                port: app.ports[i],
-                ips: appIps,
-                syncFirst: app.syncFirst,
-                ...customConfigs[i],
-                timeout,
-              };
-              configuredApps.push(configuredAppCustom);
-            }
-            const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
-            if (wwwAdjustedDomain) {
-              const domainExistsB = configuredApps.hasDomain(wwwAdjustedDomain);
-              if (!domainExistsB) {
-                const configuredAppCustom = {
-                  name: app.name,
-                  appName: `${app.name}_${app.ports[i]}`,
-                  domain: wwwAdjustedDomain,
-                  port: app.ports[i],
-                  ips: appIps,
-                  syncFirst: app.syncFirst,
-                  ...customConfigs[i],
-                  timeout,
-                };
-                configuredApps.push(configuredAppCustom);
-              }
-            }
-
-            const testAdjustedDomain = `test.${portDomain.toLowerCase()}`;
-            if (testAdjustedDomain) {
-              const domainExistsB = configuredApps.hasDomain(testAdjustedDomain);
-              if (!domainExistsB) {
-                const configuredAppCustom = {
-                  name: app.name,
-                  appName: `${app.name}_${app.ports[i]}`,
-                  domain: testAdjustedDomain,
-                  port: app.ports[i],
-                  ips: appIps,
-                  syncFirst: app.syncFirst,
-                  ...customConfigs[i],
-                  timeout,
-                };
-                configuredApps.push(configuredAppCustom);
-              }
-            }
-          }
-        }
-      }
-    }
-    const mainApp = {
-      name: app.name,
-      appName: `${app.name}_${app.ports[0]}`,
-      domain: domains[domains.length - 1],
-      port: app.ports[0],
-      ips: appIps,
-      syncFirst: app.syncFirst,
-      ...customConfigs[customConfigs.length - 1],
-      timeout,
-    };
-    configuredApps.push(mainApp);
-  } else {
-    let j = 0;
-    for (const component of app.compose) {
-      timeout = null;
-      const timeoutConfig = component.environmentParameters?.find((att) => typeof att === 'string' && att.toLowerCase().startsWith('timeout='));
-      if (timeoutConfig) {
-        [, timeout] = timeoutConfig.split('=');
-      }
-      for (let i = 0; i < component.ports.length; i += 1) {
-        const configuredApp = {
-          name: app.name,
-          appName: `${app.name}_${component.name}_${component.ports[i]}`,
-          domain: domains[j],
-          port: component.ports[i],
-          ips: appIps,
-          syncFirst: app.syncFirst,
-          ...customConfigs[j],
-          timeout,
-        };
-        configuredApps.push(configuredApp);
-        if (typeof component.domains[i] === 'string') {
-          const portDomains = component.domains[i].split(',');
-          // eslint-disable-next-line no-loop-func
-          for (let portDomain of portDomains) {
-            // eslint-disable-next-line no-param-reassign
-            portDomain = portDomain
-              .replace('https://', '')
-              .replace('http://', '')
-              .replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
-            const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
-            if (isDomainAllowed === false) {
-              // eslint-disable-next-line no-continue
-              continue;
-            }
-            if (portDomain.includes('www.')) {
-              // eslint-disable-next-line prefer-destructuring, no-param-reassign
-              portDomain = portDomain.split('www.')[1];
-            }
-            // prevention for double backend on custom domains, can be improved
-            const domainAssigned = configuredApps.hasDomain(portDomain);
-            if (
-              portDomain
-              && portDomain.includes('.')
-              && portDomain.length >= 3
-              && !portDomain
-                .toLowerCase()
-                .includes(
-                  `${config.appSubDomain}.${config.mainDomain.split('.')[0]}`,
-                )
-              && !domainAssigned
-            ) {
-              if (
-                !portDomain.includes(
-                  `${config.appSubDomain}${config.mainDomain.split('.')[0]}`,
-                )
-              ) {
-                // prevent double backend
-                const domainExists = configuredApps.hasDomain(portDomain.toLowerCase());
-                if (!domainExists) {
-                  const configuredAppCustom = {
-                    name: app.name,
-                    appName: `${app.name}_${component.name}_${component.ports[i]}`,
-                    domain: portDomain,
-                    port: component.ports[i],
-                    ips: appIps,
-                    syncFirst: app.syncFirst,
-                    ...customConfigs[j],
-                    timeout,
-                  };
-                  configuredApps.push(configuredAppCustom);
-                }
-
-                const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
-                if (wwwAdjustedDomain) {
-                  const domainExistsB = configuredApps.hasDomain(wwwAdjustedDomain);
-                  if (!domainExistsB) {
-                    const configuredAppCustom = {
-                      name: app.name,
-                      appName: `${app.name}_${component.name}_${component.ports[i]}`,
-                      domain: wwwAdjustedDomain,
-                      port: component.ports[i],
-                      ips: appIps,
-                      syncFirst: app.syncFirst,
-                      ...customConfigs[j],
-                      timeout,
-                    };
-                    configuredApps.push(configuredAppCustom);
-                  }
-                }
-
-                const testAdjustedDomain = `test.${portDomain.toLowerCase()}`;
-                if (testAdjustedDomain) {
-                  const domainExistsB = configuredApps.hasDomain(testAdjustedDomain);
-                  if (!domainExistsB) {
-                    const configuredAppCustom = {
-                      name: app.name,
-                      appName: `${app.name}_${component.name}_${component.ports[i]}`,
-                      domain: testAdjustedDomain,
-                      port: component.ports[i],
-                      ips: appIps,
-                      syncFirst: app.syncFirst,
-                      ...customConfigs[j],
-                      timeout,
-                    };
-                    configuredApps.push(configuredAppCustom);
-                  }
-                }
-              }
-            }
-          }
-        }
-        j += 1;
-      }
-    }
-    // push main domain
-    for (let q = 0; q < app.compose.length; q += 1) {
-      for (let w = 0; w < app.compose[q].ports.length; w += 1) {
-        const mainDomainExists = configuredApps.hasDomain(domains[domains.length - 1]);
-        if (!mainDomainExists) {
-          const mainApp = {
-            name: app.name,
-            appName: `${app.name}_${app.compose[q].name}_${app.compose[q].ports[w]}`,
-            domain: domains[domains.length - 1],
-            port: app.compose[q].ports[w],
-            ips: appIps,
-            syncFirst: app.syncFirst,
-            ...customConfigs[customConfigs.length - 1],
-          };
-          configuredApps.push(mainApp);
-        }
-      }
-    }
-  }
-}
-
 // Resolve an app to its version-normalized DeploymentSpec and append its backend
 // routes to the config. Version-blind: legacy and v9 apps take the same path. The
 // app has already been through processApplications, so any domain overrides it
-// applied are carried into the resolved routes via deserialize.
-async function appendRouteConfigs(configuredApps, app, appIps, isActiveStandby) {
+// applied are carried into the resolved routes via deserialize. Custom domains this
+// app does not own (another live app registered them first) are skipped.
+async function appendRouteConfigs(routeConfigs, app, appIps, isActiveStandby) {
   const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
-  configuredApps.push(...buildRouteConfigs(deployment, app.name, appIps, isActiveStandby, app.syncFirst));
+  const disowned = [];
+  const ownsDomain = (domain) => {
+    const owned = ownership.ownsDomain(domain, app.name);
+    if (!owned) disowned.push(domain);
+    return owned;
+  };
+  routeConfigs.push(...buildRouteConfigs(deployment, app.name, appIps, isActiveStandby, app.syncFirst, ownsDomain));
+  if (disowned.length) {
+    log.warn(`${app.name}: skipped ${disowned.length} custom domain(s) owned by another app: ${disowned.join(', ')}`);
+  }
 }
 
 /**
@@ -1471,7 +1147,7 @@ async function generateActiveActiveHaproxyConfig() {
       }
     }
     // continue with appsOK
-    const configuredApps = createConfiguredApps();
+    const routeConfigs = [];
     for (const app of appsOK) {
       const appStartTime = process.hrtime.bigint();
 
@@ -1656,7 +1332,7 @@ async function generateActiveActiveHaproxyConfig() {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         // eslint-disable-next-line no-await-in-loop
-        await appendRouteConfigs(configuredApps, app, appIps, false);
+        await appendRouteConfigs(routeConfigs, app, appIps, false);
         reportExclusion('Active-Active', app.name, false);
       } else {
         reportExclusion('Active-Active', app.name, true);
@@ -1674,35 +1350,34 @@ async function generateActiveActiveHaproxyConfig() {
     const slowestS = Math.round((slowestApp.ns / 1_000_000_000) * 100) / 100;
     log.info(`Total Active-Active apps processing time. Elapsed: ${elapsedAppsS}, slowest ${slowestApp.name} at ${slowestS}, location searches: ${searchRequests}`);
 
-    if (!admitConfiguredHalf('nonG', configuredApps.length)) return;
+    if (!admitConfiguredHalf('nonG', routeConfigs.length)) return;
 
-    const configuredAppsList = configuredApps.list();
-    const serializedApps = JSON.stringify(configuredAppsList);
-    const lastSerializedApps = JSON.stringify(recentlyConfiguredApps);
+    const serializedApps = JSON.stringify(routeConfigs);
+    const lastSerializedApps = JSON.stringify(recentlyConfiguredActiveActiveRouteConfigs);
 
     if (serializedApps === lastSerializedApps && !haproxyRetryPending) {
       log.info('No changes in Active-Active Mode configuration detected');
       return;
     }
 
-    let haproxyAppsConfig = [];
-    recentlyConfiguredApps = configuredAppsList;
+    let haproxyRouteConfigs = [];
+    recentlyConfiguredActiveActiveRouteConfigs = routeConfigs;
     activeActiveAppsInitialized = true;
 
     // if active-standby apps haven't completed once - we don't update the config
-    if (!recentlyConfiguredActiveStandbyApps.length) return;
+    if (!recentlyConfiguredActiveStandbyRouteConfigs.length) return;
 
     log.info(haproxyRetryPending
       ? 'Active-Active Mode republishing after a failed haproxy update'
       : 'Changes in Active-Active Mode configuration detected');
 
     // we need to put always in same order to avoid. active-active first, active-standby at end
-    haproxyAppsConfig = configuredAppsList.concat(recentlyConfiguredActiveStandbyApps);
+    haproxyRouteConfigs = routeConfigs.concat(recentlyConfiguredActiveStandbyRouteConfigs);
 
     log.info(
-      `Active-Active Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
+      `Active-Active Mode updating haproxy with length: ${haproxyRouteConfigs.length}`,
     );
-    await updateHaproxy(haproxyAppsConfig);
+    await updateHaproxy(haproxyRouteConfigs);
   } catch (error) {
     log.error(error);
   } finally {
@@ -1802,7 +1477,7 @@ async function generateActiveStandbyHaproxyConfig() {
     const selected = await selectActiveStandbyPrimaries(appsOK, locationsForPass);
 
     // continue with appsOK
-    const configuredApps = createConfiguredApps();
+    const routeConfigs = [];
     for (const app of appsOK) {
       const appLocations = locationsForPass.get(app.name) || [];
 
@@ -1814,7 +1489,7 @@ async function generateActiveStandbyHaproxyConfig() {
         if (selectedIP) {
           appIps.push(selectedIP);
           // eslint-disable-next-line no-await-in-loop
-          await appendRouteConfigs(configuredApps, app, appIps, true);
+          await appendRouteConfigs(routeConfigs, app, appIps, true);
         }
 
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
@@ -1829,11 +1504,10 @@ async function generateActiveStandbyHaproxyConfig() {
       }
     }
 
-    if (!admitConfiguredHalf('G', configuredApps.length)) return;
+    if (!admitConfiguredHalf('G', routeConfigs.length)) return;
 
-    const configuredAppsList = configuredApps.list();
-    const serializedApps = JSON.stringify(configuredAppsList);
-    const lastSerializedApps = JSON.stringify(recentlyConfiguredActiveStandbyApps);
+    const serializedApps = JSON.stringify(routeConfigs);
+    const lastSerializedApps = JSON.stringify(recentlyConfiguredActiveStandbyRouteConfigs);
 
     if (serializedApps === lastSerializedApps && !haproxyRetryPending) {
       log.info('No changes in Active-Standby Mode configuration detected');
@@ -1844,20 +1518,20 @@ async function generateActiveStandbyHaproxyConfig() {
       ? 'Active-Standby Mode republishing after a failed haproxy update'
       : 'Changes in Active-Standby Mode configuration detected');
 
-    let haproxyAppsConfig = [];
+    let haproxyRouteConfigs = [];
 
-    recentlyConfiguredActiveStandbyApps = configuredAppsList;
+    recentlyConfiguredActiveStandbyRouteConfigs = routeConfigs;
     activeStandbyAppsInitialized = true;
 
     // if active-active apps haven't completed once - we don't update the config
-    if (!recentlyConfiguredApps.length) return;
+    if (!recentlyConfiguredActiveActiveRouteConfigs.length) return;
 
-    haproxyAppsConfig = recentlyConfiguredApps.concat(configuredAppsList);
+    haproxyRouteConfigs = recentlyConfiguredActiveActiveRouteConfigs.concat(routeConfigs);
 
     log.info(
-      `Active-Standby Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
+      `Active-Standby Mode updating haproxy with length: ${haproxyRouteConfigs.length}`,
     );
-    await updateHaproxy(haproxyAppsConfig);
+    await updateHaproxy(haproxyRouteConfigs);
   } catch (error) {
     log.error(error);
   } finally {
@@ -1974,14 +1648,14 @@ async function startApplicationProcessing() {
   dataFetcher.on(
     'appSpecsUpdated',
     async (specs) => {
-      unifiedAppsDomains = specs.appFqdns;
+      ownership.setAppDomains(specs.appFqdns);
       activeActiveApps = specs.activeActiveApps;
       activeStandbyApps = specs.activeStandbyApps;
     },
   );
 
   dataFetcher.on('permMessagesUpdated', (permMessages) => {
-    permanentMessages = permMessages;
+    ownership.setPermanentMessages(permMessages);
   });
 
   dataFetcher.on('appsLocationsUpdated', locationsHandler);
@@ -2077,10 +1751,10 @@ async function start() {
   }
 }
 
-function getConfiguredApps() {
+function getRouteConfigs() {
   return {
-    activeActiveApps: recentlyConfiguredApps,
-    activeStandbyApps: recentlyConfiguredActiveStandbyApps,
+    activeActiveRouteConfigs: recentlyConfiguredActiveActiveRouteConfigs,
+    activeStandbyRouteConfigs: recentlyConfiguredActiveStandbyRouteConfigs,
     activeActiveAppsInitialized,
     activeStandbyAppsInitialized,
   };
@@ -2117,7 +1791,7 @@ function resetActiveStandbyStickyState(appName) {
 
 module.exports = {
   start,
-  getConfiguredApps,
+  getRouteConfigs,
   selectActiveStandbyPrimaries,
   orderBySeniority,
   orderByCluster,
@@ -2129,7 +1803,4 @@ module.exports = {
   reportExclusion,
   admitConfiguredHalf,
   resetConfiguredHalfGuards,
-  // Exposed so the characterization tests can pin the spec -> backend-config
-  // transform without standing up the full fetch/health-check loop.
-  addConfigurations,
 };

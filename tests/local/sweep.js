@@ -18,9 +18,10 @@ const path = require('path');
 const { getUnifiedDomains, getCustomDomains } = require('../../src/services/domain/index.js');
 const { getCustomConfigs } = require('../../src/services/application/custom.js');
 const { getApplicationsToProcess } = require('../../src/services/application/subset.js');
-const { bagForSpec, renderConfig } = require('../unit/fixtures/renderPipeline');
+const { routeConfigsForSpec, renderConfig } = require('../unit/fixtures/renderPipeline');
 
 const call = (fn) => { try { return fn(); } catch (e) { return { __throws: e.message }; } };
+const callAsync = async (fn) => { try { return await fn(); } catch (e) { return { __throws: e.message }; } };
 
 async function readCorpus(corpusPath) {
   try {
@@ -43,7 +44,8 @@ async function main() {
       unifiedDomains: call(() => getUnifiedDomains(s)),
       customDomains: call(() => getCustomDomains(s)),
       customConfigs: call(() => getCustomConfigs(s)),
-      configuredApps: call(() => bagForSpec(s)),
+      // eslint-disable-next-line no-await-in-loop
+      configuredApps: await callAsync(() => routeConfigsForSpec(s)),
     };
     for (const k of Object.keys(throwsByFn)) if (out[s.name][k] && out[s.name][k].__throws) throwsByFn[k] += 1;
   }
@@ -55,7 +57,7 @@ async function main() {
   // The full assembled config over every real spec — diff this file before/after a
   // renderer change to catch any byte that moved for the live app population.
   const cfgPath = path.join(__dirname, 'sweep-haproxy.cfg');
-  await fs.writeFile(cfgPath, renderConfig(corpus));
+  await fs.writeFile(cfgPath, await renderConfig(corpus));
   process.stdout.write(`swept ${corpus.length} specs — throws ${JSON.stringify(throwsByFn)} — wrote ${outPath} + ${cfgPath}\n`);
 }
 

@@ -7,6 +7,7 @@ const { cmdAsync, TEMP_HAPROXY_CONFIG, HAPROXY_CONFIG } = require('./constants')
 const { matchRule } = require('./serviceHelper');
 const { getPrimaryIP } = require('./rsync/config');
 const { resolveBackendConfig } = require('./haproxy/resolveBackendConfig');
+const { Section } = require('./haproxy/configModel');
 
 let lastHaproxyConfig;
 
@@ -228,20 +229,46 @@ ${forbiddenBackend}
   return config;
 }
 
-// Render the v9 server line: check, health-probe timing, per-server maxconn, backend
-// TLS, and the affinity cookie (server name) — a different clause order from legacy,
-// which is why the two shapes stay separate rather than forced into one template.
-function renderV9ServerLine(cfg, app, ip, apiPort) {
+// The per-server health-check timing legacy emits inline on every server line.
+const LEGACY_SERVER_TIMING = 'inter 3s fall 2 rise 2 fastinter 500';
+
+// Append one backend server line to `section`. The clause order matches legacy for a
+// legacy route and the v9 shape for a v9 route; either way absent clauses are passed
+// as '' and dropped by the model, so no trailing/doubled whitespace survives.
+function addServerLine(section, cfg, app, mode, ip) {
   const host = ip.split(':')[0];
-  const serverName = `${host}:${apiPort}`;
-  const parts = [`server ${serverName} ${host}:${app.port}`, 'check'];
-  if (cfg.serverTiming) parts.push(cfg.serverTiming);
-  if (cfg.serverMaxconn) parts.push(cfg.serverMaxconn);
-  if (cfg.serverSsl) parts.push(cfg.serverSsl);
-  if (cfg.stickyV9) parts.push(`cookie ${serverName}`);
-  let out = `\n  ${parts.join(' ')}`;
-  if (app.syncFirst && app.ips[0] !== ip) out += ' backup';
-  return out;
+  const apiPort = ip.split(':')[1] || 16127;
+  const backup = (app.syncFirst && app.ips[0] !== ip) ? 'backup' : '';
+
+  if (cfg.isV9) {
+    const serverName = `${host}:${apiPort}`;
+    const cookie = cfg.stickyV9 ? `cookie ${serverName}` : '';
+    section.add('server', ...[
+      serverName, `${host}:${app.port}`, 'check',
+      cfg.serverTiming, cfg.serverMaxconn, cfg.serverSsl, cookie, backup,
+    ]);
+    return;
+  }
+
+  const check = app.check ? 'check' : '';
+  if (ip.includes('[') && ip.includes(']')) { // ipv6
+    const v6host = ip.split('[')[1].split(']')[0];
+    const v6addr = `${ip.split(']')[0]}]${ip.split(']')[1]}`;
+    const cookie = app.loadBalance || mode === 'tcp' ? '' : `cookie ${v6host}${ip.split(']')[1]}`;
+    const h2 = app.enableH2 ? h2Suffix : '';
+    section.add('server', ...[
+      v6host, v6addr, check, app.serverConfig,
+      'ssl verify none', h2, cookie, LEGACY_SERVER_TIMING, backup,
+    ]);
+    return;
+  }
+  const cookie = app.loadBalance || mode === 'tcp' ? '' : `cookie ${host}:${app.port}`;
+  // Legacy emits alpn/h2 only alongside backend TLS; gate it on the resolved ssl clause.
+  const h2 = cfg.serverSsl && app.enableH2 ? h2Suffix : '';
+  section.add('server', ...[
+    `${host}:${apiPort}`, `${host}:${app.port}`, check, app.serverConfig,
+    cfg.serverSsl, h2, cookie, LEGACY_SERVER_TIMING, backup,
+  ]);
 }
 
 function generateDomainBackend(app, mode) {
@@ -250,14 +277,13 @@ function generateDomainBackend(app, mode) {
     domainUsed += '_tcp_';
   }
   const cfg = resolveBackendConfig(app, mode);
-  let domainBackend = `
-backend ${domainUsed}backend
-  mode ${mode}`;
+  const section = new Section('backend', `${domainUsed}backend`);
+  section.add('mode', mode);
   // Backend-level directives — balance (+ affinity cookie), request headers, and the
   // health-check probe — resolved version-blind by resolveBackendConfig.
-  for (const l of cfg.balanceLines) domainBackend += `\n  ${l}`;
-  for (const l of cfg.headerLines) domainBackend += `\n  ${l}`;
-  for (const l of cfg.healthCheckLines) domainBackend += `\n  ${l}`;
+  cfg.balanceLines.forEach((line) => section.raw(line));
+  cfg.headerLines.forEach((line) => section.raw(line));
+  cfg.healthCheckLines.forEach((line) => section.raw(line));
 
   for (const ip of app.ips) {
     if (!ip) {
@@ -282,37 +308,11 @@ backend ${domainUsed}backend
 
     // Backend timeouts + retries, emitted once (with the first server).
     if (app.ips[0] === ip) {
-      for (const l of cfg.onceLines) domainBackend += `\n  ${l}`;
+      cfg.onceLines.forEach((line) => section.raw(line));
     }
-
-    const apiPort = ip.split(':')[1] || 16127;
-    if (cfg.isV9) {
-      domainBackend += renderV9ServerLine(cfg, app, ip, apiPort);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    let cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split(':')[0]}:${app.port}`;
-    const isCheck = app.check ? 'check ' : '';
-    if (ip.includes('[') && ip.includes(']')) { // ipv6 hardcoded
-      const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
-      cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split('[')[1].split(']')[0]}${ip.split(']')[1]}`;
-      domainBackend += `\n  server ${ip.split('[')[1].split(']')[0]} ${ip.split(']')[0]}]${ip.split(']')[1]} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
-    } else if (app.ssl) {
-      const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
-      domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
-    } else {
-      domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} ${isCheck}${app.serverConfig} ${cookieConfig}`;
-    }
-
-    domainBackend += ' inter 3s fall 2 rise 2 fastinter 500';
-    if (app.syncFirst) {
-      if (app.ips[0] !== ip) {
-        domainBackend += ' backup';
-      }
-    }
+    addServerLine(section, cfg, app, mode, ip);
   }
-  return domainBackend;
+  return `\n${section.render()}`;
 }
 
 function generateMinecraftACLs(app) {

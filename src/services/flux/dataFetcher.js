@@ -154,36 +154,22 @@ class FdmDataFetcher extends EventEmitter {
   }
 
   /**
-   * We shouldn't be allowing these things in domains on the actual
-   * app spec. Removing them here makes no sense at all. The old
-   * version of this was broken also
+   * The custom-domain FQDNs an app claims, drawn from its resolved loadBalancing so
+   * every version is covered uniformly. Feeds the cross-app ownership check. Domains
+   * are stripped of protocol and characters HAProxy can't carry and lowercased to
+   * match how the ownership check looks them up; empty entries are dropped (they never
+   * match a real domain).
    *
-   * @param {Object} spec
+   * @param {Object} deployment a resolved DeploymentSpec
+   * @param {string} name the app name
    */
-  static #buildFqdnMap(spec) {
-    const components = spec.version <= 3
-      ? [{ ports: spec.ports, domains: spec.domains }]
-      : spec.compose;
+  static #buildFqdnMap(deployment, name) {
+    const fqdns = deployment.routes()
+      .flatMap((route) => route.customDomains || [])
+      .map((domain) => domain.replace(/https?:\/\/|[&/\\#,+()$~%'":*?<>{}]/g, '').toLowerCase())
+      .filter((fqdn) => fqdn !== '');
 
-    const fqdns = [];
-
-    components.forEach((comp) => {
-      for (let i = 0; i < comp.ports.length; i += 1) {
-        if (typeof comp.domains[i] === 'string') {
-          const portDomains = comp.domains[i].split(',');
-          // strip http(s):// and also bad characters
-          portDomains.forEach((portDomain) => {
-            fqdns.push(portDomain
-              .replace(/https?:\/\/|[&/\\#,+()$~%'":*?<>{}]/g, '')
-              .toLowerCase());
-          });
-        }
-      }
-    });
-
-    const domainMap = { name: spec.name, fqdns };
-
-    return domainMap;
+    return { name, fqdns };
   }
 
   static async sleep(ms) {
@@ -528,9 +514,9 @@ class FdmDataFetcher extends EventEmitter {
         const isActiveStandby = Object.values(deployment.components)
           .some((component) => component.hasActiveStandbySyncthing());
         (isActiveStandby ? activeStandbyAppsMap : activeActiveAppsMap).set(spec.name, spec);
-        // Custom-domain FQDNs feed the cross-app ownership check; that map reads
-        // legacy compose/ports shape, which only v1-8 carry.
-        if (spec.version <= 8) appFqdns.push(FdmDataFetcher.#buildFqdnMap(spec));
+        // Custom-domain FQDNs feed the cross-app ownership check, sourced from the
+        // resolved loadBalancing so v9 is covered like every other version.
+        appFqdns.push(FdmDataFetcher.#buildFqdnMap(deployment, spec.name));
       } catch (error) {
         log.error(`skipping spec ${spec && spec.name}: ${error.message}`);
       }

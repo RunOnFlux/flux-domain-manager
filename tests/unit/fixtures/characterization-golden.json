@@ -99,7 +99,6 @@
       {
         "name": "wordpress1677413615318",
         "appName": "wordpress1677413615318_wp_38286",
-        "domain": "wordpress1677413615318_38286.app2.runonflux.io",
         "port": 38286,
         "ips": [
           "144.76.10.20:16127",
@@ -119,12 +118,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "wordpress1677413615318_38286.app2.runonflux.io"
       },
       {
         "name": "wordpress1677413615318",
         "appName": "wordpress1677413615318_wp_38286",
-        "domain": "anon0.com",
         "port": 38286,
         "ips": [
           "144.76.10.20:16127",
@@ -144,12 +143,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon0.com"
       },
       {
         "name": "wordpress1677413615318",
         "appName": "wordpress1677413615318_wp_38286",
-        "domain": "www.anon0.com",
         "port": 38286,
         "ips": [
           "144.76.10.20:16127",
@@ -169,12 +168,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon0.com"
       },
       {
         "name": "wordpress1677413615318",
         "appName": "wordpress1677413615318_wp_38286",
-        "domain": "test.anon0.com",
         "port": 38286,
         "ips": [
           "144.76.10.20:16127",
@@ -194,12 +193,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon0.com"
       },
       {
         "name": "wordpress1677413615318",
         "appName": "wordpress1677413615318_operator_34328",
-        "domain": "wordpress1677413615318_34328.app2.runonflux.io",
         "port": 34328,
         "ips": [
           "144.76.10.20:16127",
@@ -219,12 +218,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "wordpress1677413615318_34328.app2.runonflux.io"
       },
       {
         "name": "wordpress1677413615318",
         "appName": "wordpress1677413615318_operator_36562",
-        "domain": "wordpress1677413615318_36562.app2.runonflux.io",
         "port": 36562,
         "ips": [
           "144.76.10.20:16127",
@@ -244,12 +243,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "wordpress1677413615318_36562.app2.runonflux.io"
       },
       {
         "name": "wordpress1677413615318",
         "appName": "wordpress1677413615318_operator_34252",
-        "domain": "wordpress1677413615318_34252.app2.runonflux.io",
         "port": 34252,
         "ips": [
           "144.76.10.20:16127",
@@ -269,7 +268,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "wordpress1677413615318_34252.app2.runonflux.io"
       },
       {
         "name": "wordpress1677413615318",
@@ -332,9 +332,8 @@
     "configuredApps": [
       {
         "name": "anonapp1",
-        "appName": "anonapp1_35051",
-        "domain": "anonapp1_35051.app2.runonflux.io",
-        "port": "35051",
+        "appName": "anonapp1_anonapp1_35051",
+        "port": 35051,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
@@ -348,20 +347,21 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp1_35051.app2.runonflux.io"
       },
       {
         "name": "anonapp1",
-        "appName": "anonapp1_35051",
+        "appName": "anonapp1_anonapp1_35051",
         "domain": "anonapp1.app2.runonflux.io",
-        "port": "35051",
+        "port": 35051,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
         "syncFirst": false,
         "ssl": false,
-        "timeout": null,
+        "timeout": false,
         "headers": false,
         "loadBalance": false,
         "healthcheck": [],
@@ -391,7 +391,7 @@
         "check": true
       }
     ],
-    "configuredApps": []
+    "configuredApps": null
   },
   "anonapp3": {
     "version": 6,
@@ -428,7 +428,6 @@
       {
         "name": "anonapp3",
         "appName": "anonapp3_anoncomp3_0_33702",
-        "domain": "anonapp3_33702.app2.runonflux.io",
         "port": 33702,
         "ips": [
           "144.76.10.20:16127",
@@ -443,7 +442,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp3_33702.app2.runonflux.io"
       },
       {
         "name": "anonapp3",
@@ -514,7 +514,6 @@
       {
         "name": "anonapp4",
         "appName": "anonapp4_anoncomp4_0_7777",
-        "domain": "anonapp4_7777.app2.runonflux.io",
         "port": 7777,
         "ips": [
           "135.148.60.40:16127"
@@ -528,12 +527,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "tcp",
-        "check": false
+        "check": false,
+        "domain": "anonapp4_7777.app2.runonflux.io"
       },
       {
         "name": "anonapp4",
         "appName": "anonapp4_anoncomp4_0_27015",
-        "domain": "anonapp4_27015.app2.runonflux.io",
         "port": 27015,
         "ips": [
           "135.148.60.40:16127"
@@ -547,7 +546,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "tcp",
-        "check": false
+        "check": false,
+        "domain": "anonapp4_27015.app2.runonflux.io"
       },
       {
         "name": "anonapp4",
@@ -609,7 +609,6 @@
       {
         "name": "anonapp5",
         "appName": "anonapp5_anoncomp5_0_36919",
-        "domain": "anonapp5_36919.app2.runonflux.io",
         "port": 36919,
         "ips": [
           "144.76.10.20:16127",
@@ -624,12 +623,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp5_36919.app2.runonflux.io"
       },
       {
         "name": "anonapp5",
         "appName": "anonapp5_anoncomp5_0_36919",
-        "domain": "anon1.com",
         "port": 36919,
         "ips": [
           "144.76.10.20:16127",
@@ -644,12 +643,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon1.com"
       },
       {
         "name": "anonapp5",
         "appName": "anonapp5_anoncomp5_0_36919",
-        "domain": "www.anon1.com",
         "port": 36919,
         "ips": [
           "144.76.10.20:16127",
@@ -664,12 +663,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon1.com"
       },
       {
         "name": "anonapp5",
         "appName": "anonapp5_anoncomp5_0_36919",
-        "domain": "test.anon1.com",
         "port": 36919,
         "ips": [
           "144.76.10.20:16127",
@@ -684,7 +683,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon1.com"
       },
       {
         "name": "anonapp5",
@@ -754,9 +754,8 @@
     "configuredApps": [
       {
         "name": "anonapp6",
-        "appName": "anonapp6_31588",
-        "domain": "anonapp6_31588.app2.runonflux.io",
-        "port": "31588",
+        "appName": "anonapp6_anonapp6_31588",
+        "port": 31588,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
@@ -770,13 +769,13 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp6_31588.app2.runonflux.io"
       },
       {
         "name": "anonapp6",
-        "appName": "anonapp6_31589",
-        "domain": "anonapp6_31589.app2.runonflux.io",
-        "port": "31589",
+        "appName": "anonapp6_anonapp6_31589",
+        "port": 31589,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
@@ -790,20 +789,21 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp6_31589.app2.runonflux.io"
       },
       {
         "name": "anonapp6",
-        "appName": "anonapp6_31588",
+        "appName": "anonapp6_anonapp6_31588",
         "domain": "anonapp6.app2.runonflux.io",
-        "port": "31588",
+        "port": 31588,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
         "syncFirst": false,
         "ssl": false,
-        "timeout": null,
+        "timeout": false,
         "headers": false,
         "loadBalance": false,
         "healthcheck": [],
@@ -849,7 +849,6 @@
       {
         "name": "anonapp7",
         "appName": "anonapp7_anoncomp7_0_35555",
-        "domain": "anonapp7_35555.app2.runonflux.io",
         "port": 35555,
         "ips": [
           "144.76.10.20:16127",
@@ -864,7 +863,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp7_35555.app2.runonflux.io"
       },
       {
         "name": "anonapp7",
@@ -930,7 +930,6 @@
       {
         "name": "anonapp8",
         "appName": "anonapp8_anoncomp8_0_36769",
-        "domain": "anonapp8_36769.app2.runonflux.io",
         "port": 36769,
         "ips": [
           "144.76.10.20:16127",
@@ -945,12 +944,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp8_36769.app2.runonflux.io"
       },
       {
         "name": "anonapp8",
         "appName": "anonapp8_anoncomp8_0_36769",
-        "domain": "anon2.com",
         "port": 36769,
         "ips": [
           "144.76.10.20:16127",
@@ -965,12 +964,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon2.com"
       },
       {
         "name": "anonapp8",
         "appName": "anonapp8_anoncomp8_0_36769",
-        "domain": "www.anon2.com",
         "port": 36769,
         "ips": [
           "144.76.10.20:16127",
@@ -985,12 +984,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon2.com"
       },
       {
         "name": "anonapp8",
         "appName": "anonapp8_anoncomp8_0_36769",
-        "domain": "test.anon2.com",
         "port": 36769,
         "ips": [
           "144.76.10.20:16127",
@@ -1005,12 +1004,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon2.com"
       },
       {
         "name": "anonapp8",
         "appName": "anonapp8_anoncomp8_0_36769",
-        "domain": "anon3.com",
         "port": 36769,
         "ips": [
           "144.76.10.20:16127",
@@ -1025,12 +1024,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon3.com"
       },
       {
         "name": "anonapp8",
         "appName": "anonapp8_anoncomp8_0_36769",
-        "domain": "www.anon3.com",
         "port": 36769,
         "ips": [
           "144.76.10.20:16127",
@@ -1045,12 +1044,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon3.com"
       },
       {
         "name": "anonapp8",
         "appName": "anonapp8_anoncomp8_0_36769",
-        "domain": "test.anon3.com",
         "port": 36769,
         "ips": [
           "144.76.10.20:16127",
@@ -1065,7 +1064,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon3.com"
       },
       {
         "name": "anonapp8",
@@ -1124,7 +1124,6 @@
       {
         "name": "anonapp9",
         "appName": "anonapp9_anoncomp9_0_31443",
-        "domain": "anonapp9_31443.app2.runonflux.io",
         "port": 31443,
         "ips": [
           "144.76.10.20:16127",
@@ -1139,7 +1138,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp9_31443.app2.runonflux.io"
       },
       {
         "name": "anonapp9",
@@ -1202,7 +1202,6 @@
       {
         "name": "anonapp10",
         "appName": "anonapp10_anoncomp10_0_33333",
-        "domain": "anonapp10_33333.app2.runonflux.io",
         "port": 33333,
         "ips": [
           "144.76.10.20:16127",
@@ -1217,12 +1216,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp10_33333.app2.runonflux.io"
       },
       {
         "name": "anonapp10",
         "appName": "anonapp10_anoncomp10_0_33333",
-        "domain": "anon4.com",
         "port": 33333,
         "ips": [
           "144.76.10.20:16127",
@@ -1237,12 +1236,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon4.com"
       },
       {
         "name": "anonapp10",
         "appName": "anonapp10_anoncomp10_0_33333",
-        "domain": "www.anon4.com",
         "port": 33333,
         "ips": [
           "144.76.10.20:16127",
@@ -1257,12 +1256,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon4.com"
       },
       {
         "name": "anonapp10",
         "appName": "anonapp10_anoncomp10_0_33333",
-        "domain": "test.anon4.com",
         "port": 33333,
         "ips": [
           "144.76.10.20:16127",
@@ -1277,7 +1276,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon4.com"
       },
       {
         "name": "anonapp10",
@@ -1336,7 +1336,6 @@
       {
         "name": "anonapp11",
         "appName": "anonapp11_anoncomp11_0_38454",
-        "domain": "anonapp11_38454.app2.runonflux.io",
         "port": 38454,
         "ips": [
           "144.76.10.20:16127",
@@ -1351,7 +1350,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp11_38454.app2.runonflux.io"
       },
       {
         "name": "anonapp11",
@@ -1453,7 +1453,6 @@
       {
         "name": "anonapp12",
         "appName": "anonapp12_anoncomp12_0_31301",
-        "domain": "anonapp12_31301.app2.runonflux.io",
         "port": 31301,
         "ips": [
           "144.76.10.20:16127",
@@ -1468,12 +1467,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp12_31301.app2.runonflux.io"
       },
       {
         "name": "anonapp12",
         "appName": "anonapp12_anoncomp12_0_31301",
-        "domain": "anon5.io",
         "port": 31301,
         "ips": [
           "144.76.10.20:16127",
@@ -1488,12 +1487,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon5.io"
       },
       {
         "name": "anonapp12",
         "appName": "anonapp12_anoncomp12_0_31301",
-        "domain": "www.anon5.io",
         "port": 31301,
         "ips": [
           "144.76.10.20:16127",
@@ -1508,12 +1507,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon5.io"
       },
       {
         "name": "anonapp12",
         "appName": "anonapp12_anoncomp12_0_31301",
-        "domain": "test.anon5.io",
         "port": 31301,
         "ips": [
           "144.76.10.20:16127",
@@ -1528,12 +1527,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon5.io"
       },
       {
         "name": "anonapp12",
         "appName": "anonapp12_anoncomp12_0_31302",
-        "domain": "anonapp12_31302.app2.runonflux.io",
         "port": 31302,
         "ips": [
           "144.76.10.20:16127",
@@ -1548,12 +1547,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp12_31302.app2.runonflux.io"
       },
       {
         "name": "anonapp12",
         "appName": "anonapp12_anoncomp12_0_31302",
-        "domain": "anon6.io",
         "port": 31302,
         "ips": [
           "144.76.10.20:16127",
@@ -1568,12 +1567,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon6.io"
       },
       {
         "name": "anonapp12",
         "appName": "anonapp12_anoncomp12_0_31302",
-        "domain": "www.anon6.io",
         "port": 31302,
         "ips": [
           "144.76.10.20:16127",
@@ -1588,12 +1587,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon6.io"
       },
       {
         "name": "anonapp12",
         "appName": "anonapp12_anoncomp12_0_31302",
-        "domain": "test.anon6.io",
         "port": 31302,
         "ips": [
           "144.76.10.20:16127",
@@ -1608,12 +1607,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon6.io"
       },
       {
         "name": "anonapp12",
         "appName": "anonapp12_anoncomp12_0_31303",
-        "domain": "anonapp12_31303.app2.runonflux.io",
         "port": 31303,
         "ips": [
           "144.76.10.20:16127",
@@ -1628,12 +1627,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp12_31303.app2.runonflux.io"
       },
       {
         "name": "anonapp12",
         "appName": "anonapp12_anoncomp12_0_31304",
-        "domain": "anonapp12_31304.app2.runonflux.io",
         "port": 31304,
         "ips": [
           "144.76.10.20:16127",
@@ -1648,7 +1647,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp12_31304.app2.runonflux.io"
       },
       {
         "name": "anonapp12",
@@ -1711,7 +1711,6 @@
       {
         "name": "anonapp13",
         "appName": "anonapp13_anoncomp13_0_36512",
-        "domain": "anonapp13_36512.app2.runonflux.io",
         "port": 36512,
         "ips": [
           "144.76.10.20:16127",
@@ -1726,12 +1725,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp13_36512.app2.runonflux.io"
       },
       {
         "name": "anonapp13",
         "appName": "anonapp13_anoncomp13_0_36512",
-        "domain": "anon7.io",
         "port": 36512,
         "ips": [
           "144.76.10.20:16127",
@@ -1746,12 +1745,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon7.io"
       },
       {
         "name": "anonapp13",
         "appName": "anonapp13_anoncomp13_0_36512",
-        "domain": "www.anon7.io",
         "port": 36512,
         "ips": [
           "144.76.10.20:16127",
@@ -1766,12 +1765,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon7.io"
       },
       {
         "name": "anonapp13",
         "appName": "anonapp13_anoncomp13_0_36512",
-        "domain": "test.anon7.io",
         "port": 36512,
         "ips": [
           "144.76.10.20:16127",
@@ -1786,7 +1785,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon7.io"
       },
       {
         "name": "anonapp13",
@@ -1863,9 +1863,8 @@
     "configuredApps": [
       {
         "name": "anonapp14",
-        "appName": "anonapp14_38080",
-        "domain": "anonapp14_38080.app2.runonflux.io",
-        "port": "38080",
+        "appName": "anonapp14_anonapp14_38080",
+        "port": 38080,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
@@ -1879,13 +1878,13 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp14_38080.app2.runonflux.io"
       },
       {
         "name": "anonapp14",
-        "appName": "anonapp14_38080",
-        "domain": "anon8.io",
-        "port": "38080",
+        "appName": "anonapp14_anonapp14_38080",
+        "port": 38080,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
@@ -1899,13 +1898,13 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon8.io"
       },
       {
         "name": "anonapp14",
-        "appName": "anonapp14_38080",
-        "domain": "www.anon8.io",
-        "port": "38080",
+        "appName": "anonapp14_anonapp14_38080",
+        "port": 38080,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
@@ -1919,13 +1918,13 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon8.io"
       },
       {
         "name": "anonapp14",
-        "appName": "anonapp14_38080",
-        "domain": "test.anon8.io",
-        "port": "38080",
+        "appName": "anonapp14_anonapp14_38080",
+        "port": 38080,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
@@ -1939,13 +1938,13 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon8.io"
       },
       {
         "name": "anonapp14",
-        "appName": "anonapp14_38081",
-        "domain": "anonapp14_38081.app2.runonflux.io",
-        "port": "38081",
+        "appName": "anonapp14_anonapp14_38081",
+        "port": 38081,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
@@ -1959,13 +1958,13 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp14_38081.app2.runonflux.io"
       },
       {
         "name": "anonapp14",
-        "appName": "anonapp14_38081",
-        "domain": "anon9.io",
-        "port": "38081",
+        "appName": "anonapp14_anonapp14_38081",
+        "port": 38081,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
@@ -1979,13 +1978,13 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon9.io"
       },
       {
         "name": "anonapp14",
-        "appName": "anonapp14_38081",
-        "domain": "www.anon9.io",
-        "port": "38081",
+        "appName": "anonapp14_anonapp14_38081",
+        "port": 38081,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
@@ -1999,13 +1998,13 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon9.io"
       },
       {
         "name": "anonapp14",
-        "appName": "anonapp14_38081",
-        "domain": "test.anon9.io",
-        "port": "38081",
+        "appName": "anonapp14_anonapp14_38081",
+        "port": 38081,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
@@ -2019,20 +2018,21 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon9.io"
       },
       {
         "name": "anonapp14",
-        "appName": "anonapp14_38080",
+        "appName": "anonapp14_anonapp14_38080",
         "domain": "anonapp14.app2.runonflux.io",
-        "port": "38080",
+        "port": 38080,
         "ips": [
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
         "syncFirst": false,
         "ssl": false,
-        "timeout": null,
+        "timeout": false,
         "headers": false,
         "loadBalance": false,
         "healthcheck": [],
@@ -2092,7 +2092,6 @@
       {
         "name": "FluxWordPress",
         "appName": "FluxWordPress_FluxWordPress_38016",
-        "domain": "fluxwordpress_38016.app2.runonflux.io",
         "port": 38016,
         "ips": [
           "144.76.10.20:16127",
@@ -2112,12 +2111,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "fluxwordpress_38016.app2.runonflux.io"
       },
       {
         "name": "FluxWordPress",
         "appName": "FluxWordPress_FluxWordPress_38016",
-        "domain": "anon10.io",
         "port": 38016,
         "ips": [
           "144.76.10.20:16127",
@@ -2137,12 +2136,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon10.io"
       },
       {
         "name": "FluxWordPress",
         "appName": "FluxWordPress_FluxWordPress_38016",
-        "domain": "www.anon10.io",
         "port": 38016,
         "ips": [
           "144.76.10.20:16127",
@@ -2162,12 +2161,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon10.io"
       },
       {
         "name": "FluxWordPress",
         "appName": "FluxWordPress_FluxWordPress_38016",
-        "domain": "test.anon10.io",
         "port": 38016,
         "ips": [
           "144.76.10.20:16127",
@@ -2187,7 +2186,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon10.io"
       },
       {
         "name": "FluxWordPress",
@@ -2255,7 +2255,6 @@
       {
         "name": "anonapp16",
         "appName": "anonapp16_anoncomp16_0_31000",
-        "domain": "anonapp16_31000.app2.runonflux.io",
         "port": 31000,
         "ips": [
           "144.76.10.20:16127",
@@ -2270,12 +2269,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp16_31000.app2.runonflux.io"
       },
       {
         "name": "anonapp16",
         "appName": "anonapp16_anoncomp16_0_31000",
-        "domain": "anon11.fr",
         "port": 31000,
         "ips": [
           "144.76.10.20:16127",
@@ -2290,12 +2289,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon11.fr"
       },
       {
         "name": "anonapp16",
         "appName": "anonapp16_anoncomp16_0_31000",
-        "domain": "www.anon11.fr",
         "port": 31000,
         "ips": [
           "144.76.10.20:16127",
@@ -2310,12 +2309,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon11.fr"
       },
       {
         "name": "anonapp16",
         "appName": "anonapp16_anoncomp16_0_31000",
-        "domain": "test.anon11.fr",
         "port": 31000,
         "ips": [
           "144.76.10.20:16127",
@@ -2330,7 +2329,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon11.fr"
       },
       {
         "name": "anonapp16",
@@ -2393,7 +2393,6 @@
       {
         "name": "anonapp17",
         "appName": "anonapp17_anoncomp17_1_32323",
-        "domain": "anonapp17_32323.app2.runonflux.io",
         "port": 32323,
         "ips": [
           "144.76.10.20:16127",
@@ -2408,12 +2407,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp17_32323.app2.runonflux.io"
       },
       {
         "name": "anonapp17",
         "appName": "anonapp17_anoncomp17_1_32323",
-        "domain": "anon12.me",
         "port": 32323,
         "ips": [
           "144.76.10.20:16127",
@@ -2428,12 +2427,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon12.me"
       },
       {
         "name": "anonapp17",
         "appName": "anonapp17_anoncomp17_1_32323",
-        "domain": "www.anon12.me",
         "port": 32323,
         "ips": [
           "144.76.10.20:16127",
@@ -2448,12 +2447,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon12.me"
       },
       {
         "name": "anonapp17",
         "appName": "anonapp17_anoncomp17_1_32323",
-        "domain": "test.anon12.me",
         "port": 32323,
         "ips": [
           "144.76.10.20:16127",
@@ -2468,7 +2467,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon12.me"
       },
       {
         "name": "anonapp17",
@@ -2563,7 +2563,6 @@
       {
         "name": "KaspaNode08",
         "appName": "KaspaNode08_kaspad_15110",
-        "domain": "kaspanode08_15110.app2.runonflux.io",
         "port": 15110,
         "ips": [
           "144.76.10.20:16127",
@@ -2578,12 +2577,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "tcp",
-        "check": true
+        "check": true,
+        "domain": "kaspanode08_15110.app2.runonflux.io"
       },
       {
         "name": "KaspaNode08",
         "appName": "KaspaNode08_kaspad_15111",
-        "domain": "kaspanode08_15111.app2.runonflux.io",
         "port": 15111,
         "ips": [
           "144.76.10.20:16127",
@@ -2598,12 +2597,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "tcp",
-        "check": true
+        "check": true,
+        "domain": "kaspanode08_15111.app2.runonflux.io"
       },
       {
         "name": "KaspaNode08",
         "appName": "KaspaNode08_kaspad_17110",
-        "domain": "kaspanode08_17110.app2.runonflux.io",
         "port": 17110,
         "ips": [
           "144.76.10.20:16127",
@@ -2618,12 +2617,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "tcp",
-        "check": true
+        "check": true,
+        "domain": "kaspanode08_17110.app2.runonflux.io"
       },
       {
         "name": "KaspaNode08",
         "appName": "KaspaNode08_kaspad_18110",
-        "domain": "kaspanode08_18110.app2.runonflux.io",
         "port": 18110,
         "ips": [
           "144.76.10.20:16127",
@@ -2638,7 +2637,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "tcp",
-        "check": true
+        "check": true,
+        "domain": "kaspanode08_18110.app2.runonflux.io"
       },
       {
         "name": "KaspaNode08",
@@ -2733,7 +2733,6 @@
       {
         "name": "KaspaNode16GB1760556657255",
         "appName": "KaspaNode16GB1760556657255_kaspad_15110",
-        "domain": "kaspanode16gb1760556657255_15110.app2.runonflux.io",
         "port": 15110,
         "ips": [
           "144.76.10.20:16127",
@@ -2748,12 +2747,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "tcp",
-        "check": true
+        "check": true,
+        "domain": "kaspanode16gb1760556657255_15110.app2.runonflux.io"
       },
       {
         "name": "KaspaNode16GB1760556657255",
         "appName": "KaspaNode16GB1760556657255_kaspad_15111",
-        "domain": "kaspanode16gb1760556657255_15111.app2.runonflux.io",
         "port": 15111,
         "ips": [
           "144.76.10.20:16127",
@@ -2768,12 +2767,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "tcp",
-        "check": true
+        "check": true,
+        "domain": "kaspanode16gb1760556657255_15111.app2.runonflux.io"
       },
       {
         "name": "KaspaNode16GB1760556657255",
         "appName": "KaspaNode16GB1760556657255_kaspad_17110",
-        "domain": "kaspanode16gb1760556657255_17110.app2.runonflux.io",
         "port": 17110,
         "ips": [
           "144.76.10.20:16127",
@@ -2788,12 +2787,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "tcp",
-        "check": true
+        "check": true,
+        "domain": "kaspanode16gb1760556657255_17110.app2.runonflux.io"
       },
       {
         "name": "KaspaNode16GB1760556657255",
         "appName": "KaspaNode16GB1760556657255_kaspad_18110",
-        "domain": "kaspanode16gb1760556657255_18110.app2.runonflux.io",
         "port": 18110,
         "ips": [
           "144.76.10.20:16127",
@@ -2808,7 +2807,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "tcp",
-        "check": true
+        "check": true,
+        "domain": "kaspanode16gb1760556657255_18110.app2.runonflux.io"
       },
       {
         "name": "KaspaNode16GB1760556657255",
@@ -2867,7 +2867,6 @@
       {
         "name": "anonapp20",
         "appName": "anonapp20_anoncomp20_0_8081",
-        "domain": "anonapp20_8081.app2.runonflux.io",
         "port": 8081,
         "ips": [
           "144.76.10.20:16127",
@@ -2882,7 +2881,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp20_8081.app2.runonflux.io"
       },
       {
         "name": "anonapp20",
@@ -2941,7 +2941,6 @@
       {
         "name": "anonapp21",
         "appName": "anonapp21_anoncomp21_0_33333",
-        "domain": "anonapp21_33333.app2.runonflux.io",
         "port": 33333,
         "ips": [
           "144.76.10.20:16127",
@@ -2956,7 +2955,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp21_33333.app2.runonflux.io"
       },
       {
         "name": "anonapp21",
@@ -3015,7 +3015,6 @@
       {
         "name": "anonapp22",
         "appName": "anonapp22_anoncomp22_0_25565",
-        "domain": "anonapp22_25565.app2.runonflux.io",
         "port": 25565,
         "ips": [
           "135.148.60.40:16127"
@@ -3029,7 +3028,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "tcp",
-        "check": false
+        "check": false,
+        "domain": "anonapp22_25565.app2.runonflux.io"
       },
       {
         "name": "anonapp22",
@@ -3135,7 +3135,6 @@
       {
         "name": "anonapp23",
         "appName": "anonapp23_anoncomp23_0_21115",
-        "domain": "anonapp23_21115.app2.runonflux.io",
         "port": 21115,
         "ips": [
           "144.76.10.20:16127",
@@ -3150,12 +3149,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp23_21115.app2.runonflux.io"
       },
       {
         "name": "anonapp23",
         "appName": "anonapp23_anoncomp23_0_21116",
-        "domain": "anonapp23_21116.app2.runonflux.io",
         "port": 21116,
         "ips": [
           "144.76.10.20:16127",
@@ -3170,12 +3169,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp23_21116.app2.runonflux.io"
       },
       {
         "name": "anonapp23",
         "appName": "anonapp23_anoncomp23_0_21118",
-        "domain": "anonapp23_21118.app2.runonflux.io",
         "port": 21118,
         "ips": [
           "144.76.10.20:16127",
@@ -3190,12 +3189,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp23_21118.app2.runonflux.io"
       },
       {
         "name": "anonapp23",
         "appName": "anonapp23_anoncomp23_1_21117",
-        "domain": "anonapp23_21117.app2.runonflux.io",
         "port": 21117,
         "ips": [
           "144.76.10.20:16127",
@@ -3210,12 +3209,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp23_21117.app2.runonflux.io"
       },
       {
         "name": "anonapp23",
         "appName": "anonapp23_anoncomp23_1_21119",
-        "domain": "anonapp23_21119.app2.runonflux.io",
         "port": 21119,
         "ips": [
           "144.76.10.20:16127",
@@ -3230,7 +3229,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp23_21119.app2.runonflux.io"
       },
       {
         "name": "anonapp23",
@@ -3313,7 +3313,6 @@
       {
         "name": "anonapp24",
         "appName": "anonapp24_anoncomp24_0_35855",
-        "domain": "anonapp24_35855.app2.runonflux.io",
         "port": 35855,
         "ips": [
           "144.76.10.20:16127",
@@ -3328,12 +3327,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp24_35855.app2.runonflux.io"
       },
       {
         "name": "anonapp24",
         "appName": "anonapp24_anoncomp24_1_37663",
-        "domain": "anonapp24_37663.app2.runonflux.io",
         "port": 37663,
         "ips": [
           "144.76.10.20:16127",
@@ -3348,12 +3347,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp24_37663.app2.runonflux.io"
       },
       {
         "name": "anonapp24",
         "appName": "anonapp24_anoncomp24_2_31922",
-        "domain": "anonapp24_31922.app2.runonflux.io",
         "port": 31922,
         "ips": [
           "144.76.10.20:16127",
@@ -3368,7 +3367,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp24_31922.app2.runonflux.io"
       },
       {
         "name": "anonapp24",
@@ -3431,7 +3431,6 @@
       {
         "name": "anonapp25",
         "appName": "anonapp25_anoncomp25_0_34517",
-        "domain": "anonapp25_34517.app2.runonflux.io",
         "port": 34517,
         "ips": [
           "144.76.10.20:16127",
@@ -3446,12 +3445,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp25_34517.app2.runonflux.io"
       },
       {
         "name": "anonapp25",
         "appName": "anonapp25_anoncomp25_0_34517",
-        "domain": "anon13.com",
         "port": 34517,
         "ips": [
           "144.76.10.20:16127",
@@ -3466,12 +3465,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon13.com"
       },
       {
         "name": "anonapp25",
         "appName": "anonapp25_anoncomp25_0_34517",
-        "domain": "www.anon13.com",
         "port": 34517,
         "ips": [
           "144.76.10.20:16127",
@@ -3486,12 +3485,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon13.com"
       },
       {
         "name": "anonapp25",
         "appName": "anonapp25_anoncomp25_0_34517",
-        "domain": "test.anon13.com",
         "port": 34517,
         "ips": [
           "144.76.10.20:16127",
@@ -3506,7 +3505,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon13.com"
       },
       {
         "name": "anonapp25",
@@ -3625,7 +3625,6 @@
       {
         "name": "budibasemysql",
         "appName": "budibasemysql_budibase_34419",
-        "domain": "budibasemysql_34419.app2.runonflux.io",
         "port": 34419,
         "ips": [
           "144.76.10.20:16127",
@@ -3640,12 +3639,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "budibasemysql_34419.app2.runonflux.io"
       },
       {
         "name": "budibasemysql",
         "appName": "budibasemysql_nginx_39443",
-        "domain": "budibasemysql_39443.app2.runonflux.io",
         "port": 39443,
         "ips": [
           "144.76.10.20:16127",
@@ -3660,12 +3659,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "budibasemysql_39443.app2.runonflux.io"
       },
       {
         "name": "budibasemysql",
         "appName": "budibasemysql_nginx_39080",
-        "domain": "budibasemysql_39080.app2.runonflux.io",
         "port": 39080,
         "ips": [
           "144.76.10.20:16127",
@@ -3680,12 +3679,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "budibasemysql_39080.app2.runonflux.io"
       },
       {
         "name": "budibasemysql",
         "appName": "budibasemysql_operator_36477",
-        "domain": "budibasemysql_36477.app2.runonflux.io",
         "port": 36477,
         "ips": [
           "144.76.10.20:16127",
@@ -3700,12 +3699,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "budibasemysql_36477.app2.runonflux.io"
       },
       {
         "name": "budibasemysql",
         "appName": "budibasemysql_operator_38451",
-        "domain": "budibasemysql_38451.app2.runonflux.io",
         "port": 38451,
         "ips": [
           "144.76.10.20:16127",
@@ -3720,12 +3719,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "budibasemysql_38451.app2.runonflux.io"
       },
       {
         "name": "budibasemysql",
         "appName": "budibasemysql_operator_32069",
-        "domain": "budibasemysql_32069.app2.runonflux.io",
         "port": 32069,
         "ips": [
           "144.76.10.20:16127",
@@ -3740,7 +3739,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "budibasemysql_32069.app2.runonflux.io"
       },
       {
         "name": "budibasemysql",
@@ -3943,7 +3943,6 @@
       {
         "name": "anonapp27",
         "appName": "anonapp27_anoncomp27_0_32442",
-        "domain": "anonapp27_32442.app2.runonflux.io",
         "port": 32442,
         "ips": [
           "144.76.10.20:16127",
@@ -3958,12 +3957,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp27_32442.app2.runonflux.io"
       },
       {
         "name": "anonapp27",
         "appName": "anonapp27_anoncomp27_0_32409",
-        "domain": "anonapp27_32409.app2.runonflux.io",
         "port": 32409,
         "ips": [
           "144.76.10.20:16127",
@@ -3978,12 +3977,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp27_32409.app2.runonflux.io"
       },
       {
         "name": "anonapp27",
         "appName": "anonapp27_anoncomp27_1_37734",
-        "domain": "anonapp27_37734.app2.runonflux.io",
         "port": 37734,
         "ips": [
           "144.76.10.20:16127",
@@ -3998,12 +3997,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp27_37734.app2.runonflux.io"
       },
       {
         "name": "anonapp27",
         "appName": "anonapp27_anoncomp27_1_35382",
-        "domain": "anonapp27_35382.app2.runonflux.io",
         "port": 35382,
         "ips": [
           "144.76.10.20:16127",
@@ -4018,12 +4017,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp27_35382.app2.runonflux.io"
       },
       {
         "name": "anonapp27",
         "appName": "anonapp27_anoncomp27_1_37483",
-        "domain": "anonapp27_37483.app2.runonflux.io",
         "port": 37483,
         "ips": [
           "144.76.10.20:16127",
@@ -4038,12 +4037,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp27_37483.app2.runonflux.io"
       },
       {
         "name": "anonapp27",
         "appName": "anonapp27_anoncomp27_2_34083",
-        "domain": "anonapp27_34083.app2.runonflux.io",
         "port": 34083,
         "ips": [
           "144.76.10.20:16127",
@@ -4058,12 +4057,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp27_34083.app2.runonflux.io"
       },
       {
         "name": "anonapp27",
         "appName": "anonapp27_anoncomp27_2_33035",
-        "domain": "anonapp27_33035.app2.runonflux.io",
         "port": 33035,
         "ips": [
           "144.76.10.20:16127",
@@ -4078,12 +4077,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp27_33035.app2.runonflux.io"
       },
       {
         "name": "anonapp27",
         "appName": "anonapp27_anoncomp27_3_31889",
-        "domain": "anonapp27_31889.app2.runonflux.io",
         "port": 31889,
         "ips": [
           "144.76.10.20:16127",
@@ -4098,12 +4097,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp27_31889.app2.runonflux.io"
       },
       {
         "name": "anonapp27",
         "appName": "anonapp27_anoncomp27_3_38979",
-        "domain": "anonapp27_38979.app2.runonflux.io",
         "port": 38979,
         "ips": [
           "144.76.10.20:16127",
@@ -4118,12 +4117,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp27_38979.app2.runonflux.io"
       },
       {
         "name": "anonapp27",
         "appName": "anonapp27_anoncomp27_4_38527",
-        "domain": "anonapp27_38527.app2.runonflux.io",
         "port": 38527,
         "ips": [
           "144.76.10.20:16127",
@@ -4138,12 +4137,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp27_38527.app2.runonflux.io"
       },
       {
         "name": "anonapp27",
         "appName": "anonapp27_anoncomp27_4_30752",
-        "domain": "anonapp27_30752.app2.runonflux.io",
         "port": 30752,
         "ips": [
           "144.76.10.20:16127",
@@ -4158,12 +4157,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp27_30752.app2.runonflux.io"
       },
       {
         "name": "anonapp27",
         "appName": "anonapp27_anoncomp27_5_31868",
-        "domain": "anonapp27_31868.app2.runonflux.io",
         "port": 31868,
         "ips": [
           "144.76.10.20:16127",
@@ -4178,12 +4177,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp27_31868.app2.runonflux.io"
       },
       {
         "name": "anonapp27",
         "appName": "anonapp27_anoncomp27_5_36220",
-        "domain": "anonapp27_36220.app2.runonflux.io",
         "port": 36220,
         "ips": [
           "144.76.10.20:16127",
@@ -4198,7 +4197,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp27_36220.app2.runonflux.io"
       },
       {
         "name": "anonapp27",
@@ -4257,7 +4257,6 @@
       {
         "name": "anonapp28",
         "appName": "anonapp28_anoncomp28_0_8080",
-        "domain": "anonapp28_8080.app2.runonflux.io",
         "port": 8080,
         "ips": [
           "144.76.10.20:16127",
@@ -4272,7 +4271,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp28_8080.app2.runonflux.io"
       },
       {
         "name": "anonapp28",
@@ -4422,7 +4422,6 @@
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_0_18080",
-        "domain": "anonapp29_18080.app2.runonflux.io",
         "port": 18080,
         "ips": [
           "144.76.10.20:16127",
@@ -4437,12 +4436,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp29_18080.app2.runonflux.io"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_0_18080",
-        "domain": "anon14.com",
         "port": 18080,
         "ips": [
           "144.76.10.20:16127",
@@ -4457,12 +4456,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon14.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_0_18080",
-        "domain": "www.anon14.com",
         "port": 18080,
         "ips": [
           "144.76.10.20:16127",
@@ -4477,12 +4476,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon14.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_0_18080",
-        "domain": "test.anon14.com",
         "port": 18080,
         "ips": [
           "144.76.10.20:16127",
@@ -4497,12 +4496,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon14.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_0_16379",
-        "domain": "anonapp29_16379.app2.runonflux.io",
         "port": 16379,
         "ips": [
           "144.76.10.20:16127",
@@ -4517,12 +4516,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp29_16379.app2.runonflux.io"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_1_18081",
-        "domain": "anonapp29_18081.app2.runonflux.io",
         "port": 18081,
         "ips": [
           "144.76.10.20:16127",
@@ -4537,12 +4536,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp29_18081.app2.runonflux.io"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_1_18081",
-        "domain": "anon15.com",
         "port": 18081,
         "ips": [
           "144.76.10.20:16127",
@@ -4557,12 +4556,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon15.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_1_18081",
-        "domain": "www.anon15.com",
         "port": 18081,
         "ips": [
           "144.76.10.20:16127",
@@ -4577,12 +4576,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon15.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_1_18081",
-        "domain": "test.anon15.com",
         "port": 18081,
         "ips": [
           "144.76.10.20:16127",
@@ -4597,12 +4596,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon15.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_2_18082",
-        "domain": "anonapp29_18082.app2.runonflux.io",
         "port": 18082,
         "ips": [
           "144.76.10.20:16127",
@@ -4617,12 +4616,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp29_18082.app2.runonflux.io"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_2_18082",
-        "domain": "anon16.com",
         "port": 18082,
         "ips": [
           "144.76.10.20:16127",
@@ -4637,12 +4636,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon16.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_2_18082",
-        "domain": "www.anon16.com",
         "port": 18082,
         "ips": [
           "144.76.10.20:16127",
@@ -4657,12 +4656,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon16.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_2_18082",
-        "domain": "test.anon16.com",
         "port": 18082,
         "ips": [
           "144.76.10.20:16127",
@@ -4677,12 +4676,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon16.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_3_18083",
-        "domain": "anonapp29_18083.app2.runonflux.io",
         "port": 18083,
         "ips": [
           "144.76.10.20:16127",
@@ -4697,12 +4696,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp29_18083.app2.runonflux.io"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_3_18083",
-        "domain": "anon17.com",
         "port": 18083,
         "ips": [
           "144.76.10.20:16127",
@@ -4717,12 +4716,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon17.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_3_18083",
-        "domain": "www.anon17.com",
         "port": 18083,
         "ips": [
           "144.76.10.20:16127",
@@ -4737,12 +4736,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon17.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_3_18083",
-        "domain": "test.anon17.com",
         "port": 18083,
         "ips": [
           "144.76.10.20:16127",
@@ -4757,12 +4756,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon17.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_4_18084",
-        "domain": "anonapp29_18084.app2.runonflux.io",
         "port": 18084,
         "ips": [
           "144.76.10.20:16127",
@@ -4777,12 +4776,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp29_18084.app2.runonflux.io"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_4_18084",
-        "domain": "anon18.com",
         "port": 18084,
         "ips": [
           "144.76.10.20:16127",
@@ -4797,12 +4796,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon18.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_4_18084",
-        "domain": "www.anon18.com",
         "port": 18084,
         "ips": [
           "144.76.10.20:16127",
@@ -4817,12 +4816,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon18.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_4_18084",
-        "domain": "test.anon18.com",
         "port": 18084,
         "ips": [
           "144.76.10.20:16127",
@@ -4837,12 +4836,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon18.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_6_3306",
-        "domain": "anonapp29_3306.app2.runonflux.io",
         "port": 3306,
         "ips": [
           "144.76.10.20:16127",
@@ -4857,12 +4856,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anonapp29_3306.app2.runonflux.io"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_6_3306",
-        "domain": "anon19.com",
         "port": 3306,
         "ips": [
           "144.76.10.20:16127",
@@ -4877,12 +4876,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "anon19.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_6_3306",
-        "domain": "www.anon19.com",
         "port": 3306,
         "ips": [
           "144.76.10.20:16127",
@@ -4897,12 +4896,12 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "www.anon19.com"
       },
       {
         "name": "anonapp29",
         "appName": "anonapp29_anoncomp29_6_3306",
-        "domain": "test.anon19.com",
         "port": 3306,
         "ips": [
           "144.76.10.20:16127",
@@ -4917,7 +4916,8 @@
         "serverConfig": "",
         "enableH2": false,
         "mode": "http",
-        "check": true
+        "check": true,
+        "domain": "test.anon19.com"
       },
       {
         "name": "anonapp29",

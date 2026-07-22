@@ -1,12 +1,13 @@
 // Deterministic driver for the config-generation characterization: feed a spec
-// (or a list) through the real backend-config builder and haproxy renderer with
-// fixed inputs, so the exact output can be pinned as a golden. The rewrite must
+// (or a list) through the version-blind backend-config builder and haproxy renderer
+// with fixed inputs, so the exact output can be pinned as a golden. The rewrite must
 // reproduce this byte-for-byte for the existing app population.
 //
 // Live FDM chooses backend IPs by querying app locations and health-checking
 // them; that is non-deterministic and network-bound. Here the IPs are fixed, so
 // the only thing that varies is the spec -> config transform under test.
-const { addConfigurations } = require('../../../src/services/domainService');
+const specLibs = require('../../../src/services/flux/specLibs');
+const { buildRouteConfigs } = require('../../../src/services/haproxy/buildRouteConfigs');
 const { createAppsHaproxyConfig } = require('../../../src/services/haproxyTemplate');
 
 // Two nodes for the general case (exercises the multi-server cookie path), one
@@ -29,26 +30,34 @@ function markerPresent(spec, marker) {
 const routesToSingleInstance = (spec) => markerPresent(spec, 'g:');
 const usesOrderedData = (spec) => markerPresent(spec, 'r:');
 
-// The backend-config bag one spec produces on its own, with fixed inputs.
-function bagForSpec(spec) {
+// The route configs one spec produces on its own, with fixed inputs. Sealed
+// (still-encrypted) specs are decrypted before rendering in production, so they have
+// no offline projection — return null and let the caller skip them. Ownership is not
+// arbitrated here (no live registry), so every declared custom domain routes.
+async function routeConfigsForSpec(spec) {
+  const instance = await specLibs.deserialize(spec);
+  if (instance.sealed) return null;
   const singleInstance = routesToSingleInstance(spec);
-  const app = { ...spec, syncFirst: usesOrderedData(spec) };
   const ips = singleInstance ? SINGLE_NODE_IP : MULTI_NODE_IPS;
-  const bag = [];
-  addConfigurations(bag, app, ips, singleInstance);
-  return bag;
+  const deployment = await specLibs.resolveDeployment(instance, null);
+  return buildRouteConfigs(deployment, spec.name, ips, singleInstance, usesOrderedData(spec));
 }
 
 // The full haproxy config for a set of specs, assembled the way production does:
 // single-instance apps last, so the frontend/backend ordering and the cross-app
 // domain de-duplication are exercised end to end.
-function renderConfig(specs) {
-  const generalBags = [];
-  const singleInstanceBags = [];
+async function renderConfig(specs) {
+  const generalRouteConfigs = [];
+  const singleInstanceRouteConfigs = [];
+  // eslint-disable-next-line no-restricted-syntax
   for (const spec of specs) {
-    (routesToSingleInstance(spec) ? singleInstanceBags : generalBags).push(...bagForSpec(spec));
+    // eslint-disable-next-line no-await-in-loop
+    const routeConfigs = await routeConfigsForSpec(spec);
+    // eslint-disable-next-line no-continue
+    if (!routeConfigs) continue; // sealed — decrypted before rendering in production
+    (routesToSingleInstance(spec) ? singleInstanceRouteConfigs : generalRouteConfigs).push(...routeConfigs);
   }
-  return createAppsHaproxyConfig(generalBags.concat(singleInstanceBags));
+  return createAppsHaproxyConfig(generalRouteConfigs.concat(singleInstanceRouteConfigs));
 }
 
-module.exports = { bagForSpec, renderConfig };
+module.exports = { routeConfigsForSpec, renderConfig };

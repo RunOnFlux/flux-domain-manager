@@ -165,33 +165,33 @@ ${portConf.backends.join('\n')}`;
 }
 */
 
+// One TCP frontend per port (SNI-routed), plus its backend section(s). Ports 80/443
+// are never forwarded. Returns the sections in render order (frontend then backends).
 function generateAppsTCPSettings(tcpAppsMap) {
-  let configs = '';
+  const sections = [];
   for (const port of Object.keys(tcpAppsMap)) {
-    if (+port === 443 || +port === 80) { // hot fix do not forward 80 and 443
+    if (+port === 443 || +port === 80) { // hot fix: do not forward 80 and 443
       // eslint-disable-next-line no-continue
       continue;
     }
     const portConf = tcpAppsMap[port];
-    const tempFrontend = `
-frontend tcp_app_${port}
-  bind 0.0.0.0:${port}
-  mode tcp
-  option tcplog
-  option tcp-check
-  tcp-request inspect-delay 5s
-  ${+port === 25565 ? `tcp-request content lua.mc_handshake
-  # tcp-request content reject if { var(txn.mc_proto) -m int 0 }
-  tcp-request content accept if { var(txn.mc_proto) -m found }
-  # tcp-request content reject if WAIT_END` : 'tcp-request content accept if { req_ssl_hello_type 1 }'}
-${portConf.acls.join('\n')}
-${portConf.usebackends.join('')}
-${portConf.backends.join('\n')}`;
-
-    configs = `${configs}\n\n${tempFrontend}`;
+    const frontend = new Section('frontend', `tcp_app_${port}`);
+    frontend.add('bind', `0.0.0.0:${port}`)
+      .add('mode', 'tcp')
+      .add('option', 'tcplog')
+      .add('option', 'tcp-check')
+      .add('tcp-request', 'inspect-delay', '5s');
+    if (+port === 25565) { // minecraft: route off the parsed handshake, not TLS hello
+      frontend.add('tcp-request', 'content', 'lua.mc_handshake');
+      frontend.add('tcp-request', 'content', 'accept', 'if', '{ var(txn.mc_proto) -m found }');
+    } else {
+      frontend.add('tcp-request', 'content', 'accept', 'if', '{ req_ssl_hello_type 1 }');
+    }
+    portConf.acls.forEach((line) => frontend.raw(line.trim()));
+    portConf.usebackends.forEach((line) => frontend.raw(line.trim()));
+    sections.push(frontend, ...portConf.backends);
   }
-
-  return configs;
+  return sections;
 }
 
 // The per-server health-check timing legacy emits inline on every server line.
@@ -476,14 +476,19 @@ function createAppsHaproxyConfig(appConfig) {
     if (app.mode === 'tcp') {
       log.info(`TCP APP: ${app.name}`);
       const { port } = app;
-      if (!(port in tcpAppsMap)) tcpAppsMap[port] = { acls: [], usebackends: [], backends: [] };
-      const db = generateDomainBackend(app, 'tcp').render();
-      if (!tcpAppsMap[port].usebackends.length) tcpAppsMap[port].usebackends.push(`  default_backend ${domainUsed}_tcp_backend\n`);
-      if (!tcpAppsMap[port].backends.length) tcpAppsMap[port].backends.push(db);
-      tcpAppsMap[port].acls = tcpAppsMap[port].acls.concat(generateMinecraftACLs(app));
-      tcpAppsMap[port].acls.push(`  acl ${domainUsed} req.ssl_sni -i ${app.domain}`);
-      tcpAppsMap[port].usebackends.push(`  use_backend ${domainUsed}_tcp_backend if ${domainUsed}\n`);
-      if (!tcpAppsMap[port].backends.includes(db)) tcpAppsMap[port].backends.push(db);
+      if (!(port in tcpAppsMap)) {
+        tcpAppsMap[port] = {
+          acls: [], usebackends: [], backends: [], seenBackends: new Set(),
+        };
+      }
+      const tcp = tcpAppsMap[port];
+      const tcpBackend = generateDomainBackend(app, 'tcp');
+      const key = tcpBackend.render();
+      if (!tcp.usebackends.length) tcp.usebackends.push(`default_backend ${domainUsed}_tcp_backend`);
+      if (!tcp.seenBackends.has(key)) { tcp.seenBackends.add(key); tcp.backends.push(tcpBackend); }
+      tcp.acls = tcp.acls.concat(generateMinecraftACLs(app));
+      tcp.acls.push(`acl ${domainUsed} req.ssl_sni -i ${app.domain}`);
+      tcp.usebackends.push(`use_backend ${domainUsed}_tcp_backend if ${domainUsed}`);
     }
   }
 
@@ -491,8 +496,8 @@ function createAppsHaproxyConfig(appConfig) {
   routingAcls.forEach((directive) => wwwhttp.push(directive));
   routingUseBackends.forEach((directive) => wwwhttp.push(directive));
 
-  // TCP frontends (+ their backends): reuse the string builder, fold into the model.
-  parse(generateAppsTCPSettings(tcpAppsMap)).sections.forEach((section) => config.sections.push(section));
+  // TCP frontends (+ their backends).
+  generateAppsTCPSettings(tcpAppsMap).forEach((section) => config.sections.push(section));
 
   // Frontend wwwhttps: the shared static skeleton, then the same app routing as wwwhttp.
   const wwwhttps = buildWwwhttpsFrontend();

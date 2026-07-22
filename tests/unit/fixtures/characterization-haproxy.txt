@@ -588,9 +588,7 @@ frontend tcp_app_25565
   option tcp-check
   tcp-request inspect-delay 5s
   tcp-request content lua.mc_handshake
-  # tcp-request content reject if { var(txn.mc_proto) -m int 0 }
   tcp-request content accept if { var(txn.mc_proto) -m found }
-  # tcp-request content reject if WAIT_END
   acl anonapp22_25565app2runonfluxio var(txn.mc_host) -i -m dom anonapp22_25565.app2.runonflux.io
   acl anonapp22_25565app2runonfluxio req.payload(4,16) -m sub anonapp22_25565.
   acl anonapp22_25565app2runonfluxio req.payload(5,16) -m sub anonapp22_25565.

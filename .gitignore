@@ -9,6 +9,7 @@ yarn-error.log*
 
 # Local characterization net — real production spec data, never committed
 tests/local/corpus-raw.json
+tests/local/locations.json
 tests/local/sweep-output.json
 
 # Editor directories and files

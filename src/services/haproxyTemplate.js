@@ -9,149 +9,138 @@ const { getPrimaryIP } = require('./rsync/config');
 const { reloadAndVerify, formatFailure } = require('./haproxyReload');
 const alerts = require('./alertService');
 const { resolveBackendConfig } = require('./haproxy/resolveBackendConfig');
-const { Section, Directive, parse } = require('./haproxy/configModel');
+const { HaproxyConfig, Section, Directive } = require('./haproxy/configModel');
 
 let lastHaproxyConfig;
 let consecutivePublishFailures = 0;
 
-const haproxyPrefix = `
-global
-  ${configGlobal.cloudflare.manageapp ? 'lua-load /etc/haproxy/haproxy_minecraft.lua' : ''}
-  maxconn 50000
-  log /dev/log    local0 info alert
-  log /dev/log    local1 warning alert
-  chroot /var/lib/haproxy
-  stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
-  stats timeout 30s
-  user haproxy
-  group haproxy
-  daemon
-  server-state-file /tmp/server-state             # State file path
+// Shared TLS selection — the same curves/ciphers for client binds and backend servers.
+const SSL_CURVES = 'X25519:prime256v1:secp384r1';
+const SSL_CIPHERS = 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384';
+const SSL_CIPHERSUITES = 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256';
+// The two CORS response headers haproxy adds unless already present — held verbatim
+// (quotes + the `unless { ... }` guard don't tokenize cleanly).
+const CORS_EXPOSE_HEADERS = "http-response add-header Access-Control-Expose-Headers '*' unless { res.hdr(Access-Control-Expose-Headers) -m found }";
+const CORS_ALLOW_ORIGIN = 'http-after-response add-header Access-Control-Allow-Origin "*" unless { res.hdr(Access-Control-Allow-Origin) -m found }';
 
-  # Default SSL material locations
-  ca-base /etc/ssl/certs
-  crt-base /etc/ssl/private
+// The static skeleton every generated config starts from: global tuning + TLS defaults,
+// the shared `defaults` block, and the plain-http frontend (ACME/redirect setup). The
+// caller appends per-app or main-LB routing to the wwwhttp frontend.
+function buildBaseConfig() {
+  const config = new HaproxyConfig();
 
-  # intermediate configuration
-  ssl-default-bind-curves X25519:prime256v1:secp384r1
-  ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
-  ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
-  ssl-default-bind-options prefer-client-ciphers ssl-min-ver TLSv1.2 no-tls-tickets
+  const global = config.section('global');
+  if (configGlobal.cloudflare.manageapp) global.add('lua-load', '/etc/haproxy/haproxy_minecraft.lua');
+  global.add('maxconn', '50000')
+    .add('log', '/dev/log', 'local0', 'info', 'alert')
+    .add('log', '/dev/log', 'local1', 'warning', 'alert')
+    .add('chroot', '/var/lib/haproxy')
+    .add('stats', 'socket', '/run/haproxy/admin.sock', 'mode', '660', 'level', 'admin', 'expose-fd', 'listeners')
+    .add('stats', 'timeout', '30s')
+    .add('user', 'haproxy')
+    .add('group', 'haproxy')
+    .add('daemon')
+    .add('server-state-file', '/tmp/server-state')
+    .add('ca-base', '/etc/ssl/certs')
+    .add('crt-base', '/etc/ssl/private')
+    .add('ssl-default-bind-curves', SSL_CURVES)
+    .add('ssl-default-bind-ciphers', SSL_CIPHERS)
+    .add('ssl-default-bind-ciphersuites', SSL_CIPHERSUITES)
+    .add('ssl-default-bind-options', 'prefer-client-ciphers', 'ssl-min-ver', 'TLSv1.2', 'no-tls-tickets')
+    .add('ssl-default-server-curves', SSL_CURVES)
+    .add('ssl-default-server-ciphers', SSL_CIPHERS)
+    .add('ssl-default-server-ciphersuites', SSL_CIPHERSUITES)
+    .add('ssl-default-server-options', 'ssl-min-ver', 'TLSv1.2', 'no-tls-tickets')
+    .comment('curl https://ssl-config.mozilla.org/ffdhe4096.txt > /etc/haproxy/dhparam')
+    .add('ssl-dh-param-file', '/etc/haproxy/dhparam');
 
-  ssl-default-server-curves X25519:prime256v1:secp384r1
-  ssl-default-server-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
-  ssl-default-server-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
-  ssl-default-server-options ssl-min-ver TLSv1.2 no-tls-tickets
+  config.section('defaults')
+    .add('load-server-state-from-file', 'global')
+    .add('log', 'global')
+    .add('mode', 'http')
+    .comment('Keep server-side connections alive and pool them between requests; a request')
+    .comment('after the first in a session may ride an idle pooled connection instead of')
+    .comment('paying a fresh TCP handshake to the origin. Explicit rather than relying on')
+    .comment('the haproxy-version default (never before 2.5, safe from 2.5 on).')
+    .add('http-reuse', 'safe')
+    .comment('Bind every server-side connection before connecting. haproxy then sets')
+    .comment('SO_REUSEADDR on it, which is what lets a new frontend bind a port that one of')
+    .comment('these connections happens to hold; without it the whole reload fails. The')
+    .comment('port is still chosen at connect time (IP_BIND_ADDRESS_NO_PORT), so the')
+    .comment('per-destination ephemeral pool is unchanged.')
+    .add('source', '0.0.0.0')
+    .add('option', 'dontlognull')
+    .add('timeout', 'connect', '10000')
+    .add('timeout', 'client', '120000')
+    .add('timeout', 'server', '120000')
+    .add('maxconn', '100000')
+    .add('errorfile', '400', '/etc/haproxy/errors/400.http')
+    .add('errorfile', '403', '/etc/haproxy/errors/403.http')
+    .add('errorfile', '408', '/etc/haproxy/errors/408.http')
+    .add('errorfile', '500', '/etc/haproxy/errors/500.http')
+    .add('errorfile', '502', '/etc/haproxy/errors/502.http')
+    .add('errorfile', '503', '/etc/haproxy/errors/503.http')
+    .add('errorfile', '504', '/etc/haproxy/errors/504.http');
 
-  # curl https://ssl-config.mozilla.org/ffdhe4096.txt > /etc/haproxy/dhparam
-  ssl-dh-param-file /etc/haproxy/dhparam
+  config.section('frontend', 'wwwhttp')
+    .add('bind', '*:80')
+    .add('option', 'forwardfor', 'except', '127.0.0.0/8')
+    .add('http-request', 'add-header', 'X-Forwarded-Proto', 'http')
+    .raw(CORS_EXPOSE_HEADERS)
+    .raw(CORS_ALLOW_ORIGIN)
+    .add('acl', 'letsencrypt-acl', 'path_beg', '/.well-known/acme-challenge/')
+    .add('acl', 'cloudflare-flux-acl', 'path_beg', '/.well-known/pki-validation/')
+    .add('redirect', 'scheme', 'https', 'if', '!letsencrypt-acl', '!cloudflare-flux-acl')
+    .add('use_backend', 'letsencrypt-backend', 'if', 'letsencrypt-acl')
+    .add('use_backend', 'cloudflare-flux-backend', 'if', 'cloudflare-flux-acl');
 
-defaults
-  load-server-state-from-file global
-  log     global
-  mode    http
-  # Keep server-side connections alive and pool them between requests; a request
-  # after the first in a session may ride an idle pooled connection instead of
-  # paying a fresh TCP handshake to the origin. Explicit rather than relying on
-  # the haproxy-version default (never before 2.5, safe from 2.5 on).
-  http-reuse safe
-  # Bind every server-side connection before connecting. haproxy then sets
-  # SO_REUSEADDR on it, which is what lets a new frontend bind a port that one of
-  # these connections happens to hold; without it the whole reload fails. The
-  # port is still chosen at connect time (IP_BIND_ADDRESS_NO_PORT), so the
-  # per-destination ephemeral pool is unchanged.
-  source 0.0.0.0
-#  option  httplog
-  option  dontlognull
-  timeout connect 10000
-  timeout client  120000
-  timeout server  120000
-  maxconn 100000
-  errorfile 400 /etc/haproxy/errors/400.http
-  errorfile 403 /etc/haproxy/errors/403.http
-  errorfile 408 /etc/haproxy/errors/408.http
-  errorfile 500 /etc/haproxy/errors/500.http
-  errorfile 502 /etc/haproxy/errors/502.http
-  errorfile 503 /etc/haproxy/errors/503.http
-  errorfile 504 /etc/haproxy/errors/504.http
-
-frontend wwwhttp
-  bind *:80
-  option forwardfor except 127.0.0.0/8
-  http-request add-header X-Forwarded-Proto http
-  http-response add-header Access-Control-Expose-Headers '*' unless { res.hdr(Access-Control-Expose-Headers) -m found }
-  http-after-response add-header Access-Control-Allow-Origin "*" unless { res.hdr(Access-Control-Allow-Origin) -m found }
-
-  acl letsencrypt-acl path_beg /.well-known/acme-challenge/
-  acl cloudflare-flux-acl path_beg /.well-known/pki-validation/
-  redirect scheme https if !letsencrypt-acl !cloudflare-flux-acl
-  use_backend letsencrypt-backend if letsencrypt-acl
-  use_backend cloudflare-flux-backend if cloudflare-flux-acl
-`;
-
-const httpsPrefix = `
-frontend wwwhttps
-#  option httplog
-  option forwardfor except 127.0.0.0/8
-  http-response add-header Access-Control-Expose-Headers '*' unless { res.hdr(Access-Control-Expose-Headers) -m found }
-  http-after-response add-header Access-Control-Allow-Origin "*" unless { res.hdr(Access-Control-Allow-Origin) -m found }
-
-  # stats in /fluxstatistics publicly available
-  stats enable
-  stats hide-version
-  stats uri     /fluxstatistics
-  stats realm   Flux\\ Statistics
-
-  # The SSL CRT file is a combination of the public certificate and the private key
-`;
-
-const httpsFdmApiPrefix = `
-  # FDM API routing - only for this FDM's domain
-  acl fdm-domain hdr(host) -i ${configGlobal.fdmAppDomain}
-  acl fdm-api-path path_beg /api/
-  use_backend fdm-api-backend if fdm-domain fdm-api-path
-`;
+  return config;
+}
 
 const h2Suffix = 'alpn h2,http/1.1';
 
-const letsEncryptBackend = (() => {
-  if (configGlobal.certRenewalPrimary) {
-    return `backend letsencrypt-backend
-  server letsencrypt 127.0.0.1:8787
-`;
-  }
-  // Non-primary: proxy ACME challenges to the primary's certbot
+// The ACME/certbot backend target: this node's own certbot when it is the renewal
+// primary, otherwise the primary's IP (computed once). Resolved at load so the error
+// only logs once rather than every render.
+const letsEncryptTarget = (() => {
+  if (configGlobal.certRenewalPrimary) return '127.0.0.1';
   const primaryIP = getPrimaryIP();
   if (!primaryIP) {
     log.error('certRenewalPrimary is false but no primary IP found in hosts.ini. ACME challenges will fail.');
   }
-  const target = primaryIP || '127.0.0.1';
-  return `backend letsencrypt-backend
-  server letsencrypt ${target}:8787
-`;
+  return primaryIP || '127.0.0.1';
 })();
 
-const cloudflareFluxBackend = `backend cloudflare-flux-backend
-  server cloudflareflux 127.0.0.1:${configGlobal.server.port}
-`;
-
-const fdmApiBackend = `backend fdm-api-backend
-  http-request set-path %[path,regsub(^/api/,/)]
-  server fdm-api 127.0.0.1:${configGlobal.server.port}
-`;
-
-const forbiddenBackend = `backend forbidden-backend
-  mode http
-  http-request deny deny_status 403
-`;
 // The wwwhttps frontend's static skeleton — options/stats, the :443 TLS bind, and the
 // FDM-API routing — shared by the apps and main configs. The caller appends the app or
 // main routing. haproxy loads every cert in the crt directory.
 function buildWwwhttpsFrontend() {
-  const section = parse(httpsPrefix).sections[0];
-  section.add('bind', '*:443', 'ssl', 'crt', `/etc/ssl/${configGlobal.certFolder}/`, h2Suffix);
-  section.rawBlock(httpsFdmApiPrefix);
+  const section = new Section('frontend', 'wwwhttps');
+  section.add('option', 'forwardfor', 'except', '127.0.0.0/8')
+    .raw(CORS_EXPOSE_HEADERS)
+    .raw(CORS_ALLOW_ORIGIN)
+    .add('stats', 'enable')
+    .add('stats', 'hide-version')
+    .add('stats', 'uri', '/fluxstatistics')
+    .raw('stats realm Flux\\ Statistics')
+    .add('bind', '*:443', 'ssl', 'crt', `/etc/ssl/${configGlobal.certFolder}/`, h2Suffix)
+    .add('acl', 'fdm-domain', 'hdr(host)', '-i', configGlobal.fdmAppDomain)
+    .add('acl', 'fdm-api-path', 'path_beg', '/api/')
+    .add('use_backend', 'fdm-api-backend', 'if', 'fdm-domain', 'fdm-api-path');
   return section;
+}
+
+// The fixed platform backends every config ends with: ACME, cloudflare validation, the
+// FDM API, and the catch-all forbidden backend.
+function staticBackends() {
+  return [
+    new Section('backend', 'letsencrypt-backend').add('server', 'letsencrypt', `${letsEncryptTarget}:8787`),
+    new Section('backend', 'cloudflare-flux-backend').add('server', 'cloudflareflux', `127.0.0.1:${configGlobal.server.port}`),
+    new Section('backend', 'fdm-api-backend')
+      .add('http-request', 'set-path', '%[path,regsub(^/api/,/)]')
+      .add('server', 'fdm-api', `127.0.0.1:${configGlobal.server.port}`),
+    new Section('backend', 'forbidden-backend').add('mode', 'http').add('http-request', 'deny', 'deny_status', '403'),
+  ];
 }
 
 // One TCP frontend per port (SNI-routed), plus its backend section(s). Ports 80/443
@@ -308,78 +297,61 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     };
   });
 
-  // API backend with source-based load balancing (for session persistence)
-  const apiBackend = `backend ${apiB}backend
-    http-response set-header FLUXNODE %s
-    mode http
-    balance source
-    # FAILOVER: Allow fallback to other servers if primary fails
-    option redispatch
-    # RETRY: Retry failed requests automatically
-    retries 3
-    # L7 retry when a pooled origin connection dies before any response byte
-    # arrives (the keep-alive close race). POSTs are excluded: the origin may
-    # have executed one before dying and haproxy must never replay it. Slow
-    # responses (response-timeout) are deliberately not retried: replaying an
-    # expensive request multiplies its cost.
-    retry-on conn-failure empty-response
-    http-request disable-l7-retry if METH_POST
-    # Enhanced WebSocket support
-    timeout tunnel 7200s
-    timeout server 30s
-    timeout connect 5s
-    # WebSocket connection handling
-    option http-keep-alive
-    no option httpclose
-    # Health check with faster detection of failed servers
-    default-server check inter 10s fall 2 rise 3 maxconn 100`;
+  // API backend: source-based load balancing for session persistence, failover +
+  // retries, long websocket tunnels, fast health-check failure detection.
+  const apiBackendSection = new Section('backend', `${apiB}backend`)
+    .add('http-response', 'set-header', 'FLUXNODE', '%s')
+    .add('mode', 'http')
+    .add('balance', 'source')
+    .add('option', 'redispatch')
+    .add('retries', '3')
+    .comment('L7 retry when a pooled origin connection dies before any response byte')
+    .comment('arrives (the keep-alive close race). POSTs are excluded: the origin may')
+    .comment('have executed one before dying and haproxy must never replay it. Slow')
+    .comment('responses (response-timeout) are deliberately not retried: replaying an')
+    .comment('expensive request multiplies its cost.')
+    .add('retry-on', 'conn-failure', 'empty-response')
+    .add('http-request', 'disable-l7-retry', 'if', 'METH_POST')
+    .add('timeout', 'tunnel', '7200s')
+    .add('timeout', 'server', '30s')
+    .add('timeout', 'connect', '5s')
+    .add('option', 'http-keep-alive')
+    .add('no', 'option', 'httpclose')
+    .add('default-server', 'check', 'inter', '10s', 'fall', '2', 'rise', '3', 'maxconn', '100');
 
-  // Roundrobin API backend for specific endpoints that need random distribution
-  const apiRoundrobinBackend = `backend ${apiB}roundrobinbackend
-    http-response set-header FLUXNODE %s
-    http-response set-header X-Flux-Mode "Roundrobin"
-    mode http
-    balance roundrobin
-    # FAILOVER: Allow fallback to other servers if primary fails
-    option redispatch
-    # RETRY: Retry failed requests automatically
-    retries 3
-    # L7 retry on the keep-alive close race, never replaying POSTs; see the
-    # api backend above for the rationale
-    retry-on conn-failure empty-response
-    http-request disable-l7-retry if METH_POST
-    # Enhanced WebSocket support
-    timeout tunnel 7200s
-    timeout server 120s
-    timeout connect 5s
-    # WebSocket connection handling
-    option http-keep-alive
-    no option httpclose
-    # Health check with faster detection of failed servers
-    default-server check inter 10s fall 2 rise 3 maxconn 100`;
+  // Roundrobin API backend for endpoints that need random distribution.
+  const apiRoundrobinSection = new Section('backend', `${apiB}roundrobinbackend`)
+    .add('http-response', 'set-header', 'FLUXNODE', '%s')
+    .add('http-response', 'set-header', 'X-Flux-Mode', '"Roundrobin"')
+    .add('mode', 'http')
+    .add('balance', 'roundrobin')
+    .add('option', 'redispatch')
+    .add('retries', '3')
+    .comment('L7 retry on the keep-alive close race, never replaying POSTs; see the')
+    .comment('api backend above for the rationale')
+    .add('retry-on', 'conn-failure', 'empty-response')
+    .add('http-request', 'disable-l7-retry', 'if', 'METH_POST')
+    .add('timeout', 'tunnel', '7200s')
+    .add('timeout', 'server', '120s')
+    .add('timeout', 'connect', '5s')
+    .add('option', 'http-keep-alive')
+    .add('no', 'option', 'httpclose')
+    .add('default-server', 'check', 'inter', '10s', 'fall', '2', 'rise', '3', 'maxconn', '100');
 
-  // UI backend with load balancing based on real client IP (CF-Connecting-IP)
-  const uiBackend = `backend ${uiB}backend
-    http-response set-header FLUXNODE %s
-    mode http
-    balance hdr(CF-Connecting-IP)
-    # FAILOVER: Allow fallback when primary server fails
-    option redispatch
-    # RETRY: Retry failed requests
-    retries 3
-    # L7 retry on the keep-alive close race, never replaying POSTs; see the
-    # api backend above for the rationale
-    retry-on conn-failure empty-response
-    http-request disable-l7-retry if METH_POST
-    # Standard HTTP timeouts
-    timeout server 30s
-    timeout connect 5s
-    # Health check with faster failure detection
-    default-server check inter 10s fall 2 rise 3 maxconn 100`;
-
-  const uiBackendSection = parse(uiBackend).sections[0];
-  const apiBackendSection = parse(apiBackend).sections[0];
-  const apiRoundrobinSection = parse(apiRoundrobinBackend).sections[0];
+  // UI backend: balance on the real client IP (CF-Connecting-IP).
+  const uiBackendSection = new Section('backend', `${uiB}backend`)
+    .add('http-response', 'set-header', 'FLUXNODE', '%s')
+    .add('mode', 'http')
+    .add('balance', 'hdr(CF-Connecting-IP)')
+    .add('option', 'redispatch')
+    .add('retries', '3')
+    .comment('L7 retry on the keep-alive close race, never replaying POSTs; see the')
+    .comment('api backend above for the rationale')
+    .add('retry-on', 'conn-failure', 'empty-response')
+    .add('http-request', 'disable-l7-retry', 'if', 'METH_POST')
+    .add('timeout', 'server', '30s')
+    .add('timeout', 'connect', '5s')
+    .add('default-server', 'check', 'inter', '10s', 'fall', '2', 'rise', '3', 'maxconn', '100');
   serverMapping.forEach((server) => {
     uiBackendSection.add('server', server.serverName, `${server.baseHost}:${server.uiPort}`, 'check');
     apiBackendSection.add('server', server.serverName, `${server.baseHost}:${server.apiPort}`, 'check');
@@ -411,7 +383,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
 
   // Assemble: static skeleton, both http frontends carrying the routing + redirect, then
   // the backends.
-  const config = parse(haproxyPrefix);
+  const config = buildBaseConfig();
   const wwwhttps = buildWwwhttpsFrontend();
   [config.sections.find((s) => s.name === 'wwwhttp'), wwwhttps].forEach((frontend) => {
     routingAcls.forEach((directive) => frontend.push(directive));
@@ -419,8 +391,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     frontend.raw(redirectLine);
   });
   config.sections.push(wwwhttps, uiBackendSection, apiBackendSection, apiRoundrobinSection);
-  [letsEncryptBackend, cloudflareFluxBackend, fdmApiBackend, forbiddenBackend]
-    .forEach((text) => parse(text).sections.forEach((section) => config.sections.push(section)));
+  staticBackends().forEach((section) => config.sections.push(section));
 
   return config.render();
 }
@@ -429,7 +400,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
 function createAppsHaproxyConfig(appConfig) {
   // Static skeleton: global, defaults, and frontend wwwhttp (with its acme/redirect
   // setup), folded into the model from the existing template.
-  const config = parse(haproxyPrefix);
+  const config = buildBaseConfig();
   const wwwhttp = config.sections.find((s) => s.name === 'wwwhttp');
 
   // Per-app routing shared verbatim by both http frontends: acl definitions then
@@ -503,8 +474,7 @@ function createAppsHaproxyConfig(appConfig) {
 
   // Backends: the app http backends, then the fixed platform backends.
   backendSections.forEach((section) => config.sections.push(section));
-  [letsEncryptBackend, cloudflareFluxBackend, fdmApiBackend, forbiddenBackend]
-    .forEach((text) => parse(text).sections.forEach((section) => config.sections.push(section)));
+  staticBackends().forEach((section) => config.sections.push(section));
 
   return config.render();
 }

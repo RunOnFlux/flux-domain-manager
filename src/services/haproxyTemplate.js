@@ -7,7 +7,7 @@ const { cmdAsync, TEMP_HAPROXY_CONFIG, HAPROXY_CONFIG } = require('./constants')
 const { matchRule } = require('./serviceHelper');
 const { getPrimaryIP } = require('./rsync/config');
 const { resolveBackendConfig } = require('./haproxy/resolveBackendConfig');
-const { Section } = require('./haproxy/configModel');
+const { Section, Directive, parse } = require('./haproxy/configModel');
 
 let lastHaproxyConfig;
 
@@ -312,7 +312,7 @@ function generateDomainBackend(app, mode) {
     }
     addServerLine(section, cfg, app, mode, ip);
   }
-  return `\n${section.render()}`;
+  return section;
 }
 
 function generateMinecraftACLs(app) {
@@ -470,97 +470,94 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
 
 // appConfig is an array of object of domain, port, ips
 function createAppsHaproxyConfig(appConfig) {
-  let backends = '';
-  let acls = '';
-  let usebackends = '';
-  // acls += '  acl forbiddenacl hdr(host) kaddex.com\n';
-  // acls += '  acl forbiddenacl hdr(host) www.kaddex.com\n';
-  // acls += '  acl forbiddenacl hdr(host) ecko.finance\n';
-  // acls += '  acl forbiddenacl hdr(host) www.ecko.finance\n';
-  // acls += '  acl forbiddenacl hdr(host) dao.ecko.finance\n';
-  acls += '  acl forbiddenacl hdr(host) racecoursejebelali.com\n';
-  acls += '  acl forbiddenacl hdr(host) www.racecoursejebelali.com\n';
-  acls += '  acl forbiddenacl hdr(host) sofiteldowntown.com\n';
-  acls += '  acl forbiddenacl hdr(host) www.sofiteldowntown.com\n';
-  acls += '  acl forbiddenacl hdr(host) livelo.digitaisx.mov\n';
-  acls += '  acl forbiddenacl hdr(host) www.livelo.digitaisx.mov\n';
-  acls += '  acl forbiddenacl path_beg -i /product/litty-cat-thc-bars-1000mg\n';
-  usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
+  // Static skeleton: global, defaults, and frontend wwwhttp (with its acme/redirect
+  // setup), folded into the model from the existing template.
+  const config = parse(haproxyPrefix);
+  const wwwhttp = config.sections.find((s) => s.name === 'wwwhttp');
+
+  // Per-app routing shared verbatim by both http frontends: acl definitions then
+  // use_backends. Plus the http backend sections and the tcp frontends/backends.
+  const routingAcls = [];
+  const routingUseBackends = [];
+  const backendSections = [];
   const domains = [];
   const seenApps = {};
   const minecraftAppsMap = {};
   const tcpAppsMap = {};
+
+  const forbiddenHosts = [
+    'racecoursejebelali.com', 'www.racecoursejebelali.com',
+    'sofiteldowntown.com', 'www.sofiteldowntown.com',
+    'livelo.digitaisx.mov', 'www.livelo.digitaisx.mov',
+  ];
+  forbiddenHosts.forEach((host) => routingAcls.push(new Directive('acl', ['forbiddenacl', 'hdr(host)', host])));
+  routingAcls.push(new Directive('acl', ['forbiddenacl', 'path_beg', '-i', '/product/litty-cat-thc-bars-1000mg']));
+  routingUseBackends.push(new Directive('use_backend', ['forbidden-backend', 'if', 'forbiddenacl']));
+
   for (const app of appConfig) {
     if (domains.includes(app.domain)) {
       // eslint-disable-next-line no-continue
       continue;
     }
+    const domainUsed = app.domain.split('.').join('');
     if (app.appName in seenApps) {
       domains.push(app.domain);
-      acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
+      routingAcls.push(new Directive('acl', [seenApps[app.appName], 'hdr(host)', app.domain]));
     } else if (matchRule(app.name.toLowerCase(), configGlobal.minecraftApps)) {
-      const domainUsed = app.domain.split('.').join('');
+      // minecraftAppsMap is built for parity but never rendered (the minecraft-settings
+      // path is off), so a minecraft app contributes nothing to the http frontends.
       const { port } = app;
-      if (!(port in minecraftAppsMap)) {
-        minecraftAppsMap[port] = {
-          acls: [],
-          usebackends: [],
-          backends: [],
-        };
-      }
-      const tempMinecraftACLs = generateMinecraftACLs(app);
-      const domainBackend = generateDomainBackend(app, 'tcp');
-      minecraftAppsMap[port].acls = minecraftAppsMap[port].acls.concat(tempMinecraftACLs);
+      if (!(port in minecraftAppsMap)) minecraftAppsMap[port] = { acls: [], usebackends: [], backends: [] };
+      minecraftAppsMap[port].acls = minecraftAppsMap[port].acls.concat(generateMinecraftACLs(app));
       minecraftAppsMap[port].usebackends.push(`  use_backend ${domainUsed}_tcp_backend if ${domainUsed}\n`);
-      if (!minecraftAppsMap[port].backends.includes(domainBackend)) {
-        minecraftAppsMap[port].backends.push(domainBackend);
-      }
+      const db = generateDomainBackend(app, 'tcp').render();
+      if (!minecraftAppsMap[port].backends.includes(db)) minecraftAppsMap[port].backends.push(db);
     } else {
-      const domainUsed = app.domain.split('.').join('');
-      if (usebackends.includes(`  use_backend ${domainUsed}backend if ${domainUsed}\n`)) {
+      if (routingUseBackends.some((d) => d.args[0] === `${domainUsed}backend`)) {
         // eslint-disable-next-line no-continue
         continue;
       }
-      const domainBackend = generateDomainBackend(app, 'http');
-      backends = `${backends + domainBackend}\n\n`;
+      backendSections.push(generateDomainBackend(app, 'http'));
       domains.push(app.domain);
-      acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
-      usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
+      routingAcls.push(new Directive('acl', [domainUsed, 'hdr(host)', app.domain]));
+      routingUseBackends.push(new Directive('use_backend', [`${domainUsed}backend`, 'if', domainUsed]));
       seenApps[app.appName] = domainUsed;
     }
     if (app.mode === 'tcp') {
       log.info(`TCP APP: ${app.name}`);
-      // also configure tcp
-      const domainUsed = app.domain.split('.').join('');
       const { port } = app;
-      if (!(port in tcpAppsMap)) {
-        tcpAppsMap[port] = {
-          acls: [],
-          usebackends: [],
-          backends: [],
-        };
-      }
-
-      const tempMinecraftACLs = generateMinecraftACLs(app);
-      const domainBackend = generateDomainBackend(app, 'tcp');
-      if (!tcpAppsMap[port].usebackends.length) {
-        tcpAppsMap[port].usebackends.push(`  default_backend ${domainUsed}_tcp_backend\n`);
-      }
-      if (!tcpAppsMap[port].backends.length) {
-        tcpAppsMap[port].backends.push(domainBackend);
-      }
-      tcpAppsMap[port].acls = tcpAppsMap[port].acls.concat(tempMinecraftACLs);
-      const aclName = app.domain.split('.').join('');
-      tcpAppsMap[port].acls.push(`  acl ${aclName} req.ssl_sni -i ${app.domain}`);
+      if (!(port in tcpAppsMap)) tcpAppsMap[port] = { acls: [], usebackends: [], backends: [] };
+      const db = generateDomainBackend(app, 'tcp').render();
+      if (!tcpAppsMap[port].usebackends.length) tcpAppsMap[port].usebackends.push(`  default_backend ${domainUsed}_tcp_backend\n`);
+      if (!tcpAppsMap[port].backends.length) tcpAppsMap[port].backends.push(db);
+      tcpAppsMap[port].acls = tcpAppsMap[port].acls.concat(generateMinecraftACLs(app));
+      tcpAppsMap[port].acls.push(`  acl ${domainUsed} req.ssl_sni -i ${app.domain}`);
       tcpAppsMap[port].usebackends.push(`  use_backend ${domainUsed}_tcp_backend if ${domainUsed}\n`);
-      if (!tcpAppsMap[port].backends.includes(domainBackend)) {
-        tcpAppsMap[port].backends.push(domainBackend);
-      }
+      if (!tcpAppsMap[port].backends.includes(db)) tcpAppsMap[port].backends.push(db);
     }
   }
-  const redirects = '';
 
-  return generateHaproxyConfig(acls, usebackends, domains, backends, redirects, minecraftAppsMap, tcpAppsMap);
+  // Append the app routing to frontend wwwhttp (acls first, then use_backends).
+  routingAcls.forEach((directive) => wwwhttp.push(directive));
+  routingUseBackends.forEach((directive) => wwwhttp.push(directive));
+
+  // TCP frontends (+ their backends): reuse the string builder, fold into the model.
+  parse(generateAppsTCPSettings(tcpAppsMap)).sections.forEach((section) => config.sections.push(section));
+
+  // Frontend wwwhttps: static body + the :443 bind + FDM-API routing, then the same
+  // app routing as wwwhttp.
+  const bindLine = `${certificatePrefix}${createCertificatesPaths(domains)}${certificatesSuffix} ${h2Suffix}`;
+  const wwwhttps = parse(`${httpsPrefix}${bindLine}\n${httpsFdmApiPrefix}`).sections[0];
+  routingAcls.forEach((directive) => wwwhttps.push(directive));
+  routingUseBackends.forEach((directive) => wwwhttps.push(directive));
+  config.sections.push(wwwhttps);
+
+  // Backends: the app http backends, then the fixed platform backends.
+  backendSections.forEach((section) => config.sections.push(section));
+  [letsEncryptBackend, cloudflareFluxBackend, fdmApiBackend, forbiddenBackend]
+    .forEach((text) => parse(text).sections.forEach((section) => config.sections.push(section)));
+
+  return config.render();
 }
 
 async function writeConfig(configName, data) {

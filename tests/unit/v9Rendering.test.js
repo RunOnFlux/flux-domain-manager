@@ -39,7 +39,7 @@ async function renderV9Backend(lb) {
   const dep = await specLibs.resolveDeployment(await specLibs.deserialize(wire), null);
   const routeConfigs = buildRouteConfigs(dep, 'shop', ['144.76.10.20:16127', '167.86.90.30:16127'], false, false);
   const platform = routeConfigs.find((c) => c.domain.startsWith('shop_'));
-  return generateDomainBackend(platform, 'http');
+  return generateDomainBackend(platform, 'http').render();
 }
 
 describe('v9 loadBalancing rendering (end-to-end)', () => {

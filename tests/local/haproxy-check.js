@@ -54,7 +54,7 @@ ${backend}
 let ok = true;
 // eslint-disable-next-line no-restricted-syntax
 for (const [label, route] of Object.entries(variants)) {
-  const backend = generateDomainBackend(route, 'http');
+  const backend = generateDomainBackend(route, 'http').render();
   const backendName = `${route.domain.split('.').join('')}backend`;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fdm-hap-'));
   const cfg = path.join(dir, 'h.cfg');

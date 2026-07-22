@@ -357,3 +357,6 @@ ASALocalRun/
 # NVidia Nsight GPU debugger configuration file
 *.nvuser
 CLAUDE.md
+
+# Session handovers / working notes (local only)
+dev/

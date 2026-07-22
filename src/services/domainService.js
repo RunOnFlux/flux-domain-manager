@@ -336,6 +336,87 @@ async function appendRouteConfigs(routeConfigs, app, appIps, isActiveStandby) {
   }
 }
 
+// Resolve the ordered, in-rotation backend IPs for an app from its live locations —
+// the one place config assembly consults runtime state. Three concerns that used to be
+// smeared through the routing loop live here now:
+//   drain      - a replica the platform reports draining/stopping is pulled from rotation
+//                (state rides the location row from flux-shutdownd -> fluxos)
+//   ordering   - app-specific health checks, or the shared-db operator's live cluster
+//                status (primary first); the renderer stays pure over the result
+//   syncFirst  - version-blind, from the typed sync mode (legacy r: and v9 both map to
+//                requiresSyncBeforeStart), set on the app for the backup-server rendering
+// Returns the backend IP list; sets app.syncFirst as a side effect (the renderer reads it).
+async function resolveBackends(app, appLocations) {
+  // Drain: keep only backends the platform still considers active.
+  const live = appLocations.filter((l) => l.state !== 'draining' && l.state !== 'stopping');
+  let appIps = [];
+
+  if (applicationChecks.applicationWithChecks(app)) {
+    // Per-app coded checks hit the network, so responses arrive out of order; sort by ip.
+    let promiseArray = [];
+    for (const [i, location] of live.entries()) {
+      promiseArray.push(addAppIps(app, location.ip));
+      if ((i + 1) % 10 === 0) {
+        // eslint-disable-next-line no-await-in-loop
+        await Promise.allSettled(promiseArray);
+        promiseArray = [];
+        // eslint-disable-next-line no-loop-func
+        appIpsOnAppsChecks.forEach((loc) => appIps.push(loc));
+        appIpsOnAppsChecks = [];
+      }
+    }
+    if (promiseArray.length > 0) {
+      await Promise.allSettled(promiseArray);
+      appIpsOnAppsChecks.forEach((loc) => appIps.push(loc));
+      appIpsOnAppsChecks = [];
+    }
+    serviceHelper.sortIPAddresses(appIps);
+  } else if (app.compose && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'))) {
+    // shared-db: order backends by the operator's live cluster status (primary first),
+    // and drop the internal db/operator ports from the LB.
+    appIps = live.map((location) => location.ip);
+    const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
+    log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
+    if (componentUsingSharedDB.ports && componentUsingSharedDB.ports.length > 0) {
+      const apiPort = componentUsingSharedDB.ports[componentUsingSharedDB.ports.length - 1];
+      let operatorClusterStatus = null;
+      const httpTimeout = 5000;
+      // eslint-disable-next-line no-restricted-syntax
+      for (const ip of appIps) {
+        const url = `http://${ip.split(':')[0]}:${apiPort}/status`;
+        log.info(`sharedDBApps: ${app.name} going to check operator status on url ${url}`);
+        // eslint-disable-next-line no-await-in-loop
+        const operatorStatus = await serviceHelper.httpGetRequest(url, httpTimeout)
+          .catch((error) => log.error(`sharedDBApps: ${app.name} operatorStatus error: ${error}`));
+        if (operatorStatus && operatorStatus.data && operatorStatus.data.status === 'OK') {
+          operatorClusterStatus = operatorStatus.data.clusterStatus.map((cluster) => cluster.ip);
+          break;
+        }
+      }
+      if (operatorClusterStatus) {
+        appIps.sort((a, b) => operatorClusterStatus.indexOf(a) - operatorClusterStatus.indexOf(b));
+        log.info(`Application ${app.name} was setup as a sharedDBApps`);
+      }
+      const componentUsingSharedDBIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
+      const componentMySQLIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('mysql'));
+      if (componentUsingSharedDBIndex >= 0) {
+        // eslint-disable-next-line no-param-reassign
+        app.compose[componentUsingSharedDBIndex].ports = app.compose[componentUsingSharedDBIndex].ports.slice(-1);
+      }
+      if (componentMySQLIndex >= 0) app.compose.splice(componentMySQLIndex, 1);
+    }
+  } else {
+    appIps = live.map((location) => location.ip);
+  }
+
+  // syncFirst version-blind, resolved after any shared-db compose surgery above. Replaces
+  // the raw-compose r:/shared-db scan and fixes the previously mis-nested r: check.
+  const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
+  // eslint-disable-next-line no-param-reassign
+  app.syncFirst = Object.values(deployment.components).some((c) => c.requiresSyncBeforeStart());
+  return appIps;
+}
+
 /**
  *
  * @param {Map<string, Object>} globalAppSpecs Pre filtered active-active applications
@@ -431,153 +512,9 @@ async function generateActiveActiveHaproxyConfig() {
         appLocations.push({ ip: '[2001:41d0:d00:b800::92]:9131' });
       }
       if (appLocations.length > 0) {
-        let appIps = [];
-        app.syncFirst = false;
         const applicationWithChecks = applicationChecks.applicationWithChecks(app);
-        if (applicationWithChecks) {
-          let promiseArray = [];
-          for (const [i, location] of appLocations.entries()) {
-            // run coded checks for app
-            promiseArray.push(addAppIps(app, location.ip));
-            if ((i + 1) % 10 === 0) {
-              // eslint-disable-next-line no-await-in-loop
-              await Promise.allSettled(promiseArray);
-              promiseArray = [];
-              if (app.name === 'explorer') {
-                log.info(appIpsOnAppsChecks);
-              }
-              // eslint-disable-next-line no-loop-func
-              appIpsOnAppsChecks.forEach((loc) => {
-                appIps.push(loc);
-              });
-              appIpsOnAppsChecks = [];
-            }
-          }
-          if (promiseArray.length > 0) {
-            // eslint-disable-next-line no-await-in-loop
-            await Promise.allSettled(promiseArray);
-            promiseArray = [];
-            if (app.name === 'explorer') {
-              log.info(appIpsOnAppsChecks);
-            }
-            appIpsOnAppsChecks.forEach((loc) => {
-              appIps.push(loc);
-            });
-            appIpsOnAppsChecks = [];
-          }
-          // as the application checks uses network, the responses can come in
-          // a different order, so we sort the responses by ip address.
-          serviceHelper.sortIPAddresses(appIps);
-        } else if (
-          app.compose
-          && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'))
-        ) {
-          // app using sharedDB project
-          app.syncFirst = true;
-          appIps = appLocations.map((location) => location.ip);
-          const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
-          log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
-          if (
-            componentUsingSharedDB.ports
-            && componentUsingSharedDB.ports.length > 0
-          ) {
-            const apiPort = componentUsingSharedDB.ports[
-              componentUsingSharedDB.ports.length - 1
-            ]; // it's the last port from the shareddb that is the api port
-            let operatorClusterStatus = null;
-            const httpTimeout = 5000;
-            // eslint-disable-next-line no-await-in-loop
-            for (const ip of appIps) {
-              const url = `http://${ip.split(':')[0]}:${apiPort}/status`;
-              log.info(
-                `sharedDBApps: ${app.name} going to check operator status on url ${url}`,
-              );
-              // eslint-disable-next-line no-await-in-loop
-              const operatorStatus = await serviceHelper
-                .httpGetRequest(url, httpTimeout)
-                .catch((error) => log.error(
-                  `sharedDBApps: ${app.name} operatorStatus error: ${error}`,
-                ));
-              if (
-                operatorStatus
-                && operatorStatus.data
-                && operatorStatus.data.status === 'OK'
-              ) {
-                operatorClusterStatus = operatorStatus.data.clusterStatus.map(
-                  (cluster) => cluster.ip,
-                );
-                break;
-              }
-            }
-            if (operatorClusterStatus) {
-              appIps.sort(
-                (a, b) => operatorClusterStatus.indexOf(a)
-                  - operatorClusterStatus.indexOf(b),
-              );
-              log.info(`Application ${app.name} was setup as a sharedDBApps`);
-            } else {
-              appIps.sort((a, b) => {
-                if (!a.runningSince && b.runningSince) {
-                  return -1;
-                }
-                if (a.runningSince && !b.runningSince) {
-                  return 1;
-                }
-                if (a.runningSince < b.runningSince) {
-                  return -1;
-                }
-                if (a.runningSince > b.runningSince) {
-                  return 1;
-                }
-                if (a.ip < b.ip) {
-                  return -1;
-                }
-                if (a.ip > b.ip) {
-                  return 1;
-                }
-                return 0;
-              });
-            }
-            // lets remove db and operator from haproxy
-            const componentUsingSharedDBIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
-            const componentMySQLIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('mysql'));
-            if (componentUsingSharedDBIndex >= 0) {
-              app.compose[componentUsingSharedDBIndex].ports = app.compose[componentUsingSharedDBIndex].ports.slice(-1);
-            }
-            if (componentMySQLIndex >= 0) {
-              app.compose.splice(componentMySQLIndex, 1);
-            }
-          } else if (
-            (app.version <= 3 && app.containerData.includes('r:'))
-            || (app.compose
-              && app.compose.find((comp) => comp.containerData.includes('r:')))
-          ) {
-            app.syncFirst = true;
-            appIps.sort((a, b) => {
-              if (!a.runningSince && b.runningSince) {
-                return -1;
-              }
-              if (a.runningSince && !b.runningSince) {
-                return 1;
-              }
-              if (a.runningSince < b.runningSince) {
-                return -1;
-              }
-              if (a.runningSince > b.runningSince) {
-                return 1;
-              }
-              if (a.ip < b.ip) {
-                return -1;
-              }
-              if (a.ip > b.ip) {
-                return 1;
-              }
-              return 0;
-            });
-          }
-        } else {
-          appIps = appLocations.map((location) => location.ip);
-        }
+        // eslint-disable-next-line no-await-in-loop
+        const appIps = await resolveBackends(app, appLocations);
         if (app.name === 'explorer') {
           log.info(appIps);
         }
@@ -689,8 +626,11 @@ async function generateActiveStandbyHaproxyConfig() {
       if (appLocations.length > 0) {
         const appIps = [];
 
-        // if its G data application, use just one IP
-        const locationIps = appLocations.map((location) => location.ip);
+        // Active-standby routes to a single live instance. Drop any draining/stopping
+        // backend first so a shutting-down node is never selected as the active one.
+        const locationIps = appLocations
+          .filter((l) => l.state !== 'draining' && l.state !== 'stopping')
+          .map((location) => location.ip);
         // eslint-disable-next-line no-await-in-loop
         const selectedIP = await selectActiveInstanceIp(locationIps, app);
         if (selectedIP) {
@@ -982,4 +922,5 @@ function getRouteConfigs() {
 module.exports = {
   start,
   getRouteConfigs,
+  resolveBackends,
 };

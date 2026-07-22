@@ -1,19 +1,17 @@
 global
   lua-load /etc/haproxy/haproxy_minecraft.lua
   maxconn 50000
-  log /dev/log    local0 info alert
-  log /dev/log    local1 warning alert
+  log /dev/log local0 info alert
+  log /dev/log local1 warning alert
   chroot /var/lib/haproxy
   stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
   stats timeout 30s
   user haproxy
   group haproxy
   daemon
-  server-state-file /tmp/server-state             # State file path
-  # Default SSL material locations
+  server-state-file /tmp/server-state
   ca-base /etc/ssl/certs
   crt-base /etc/ssl/private
-  # intermediate configuration
   ssl-default-bind-curves X25519:prime256v1:secp384r1
   ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
   ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
@@ -27,13 +25,12 @@ global
 
 defaults
   load-server-state-from-file global
-  log     global
-  mode    http
-  #  option  httplog
-  option  dontlognull
+  log global
+  mode http
+  option dontlognull
   timeout connect 10000
-  timeout client  120000
-  timeout server  120000
+  timeout client 120000
+  timeout server 120000
   maxconn 100000
   errorfile 400 /etc/haproxy/errors/400.http
   errorfile 403 /etc/haproxy/errors/403.http
@@ -658,19 +655,15 @@ backend anonapp4_27015app2runonfluxio_tcp_backend
   server 135.148.60.40:16127 135.148.60.40:27015 inter 3s fall 2 rise 2 fastinter 500
 
 frontend wwwhttps
-  #  option httplog
   option http-server-close
   option forwardfor except 127.0.0.0/8
   http-response add-header Access-Control-Expose-Headers '*' unless { res.hdr(Access-Control-Expose-Headers) -m found }
   http-after-response add-header Access-Control-Allow-Origin "*" unless { res.hdr(Access-Control-Allow-Origin) -m found }
-  # stats in /fluxstatistics publicly available
   stats enable
   stats hide-version
-  stats uri     /fluxstatistics
-  stats realm   Flux\ Statistics
-  # The SSL CRT file is a combination of the public certificate and the private key
+  stats uri /fluxstatistics
+  stats realm Flux\ Statistics
   bind *:443 ssl crt /etc/ssl/fluxapps/ alpn h2,http/1.1
-  # FDM API routing - only for this FDM's domain
   acl fdm-domain hdr(host) -i fdm-lb-2-1.runonflux.io
   acl fdm-api-path path_beg /api/
   use_backend fdm-api-backend if fdm-domain fdm-api-path

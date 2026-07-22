@@ -1088,6 +1088,104 @@ async function appendRouteConfigs(routeConfigs, app, appIps, isActiveStandby) {
   }
 }
 
+// Resolve the ordered, in-rotation backend IPs for an app from its live locations —
+// the one place config assembly consults runtime state. Three concerns that used to be
+// smeared through the routing loop live here now:
+//   drain      - a replica the platform reports draining/stopping is pulled from rotation
+//                (state rides the location row from flux-shutdownd -> fluxos)
+//   ordering   - app-specific health checks, or the shared-db operator's live cluster
+//                status (primary first); the renderer stays pure over the result
+//   syncFirst  - version-blind, from the typed sync mode (legacy r: and v9 both map to
+//                requiresSyncBeforeStart), set on the app for the backup-server rendering
+// Returns the backend IP list; sets app.syncFirst as a side effect (the renderer reads it).
+async function resolveBackends(app, appLocations) {
+  // Drain: keep only backends the platform still considers active.
+  const live = appLocations.filter((l) => l.state !== 'draining' && l.state !== 'stopping');
+  const sharedDb = Boolean(app.compose && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db')));
+  let appIps = [];
+
+  if (applicationChecks.applicationWithChecks(app)) {
+    // Per-app coded checks hit the network, so responses arrive out of order; sort by ip.
+    let promiseArray = [];
+    for (const [i, location] of live.entries()) {
+      promiseArray.push(addAppIps(app, location.ip));
+      if ((i + 1) % 10 === 0) {
+        // eslint-disable-next-line no-await-in-loop
+        await Promise.allSettled(promiseArray);
+        promiseArray = [];
+        // eslint-disable-next-line no-loop-func
+        appIpsOnAppsChecks.forEach((loc) => appIps.push(loc));
+        appIpsOnAppsChecks = [];
+      }
+    }
+    if (promiseArray.length > 0) {
+      await Promise.allSettled(promiseArray);
+      appIpsOnAppsChecks.forEach((loc) => appIps.push(loc));
+      appIpsOnAppsChecks = [];
+    }
+    serviceHelper.sortIPAddresses(appIps);
+  } else if (sharedDb) {
+    // Ordered before the cluster has its say, so the fallbacks below start from a
+    // fixed order rather than from whatever the locations API happened to return.
+    appIps = orderBySeniority(live.map((location) => location.ip), live);
+    const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
+    log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
+    if (componentUsingSharedDB.ports && componentUsingSharedDB.ports.length > 0) {
+      // it's the last port from the shareddb that is the api port
+      const apiPort = componentUsingSharedDB.ports[componentUsingSharedDB.ports.length - 1];
+      let operatorClusterStatus = null;
+      const httpTimeout = 5000;
+      // eslint-disable-next-line no-restricted-syntax
+      for (const ip of appIps) {
+        const url = `http://${ip.split(':')[0]}:${apiPort}/status`;
+        log.info(`sharedDBApps: ${app.name} going to check operator status on url ${url}`);
+        // eslint-disable-next-line no-await-in-loop
+        const operatorStatus = await httpClients.nodeChecks
+          .get(url, { timeout: httpTimeout })
+          .catch((error) => log.error(`sharedDBApps: ${app.name} operatorStatus error: ${error}`));
+        if (operatorStatus && operatorStatus.data && operatorStatus.data.status === 'OK') {
+          operatorClusterStatus = operatorStatus.data.clusterStatus.map((cluster) => cluster.ip);
+          break;
+        }
+      }
+      if (operatorClusterStatus) {
+        appIps = orderByCluster(appIps, operatorClusterStatus, live);
+        log.info(`Application ${app.name} was setup as a sharedDBApps`);
+      } else {
+        // No operator could be reached, so the cluster cannot say who its master is
+        // and this has to choose one. Oldest instance first: for a replicated app it
+        // is the one most likely to hold the complete data, and it is the same key
+        // FluxOS's own active-standby election uses (runningSince ascending).
+        appIps = orderBySeniority(appIps, live);
+      }
+      // lets remove db and operator from haproxy
+      const componentUsingSharedDBIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
+      const componentMySQLIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('mysql'));
+      if (componentUsingSharedDBIndex >= 0) {
+        // eslint-disable-next-line no-param-reassign
+        app.compose[componentUsingSharedDBIndex].ports = app.compose[componentUsingSharedDBIndex].ports.slice(-1);
+      }
+      if (componentMySQLIndex >= 0) app.compose.splice(componentMySQLIndex, 1);
+    }
+  } else {
+    // The branch most apps take. Order carries no meaning here - haproxy spreads
+    // traffic over every server - but it has to be FIXED, because the locations API
+    // returns the same instances in a different order each call and the config is
+    // byte-compared to decide whether to reload haproxy.
+    appIps = serviceHelper.sortIPAddresses(live.map((location) => location.ip));
+  }
+
+  // syncFirst makes haproxy mark every server after the first as `backup`, so
+  // position zero is the only one taking traffic - the write target of a shared-db
+  // database, whose members acknowledge a write before the others have applied it.
+  // It is set for shared-db apps and nothing else: an `r:` volume is
+  // syncthing-replicated across instances that are ALL meant to run and ALL meant
+  // to serve. An app that needs a single serving instance says so with activeStandby.
+  // eslint-disable-next-line no-param-reassign
+  app.syncFirst = sharedDb;
+  return appIps;
+}
+
 /**
  *
  * @param {Map<string, Object>} globalAppSpecs Pre filtered active-active applications
@@ -1199,132 +1297,8 @@ async function generateActiveActiveHaproxyConfig() {
         appLocations.push({ ip: '[2001:41d0:d00:b800::92]:9131' });
       }
       if (appLocations.length > 0) {
-        let appIps = [];
-        app.syncFirst = false;
-        const applicationWithChecks = applicationChecks.applicationWithChecks(app);
-        if (applicationWithChecks) {
-          let promiseArray = [];
-          for (const [i, location] of appLocations.entries()) {
-            // run coded checks for app
-            promiseArray.push(addAppIps(app, location.ip));
-            if ((i + 1) % 10 === 0) {
-              // eslint-disable-next-line no-await-in-loop
-              await Promise.allSettled(promiseArray);
-              promiseArray = [];
-              if (app.name === 'explorer') {
-                log.info(appIpsOnAppsChecks);
-              }
-              // eslint-disable-next-line no-loop-func
-              appIpsOnAppsChecks.forEach((loc) => {
-                appIps.push(loc);
-              });
-              appIpsOnAppsChecks = [];
-            }
-          }
-          if (promiseArray.length > 0) {
-            // eslint-disable-next-line no-await-in-loop
-            await Promise.allSettled(promiseArray);
-            promiseArray = [];
-            if (app.name === 'explorer') {
-              log.info(appIpsOnAppsChecks);
-            }
-            appIpsOnAppsChecks.forEach((loc) => {
-              appIps.push(loc);
-            });
-            appIpsOnAppsChecks = [];
-          }
-          // as the application checks uses network, the responses can come in
-          // a different order, so we sort the responses by ip address.
-          serviceHelper.sortIPAddresses(appIps);
-        } else if (
-          app.compose
-          && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'))
-        ) {
-          // app using sharedDB project.
-          //
-          // syncFirst makes haproxy mark every server after the first as `backup`,
-          // so position zero is the only one taking traffic - the write target of
-          // a database whose members must not be written to concurrently. It is
-          // set here and nowhere else: an `r:` volume is syncthing-replicated
-          // across instances that are ALL meant to run and ALL meant to serve, so
-          // pinning those to one node would defeat the point of deploying them.
-          // An app that needs a single serving instance says so with `g:`.
-          app.syncFirst = true;
-          // Ordered before the cluster has its say, so the fallbacks below start
-          // from a fixed order rather than from whatever the locations API
-          // happened to return this time.
-          appIps = orderBySeniority(appLocations.map((location) => location.ip), appLocations);
-          const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
-          log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
-          if (
-            componentUsingSharedDB.ports
-            && componentUsingSharedDB.ports.length > 0
-          ) {
-            const apiPort = componentUsingSharedDB.ports[
-              componentUsingSharedDB.ports.length - 1
-            ]; // it's the last port from the shareddb that is the api port
-            let operatorClusterStatus = null;
-            const httpTimeout = 5000;
-            // eslint-disable-next-line no-await-in-loop
-            for (const ip of appIps) {
-              const url = `http://${ip.split(':')[0]}:${apiPort}/status`;
-              log.info(
-                `sharedDBApps: ${app.name} going to check operator status on url ${url}`,
-              );
-              // eslint-disable-next-line no-await-in-loop
-              const operatorStatus = await httpClients.nodeChecks
-                .get(url, { timeout: httpTimeout })
-                .catch((error) => log.error(
-                  `sharedDBApps: ${app.name} operatorStatus error: ${error}`,
-                ));
-              if (
-                operatorStatus
-                && operatorStatus.data
-                && operatorStatus.data.status === 'OK'
-              ) {
-                operatorClusterStatus = operatorStatus.data.clusterStatus.map(
-                  (cluster) => cluster.ip,
-                );
-                break;
-              }
-            }
-            if (operatorClusterStatus) {
-              appIps = orderByCluster(appIps, operatorClusterStatus, appLocations);
-              log.info(`Application ${app.name} was setup as a sharedDBApps`);
-            } else {
-              // No operator could be reached, so the cluster cannot say who its
-              // master is and this has to choose one. Oldest instance first: for
-              // a replicated app it is the one most likely to hold the complete
-              // data, and it is the same key FluxOS's own active-standby election
-              // uses (compareInstanceSeniority, runningSince ascending).
-              //
-              // This is a degraded path that has never actually ordered anything.
-              // It compared `a.runningSince` and `a.ip` on elements that are bare
-              // `ip:port` STRINGS - every field undefined, every comparison 0, a
-              // stable sort left the arbitrary input order untouched. So when the
-              // cluster was unreachable the write target was whatever the
-              // locations API listed first that second.
-              appIps = orderBySeniority(appIps, appLocations);
-            }
-            // lets remove db and operator from haproxy
-            const componentUsingSharedDBIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
-            const componentMySQLIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('mysql'));
-            if (componentUsingSharedDBIndex >= 0) {
-              app.compose[componentUsingSharedDBIndex].ports = app.compose[componentUsingSharedDBIndex].ports.slice(-1);
-            }
-            if (componentMySQLIndex >= 0) {
-              app.compose.splice(componentMySQLIndex, 1);
-            }
-          }
-        } else {
-          // The branch most apps take. Order carries no meaning here - haproxy
-          // spreads traffic over every server - but it has to be FIXED, because
-          // the locations API returns the same instances in a different order
-          // each call and the config is byte-compared to decide whether to
-          // reload haproxy. Sorting by address is what the checked branch above
-          // already does; this one simply never did it.
-          appIps = serviceHelper.sortIPAddresses(appLocations.map((location) => location.ip));
-        }
+        // eslint-disable-next-line no-await-in-loop
+        const appIps = await resolveBackends(app, appLocations);
         if (app.name === 'explorer') {
           log.info(appIps);
         }
@@ -1474,7 +1448,11 @@ async function generateActiveStandbyHaproxyConfig() {
       }
     }
 
-    const selected = await selectActiveStandbyPrimaries(appsOK, locationsForPass);
+    // A draining or stopping instance is never selected as the active one.
+    const liveLocations = new Map([...locationsForPass].map(([name, locations]) => [
+      name, locations.filter((l) => l.state !== 'draining' && l.state !== 'stopping'),
+    ]));
+    const selected = await selectActiveStandbyPrimaries(appsOK, liveLocations);
 
     // continue with appsOK
     const routeConfigs = [];
@@ -1815,4 +1793,5 @@ module.exports = {
   reportExclusion,
   admitConfiguredHalf,
   resetConfiguredHalfGuards,
+  resolveBackends,
 };

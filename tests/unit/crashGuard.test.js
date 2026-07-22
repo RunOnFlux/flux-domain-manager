@@ -1,4 +1,3 @@
-/* eslint-disable func-names */
 // Ingestion deserializes every spec through flux-spec and classifies it by its
 // resolved shape, for every version alike — so a v9 app flows into the same maps
 // as legacy apps, not a special bucket. A spec this node can't read (a malformed
@@ -26,10 +25,10 @@ function stubCerts() {
   return { keyPath: write('key'), certPath: write('cert'), caPath: write('ca') };
 }
 
-describe('ingestion — version-blind classification + crash guard', function () {
+describe('ingestion — version-blind classification + crash guard', () => {
   let v9Doc;
 
-  before(async function () {
+  before(async () => {
     const { FluxAppSpecV9 } = await specLibs.load();
     v9Doc = FluxAppSpecV9.fromSubmission({
       version: 9,
@@ -55,13 +54,20 @@ describe('ingestion — version-blind classification + crash guard', function ()
     }).serialize();
   });
 
-  it('classifies legacy and v9 into the same maps and skips an unreadable spec', async function () {
+  it('classifies legacy and v9 into the same maps and skips an unreadable spec', async () => {
     const fetcher = new FdmDataFetcher({
-      ...stubCerts(), fluxApiBaseUrl: 'http://localhost', sasApiBaseUrl: 'http://localhost',
+      ...stubCerts(),
+      fluxApiBaseUrl: 'http://localhost',
+      specDecrypt: { baseUrl: 'http://localhost', rsaDecryptPath: 'decryptMessageRSA', gcmDecryptPath: 'v2/decrypt' },
     });
 
     // Missing required fields — deserialize rejects it.
-    const malformed = { version: 9, name: 'malformedv9', owner: 'x', components: { web: { ports: { http: {} } } } };
+    const malformed = {
+      version: 9,
+      name: 'malformedv9',
+      owner: 'x',
+      components: { web: { ports: { http: {} } } },
+    };
 
     const events = [];
     fetcher.on('appSpecsUpdated', (e) => events.push(e));

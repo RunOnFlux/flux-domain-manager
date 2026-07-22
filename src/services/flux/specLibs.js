@@ -22,6 +22,19 @@ async function deserialize(doc) {
 }
 
 /**
+ * Whether a wire-form spec document is sealed — encrypted and unreadable until
+ * decrypted — for any version (v8 enterprise blob or v9 encrypted envelope). Lets
+ * callers set sealed specs aside for decryption without a version-specific field
+ * check. Uses the classes' own wire predicates, so no full deserialize is needed.
+ * @param {Object} doc
+ * @returns {Promise<boolean>}
+ */
+async function isSealed(doc) {
+  const { EncryptedSpecV8, EncryptedSpecV9 } = await load();
+  return Boolean(EncryptedSpecV8.matchesWire(doc) || EncryptedSpecV9.matchesWire(doc));
+}
+
+/**
  * Resolve a readable spec into its per-node, per-replica runtime projection:
  * version-normalized to one shape, with ports x loadBalancing merged. `replica` is
  * null for the declared/loose view or a named replica for a co-located one
@@ -35,4 +48,6 @@ async function resolveDeployment(spec, replica = null) {
   return DeploymentSpec.fromSpec(spec, APPS_FOLDER, { replica });
 }
 
-module.exports = { load, deserialize, resolveDeployment, APPS_FOLDER };
+module.exports = {
+  load, deserialize, isSealed, resolveDeployment, APPS_FOLDER,
+};

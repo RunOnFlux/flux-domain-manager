@@ -11,6 +11,7 @@ const { runWithConcurrency } = require('../serviceHelper');
 // const log = require('./log');
 const log = require('../../lib/log');
 const specLibs = require('./specLibs');
+const { registerSpecDecryptProviders } = require('./specDecrypt');
 
 /**
  * @typedef {{}} AppSpec
@@ -39,7 +40,18 @@ class FdmDataFetcher extends EventEmitter {
   /**
    * @type {axios.AxiosInstance}
    */
-  #sasApi;
+  #cryptoApi;
+
+  /**
+   * @type {{ rsaDecrypt: string, gcmDecrypt: string }}
+   */
+  #specDecryptEndpoints;
+
+  /**
+   * Memoized promise for the one-time decrypt-provider registration.
+   * @type {Promise<void> | null}
+   */
+  #providersReady = null;
 
   #aborted = false;
 
@@ -86,9 +98,6 @@ class FdmDataFetcher extends EventEmitter {
        */
       timeout: null,
     },
-    sasDecrypt: {
-      url: 'decryptMessageRSA',
-    },
   };
 
   /**
@@ -98,13 +107,13 @@ class FdmDataFetcher extends EventEmitter {
    *   certPath: string,
    *   caPath: string,
    *   fluxApiBaseUrl: string,
-   *   sasApiBaseUrl: string}} options
+   *   specDecrypt: { baseUrl: string, rsaDecryptPath: string, gcmDecryptPath: string }}} options
    */
   constructor(options) {
     super();
 
     const {
-      keyPath, certPath, caPath, fluxApiBaseUrl, sasApiBaseUrl,
+      keyPath, certPath, caPath, fluxApiBaseUrl, specDecrypt,
     } = options;
 
     this.#fluxApi = axios.create({
@@ -112,8 +121,8 @@ class FdmDataFetcher extends EventEmitter {
       timeout: 30_000,
     });
 
-    this.#sasApi = axios.create({
-      baseURL: sasApiBaseUrl,
+    this.#cryptoApi = axios.create({
+      baseURL: specDecrypt.baseUrl,
       timeout: 10_000,
       httpsAgent: new https.Agent({
         key: fs.readFileSync(keyPath),
@@ -121,36 +130,27 @@ class FdmDataFetcher extends EventEmitter {
         ca: fs.readFileSync(caPath),
       }),
     });
-  }
 
-  static parseJson(data) {
-    try {
-      return JSON.parse(data);
-    } catch {
-      return null;
-    }
+    this.#specDecryptEndpoints = {
+      rsaDecrypt: specDecrypt.rsaDecryptPath,
+      gcmDecrypt: specDecrypt.gcmDecryptPath,
+    };
   }
 
   /**
-   * This is ugly. We only have to do this because the frontend passes arrays as strings
-   *
-   * @param {Object} blob
+   * Register the version-specific decrypt providers on the flux-spec EncryptedSpec
+   * classes, once. `EncryptedSpec.decrypt()` then dispatches to the right one by
+   * version. Memoized — the registration is a one-time global side effect.
+   * @returns {Promise<void>}
    */
-  static hydrate(blob) {
-    const parsed = {};
-
-    // eslint-disable-next-line no-restricted-syntax
-    for (const [key, value] of Object.entries(blob)) {
-      if (value instanceof Array) {
-        parsed[key] = value.map((item) => (typeof item === 'object' && item !== null ? this.hydrate(item) : item));
-      } else if (value && typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
-        parsed[key] = this.parseJson(value);
-      } else {
-        parsed[key] = value;
-      }
+  #ensureProviders() {
+    if (!this.#providersReady) {
+      this.#providersReady = registerSpecDecryptProviders({
+        http: this.#cryptoApi,
+        endpoints: this.#specDecryptEndpoints,
+      });
     }
-
-    return parsed;
+    return this.#providersReady;
   }
 
   /**
@@ -172,41 +172,10 @@ class FdmDataFetcher extends EventEmitter {
     return { name, fqdns };
   }
 
-  static async sleep(ms) {
-    await new Promise((r) => { setTimeout(r, ms); });
-  }
-
   static timestamp() {
     const formattedTime = new Date().toISOString().replace(/\.\d+Z?/, '');
 
     return formattedTime;
-  }
-
-  /**
-   * Decrypts content with aes key
-   * @param {string} appName application name.
-   * @param {Buffer} nonceCiphertextTag base64 encoded encrypted data
-   * @param {string} base64AesKey base64 encoded AesKey
-   * @returns {any} decrypted data
-   */
-  static decryptAesData(appName, nonceCiphertextTag, base64AesKey) {
-    try {
-      const key = Buffer.from(base64AesKey, 'base64');
-
-      const nonce = nonceCiphertextTag.subarray(0, 12);
-      const ciphertext = nonceCiphertextTag.subarray(12, -16);
-      const tag = nonceCiphertextTag.subarray(-16);
-
-      const decipher = crypto.createDecipheriv('aes-256-gcm', key, nonce);
-      decipher.setAuthTag(tag);
-
-      const decrypted = decipher.update(ciphertext, '', 'utf8') + decipher.final('utf8');
-
-      return decrypted;
-    } catch (error) {
-      log.error(`Error decrypting ${appName}`);
-      return null;
-    }
   }
 
   /**
@@ -266,116 +235,42 @@ class FdmDataFetcher extends EventEmitter {
   }
 
   async #decryptAppSpec(appSpec) {
-    // handle no enterprise?
-    const spec = appSpec;
-    const { enterprise } = appSpec;
-    const { sasDecrypt } = this.endpoints;
+    const { hash, height } = appSpec;
 
-    const cacheSpec = this.#cache.get(spec.hash);
-
-    if (cacheSpec) {
-      console.log(`Encrypted App spec: ${spec.name}, found in cache, no need to fetch`);
-      return cacheSpec;
+    const cached = hash ? this.#cache.get(hash) : null;
+    if (cached) {
+      console.log(`Sealed app spec: ${appSpec.name}, found in cache, no need to fetch`);
+      return cached;
     }
 
-    const { owner } = spec;
+    try {
+      await this.#ensureProviders();
 
-    if (!owner) return null;
+      // deserialize -> EncryptedSpec -> decrypt(provider) -> DecryptedCanonicalSpec:
+      // the version-blind decrypt lifecycle. serialize() re-emits a cleartext wire
+      // document in the version-correct shape (v8 compose / v9 components) with no
+      // sealed marker, which the downstream pipeline re-ingests. hash/height are event
+      // metadata that live on the wire, not the spec, so carry them across.
+      const sealed = await specLibs.deserialize(appSpec);
+      const provider = await sealed.createProvider();
+      const decrypted = await sealed.decrypt(provider);
 
-    const enterpriseBuf = Buffer.from(enterprise, 'base64');
-    const aesKeyEncrypted = enterpriseBuf.subarray(0, 256);
-    const nonceCiphertextTag = enterpriseBuf.subarray(256);
+      const wire = decrypted.spec.serialize();
+      if (hash !== undefined) wire.hash = hash;
+      if (height !== undefined) wire.height = height;
 
-    const base64EncryptedAesKey = aesKeyEncrypted.toString('base64');
-
-    const payload = {
-      fluxID: owner,
-      appName: spec.name,
-      message: base64EncryptedAesKey,
-      blockHeight: 9999999,
-    };
-
-    let decryptKeyAttempts = 0;
-    let base64AesKey = '';
-
-    while (decryptKeyAttempts < 4) {
-      // eslint-disable-next-line no-await-in-loop
-      const response = await this.#sasApi.post(sasDecrypt.url, payload).catch((err) => {
-        log.warn(`Unable to contact sas to decrypt ${spec.name}. ${err.message}`
-          + `${spec.name}. ${err.message}`);
-
-        return null;
-      });
-
-      // we wait 16 seconds here (instead of 15) as the check loop on keepalived
-      // is 30 seconds. So at max we would wait 2 cycles if nginx is down, and it
-      // needs to be taken out of the server pool
-      if (!response) {
-        console.log(`Decrypt AES key call for: ${spec.name} failed, retrying in 16 seconds`);
-
-        decryptKeyAttempts += 1;
-        // eslint-disable-next-line no-await-in-loop
-        await FdmDataFetcher.sleep(16_000);
-        // eslint-disable-next-line no-continue
-        continue;
+      // random TTL between 24-48h to avoid all entries expiring at the same time (they
+      // are added nearly simultaneously via Promise.all). Skip caching a wire with no
+      // hash — an undefined key would collide across specs.
+      if (hash) {
+        const ttl = 86_400_000 + Math.floor(Math.random() * 86_400_000);
+        this.#cache.set(hash, wire, { ttl });
       }
-
-      const { status: responseStatus, data: responseData } = response;
-
-      if (responseStatus !== 200) {
-        decryptKeyAttempts += 1;
-        // eslint-disable-next-line no-await-in-loop
-        await FdmDataFetcher.sleep(16_000);
-        // eslint-disable-next-line no-continue
-        continue;
-      }
-
-      const { status: payloadStatus, message: _base64AesKey } = responseData;
-
-      // we made contact with the sas, but it didn't like our request :(
-      if (payloadStatus !== 'ok') return null;
-
-      base64AesKey = _base64AesKey;
-
-      if (base64AesKey) break;
-
-      // shouldn't end up here
-
-      console.log(`Base64AesKey not found for: ${spec.name}, retrying in 16 seconds`);
-      decryptKeyAttempts += 1;
-      // eslint-disable-next-line no-await-in-loop
-      await FdmDataFetcher.sleep(16_000);
+      return wire;
+    } catch (error) {
+      log.warn(`Unable to decrypt ${appSpec.name}: ${error.message}`);
+      return null;
     }
-
-    if (!base64AesKey) return null;
-
-    const decrypted = FdmDataFetcher.decryptAesData(
-      spec.name,
-      nonceCiphertextTag,
-      base64AesKey,
-    );
-
-    if (!decrypted) return null;
-
-    const parsed = FdmDataFetcher.parseJson(decrypted);
-
-    if (!parsed) return null;
-
-    const hydrated = FdmDataFetcher.hydrate(parsed);
-
-    spec.compose = hydrated.compose;
-    spec.contacts = hydrated.contacts;
-    // I don't like doing this. As we can no longer tell if it's enterprise
-    // or not. However, it's saving memory, and makes the add to map easier.
-    // There should really be another boolean field
-    spec.enterprise = '';
-
-    // random TTL between 24-48h to avoid all entries expiring at the same
-    // time (they are all added nearly simultaneously via Promise.all)
-    const ttl = 86_400_000 + Math.floor(Math.random() * 86_400_000);
-    this.#cache.set(spec.hash, spec, { ttl });
-
-    return spec;
   }
 
   async loop(runner, dataStore) {
@@ -564,29 +459,22 @@ class FdmDataFetcher extends EventEmitter {
     if (!getRes) return [];
 
     const { payload } = getRes;
+
+    const specs = payload.filter(Boolean);
+    // Version-blind sealed detection: a v9 encrypted spec has no `enterprise` field, so
+    // the old `version >= 8 && enterprise` gate mis-classified it as cleartext and never
+    // decrypted it.
+    const sealedFlags = await Promise.all(specs.map((spec) => specLibs.isSealed(spec)));
     const allSpecs = [];
-    const enterpriseApps = [];
+    const sealedApps = [];
+    specs.forEach((spec, i) => (sealedFlags[i] ? sealedApps : allSpecs).push(spec));
 
-    for (const spec of payload) {
-      if (!spec) continue;
-      const isEnterprise = Boolean(spec.version >= 8 && spec.enterprise);
-      if (isEnterprise) {
-        enterpriseApps.push(spec);
-      } else {
-        allSpecs.push(spec);
-      }
-    }
-
-    if (enterpriseApps.length) {
-      const decryptTasks = enterpriseApps.map(
-        (spec) => () => this.#decryptAppSpec(spec),
-      );
+    if (sealedApps.length) {
+      const decryptTasks = sealedApps.map((spec) => () => this.#decryptAppSpec(spec));
       const results = await runWithConcurrency(decryptTasks, 5);
-      for (const result of results) {
-        if (result.status === 'fulfilled' && result.value) {
-          allSpecs.push(result.value);
-        }
-      }
+      results.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value) allSpecs.push(result.value);
+      });
     }
 
     return allSpecs;
@@ -871,12 +759,14 @@ class FdmDataFetcher extends EventEmitter {
 }
 
 async function main() {
+  // eslint-disable-next-line global-require
+  const config = require('config');
   const dataFetcher = new FdmDataFetcher({
     keyPath: '/etc/ssl/private/fdm-arcane.key',
     certPath: '/etc/ssl/certs/fdm-arcane.pem',
     caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
     fluxApiBaseUrl: 'https://api.runonflux.io/',
-    sasApiBaseUrl: 'https://10.100.0.170/api/',
+    specDecrypt: config.specDecrypt,
   });
 
   dataFetcher.startAppSpecLoop();

@@ -1,5 +1,9 @@
 const appsConfig = require('./appsConfig');
 const guardsConfig = require('./guardsConfig');
+const customConfigs = require('./customConfigs');
+const haproxyRouting = require('./haproxyRouting');
+const specDecrypt = require('./specDecrypt');
+const domainOverrides = require('./domainOverrides');
 
 module.exports = {
   server: {
@@ -41,6 +45,10 @@ module.exports = {
     // workflow supplies it from the DISCORD_WEBHOOK_URL repository secret.
     discordWebhookUrl: '{{ discord_webhook_url | default(lookup('env', 'DISCORD_WEBHOOK_URL'), true) }}',
   },
+  customConfigs,
+  haproxyRouting,
+  specDecrypt,
+  domainOverrides,
   appSubDomain: '{{ appSubDomain }}',
   fdmAppDomain: '{{ fdmAppDomain }}',
   uiName: '{{ uiName }}',

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-restricted-syntax */ // sequential await per domain
 
 /* eslint-disable no-console */
 
@@ -132,7 +133,7 @@ function obtainCert() {
   console.log('');
 
   // Letsencrypt check
-  checkLetsencrypt();
+  checkLetsencrypt(); // reports to stdout; the decision below uses dnsOk/pem
   console.log('');
 
   // Decision

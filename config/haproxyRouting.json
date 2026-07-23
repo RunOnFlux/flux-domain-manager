@@ -26,5 +26,10 @@
     "/apps/location",
     "/apps/testappinstall"
   ],
-  "terminateLoopbackPort": 8443
+  "terminateLoopbackPort": 8443,
+  "publishGuard": {
+    "minRouteConfigs": 10,
+    "minRouteRetention": 0.7,
+    "maxConsecutiveWithholds": 3
+  }
 }

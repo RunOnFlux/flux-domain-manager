@@ -24,7 +24,10 @@ const sanitizeDomain = (domain) => domain
 // `ownsDomain(domain)` decides whether this app may serve a custom domain (another
 // live app may own it — first-registrant-wins). Defaults to allow-all so callers that
 // don't arbitrate ownership (e.g. the characterization harness) get every route.
-function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFirst, ownsDomain = () => true) {
+// `drainingIps` are backends the platform reports shutting down: rendered in
+// maintenance rather than dropped, so they stay visible while taking no traffic. Kept
+// apart from `appIps` so the in-rotation count and ordering are unaffected.
+function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFirst, ownsDomain = () => true, drainingIps = []) {
   const configs = [];
   const platformSuffix = `${config.appSubDomain}.${config.mainDomain}`;
   const lowerName = appName.toLowerCase();
@@ -63,6 +66,7 @@ function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFir
       appName: backendName,
       port: hostPort,
       ips: appIps,
+      drainingIps,
       syncFirst,
       ...customConfig,
       ...v9Tuning,
@@ -113,6 +117,7 @@ function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFir
       domain: mainDomain,
       port: first.port,
       ips: appIps,
+      drainingIps,
       syncFirst,
       ...resolveCustomConfig(appName, '', '', isActiveStandby),
     });

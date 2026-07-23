@@ -1074,7 +1074,7 @@ function resetConfiguredHalfGuards(store = sharedGuardStore()) {
 // app has already been through processApplications, so any domain overrides it
 // applied are carried into the resolved routes via deserialize. Custom domains this
 // app does not own (another live app registered them first) are skipped.
-async function appendRouteConfigs(routeConfigs, app, appIps, isActiveStandby) {
+async function appendRouteConfigs(routeConfigs, app, appIps, isActiveStandby, drainingIps = []) {
   const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
   const disowned = [];
   const ownsDomain = (domain) => {
@@ -1082,9 +1082,35 @@ async function appendRouteConfigs(routeConfigs, app, appIps, isActiveStandby) {
     if (!owned) disowned.push(domain);
     return owned;
   };
-  routeConfigs.push(...buildRouteConfigs(deployment, app.name, appIps, isActiveStandby, app.syncFirst, ownsDomain));
+  routeConfigs.push(...buildRouteConfigs(deployment, app.name, appIps, isActiveStandby, app.syncFirst, ownsDomain, drainingIps));
   if (disowned.length) {
     log.warn(`${app.name}: skipped ${disowned.length} custom domain(s) owned by another app: ${disowned.join(', ')}`);
+  }
+}
+
+// The location states that mean "this replica is going away" — flux-shutdownd moves an
+// app through them before the node stops it, and the state rides the location row out
+// through fluxos. Anything else (including an absent state) counts as in rotation, so an
+// older fluxos that doesn't report state fails open.
+const DRAIN_STATES = new Set(['draining', 'stopping']);
+const isDraining = (location) => DRAIN_STATES.has(location.state);
+
+// The backends each app was last seen draining, so a drain is logged when it starts,
+// changes and ends rather than on every pass.
+const drainingByApp = new Map();
+
+// Log the drain transition. Without this a shutting-down node just silently disappears
+// from the config, with nothing to confirm the flux-shutdownd -> fluxos -> FDM chain
+// actually delivered the state.
+function logDraining(appName, draining) {
+  const key = [...draining].sort().join(', ');
+  if ((drainingByApp.get(appName) ?? '') === key) return;
+  if (key) {
+    drainingByApp.set(appName, key);
+    log.info(`${appName}: ${draining.length} backend(s) draining, held out of rotation: ${key}`);
+  } else {
+    drainingByApp.delete(appName);
+    log.info(`${appName}: no backend draining`);
   }
 }
 
@@ -1097,10 +1123,16 @@ async function appendRouteConfigs(routeConfigs, app, appIps, isActiveStandby) {
 //                status (primary first); the renderer stays pure over the result
 //   syncFirst  - version-blind, from the typed sync mode (legacy r: and v9 both map to
 //                requiresSyncBeforeStart), set on the app for the backup-server rendering
-// Returns the backend IP list; sets app.syncFirst as a side effect (the renderer reads it).
+// Returns `{ appIps, drainingIps }` — the in-rotation backends and, separately, the ones
+// draining. They stay separate lists on purpose: `appIps` keeps its exact meaning for the
+// mandatory-app emptiness check, the first-server directives and the syncFirst backup
+// selection, none of which should start counting a node that is on its way out.
+// Sets app.syncFirst as a side effect (the renderer reads it).
 async function resolveBackends(app, appLocations) {
   // Drain: keep only backends the platform still considers active.
-  const live = appLocations.filter((l) => l.state !== 'draining' && l.state !== 'stopping');
+  const live = appLocations.filter((l) => !isDraining(l));
+  const drainingIps = appLocations.filter(isDraining).map((l) => l.ip);
+  logDraining(app.name, drainingIps);
   const sharedDb = Boolean(app.compose && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db')));
   let appIps = [];
 
@@ -1183,7 +1215,7 @@ async function resolveBackends(app, appLocations) {
   // to serve. An app that needs a single serving instance says so with activeStandby.
   // eslint-disable-next-line no-param-reassign
   app.syncFirst = sharedDb;
-  return appIps;
+  return { appIps, drainingIps };
 }
 
 /**
@@ -1298,7 +1330,7 @@ async function generateActiveActiveHaproxyConfig() {
       }
       if (appLocations.length > 0) {
         // eslint-disable-next-line no-await-in-loop
-        const appIps = await resolveBackends(app, appLocations);
+        const { appIps, drainingIps } = await resolveBackends(app, appLocations);
         if (app.name === 'explorer') {
           log.info(appIps);
         }
@@ -1306,7 +1338,7 @@ async function generateActiveActiveHaproxyConfig() {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         // eslint-disable-next-line no-await-in-loop
-        await appendRouteConfigs(routeConfigs, app, appIps, false);
+        await appendRouteConfigs(routeConfigs, app, appIps, false, drainingIps);
         reportExclusion('Active-Active', app.name, false);
       } else {
         reportExclusion('Active-Active', app.name, true);
@@ -1450,7 +1482,7 @@ async function generateActiveStandbyHaproxyConfig() {
 
     // A draining or stopping instance is never selected as the active one.
     const liveLocations = new Map([...locationsForPass].map(([name, locations]) => [
-      name, locations.filter((l) => l.state !== 'draining' && l.state !== 'stopping'),
+      name, locations.filter((l) => !isDraining(l)),
     ]));
     const selected = await selectActiveStandbyPrimaries(appsOK, liveLocations);
 
@@ -1464,10 +1496,12 @@ async function generateActiveStandbyHaproxyConfig() {
 
         // if it is an active-standby application, use just one IP
         const selectedIP = selected.get(app.name);
+        const drainingIps = appLocations.filter(isDraining).map((l) => l.ip);
+        logDraining(app.name, drainingIps);
         if (selectedIP) {
           appIps.push(selectedIP);
           // eslint-disable-next-line no-await-in-loop
-          await appendRouteConfigs(routeConfigs, app, appIps, true);
+          await appendRouteConfigs(routeConfigs, app, appIps, true, drainingIps);
         }
 
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {

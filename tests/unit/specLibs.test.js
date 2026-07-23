@@ -36,28 +36,28 @@ const V9_BLOB = {
   },
 };
 
-describe('flux-spec consumption (specLibs)', function () {
+describe('flux-spec consumption (specLibs)', () => {
   let wire;
 
-  before(async function () {
+  before(async () => {
     const { FluxAppSpecV9 } = await load();
     wire = FluxAppSpecV9.fromSubmission(V9_BLOB).serialize();
   });
 
-  it('deserialize() dispatches to the version class', async function () {
+  it('deserialize() dispatches to the version class', async () => {
     const spec = await deserialize(wire);
     expect(spec.constructor.name).to.equal('FluxAppSpecV9');
     expect(spec.version).to.equal(9);
   });
 
-  it('resolveDeployment() merges the host port into each LB entry', async function () {
+  it('resolveDeployment() merges the host port into each LB entry', async () => {
     const spec = await deserialize(wire);
     const lb = (await resolveDeployment(spec, null)).getComponent('web').loadBalancing;
     expect(lb).to.have.property('http');
     expect(lb.http).to.include({ provider: 'haproxy', mode: 'http', hostPort: 31000 });
   });
 
-  it('resolveDeployment(replica) applies the per-replica effective host port', async function () {
+  it('resolveDeployment(replica) applies the per-replica effective host port', async () => {
     const spec = await deserialize(wire);
     const r1 = (await resolveDeployment(spec, 'r1')).getComponent('web').loadBalancing.http.hostPort;
     const r2 = (await resolveDeployment(spec, 'r2')).getComponent('web').loadBalancing.http.hostPort;

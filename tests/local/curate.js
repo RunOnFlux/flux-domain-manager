@@ -1,3 +1,6 @@
+/* eslint-disable no-restricted-syntax, no-continue, no-param-reassign, no-plusplus */
+// Local corpus-curation tool: it walks specs sequentially and rewrites them in place
+// to anonymise the fixture, which is exactly what those rules discourage elsewhere.
 // Regenerate the committed 30-spec anonymized characterization fixture from the
 // full corpus. Greedy branch-coverage selection (every version + g:/r:/s: markers,
 // custom domains, multi-component, enterprise, customConfigs rule hits), then
@@ -9,7 +12,7 @@
 // Then regenerate the golden: node tests/unit/fixtures/generate-golden.js
 const fs = require('fs');
 const path = require('path');
-const { getCustomConfigs } = require('../../src/services/application/custom.js');
+const { getCustomConfigs } = require('../../src/services/application/custom');
 
 const corpusPath = path.join(__dirname, 'corpus-raw.json');
 if (!fs.existsSync(corpusPath)) {

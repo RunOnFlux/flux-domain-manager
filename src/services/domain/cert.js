@@ -10,6 +10,7 @@ const {
   listDNSRecords, deleteDNSRecordCloudflare, deleteDNSRecordPDNS, createDNSRecord,
 } = require('./dns');
 const dnsCache = require('./dnsCache');
+const { getGroupIPs } = require('../rsync/config');
 
 const CERT_DIR = `/etc/ssl/${config.certFolder}`;
 const LETSENCRYPT_LIVE_DIR = '/etc/letsencrypt/live';
@@ -45,6 +46,13 @@ async function obtainDomainCertificate(domain) {
   await cmdAsync(`sudo cat ${fullchainPath} ${privkeyPath} > ${CERT_DIR}/${domain}.pem`);
 }
 
+// UNWIRED — nothing calls this, and it is the only thing that writes
+// /opt/update-certs.sh. `certbot renew` tracks its own certificates, but haproxy reads
+// the concatenated ${CERT_DIR}/${domain}.pem bundles, and rebuilding those after a
+// renewal is what this appends to the script. Retained rather than deleted as dead code
+// until it is confirmed whether the bundles are rebuilt some other way: if they are not,
+// this is a renewal gap to wire up, not code to remove.
+// eslint-disable-next-line no-unused-vars
 async function adjustAutoRenewalScriptForDomain(domain) { // let it throw
   const path = '/opt/update-certs.sh';
   const header = `#!/usr/bin/env bash
@@ -105,6 +113,10 @@ async function getCertDaysRemaining(domain) {
   }
 }
 
+// UNWIRED — superseded in practice by getCertDaysRemaining + shouldRemoveStaleCert,
+// which cleanupStaleCerts uses. Kept alongside adjustAutoRenewalScriptForDomain so both
+// are decided together rather than one being removed while the renewal question is open.
+// eslint-disable-next-line no-unused-vars
 async function isCertificateExpiringSoon(domain, thresholdDays = 30) {
   try {
     const pemPath = `${CERT_DIR}/${domain}.pem`;
@@ -142,7 +154,6 @@ async function isDomainPointedToThisGroup(hostname, FDMnameOrIP, myIP) {
     if (!FDMnameOrIP) {
       return false;
     }
-    const { getGroupIPs } = require('../rsync/config');
     const groupIPs = new Set(getGroupIPs());
     groupIPs.add(FDMnameOrIP);
     if (myIP) groupIPs.add(myIP);
@@ -305,12 +316,18 @@ async function executeCertificateOperations(domains, type, fdmOrIP, myIP) {
   }
 }
 
+function shouldRemoveStaleCert(daysRemaining) {
+  if (daysRemaining === null) return false;
+  return daysRemaining < -30;
+}
+
 async function cleanupStaleCerts() {
   try {
     const files = await fs.readdir(CERT_DIR);
     let removed = 0;
 
     for (const file of files) {
+      // eslint-disable-next-line no-continue
       if (!file.endsWith('.pem')) continue;
       const domain = file.slice(0, -4); // strip .pem
 
@@ -332,11 +349,6 @@ async function cleanupStaleCerts() {
     log.warn(`Error cleaning orphaned certs: ${error.message}`);
     return false;
   }
-}
-
-function shouldRemoveStaleCert(daysRemaining) {
-  if (daysRemaining === null) return false;
-  return daysRemaining < -30;
 }
 
 module.exports = {

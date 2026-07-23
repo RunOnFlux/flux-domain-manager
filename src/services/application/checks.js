@@ -1,4 +1,8 @@
 /* eslint-disable no-unused-vars */
+// gamedig is ESM-only and exposes itself through an exports map, which the eslint import
+// resolver cannot follow; it is a declared dependency, installed, and resolves at runtime
+// (awaited in the game-server probes below).
+// eslint-disable-next-line import/no-unresolved
 const gamedig = import('gamedig');
 
 const axios = require('axios');
@@ -132,7 +136,7 @@ async function isVersionOK(ip, port) {
   try {
     const url = `http://${ip}:${port}/flux/info`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
-    const version = response.data.data.flux.version;
+    const { version } = response.data.data.flux;
     if (minVersionSatisfy(version, '8.2.0')) {
       if (response.data.data.flux.development === 'false' || !response.data.data.flux.development) {
         return true;

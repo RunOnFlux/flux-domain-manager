@@ -149,6 +149,9 @@ function timeout(ms) {
 async function runWithConcurrency(tasks, limit) {
   const results = [];
   const executing = new Set();
+  // Sequential by design: each task is admitted only once a slot frees, which is the
+  // whole point of the concurrency limit.
+  // eslint-disable-next-line no-restricted-syntax
   for (const task of tasks) {
     // eslint-disable-next-line no-loop-func
     const p = task().finally(() => executing.delete(p));

@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */ // sequential await per item
 async function selectIPforG(ips, app) {
   // choose the ip address whose sum of digits is the lowest
   if (ips && ips.length) {

@@ -11,9 +11,11 @@ const hostsIniPath = path.resolve(__dirname, '../deployment/hosts.ini');
 const hosts = ini.parse(fs.readFileSync(hostsIniPath, 'utf-8'));
 
 // Import the module (uses default rsync_config.json: fdm_fn1_app / app_fdm_servers)
-const { getGroupPeerIPs, getGroupIPs, getPrimaryIP, parseHostConfig } = require('../src/services/rsync/config');
+const {
+  getGroupPeerIPs, getGroupIPs, getPrimaryIP, parseHostConfig,
+} = require('../src/services/rsync/config');
 
-describe('rsync config', function () {
+describe('rsync config', () => {
   describe('getGroupPeerIPs', () => {
     it('returns an array of IPs', () => {
       const result = getGroupPeerIPs();
@@ -87,7 +89,7 @@ describe('rsync config', function () {
         ansible_host: '128.199.246.121',
         ansible_user: 'root',
       });
-      expect(result.rsyncIP).to.be.undefined;
+      expect(result.rsyncIP).to.equal(undefined);
     });
 
     it('returns empty object for empty string', () => {
@@ -145,7 +147,7 @@ describe('rsync config', function () {
       const groupNumbers = [...new Set(appHosts.map((h) => h.charAt(6)))];
       groupNumbers.forEach((num) => {
         const fnHost = appHosts.find((h) => h.charAt(6) === num && h.includes('_fn'));
-        expect(fnHost, `Group ${num} should have an fn host`).to.not.be.undefined;
+        expect(fnHost, `Group ${num} should have an fn host`).to.not.equal(undefined);
       });
     });
 
@@ -154,7 +156,7 @@ describe('rsync config', function () {
       const groupNumbers = [...new Set(app2Hosts.map((h) => h.charAt(6)))];
       groupNumbers.forEach((num) => {
         const fnHost = app2Hosts.find((h) => h.charAt(6) === num && h.includes('_fn'));
-        expect(fnHost, `Group ${num} should have an fn host`).to.not.be.undefined;
+        expect(fnHost, `Group ${num} should have an fn host`).to.not.equal(undefined);
       });
     });
   });

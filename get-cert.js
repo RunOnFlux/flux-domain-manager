@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-restricted-syntax */ // sequential await per domain
 
 /* eslint-disable no-console */
 
@@ -44,7 +45,7 @@ async function checkPem() {
   const pemPath = `${CERT_DIR}/${domain}.pem`;
   try {
     await fs.access(pemPath);
-    const size = fsSync.statSync(pemPath).size;
+    const { size } = fsSync.statSync(pemPath);
     if (size <= 128) {
       console.log(`PEM exists but is empty/corrupt (${size} bytes)`);
       return { exists: false };
@@ -132,7 +133,7 @@ function obtainCert() {
   console.log('');
 
   // Letsencrypt check
-  const leExists = checkLetsencrypt();
+  checkLetsencrypt(); // reports to stdout; the decision below uses dnsOk/pem
   console.log('');
 
   // Decision

@@ -14,6 +14,9 @@ describe('haproxyTemplate', () => {
 
     // We can't easily re-require with different config, but we can verify the
     // generated config string contains the expected primary IP
+    // Required inside the test on purpose: the module reads config at load time, so
+    // hoisting this would bind it before the test's config is in place.
+    // eslint-disable-next-line global-require
     const { getPrimaryIP } = require('../src/services/rsync/config');
     const primaryIP = getPrimaryIP();
     expect(primaryIP).to.be.a('string');
@@ -25,6 +28,9 @@ describe('haproxyTemplate', () => {
   });
 
   it('getPrimaryIP returns the fn host IP for the default test config', () => {
+    // Required inside the test on purpose: the module reads config at load time, so
+    // hoisting this would bind it before the test's config is in place.
+    // eslint-disable-next-line global-require
     const { getPrimaryIP } = require('../src/services/rsync/config');
     const primaryIP = getPrimaryIP();
     // Default rsync_config.json is fdm_fn1_app, group 1 fn host is itself: 5.39.57.42

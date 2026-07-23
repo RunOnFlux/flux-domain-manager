@@ -1,0 +1,47 @@
+{
+  "checks": [
+    {
+      "probe": "generalWebsite",
+      "apps": ["paoverview", "web"]
+    },
+    {
+      "probe": "fluxExplorer",
+      "apps": ["explorer", "explorerb"],
+      "port": 39185
+    },
+    {
+      "probe": "bitcoinNode",
+      "apps": ["bitcoinnode", "bitcoinnodetestnet", "bitcoinnodesignet"]
+    },
+    {
+      "probe": "blockBook",
+      "prefix": "blockbook"
+    },
+    {
+      "probe": "alphExplorer",
+      "apps": ["alphexplorer"],
+      "port": 9090
+    },
+    {
+      "probe": "ethers",
+      "prefix": "BitgertRPC",
+      "port": "32300",
+      "cmd": "eth_syncing",
+      "providerURL": null
+    },
+    {
+      "probe": "ethers",
+      "prefix": "WanchainRpc",
+      "port": "31000",
+      "cmd": "eth_syncing",
+      "providerURL": null
+    },
+    {
+      "probe": "ethers",
+      "prefix": "FuseRPC",
+      "port": "38545",
+      "cmd": "eth_syncing",
+      "providerURL": "https://fuse-mainnet.chainstacklabs.com"
+    }
+  ]
+}

@@ -14,24 +14,6 @@ const domainService = require('../domainService');
 const log = require('../../lib/log');
 
 const timeout = 5456;
-const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'web', 'eckodexswap', 'eckodexvault'];
-const ethersList = [
-  {
-    name: 'BitgertRPC', providerURL: null, cmd: 'eth_syncing', port: '32300',
-  },
-  {
-    name: 'CeloRPC', providerURL: 'https://forno.celo.org', cmd: 'eth_syncing', port: '35000',
-  },
-  {
-    name: 'WanchainRpc', providerURL: null, cmd: 'eth_syncing', port: '31000',
-  },
-  {
-    name: 'FuseRPC', providerURL: 'https://fuse-mainnet.chainstacklabs.com', cmd: 'eth_syncing', port: '38545',
-  },
-  {
-    name: 'AstarRPC', providerURL: null, cmd: 'system_health', port: '36011',
-  },
-];
 let currentFluxBlockheight = 1968478;
 // MAIN
 async function checkLoginPhrase(ip, port) {
@@ -513,21 +495,6 @@ async function checkALPHexplorer(ip, port) {
   }
 }
 
-async function checkErgoHeight(ip, port) {
-  try {
-    const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/info`, 5000);
-    const { fullHeight, maxPeerHeight, headersHeight } = response.data;
-
-    // Check if fullHeight matches maxPeerHeight and headersHeight
-    if (fullHeight === maxPeerHeight && headersHeight === maxPeerHeight) {
-      return true;
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
-
 async function checkRunOnFluxWebsite(ip, port) {
   try {
     const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 8888);
@@ -592,33 +559,6 @@ async function checkFluxExplorer(ip, port) {
       }
     }
     return false;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkHavenHeight(ip, port) {
-  try {
-    const response = await serviceHelper.httpGetRequest(`http://${ip}:${port}/get_info`, 1500);
-    if (response.data.height > response.data.target_height && response.data.height > 1) {
-      return true;
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkHavenRPC(ip, port) {
-  try {
-    const data = {
-      jsonrpc: '2.0',
-      id: '0',
-      method: 'get_last_block_header',
-    };
-    await serviceHelper.httpPostRequest(`http://${ip}:${port}/json_rpc`, data, 1500);
-    // if code 200 all ok
-    return true;
   } catch (error) {
     return false;
   }
@@ -735,31 +675,6 @@ async function checkBlockBook(ip, port, appsname) {
     return false;
   } catch (error) {
     log.error(`Error checking blockbook endpoint: ${ip}:${port} ${error.message}`);
-    return false;
-  }
-}
-
-async function checkAlgorand(ip, port) {
-  try {
-    const { CancelToken } = axios;
-    const source = CancelToken.source();
-    let isResolved = false;
-    setTimeout(() => {
-      if (!isResolved) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, 13456 * 2);
-    const axiosConfig = {
-      timeout: 13456,
-      cancelToken: source.token,
-    };
-    const status = await axios.get(`http://${ip}:${port}/health`, axiosConfig);
-    isResolved = true;
-    if (status.data.isSynced === true) {
-      return true;
-    }
-    return false;
-  } catch (e) {
     return false;
   }
 }
@@ -893,31 +808,6 @@ async function checkEnshrouded(ip, port) {
   }
 }
 
-async function checkBittensor(ip, port) {
-  const url = `http://${ip}:${port}/`;
-  const data = {
-    id: 1,
-    jsonrpc: '2.0',
-    method: 'getinfo',
-    params: [],
-  };
-  try {
-    const { CancelToken } = axios;
-    const source = CancelToken.source();
-    let isResolved = false;
-    setTimeout(() => {
-      if (!isResolved) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, 5000 * 2);
-    await axios.post(url, data, { timeout: 5000, cancelToken: source.token });
-    isResolved = true;
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
 // Is this app's instance running on that node? `replica` narrows the question to one
 // named replica: a node can host several co-located replicas of the same app, and for an
 // active-standby app the answer for one of them is not the answer for its siblings.
@@ -951,38 +841,6 @@ async function checkAppRunning(url, appName, replica = null) {
   }
 }
 
-function applicationWithChecks(app) {
-  if (generalWebsiteApps.includes(app.name)) {
-    return true;
-  } if (app.name === 'explorer' || app.name === 'explorerb') {
-    return true;
-  } if (app.name === 'bitcoinnode' || app.name === 'bitcoinnodetestnet' || app.name === 'bitcoinnodesignet') {
-    return true;
-  } if (app.name === 'HavenNodeMainnet') {
-    return true;
-  } if (app.name === 'HavenNodeTestnet') {
-    return true;
-  } if (app.name === 'HavenNodeStagenet') {
-    return true;
-  } if (app.name.startsWith('blockbook')) {
-    return true;
-  } if (app.name.startsWith('AlgorandRPC')) {
-    return true;
-  } if (app.name.toLowerCase().includes('bittensor')) {
-    return true;
-  } if (app.name === 'alphexplorer') {
-    return true;
-  } if (app.name === 'ergo') {
-    return true;
-  }
-  const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
-  if (matchIndex > -1) {
-    return true;
-  }
-
-  return false;
-}
-
 // The Nth host port this app routes, read off the resolved DeploymentSpec instead of raw
 // compose. Every version normalizes onto the same routes, so this replaces the
 // version-shaped reads these probes used to do (`app.ports[0]` for v1-3,
@@ -999,45 +857,56 @@ function routedPort(deployment, index = 0) {
   return route ? route.hostPort : undefined;
 }
 
-async function checkApplication(app, ip, deployment) {
-  let isOK = true;
-  if (generalWebsiteApps.includes(app.name)) {
-    isOK = await generalWebsiteCheck(ip.split(':')[0], routedPort(deployment), undefined, app.name);
-  } else if (app.name === 'explorer' || app.name === 'explorerb') {
-    isOK = await checkFluxExplorer(ip.split(':')[0], 39185);
-  } else if (app.name === 'bitcoinnode' || app.name === 'bitcoinnodetestnet' || app.name === 'bitcoinnodesignet') {
-    isOK = await checkBitcoinNode(ip.split(':')[0], routedPort(deployment), app.name);
-  } else if (app.name === 'HavenNodeMainnet') {
-    isOK = await checkHavenHeight(ip.split(':')[0], 31750);
-    if (isOK) {
-      isOK = await checkHavenRPC(ip.split(':')[0], 31750);
-    }
-  } else if (app.name === 'HavenNodeTestnet') {
-    isOK = await checkHavenHeight(ip.split(':')[0], 32750);
-    if (isOK) {
-      isOK = await checkHavenRPC(ip.split(':')[0], 32750);
-    }
-  } else if (app.name === 'HavenNodeStagenet') {
-    isOK = await checkHavenHeight(ip.split(':')[0], 33750);
-    if (isOK) {
-      isOK = await checkHavenRPC(ip.split(':')[0], 33750);
-    }
-  } else if (app.name.startsWith('blockbook')) {
-    isOK = await checkBlockBook(ip.includes('[') ? `${ip.split(']')[0]}]` : ip.split(':')[0], ip.includes(']:') ? ip.split(']:')[1] : routedPort(deployment), app.name);
-  } else if (app.name.startsWith('AlgorandRPC')) {
-    isOK = await checkAlgorand(ip.split(':')[0], routedPort(deployment, 1));
-  } else if (app.name.toLowerCase().includes('bittensor')) {
-    isOK = await checkBittensor(ip.split(':')[0], routedPort(deployment));
-  } else if (app.name === 'alphexplorer') {
-    isOK = await checkALPHexplorer(ip.split(':')[0], 9090);
-  } else if (app.name === 'ergo') {
-    isOK = await checkErgoHeight(ip.split(':')[0], 9053);
-  } else {
-    const matchIndex = ethersList.findIndex((eApp) => app.name.startsWith(eApp.name));
-    if (matchIndex > -1) {
-      isOK = await checkEthers(ip.split(':')[0], ethersList[matchIndex].port, ethersList[matchIndex].providerURL, ethersList[matchIndex].cmd);
-    }
-  }
+// Which named apps get a coded health check, and which probe answers for them, is data:
+// it changes as apps come and go and says nothing about how a probe works. It lives in
+// config/appChecks.json. What stays here is how to call each probe — the argument
+// plumbing, which is genuinely code.
+//
+// One lookup serves both "does this app have a check" and "run it", so the two cannot
+// disagree. They used to be separate if/else chains listing the same conditions in the
+// same order, kept in step by hand; adding an app to one and not the other either skipped
+// its check silently or called a probe that was never meant to run for it.
+//
+// First rule wins, so order in the file is precedence.
+function checkRuleFor(appName) {
+  return config.appChecks.checks.find(
+    (rule) => (rule.apps && rule.apps.includes(appName))
+      || (rule.prefix && appName.startsWith(rule.prefix)),
+  ) || null;
+}
+
+// Each probe takes what it needs from the rule, the app and its resolved deployment.
+// `ip` is the node address as FDM holds it (host:apiPort, IPv6 bracketed); `host` is that
+// address with the port stripped.
+const PROBES = {
+  generalWebsite: (rule, { host, app, deployment }) => generalWebsiteCheck(host, routedPort(deployment), undefined, app.name),
+  fluxExplorer: (rule, { host }) => checkFluxExplorer(host, rule.port),
+  bitcoinNode: (rule, { host, app, deployment }) => checkBitcoinNode(host, routedPort(deployment), app.name),
+  alphExplorer: (rule, { host }) => checkALPHexplorer(host, rule.port),
+  ethers: (rule, { host }) => checkEthers(host, rule.port, rule.providerURL, rule.cmd),
+  // Blockbook is the one probe addressed by the node's own IPv6 literal when it has one,
+  // taking the port from the address rather than the deployment.
+  blockBook: (rule, {
+    ip, host, app, deployment,
+  }) => checkBlockBook(
+    ip.includes('[') ? `${ip.split(']')[0]}]` : host,
+    ip.includes(']:') ? ip.split(']:')[1] : routedPort(deployment),
+    app.name,
+  ),
+};
+
+function applicationWithChecks(app) {
+  return checkRuleFor(app.name) !== null;
+}
+
+// `probes` is injectable so the dispatch can be tested without standing up the network
+// calls it selects. Production always uses PROBES.
+async function checkApplication(app, ip, deployment, probes = PROBES) {
+  const rule = checkRuleFor(app.name);
+  if (!rule) return true;
+  const isOK = await probes[rule.probe](rule, {
+    ip, host: ip.split(':')[0], app, deployment,
+  });
   return isOK;
 }
 
@@ -1083,8 +952,6 @@ module.exports = {
   checkRunOnFluxWebsite,
   checkFluxExplorer,
   checkCloudAtlasWebsite,
-  checkHavenHeight,
-  checkHavenRPC,
   checkKDLaunch,
   checkMOKWebsite,
   checkHavenValut,
@@ -1092,10 +959,8 @@ module.exports = {
   checkApplication,
   applicationWithChecks,
   checkBlockBook,
-  checkAlgorand,
   checkEthers,
   checkAppRunning,
   checkALPHexplorer,
-  checkErgoHeight,
   isArcaneOS,
 };

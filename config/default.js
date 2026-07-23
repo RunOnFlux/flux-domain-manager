@@ -4,6 +4,7 @@ const haproxyRouting = require('./haproxyRouting');
 const specDecrypt = require('./specDecrypt');
 const domainOverrides = require('./domainOverrides');
 const sharedDbRouting = require('./sharedDbRouting');
+const appChecks = require('./appChecks');
 
 module.exports = {
   server: {
@@ -43,6 +44,7 @@ module.exports = {
   specDecrypt,
   domainOverrides,
   sharedDbRouting,
+  appChecks,
   appSubDomain: 'app2',
   fdmAppDomain: 'fdm-lb-2-1.runonflux.io',
   uiName: 'home',

@@ -9,6 +9,7 @@ const {
   processApplications,
   getCustomDomains,
 } = require('./domain');
+const { effectiveRoutes } = require('./domain/effectiveRoutes');
 const { DomainOwnershipRegistry } = require('./domain/ownership');
 const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/cert');
 const applicationChecks = require('./application/checks');
@@ -1165,6 +1166,27 @@ function toBackends(appIps, drainingIps, appLocations) {
   return take(appIps, false).concat(take(drainingIps, true));
 }
 
+// The shared-db operator's API port, or null when the app runs no operator. The operator
+// reports which node currently holds the cluster primary, which decides backend order.
+// Version-blind: read off the resolved deployment's routes, which are already reduced to
+// the ports FDM publishes, so the API port is the last one the operator still routes.
+// Whether an image is one of the shared-db components config.sharedDbRouting names.
+function isSharedDbImage(image) {
+  const lowered = (image || '').toLowerCase();
+  return config.sharedDbRouting.components.some((rule) => lowered.includes(rule.image));
+}
+
+// Whether an app runs a shared-db component, whatever its spec version.
+function runsSharedDb(deployment) {
+  return Object.values(deployment.components).some((component) => isSharedDbImage(component.image));
+}
+
+function sharedDbApiPort(deployment) {
+  const isOperator = (name) => isSharedDbImage(deployment.components[name]?.image);
+  const operatorRoutes = effectiveRoutes(deployment).filter((route) => isOperator(route.componentName));
+  return operatorRoutes.length ? operatorRoutes[operatorRoutes.length - 1].hostPort : null;
+}
+
 // Resolve the ordered, in-rotation backend IPs for an app from its live locations —
 // the one place config assembly consults runtime state. Three concerns that used to be
 // smeared through the routing loop live here now:
@@ -1185,19 +1207,18 @@ async function resolveBackends(app, appLocations) {
   const live = appLocations.filter((l) => !isDraining(l));
   const drainingIps = appLocations.filter(isDraining).map((l) => l.ip);
   logDraining(app.name, drainingIps);
-  const sharedDb = Boolean(app.compose && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db')));
   let appIps = [];
 
+  // One resolved view for every branch below: the probe ports, the shared-db operator's
+  // API port, and syncFirst all read it.
+  const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
+  const sharedDb = runsSharedDb(deployment);
+
   if (applicationChecks.applicationWithChecks(app)) {
-    // The probes need the app's routed port. Resolved here rather than reusing the
-    // syncFirst resolution below, which deliberately runs AFTER the shared-db branch's
-    // compose surgery — a different view, and a branch this one never takes.
-    // eslint-disable-next-line no-await-in-loop
-    const probeDeployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
     // Per-app coded checks hit the network, so responses arrive out of order; sort by ip.
     let promiseArray = [];
     for (const [i, location] of live.entries()) {
-      promiseArray.push(addAppIps(app, location.ip, probeDeployment));
+      promiseArray.push(addAppIps(app, location.ip, deployment));
       if ((i + 1) % 10 === 0) {
         // eslint-disable-next-line no-await-in-loop
         await Promise.allSettled(promiseArray);
@@ -1214,14 +1235,13 @@ async function resolveBackends(app, appLocations) {
     }
     serviceHelper.sortIPAddresses(appIps);
   } else if (sharedDb) {
-    // Ordered before the cluster has its say, so the fallbacks below start from a
-    // fixed order rather than from whatever the locations API happened to return.
+    // Ordered before the cluster has its say, so the fallbacks below start from a fixed
+    // order rather than from whatever the locations API happened to return. Which ports
+    // reach the load balancer is decided in effectiveRoutes, not here - this only orders.
     appIps = orderBySeniority(live.map((location) => location.ip), live);
-    const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
     log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
-    if (componentUsingSharedDB.ports && componentUsingSharedDB.ports.length > 0) {
-      // it's the last port from the shareddb that is the api port
-      const apiPort = componentUsingSharedDB.ports[componentUsingSharedDB.ports.length - 1];
+    const apiPort = sharedDbApiPort(deployment);
+    if (apiPort) {
       let operatorClusterStatus = null;
       const httpTimeout = 5000;
       // eslint-disable-next-line no-restricted-syntax
@@ -1247,14 +1267,6 @@ async function resolveBackends(app, appLocations) {
         // FluxOS's own active-standby election uses (runningSince ascending).
         appIps = orderBySeniority(appIps, live);
       }
-      // lets remove db and operator from haproxy
-      const componentUsingSharedDBIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
-      const componentMySQLIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('mysql'));
-      if (componentUsingSharedDBIndex >= 0) {
-        // eslint-disable-next-line no-param-reassign
-        app.compose[componentUsingSharedDBIndex].ports = app.compose[componentUsingSharedDBIndex].ports.slice(-1);
-      }
-      if (componentMySQLIndex >= 0) app.compose.splice(componentMySQLIndex, 1);
     }
   } else {
     // The branch most apps take. Order carries no meaning here - haproxy spreads

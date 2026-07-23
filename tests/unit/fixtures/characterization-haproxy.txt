@@ -62,8 +62,6 @@ frontend wwwhttp
   acl wordpress1677413615318_38286app2runonfluxio hdr(host) anon0.com
   acl wordpress1677413615318_38286app2runonfluxio hdr(host) www.anon0.com
   acl wordpress1677413615318_38286app2runonfluxio hdr(host) test.anon0.com
-  acl wordpress1677413615318_34328app2runonfluxio hdr(host) wordpress1677413615318_34328.app2.runonflux.io
-  acl wordpress1677413615318_36562app2runonfluxio hdr(host) wordpress1677413615318_36562.app2.runonflux.io
   acl wordpress1677413615318_34252app2runonfluxio hdr(host) wordpress1677413615318_34252.app2.runonflux.io
   acl wordpress1677413615318_38286app2runonfluxio hdr(host) wordpress1677413615318.app2.runonflux.io
   acl anonapp1_35051app2runonfluxio hdr(host) anonapp1_35051.app2.runonflux.io
@@ -169,8 +167,6 @@ frontend wwwhttp
   acl budibasemysql_34419app2runonfluxio hdr(host) budibasemysql_34419.app2.runonflux.io
   acl budibasemysql_39443app2runonfluxio hdr(host) budibasemysql_39443.app2.runonflux.io
   acl budibasemysql_39080app2runonfluxio hdr(host) budibasemysql_39080.app2.runonflux.io
-  acl budibasemysql_36477app2runonfluxio hdr(host) budibasemysql_36477.app2.runonflux.io
-  acl budibasemysql_38451app2runonfluxio hdr(host) budibasemysql_38451.app2.runonflux.io
   acl budibasemysql_32069app2runonfluxio hdr(host) budibasemysql_32069.app2.runonflux.io
   acl budibasemysql_34419app2runonfluxio hdr(host) budibasemysql.app2.runonflux.io
   acl anonapp27_32442app2runonfluxio hdr(host) anonapp27_32442.app2.runonflux.io
@@ -222,8 +218,6 @@ frontend wwwhttp
   acl anonapp22_25565app2runonfluxio hdr(host) anonapp22.app2.runonflux.io
   use_backend forbidden-backend if forbiddenacl
   use_backend wordpress1677413615318_38286app2runonfluxiobackend if wordpress1677413615318_38286app2runonfluxio
-  use_backend wordpress1677413615318_34328app2runonfluxiobackend if wordpress1677413615318_34328app2runonfluxio
-  use_backend wordpress1677413615318_36562app2runonfluxiobackend if wordpress1677413615318_36562app2runonfluxio
   use_backend wordpress1677413615318_34252app2runonfluxiobackend if wordpress1677413615318_34252app2runonfluxio
   use_backend anonapp1_35051app2runonfluxiobackend if anonapp1_35051app2runonfluxio
   use_backend anonapp3_33702app2runonfluxiobackend if anonapp3_33702app2runonfluxio
@@ -267,8 +261,6 @@ frontend wwwhttp
   use_backend budibasemysql_34419app2runonfluxiobackend if budibasemysql_34419app2runonfluxio
   use_backend budibasemysql_39443app2runonfluxiobackend if budibasemysql_39443app2runonfluxio
   use_backend budibasemysql_39080app2runonfluxiobackend if budibasemysql_39080app2runonfluxio
-  use_backend budibasemysql_36477app2runonfluxiobackend if budibasemysql_36477app2runonfluxio
-  use_backend budibasemysql_38451app2runonfluxiobackend if budibasemysql_38451app2runonfluxio
   use_backend budibasemysql_32069app2runonfluxiobackend if budibasemysql_32069app2runonfluxio
   use_backend anonapp27_32442app2runonfluxiobackend if anonapp27_32442app2runonfluxio
   use_backend anonapp27_32409app2runonfluxiobackend if anonapp27_32409app2runonfluxio
@@ -678,8 +670,6 @@ frontend wwwhttps
   acl wordpress1677413615318_38286app2runonfluxio hdr(host) anon0.com
   acl wordpress1677413615318_38286app2runonfluxio hdr(host) www.anon0.com
   acl wordpress1677413615318_38286app2runonfluxio hdr(host) test.anon0.com
-  acl wordpress1677413615318_34328app2runonfluxio hdr(host) wordpress1677413615318_34328.app2.runonflux.io
-  acl wordpress1677413615318_36562app2runonfluxio hdr(host) wordpress1677413615318_36562.app2.runonflux.io
   acl wordpress1677413615318_34252app2runonfluxio hdr(host) wordpress1677413615318_34252.app2.runonflux.io
   acl wordpress1677413615318_38286app2runonfluxio hdr(host) wordpress1677413615318.app2.runonflux.io
   acl anonapp1_35051app2runonfluxio hdr(host) anonapp1_35051.app2.runonflux.io
@@ -785,8 +775,6 @@ frontend wwwhttps
   acl budibasemysql_34419app2runonfluxio hdr(host) budibasemysql_34419.app2.runonflux.io
   acl budibasemysql_39443app2runonfluxio hdr(host) budibasemysql_39443.app2.runonflux.io
   acl budibasemysql_39080app2runonfluxio hdr(host) budibasemysql_39080.app2.runonflux.io
-  acl budibasemysql_36477app2runonfluxio hdr(host) budibasemysql_36477.app2.runonflux.io
-  acl budibasemysql_38451app2runonfluxio hdr(host) budibasemysql_38451.app2.runonflux.io
   acl budibasemysql_32069app2runonfluxio hdr(host) budibasemysql_32069.app2.runonflux.io
   acl budibasemysql_34419app2runonfluxio hdr(host) budibasemysql.app2.runonflux.io
   acl anonapp27_32442app2runonfluxio hdr(host) anonapp27_32442.app2.runonflux.io
@@ -838,8 +826,6 @@ frontend wwwhttps
   acl anonapp22_25565app2runonfluxio hdr(host) anonapp22.app2.runonflux.io
   use_backend forbidden-backend if forbiddenacl
   use_backend wordpress1677413615318_38286app2runonfluxiobackend if wordpress1677413615318_38286app2runonfluxio
-  use_backend wordpress1677413615318_34328app2runonfluxiobackend if wordpress1677413615318_34328app2runonfluxio
-  use_backend wordpress1677413615318_36562app2runonfluxiobackend if wordpress1677413615318_36562app2runonfluxio
   use_backend wordpress1677413615318_34252app2runonfluxiobackend if wordpress1677413615318_34252app2runonfluxio
   use_backend anonapp1_35051app2runonfluxiobackend if anonapp1_35051app2runonfluxio
   use_backend anonapp3_33702app2runonfluxiobackend if anonapp3_33702app2runonfluxio
@@ -883,8 +869,6 @@ frontend wwwhttps
   use_backend budibasemysql_34419app2runonfluxiobackend if budibasemysql_34419app2runonfluxio
   use_backend budibasemysql_39443app2runonfluxiobackend if budibasemysql_39443app2runonfluxio
   use_backend budibasemysql_39080app2runonfluxiobackend if budibasemysql_39080app2runonfluxio
-  use_backend budibasemysql_36477app2runonfluxiobackend if budibasemysql_36477app2runonfluxio
-  use_backend budibasemysql_38451app2runonfluxiobackend if budibasemysql_38451app2runonfluxio
   use_backend budibasemysql_32069app2runonfluxiobackend if budibasemysql_32069app2runonfluxio
   use_backend anonapp27_32442app2runonfluxiobackend if anonapp27_32442app2runonfluxio
   use_backend anonapp27_32409app2runonfluxiobackend if anonapp27_32409app2runonfluxio
@@ -925,36 +909,6 @@ backend wordpress1677413615318_38286app2runonfluxiobackend
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:38286 check cookie 144.76.10.20:38286 inter 3s fall 2 rise 2 fastinter 500
   server 167.86.90.30:16127 167.86.90.30:38286 check cookie 167.86.90.30:38286 inter 3s fall 2 rise 2 fastinter 500 backup
-
-backend wordpress1677413615318_34328app2runonfluxiobackend
-  mode http
-  balance roundrobin
-  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
-  http-request add-header X-Forwarded-Proto https
-  option httpchk
-  http-check send meth GET uri /
-  timeout http-request 15s
-  timeout server 20s
-  retries 3
-  retry-on conn-failure response-timeout empty-response 500
-  option redispatch 1
-  server 144.76.10.20:16127 144.76.10.20:34328 check cookie 144.76.10.20:34328 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:34328 check cookie 167.86.90.30:34328 inter 3s fall 2 rise 2 fastinter 500 backup
-
-backend wordpress1677413615318_36562app2runonfluxiobackend
-  mode http
-  balance roundrobin
-  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
-  http-request add-header X-Forwarded-Proto https
-  option httpchk
-  http-check send meth GET uri /
-  timeout http-request 15s
-  timeout server 20s
-  retries 3
-  retry-on conn-failure response-timeout empty-response 500
-  option redispatch 1
-  server 144.76.10.20:16127 144.76.10.20:36562 check cookie 144.76.10.20:36562 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:36562 check cookie 167.86.90.30:36562 inter 3s fall 2 rise 2 fastinter 500 backup
 
 backend wordpress1677413615318_34252app2runonfluxiobackend
   mode http
@@ -1477,30 +1431,6 @@ backend budibasemysql_39080app2runonfluxiobackend
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:39080 check cookie 144.76.10.20:39080 inter 3s fall 2 rise 2 fastinter 500
   server 167.86.90.30:16127 167.86.90.30:39080 check cookie 167.86.90.30:39080 inter 3s fall 2 rise 2 fastinter 500 backup
-
-backend budibasemysql_36477app2runonfluxiobackend
-  mode http
-  balance roundrobin
-  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
-  timeout http-request 15s
-  timeout server 20s
-  retries 3
-  retry-on conn-failure response-timeout empty-response 500
-  option redispatch 1
-  server 144.76.10.20:16127 144.76.10.20:36477 check cookie 144.76.10.20:36477 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:36477 check cookie 167.86.90.30:36477 inter 3s fall 2 rise 2 fastinter 500 backup
-
-backend budibasemysql_38451app2runonfluxiobackend
-  mode http
-  balance roundrobin
-  cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
-  timeout http-request 15s
-  timeout server 20s
-  retries 3
-  retry-on conn-failure response-timeout empty-response 500
-  option redispatch 1
-  server 144.76.10.20:16127 144.76.10.20:38451 check cookie 144.76.10.20:38451 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:38451 check cookie 167.86.90.30:38451 inter 3s fall 2 rise 2 fastinter 500 backup
 
 backend budibasemysql_32069app2runonfluxiobackend
   mode http

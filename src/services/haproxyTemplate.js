@@ -572,7 +572,9 @@ function createAppsHaproxyConfig(appConfig) {
     if (app.appName in seenApps) {
       domains.push(app.domain);
       routingAcls.push(new Directive('acl', [seenApps[app.appName], 'hdr(host)', app.domain]));
-    } else if (!matchRule(app.name.toLowerCase(), configGlobal.minecraftApps)) { // minecraftApps: TCP frontend only
+    } else if (!matchRule(app.name.toLowerCase(), configGlobal.minecraftApps)) {
+      // Minecraft apps are served by the TCP frontend below, which routes off the parsed
+      // handshake rather than a TLS hello, so they add nothing to the http frontends.
       if (routingUseBackends.some((d) => d.args[0] === `${domainUsed}backend`)) {
         // eslint-disable-next-line no-continue
         continue;

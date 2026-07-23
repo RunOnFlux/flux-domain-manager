@@ -116,29 +116,7 @@ class HaproxyConfig {
 }
 
 // Section keywords that start a new section at column 0.
-const SECTION_KEYWORDS = ['global', 'defaults', 'frontend', 'backend', 'listen',
-  'resolvers', 'peers', 'userlist', 'mailers', 'ring', 'program'];
-const SECTION_HEADER = new RegExp(`^(${SECTION_KEYWORDS.join('|')})(?:\\s+(\\S+))?\\s*$`);
-
-// Parse existing haproxy config text into the model (the inverse of render). A line at
-// column 0 matching a section keyword opens a section; everything else is a body line
-// of the current section, kept verbatim (as a raw directive). Blank lines are dropped.
-// Round-trips: render(parse(text)) is text, modulo whitespace/blank normalization.
-function parse(text) {
-  const config = new HaproxyConfig();
-  let section = null;
-  text.split('\n').forEach((line) => {
-    if (line.trim() === '') return;
-    const header = !/^\s/.test(line) && line.match(SECTION_HEADER);
-    if (header) {
-      section = config.section(header[1], header[2] || null);
-    } else if (section) {
-      section.raw(line.trim());
-    }
-  });
-  return config;
-}
 
 module.exports = {
-  HaproxyConfig, Section, Directive, Comment, Blank, parse,
+  HaproxyConfig, Section, Directive, Comment, Blank,
 };

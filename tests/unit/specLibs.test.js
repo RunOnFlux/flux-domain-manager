@@ -16,8 +16,10 @@ const V9_BLOB = {
   owner: '16dNCFf7nR3nx5iwn2RQMBw6KcJXkE3JC1',
   ttl: 2592000,
   contacts: { email: ['admin@example.com'] },
-  // two replicas co-located on one node; r2's http port overridden
-  placement: { targetIps: { '10.0.0.1': ['r1', 'r2'] } },
+  // two replicas co-located on one node; r2's http port overridden. The name->node
+  // map is `assignment`; the cleartext `placement` identity set, its mode, and
+  // `instances` are derived projections of it.
+  assignment: { targetIps: { '10.0.0.1': ['r1', 'r2'] } },
   components: {
     web: {
       name: 'web',

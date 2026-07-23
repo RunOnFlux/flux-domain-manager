@@ -173,8 +173,6 @@
         path: "flux-domain-manager/config/{{ item }}"
         state: file
       loop:
-        - cloudflareConfig.js
-        - PDNSConfig.js
         - appsConfig.js
 
     - name: Ensure config files exist for CDM (they should already be there from git clone)
@@ -183,8 +181,6 @@
         state: file
       when: certRenewalPrimary | bool
       loop:
-        - cloudflareConfig.js
-        - PDNSConfig.js
         - appsConfig.js
 
     - name: Install Dependencies FDM

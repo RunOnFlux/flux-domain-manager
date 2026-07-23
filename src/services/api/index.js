@@ -1,5 +1,4 @@
 const config = require('config');
-const { listDNSRecords } = require('../domain/dns');
 const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
 const domainService = require('../domainService');
@@ -15,18 +14,6 @@ async function getAllRecordsDBAPI(req, res) {
     const q = {};
     const p = {};
     const records = await serviceHelper.findInDatabase(database, recordsCollection, q, p);
-    const resMessage = serviceHelper.createDataMessage(records);
-    res.json(resMessage);
-  } catch (error) {
-    log.error(error);
-    const errMessage = serviceHelper.createErrorMessage(error.message, error.name, error.code);
-    res.json(errMessage);
-  }
-}
-
-async function listDNSRecordsAPI(req, res) {
-  try {
-    const records = await listDNSRecords();
     const resMessage = serviceHelper.createDataMessage(records);
     res.json(resMessage);
   } catch (error) {
@@ -97,7 +84,6 @@ function getAppIpsAPI(req, res) {
 
 module.exports = {
   getAllRecordsDBAPI,
-  listDNSRecordsAPI,
   pkiValidation,
   getAppIpsAPI,
 };

@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */ // sequential await per spec over the corpus
 // Exhaustive characterization sweep over the FULL real corpus (gitignored). Runs
 // FDM's pure spec-shape functions AND the backend-config/renderer over every real
 // spec and writes their outputs. The committed 30-spec golden (tests/unit) is the
@@ -15,14 +16,14 @@
 //   curl -s https://api.runonflux.io/apps/globalappsspecifications > tests/local/corpus-raw.json
 const fs = require('fs').promises;
 const path = require('path');
-const { getUnifiedDomains, getCustomDomains } = require('../../src/services/domain/index.js');
+const { getUnifiedDomains, getCustomDomains } = require('../../src/services/domain/index');
 const specLibs = require('../../src/services/flux/specLibs');
-const { getCustomConfigs } = require('../../src/services/application/custom.js');
-const { getApplicationsToProcess } = require('../../src/services/application/subset.js');
+const { getCustomConfigs } = require('../../src/services/application/custom');
+const { getApplicationsToProcess } = require('../../src/services/application/subset');
 const { routeConfigsForSpec, renderConfig } = require('../unit/fixtures/renderPipeline');
 
-const call = (fn) => { try { return fn(); } catch (e) { return { __throws: e.message }; } };
-const callAsync = async (fn) => { try { return await fn(); } catch (e) { return { __throws: e.message }; } };
+const call = (fn) => { try { return fn(); } catch (e) { return { threw: e.message }; } };
+const callAsync = async (fn) => { try { return await fn(); } catch (e) { return { threw: e.message }; } };
 
 async function readCorpus(corpusPath) {
   try {
@@ -35,25 +36,27 @@ async function readCorpus(corpusPath) {
 async function main() {
   const corpus = await readCorpus(path.join(__dirname, 'corpus-raw.json'));
 
-  const out = {};
-  const throwsByFn = {
+  // Per-spec projections and whole-corpus facts in separate namespaces, so nothing has to
+  // tell an app name apart from a summary key by how it is spelled.
+  const out = { apps: {}, applicationsToProcess: [] };
+  const threwByFn = {
     unifiedDomains: 0, customDomains: 0, customConfigs: 0, configuredApps: 0,
   };
   for (const s of corpus) {
     let dep = null;
     // eslint-disable-next-line no-await-in-loop
     try { dep = await specLibs.resolveDeployment(await specLibs.deserialize(s), null); } catch { /* sealed/unreadable */ }
-    out[s.name] = {
+    out.apps[s.name] = {
       version: s.version,
-      unifiedDomains: dep ? call(() => getUnifiedDomains(dep)) : { __throws: 'unresolvable' },
-      customDomains: dep ? call(() => getCustomDomains(dep)) : { __throws: 'unresolvable' },
+      unifiedDomains: dep ? call(() => getUnifiedDomains(dep)) : { threw: 'unresolvable' },
+      customDomains: dep ? call(() => getCustomDomains(dep)) : { threw: 'unresolvable' },
       customConfigs: call(() => getCustomConfigs(s)),
       // eslint-disable-next-line no-await-in-loop
       configuredApps: await callAsync(() => routeConfigsForSpec(s)),
     };
-    for (const k of Object.keys(throwsByFn)) if (out[s.name][k] && out[s.name][k].__throws) throwsByFn[k] += 1;
+    for (const k of Object.keys(threwByFn)) if (out.apps[s.name][k] && out.apps[s.name][k].threw) threwByFn[k] += 1;
   }
-  out.__getApplicationsToProcess = call(() => getApplicationsToProcess(corpus).map((a) => a.name));
+  out.applicationsToProcess = call(() => getApplicationsToProcess(corpus).map((a) => a.name));
 
   const outPath = path.join(__dirname, 'sweep-output.json');
   await fs.writeFile(outPath, `${JSON.stringify(out, null, 2)}\n`);
@@ -62,7 +65,7 @@ async function main() {
   // renderer change to catch any byte that moved for the live app population.
   const cfgPath = path.join(__dirname, 'sweep-haproxy.cfg');
   await fs.writeFile(cfgPath, await renderConfig(corpus));
-  process.stdout.write(`swept ${corpus.length} specs — throws ${JSON.stringify(throwsByFn)} — wrote ${outPath} + ${cfgPath}\n`);
+  process.stdout.write(`swept ${corpus.length} specs — throws ${JSON.stringify(threwByFn)} — wrote ${outPath} + ${cfgPath}\n`);
 }
 
 main().catch((error) => {

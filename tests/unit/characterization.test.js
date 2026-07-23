@@ -13,8 +13,8 @@
 const chai = require('chai');
 const fs = require('fs');
 const path = require('path');
-const { getCustomConfigs } = require('../../src/services/application/custom.js');
-const { getApplicationsToProcess } = require('../../src/services/application/subset.js');
+const { getCustomConfigs } = require('../../src/services/application/custom');
+const { getApplicationsToProcess } = require('../../src/services/application/subset');
 const { routeConfigsForSpec, domainsForSpec, renderConfig } = require('./fixtures/renderPipeline');
 
 const { expect } = chai;
@@ -23,35 +23,35 @@ const FIX = path.join(__dirname, 'fixtures');
 const specs = JSON.parse(fs.readFileSync(path.join(FIX, 'characterization-specs.json'), 'utf8'));
 const golden = JSON.parse(fs.readFileSync(path.join(FIX, 'characterization-golden.json'), 'utf8'));
 const renderedGolden = fs.readFileSync(path.join(FIX, 'characterization-haproxy.txt'), 'utf8');
-const call = (fn) => { try { return fn(); } catch (e) { return { __throws: e.message }; } };
-const callAsync = async (fn) => { try { return await fn(); } catch (e) { return { __throws: e.message }; } };
+const call = (fn) => { try { return fn(); } catch (e) { return { threw: e.message }; } };
+const callAsync = async (fn) => { try { return await fn(); } catch (e) { return { threw: e.message }; } };
 
-describe('characterization — pure spec-shape functions vs golden (real anonymized specs)', function () {
+describe('characterization — pure spec-shape functions vs golden (real anonymized specs)', () => {
   specs.forEach((s) => {
-    describe(`${s.name} (v${s.version})`, function () {
-      const g = golden[s.name];
-      it('has a golden entry', function () { expect(g, `no golden for ${s.name}`).to.be.an('object'); });
-      it('getUnifiedDomains matches golden', async function () {
+    describe(`${s.name} (v${s.version})`, () => {
+      const g = golden.apps[s.name];
+      it('has a golden entry', () => { expect(g, `no golden for ${s.name}`).to.be.an('object'); });
+      it('getUnifiedDomains matches golden', async () => {
         expect((await domainsForSpec(s)).unifiedDomains).to.deep.equal(g.unifiedDomains);
       });
-      it('getCustomDomains matches golden', async function () {
+      it('getCustomDomains matches golden', async () => {
         expect((await domainsForSpec(s)).customDomains).to.deep.equal(g.customDomains);
       });
-      it('getCustomConfigs matches golden', function () {
+      it('getCustomConfigs matches golden', () => {
         expect(call(() => getCustomConfigs(s))).to.deep.equal(g.customConfigs);
       });
-      it('route configs match golden', async function () {
+      it('route configs match golden', async () => {
         expect(await callAsync(() => routeConfigsForSpec(s))).to.deep.equal(g.configuredApps);
       });
     });
   });
 
-  it('getApplicationsToProcess matches golden', function () {
+  it('getApplicationsToProcess matches golden', () => {
     expect(call(() => getApplicationsToProcess(specs).map((a) => a.name)))
-      .to.deep.equal(golden.__getApplicationsToProcess);
+      .to.deep.equal(golden.applicationsToProcess);
   });
 
-  it('the full assembled haproxy config matches golden byte-for-byte', async function () {
+  it('the full assembled haproxy config matches golden byte-for-byte', async () => {
     expect(await renderConfig(specs)).to.equal(renderedGolden);
   });
 });

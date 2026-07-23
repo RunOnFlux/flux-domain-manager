@@ -841,6 +841,7 @@ module.exports = {
   PROBE_TIMEOUT_MS,
   getGComponentDockerNames,
   checkALPHexplorer,
+  hasManyApps,
   isArcaneOS,
   hasManyApps,
 };

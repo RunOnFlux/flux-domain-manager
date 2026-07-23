@@ -2,16 +2,25 @@
   "checks": [
     {
       "probe": "generalWebsite",
-      "apps": ["paoverview"]
+      "apps": [
+        "paoverview"
+      ]
     },
     {
       "probe": "fluxExplorer",
-      "apps": ["explorer", "explorerb"],
+      "apps": [
+        "explorer",
+        "explorerb"
+      ],
       "port": 39185
     },
     {
       "probe": "bitcoinNode",
-      "apps": ["bitcoinnode", "bitcoinnodetestnet", "bitcoinnodesignet"]
+      "apps": [
+        "bitcoinnode",
+        "bitcoinnodetestnet",
+        "bitcoinnodesignet"
+      ]
     },
     {
       "probe": "blockBook",
@@ -19,7 +28,9 @@
     },
     {
       "probe": "alphExplorer",
-      "apps": ["alphexplorer"],
+      "apps": [
+        "alphexplorer"
+      ],
       "port": 9090
     },
     {

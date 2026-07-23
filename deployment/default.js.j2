@@ -1,4 +1,8 @@
 const appsConfig = require('./appsConfig');
+const customConfigs = require('./customConfigs');
+const haproxyRouting = require('./haproxyRouting');
+const specDecrypt = require('./specDecrypt');
+const domainOverrides = require('./domainOverrides');
 
 module.exports = {
   server: {
@@ -34,6 +38,10 @@ module.exports = {
   whiteListedApps: appsConfig.whiteListedApps, // If there's app in the array, blacklisting will be ignore
   blackListedApps: appsConfig.blackListedApps,
   minecraftApps: appsConfig.minecraftApps,
+  customConfigs,
+  haproxyRouting,
+  specDecrypt,
+  domainOverrides,
   appSubDomain: '{{ appSubDomain }}',
   fdmAppDomain: '{{ fdmAppDomain }}',
   uiName: '{{ uiName }}',

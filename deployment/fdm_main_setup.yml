@@ -91,6 +91,10 @@
         state: file
       loop:
         - appsConfig.js
+        - customConfigs.json
+        - haproxyRouting.json
+        - specDecrypt.json
+        - domainOverrides.json
 
     - name: Install Dependencies FDM
       command: npm install

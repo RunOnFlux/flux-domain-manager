@@ -168,19 +168,29 @@ async function isDaemonSyncedOK(ip, port) {
   }
 }
 
+// Whether this node's view of the app population looks complete enough to serve the main
+// domain. A node that knows about only a handful of apps is out of sync with the network
+// and must not be balanced onto, however healthy it otherwise looks.
+//
+// Both conditions reject: too few apps at all, and a known app missing from a list that is
+// otherwise large. The count is a floor rather than a target — a node in step reports the
+// whole population (761 when this was written, uniform across every node sampled), so
+// anything near the floor is already badly behind.
 async function hasManyApps(ip, port) {
   try {
     const url = `http://${ip}:${port}/apps/globalappsspecifications`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
-    const appsAmount = response.data.data.length;
-    if (appsAmount > 500) { // we surely have at least 1000 apps on network
-      // eslint-disable-next-line no-restricted-syntax
-      for (const app of config.mandatoryApps) {
-        const appExists = response.data.data.find((a) => a.name === app);
-        if (!appExists) {
-          log.info(`Function hasManyApps false for ip ${ip}`);
-          return false;
-        }
+    const apps = response.data.data;
+    if (apps.length < config.appChecks.mainNode.minKnownApps) {
+      log.info(`Function hasManyApps false for ip ${ip}: knows of ${apps.length} apps`);
+      return false;
+    }
+    // eslint-disable-next-line no-restricted-syntax
+    for (const app of config.mandatoryApps) {
+      const appExists = apps.find((a) => a.name === app);
+      if (!appExists) {
+        log.info(`Function hasManyApps false for ip ${ip}: missing ${app}`);
+        return false;
       }
     }
     return true;
@@ -638,5 +648,6 @@ module.exports = {
   checkEthers,
   checkAppRunning,
   checkALPHexplorer,
+  hasManyApps,
   isArcaneOS,
 };

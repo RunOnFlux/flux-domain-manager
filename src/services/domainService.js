@@ -16,6 +16,7 @@ const applicationChecks = require('./application/checks');
 const { getApplicationsToProcess } = require('./application/subset');
 const { buildRouteConfigs } = require('./haproxy/buildRouteConfigs');
 const { publishRouteConfigs } = require('./haproxy/publication');
+const { ConditionLog } = require('./conditionLog');
 const specLibs = require('./flux/specLibs');
 const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
@@ -1116,23 +1117,36 @@ async function appendRouteConfigs(routeConfigs, app, backends, isActiveStandby) 
 const DRAIN_STATES = new Set(['draining', 'stopping']);
 const isDraining = (location) => DRAIN_STATES.has(location.state);
 
-// The backends each app was last seen draining, so a drain is logged when it starts,
-// changes and ends rather than on every pass.
-const drainingByApp = new Map();
+// Drain state, and apps with nothing healthy to route to, both persist across cycles, and
+// the loops run every time the fetcher emits locations — every 10 seconds, unconditionally.
+// Reporting them through a ConditionLog logs the start, restates it periodically with how
+// long it has been going, and logs the recovery, instead of one line per app per cycle.
+const drainingBackends = new ConditionLog();
+const unhealthyApps = new ConditionLog();
+const missingMandatory = new ConditionLog();
 
-// Log the drain transition. Without this a shutting-down node just silently disappears
-// from the config, with nothing to confirm the flux-shutdownd -> fluxos -> FDM chain
-// actually delivered the state.
+// Without this a shutting-down node just silently disappears from the config, with nothing
+// to confirm the flux-shutdownd -> fluxos -> FDM chain actually delivered the state.
 function logDraining(appName, draining) {
-  const key = [...draining].sort().join(', ');
-  if ((drainingByApp.get(appName) ?? '') === key) return;
-  if (key) {
-    drainingByApp.set(appName, key);
-    log.info(`${appName}: ${draining.length} backend(s) draining, held out of rotation: ${key}`);
-  } else {
-    drainingByApp.delete(appName);
-    log.info(`${appName}: no backend draining`);
+  drainingBackends.report(
+    appName,
+    draining.length > 0,
+    () => `${appName}: ${draining.length} backend(s) draining, held out of rotation: ${draining.join(', ')}`,
+  );
+}
+
+// A mandatory app is a canary: FDM expects it to exist, and its absence says something is
+// off with this director's view. It no longer gates publishing — that is decided from the
+// size of the built config — but it is worth saying out loud.
+function reportMissingMandatoryApps(appsOK, label) {
+  let { mandatoryApps } = config;
+  if (config.useSubset) {
+    mandatoryApps = filterMandatoryApps(mandatoryApps);
   }
+  mandatoryApps.forEach((name) => {
+    const missing = !appsOK.find((app) => app.name === name);
+    missingMandatory.report(`${label}:${name}`, missing, () => `${label}: mandatory app ${name} is missing from this cycle`);
+  });
 }
 
 // Pair the ordered ip list back up with the locations it came from, so each running
@@ -1321,29 +1335,7 @@ async function generateActiveActiveHaproxyConfig() {
       applicationSpecifications,
       myIP,
     );
-    // check appsOK against mandatoryApps
-    let { mandatoryApps } = config;
-    if (config.useSubset) {
-      mandatoryApps = filterMandatoryApps(mandatoryApps);
-    }
-    for (const mandatoryApp of mandatoryApps) {
-      const appExists = appsOK.find((app) => app.name === mandatoryApp);
-      if (!appExists) {
-        // A mandatory app is a canary: if processing dropped it, something is
-        // wrong with this pass and the config must not be written. But an app
-        // that is not registered on the network at all (expired, cancelled)
-        // cannot be a processing failure - it is a stale entry in
-        // config.mandatoryApps. Throwing here froze every node of a letter
-        // bucket for days when a test canary was cancelled (themok6, Sept
-        // 2026): no new or changed app in the bucket got a backend.
-        if (!activeActiveApps.has(mandatoryApp)) {
-          log.error(`Mandatory app ${mandatoryApp} is not registered on the network; it cannot act as a canary. Remove it from config.mandatoryApps.`);
-          // eslint-disable-next-line no-continue
-          continue;
-        }
-        throw new Error(`Mandatory app ${mandatoryApp} does not exist. PANIC`);
-      }
-    }
+    reportMissingMandatoryApps(appsOK, 'Active-Active');
     // continue with appsOK
     const routeConfigs = [];
     for (const app of appsOK) {
@@ -1396,23 +1388,24 @@ async function generateActiveActiveHaproxyConfig() {
         appLocations.push({ ip: '[2001:41d0:d00:b800::91]:9131' });
         appLocations.push({ ip: '[2001:41d0:d00:b800::92]:9131' });
       }
-      if (appLocations.length > 0) {
-        // eslint-disable-next-line no-await-in-loop
-        const { appIps, backends } = await resolveBackends(app, appLocations);
-        if (app.name === 'explorer') {
-          log.info(appIps);
+      // One app must never take the cycle down with it. An app with no healthy instances
+      // is ordinary - it expired, its owner stopped paying, its nodes died - and the
+      // correct response is to route it nowhere, not to abandon every other app's routing
+      // update. Whether the cycle as a whole looks trustworthy is decided once, below,
+      // from the size of what it built.
+      try {
+        if (appLocations.length > 0) {
+          // eslint-disable-next-line no-await-in-loop
+          const { appIps, backends } = await resolveBackends(app, appLocations);
+          unhealthyApps.report(app.name, appIps.length < 1, () => `Active-Active Application ${app.name} has no healthy instances`);
+          // eslint-disable-next-line no-await-in-loop
+          await appendRouteConfigs(routeConfigs, app, backends, false);
+          reportExclusion('Active-Active', app.name, false);
+        } else {
+          reportExclusion('Active-Active', app.name, true);
         }
-        if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
-          throw new Error(`Application ${app.name} checks not ok. PANIC.`);
-        }
-        // eslint-disable-next-line no-await-in-loop
-        await appendRouteConfigs(routeConfigs, app, backends, false);
-        reportExclusion('Active-Active', app.name, false);
-      } else {
-        reportExclusion('Active-Active', app.name, true);
-        if (config.mandatoryApps.includes(app.name)) {
-          throw new Error(`Application ${app.name} is not running well PANIC.`);
-        }
+      } catch (error) {
+        log.error(`Active-Active Application ${app.name} failed and is excluded from this cycle: ${error.message}`);
       }
 
       const elapsedNs = Number(process.hrtime.bigint() - appStartTime);
@@ -1556,37 +1549,34 @@ async function generateActiveStandbyHaproxyConfig() {
     for (const app of appsOK) {
       const appLocations = locationsForPass.get(app.name) || [];
 
-      if (appLocations.length > 0) {
-        const appIps = [];
-
-        // Active-standby routes to a single INSTANCE - one replica on one node, not a whole
-        // node, since a node may host co-located replicas and only one of them may serve.
-        // Draining instances were dropped from selection; they render in maintenance here.
-        const selectedKey = selected.get(app.name);
-        const drainingBackends = appLocations
-          .filter(isDraining)
-          .map((l) => ({ ip: l.ip, replica: l.replica || null, draining: true }));
-        logDraining(app.name, drainingBackends.map((b) => b.ip));
-        if (selectedKey) {
-          const instance = { ip: nodeOf(selectedKey), replica: replicaOf(selectedKey) };
-          appIps.push(instance.ip);
-          // Exactly the selected instance goes into rotation. Its co-located siblings are
-          // standbys and must not appear as servers, or the single-writer guarantee is
-          // gone the moment haproxy balances between them.
-          const backends = [{ ...instance, draining: false }, ...drainingBackends];
-          // eslint-disable-next-line no-await-in-loop
-          await appendRouteConfigs(routeConfigs, app, backends, true);
+      // As in the active-active loop: one app never takes the cycle down with it.
+      try {
+        if (appLocations.length > 0) {
+          // Active-standby routes to a single INSTANCE - one replica on one node, not a
+          // whole node, since a node may host co-located replicas and only one of them may
+          // serve. Draining instances were dropped from selection; they render in
+          // maintenance here.
+          const selectedKey = selected.get(app.name);
+          const draining = appLocations
+            .filter(isDraining)
+            .map((l) => ({ ip: l.ip, replica: l.replica || null, draining: true }));
+          logDraining(app.name, draining.map((b) => b.ip));
+          unhealthyApps.report(app.name, !selectedKey, () => `Active-Standby Application ${app.name} has no instance fit to serve`);
+          if (selectedKey) {
+            const instance = { ip: nodeOf(selectedKey), replica: replicaOf(selectedKey) };
+            // Exactly the selected instance goes into rotation. Its co-located siblings are
+            // standbys and must not appear as servers, or the single-writer guarantee is
+            // gone the moment haproxy balances between them.
+            const backends = [{ ...instance, draining: false }, ...draining];
+            // eslint-disable-next-line no-await-in-loop
+            await appendRouteConfigs(routeConfigs, app, backends, true);
+          }
+          reportExclusion('G', app.name, false);
+        } else {
+          reportExclusion('G', app.name, true);
         }
-
-        if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
-          throw new Error(`Application ${app.name} checks not ok. PANIC.`);
-        }
-        reportExclusion('G', app.name, false);
-      } else {
-        reportExclusion('G', app.name, true);
-        if (config.mandatoryApps.includes(app.name)) {
-          throw new Error(`Application ${app.name} is not running well PANIC.`);
-        }
+      } catch (error) {
+        log.error(`Active-Standby Application ${app.name} failed and is excluded from this cycle: ${error.message}`);
       }
     }
 

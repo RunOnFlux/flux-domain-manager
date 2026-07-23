@@ -89,11 +89,18 @@ async function isDomainPointedToThisGroup(hostname, myIP, resolve = dnsLookup) {
   }
 }
 
-// Phase 1: Parallel check to determine what action each domain needs
-async function checkDomainAction(appDomain, type, myIP) {
+// Phase 1: Parallel check to determine what action each domain needs.
+//
+// Domain length needs no handling here. A certificate's Common Name is capped at 64
+// characters, but a CA that cannot fit the name omits the CN entirely and carries the
+// name in the SAN alone, so issuance succeeds at any length DNS itself permits —
+// verified against Let's Encrypt with a 65-character name, which issued with an empty
+// subject. Names beyond what DNS allows (63 per label, 253 overall) cannot resolve, so
+// they fail the pointed-at-this-group check below and back off like any other domain
+// that is not pointed here.
+async function checkDomainAction(appDomain, type, myIP, resolve = dnsLookup) {
   try {
-    if (appDomain === 'ethereumnodelight.app.runonflux.io') return { domain: appDomain, action: 'skip' };
-    if (appDomain.length > 64) return { domain: appDomain, action: 'skip', reason: 'too long' };
+    if (appDomain === 'ethereumnodelight.app.runonflux.io') return { domain: appDomain, action: 'skip', reason: 'excluded' };
 
     const isAutomated = type === DOMAIN_TYPE.CUSTOM ? config.automateCertificates : config.automateCertificatesForFDMdomains;
     if (!isAutomated && !config.manageCertificateOnly) return { domain: appDomain, action: 'skip' };
@@ -105,7 +112,7 @@ async function checkDomainAction(appDomain, type, myIP) {
       if (!dnsCache.shouldCheckDomain(appDomain)) {
         return { domain: appDomain, action: 'skip', reason: 'dns backoff' };
       }
-      const domainIsPointedCorrectly = await isDomainPointedToThisGroup(appDomain, myIP);
+      const domainIsPointedCorrectly = await isDomainPointedToThisGroup(appDomain, myIP, resolve);
       if (!domainIsPointedCorrectly) {
         dnsCache.recordFailure(appDomain);
         return { domain: appDomain, action: 'skip', reason: 'dns not pointed' };
@@ -155,12 +162,18 @@ async function executeCertificateOperations(domains, type, myIP) {
       }
     }
 
+    // Every reason a domain drops out of issuance is counted. A domain that silently
+    // stops getting a certificate is indistinguishable from one that never needed one,
+    // and the owner only finds out when the browser does.
+    const count = (reason) => actions.filter((a) => a.reason === reason).length;
     const obtained = actions.filter((a) => a.action === 'obtain').length;
     const renewed = actions.filter((a) => a.action === 'renew').length;
-    const skippedDns = actions.filter((a) => a.reason === 'dns backoff').length;
+    const skippedDns = count('dns backoff');
+    const notPointed = count('dns not pointed');
+    const excluded = count('excluded');
     const certsChanged = obtained > 0 || renewed > 0;
-    if (obtained || renewed || skippedDns) {
-      log.info(`Cert ops: ${obtained} obtained, ${renewed} renewed, ${skippedDns} skipped (dns backoff), ${dnsCache.getCacheSize()} cached failures`);
+    if (obtained || renewed || skippedDns || notPointed || excluded) {
+      log.info(`Cert ops: ${obtained} obtained, ${renewed} renewed, ${skippedDns} skipped (dns backoff), ${notPointed} skipped (not pointed here), ${excluded} skipped (excluded), ${dnsCache.getCacheSize()} cached failures`);
     }
 
     return { success: true, certsChanged };
@@ -207,6 +220,7 @@ async function cleanupStaleCerts() {
 
 module.exports = {
   executeCertificateOperations,
+  checkDomainAction,
   isDomainPointedToThisGroup,
   cleanupStaleCerts,
   shouldRemoveStaleCert,

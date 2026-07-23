@@ -139,6 +139,18 @@ function buildWwwhttpsFrontend(internal = false) {
   return section;
 }
 
+// A backend server's haproxy name. Node address for a loose instance — unchanged from
+// the historical naming, so legacy output is byte-identical — qualified by the replica
+// name when there is one. Co-located replicas share a node address and would otherwise
+// collide, and haproxy rejects a duplicate server name FATALLY, taking the whole config
+// (every app's, not just this one's) with it. Replica names are unique within an app and
+// constrained to [a-z0-9-], so they are safe to embed.
+function serverName(server) {
+  const host = server.ip.split(':')[0];
+  const apiPort = server.ip.split(':')[1] || 16127;
+  return server.replica ? `${host}:${apiPort}_${server.replica}` : `${host}:${apiPort}`;
+}
+
 // The backends an app renders, in emit order: in-rotation first, then any draining ones
 // in maintenance. Draining backends go last so the first-server directives and the
 // syncFirst backup selection (both keyed on `ips[0]`) are decided purely by the
@@ -148,22 +160,32 @@ function buildWwwhttpsFrontend(internal = false) {
 function serversToRender(app) {
   const servers = [];
   const seen = new Set();
-  const push = (ip, draining) => {
+  for (const server of app.servers || []) {
+    const { ip } = server;
     if (!ip) {
       log.error(`${app.appName}: MISSING IP`);
-      return;
+      // eslint-disable-next-line no-continue
+      continue;
     }
     if (!ip.split(':')[0]) {
       log.error(`${app.appName}: unusable backend ip ${ip}`);
-      return;
+      // eslint-disable-next-line no-continue
+      continue;
     }
-    if (seen.has(ip)) return;
-    seen.add(ip);
-    servers.push({ ip, draining });
-  };
-  for (const ip of app.ips) push(ip, false);
-  for (const ip of app.drainingIps || []) push(ip, true);
-  return servers;
+    // De-duplicate on the rendered server NAME, which is the constraint haproxy actually
+    // enforces. Two co-located replicas share an ip and are distinct servers; the same
+    // replica listed twice is not.
+    const name = serverName(server);
+    if (seen.has(name)) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    seen.add(name);
+    servers.push(server);
+  }
+  // In rotation first, draining last: the first-server directives and the syncFirst
+  // backup selection are decided purely by the in-rotation set.
+  return servers.filter((s) => !s.draining).concat(servers.filter((s) => s.draining));
 }
 
 // A v9 httpPassthrough backend: raw TLS forwarded to the app's own port (the backend
@@ -181,10 +203,9 @@ function generatePassthroughBackend(app, domainUsed) {
     .add('timeout', 'tunnel', t.tunnel);
   const hc = app.healthCheck;
   const timing = hc ? `inter ${hc.interval} rise ${hc.rise} fall ${hc.fall}` : '';
-  for (const { ip, draining } of serversToRender(app)) {
-    const host = ip.split(':')[0];
-    const apiPort = ip.split(':')[1] || 16127;
-    section.add('server', `${host}:${apiPort}`, `${host}:${app.port}`, 'check', timing, `maxconn ${app.maxConnectionsPerServer}`, draining ? 'disabled' : '');
+  for (const server of serversToRender(app)) {
+    const host = server.ip.split(':')[0];
+    section.add('server', serverName(server), `${host}:${server.hostPort}`, 'check', timing, `maxconn ${app.maxConnectionsPerServer}`, server.draining ? 'disabled' : '');
   }
   return section;
 }
@@ -267,17 +288,20 @@ const LEGACY_SERVER_TIMING = 'inter 3s fall 2 rise 2 fastinter 500';
 // shutting down instead of watching it silently vanish from the config. A draining
 // server is never also a `backup` — the two states would contradict each other, and
 // maintenance already excludes it from every selection path.
-function addServerLine(section, cfg, app, mode, ip, draining = false) {
+function addServerLine(section, cfg, app, mode, server, isFirstInRotation) {
+  const { ip, draining } = server;
   const host = ip.split(':')[0];
-  const apiPort = ip.split(':')[1] || 16127;
+  // The port this particular server is reached on. A named replica may resolve a
+  // different host port from its siblings, so it comes off the server, not the route.
+  const { hostPort } = server;
   const disabled = draining ? 'disabled' : '';
-  const backup = (!draining && app.syncFirst && app.ips[0] !== ip) ? 'backup' : '';
+  const backup = (!draining && app.syncFirst && !isFirstInRotation) ? 'backup' : '';
+  const name = serverName(server);
 
   if (cfg.isV9) {
-    const serverName = `${host}:${apiPort}`;
-    const cookie = cfg.stickyV9 ? `cookie ${serverName}` : '';
+    const cookie = cfg.stickyV9 ? `cookie ${name}` : '';
     section.add('server', ...[
-      serverName, `${host}:${app.port}`, 'check',
+      name, `${host}:${hostPort}`, 'check',
       cfg.serverTiming, cfg.serverMaxconn, cfg.serverSsl, cookie, backup, disabled,
     ]);
     return;
@@ -295,11 +319,11 @@ function addServerLine(section, cfg, app, mode, ip, draining = false) {
     ]);
     return;
   }
-  const cookie = app.loadBalance || mode === 'tcp' ? '' : `cookie ${host}:${app.port}`;
+  const cookie = app.loadBalance || mode === 'tcp' ? '' : `cookie ${host}:${hostPort}`;
   // Legacy emits alpn/h2 only alongside backend TLS; gate it on the resolved ssl clause.
   const h2 = cfg.serverSsl && app.enableH2 ? h2Suffix : '';
   section.add('server', ...[
-    `${host}:${apiPort}`, `${host}:${app.port}`, check, app.serverConfig,
+    name, `${host}:${hostPort}`, check, app.serverConfig,
     cfg.serverSsl, h2, cookie, LEGACY_SERVER_TIMING, backup, disabled,
   ]);
 }
@@ -321,12 +345,14 @@ function generateDomainBackend(app, mode) {
   // Backend timeouts + retries, emitted once, with the first server actually rendered —
   // so a backend whose only remaining replicas are draining still carries them.
   let onceEmitted = false;
-  for (const { ip, draining } of serversToRender(app)) {
+  let firstInRotation = true;
+  for (const server of serversToRender(app)) {
     if (!onceEmitted) {
       onceEmitted = true;
       cfg.onceLines.forEach((line) => section.raw(line));
     }
-    addServerLine(section, cfg, app, mode, ip, draining);
+    addServerLine(section, cfg, app, mode, server, firstInRotation && !server.draining);
+    if (!server.draining) firstInRotation = false;
   }
   return section;
 }

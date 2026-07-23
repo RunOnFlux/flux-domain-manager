@@ -29,7 +29,11 @@ function resolveBalanceLines(app, mode) {
     if (app.loadBalance) return [app.loadBalance.replace(/^\n {2}/, '')];
     if (mode === 'tcp') return [];
     const lines = [line('balance roundrobin')];
-    if (app.ips.length > 1) {
+    // Counted over servers in rotation, not node addresses: two co-located replicas are
+    // two servers on one node and do need the affinity cookie, and a draining server is
+    // not a rotation target. With one server per node and nothing draining — every
+    // legacy app — this is the historical `ips.length > 1`.
+    if (app.servers.filter((s) => !s.draining).length > 1) {
       lines.push(line('cookie FDMSERVERID insert preserve indirect nocache maxlife 8h'));
     }
     return lines;

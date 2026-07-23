@@ -323,15 +323,30 @@ async function updateHaproxy(haproxyRouteConfigs) {
 // app has already been through processApplications, so any domain overrides it
 // applied are carried into the resolved routes via deserialize. Custom domains this
 // app does not own (another live app registered them first) are skipped.
-async function appendRouteConfigs(routeConfigs, app, appIps, isActiveStandby, drainingIps = []) {
-  const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
+async function appendRouteConfigs(routeConfigs, app, backends, isActiveStandby) {
+  const instance = await specLibs.deserialize(app);
+  // One resolved deployment per replica actually running. A named replica's effective
+  // component is a general deep merge of its override entry, so nothing about its routes
+  // can be assumed to match its siblings' — resolve each and read its own routes.
+  // The declared view is always resolved: it carries the app's public identity — the
+  // domains it answers on, its backend names and its tuning — which must not shift with
+  // whichever replicas happen to be running.
+  const deployments = new Map([[null, await specLibs.resolveDeployment(instance, null)]]);
+  // eslint-disable-next-line no-restricted-syntax
+  for (const replica of new Set(backends.map((b) => b.replica ?? null))) {
+    // eslint-disable-next-line no-await-in-loop
+    deployments.set(replica, await specLibs.resolveDeployment(instance, replica));
+  }
   const disowned = [];
   const ownsDomain = (domain) => {
     const owned = ownership.ownsDomain(domain, app.name);
     if (!owned) disowned.push(domain);
     return owned;
   };
-  routeConfigs.push(...buildRouteConfigs(deployment, app.name, appIps, isActiveStandby, app.syncFirst, ownsDomain, drainingIps));
+  const onConflict = (domain, fields, replica) => {
+    log.warn(`${app.name}: replica ${replica} disagrees with an earlier replica on ${domain} (${fields.join(', ')}); keeping the first`);
+  };
+  routeConfigs.push(...buildRouteConfigs(deployments, app.name, backends, isActiveStandby, app.syncFirst, ownsDomain, onConflict));
   if (disowned.length) {
     log.warn(`${app.name}: skipped ${disowned.length} custom domain(s) owned by another app: ${disowned.join(', ')}`);
   }
@@ -352,6 +367,37 @@ function logDraining(appName, draining) {
   log.info(`${appName}: ${draining.length} backend(s) draining, held out of rotation: ${draining.join(', ')}`);
 }
 
+// Pair the ordered ip list back up with the locations it came from, so each running
+// instance becomes one backend carrying its replica name. A node hosting two co-located
+// replicas appears once in the ip list but yields two backends — which is the whole
+// point: they are distinct servers on distinct ports. Ordering follows the resolved ip
+// order (health checks, shared-db operator ordering), draining backends last.
+function toBackends(appIps, drainingIps, appLocations) {
+  const byIp = new Map();
+  appLocations.forEach((location) => {
+    if (!byIp.has(location.ip)) byIp.set(location.ip, []);
+    byIp.get(location.ip).push(location);
+  });
+  const take = (ips, draining) => {
+    const out = [];
+    const emitted = new Set();
+    ips.forEach((ip) => {
+      if (emitted.has(ip)) return;
+      emitted.add(ip);
+      const locations = (byIp.get(ip) || []).filter((l) => isDraining(l) === draining);
+      // An ip with no matching location still routes — the blockbook apps inject bare ips
+      // that were never in the location data at all.
+      if (!locations.length) {
+        out.push({ ip, replica: null, draining });
+        return;
+      }
+      locations.forEach((l) => out.push({ ip, replica: l.replica ?? null, draining }));
+    });
+    return out;
+  };
+  return take(appIps, false).concat(take(drainingIps, true));
+}
+
 // Resolve the ordered, in-rotation backend IPs for an app from its live locations —
 // the one place config assembly consults runtime state. Three concerns that used to be
 // smeared through the routing loop live here now:
@@ -361,10 +407,11 @@ function logDraining(appName, draining) {
 //                status (primary first); the renderer stays pure over the result
 //   syncFirst  - version-blind, from the typed sync mode (legacy r: and v9 both map to
 //                requiresSyncBeforeStart), set on the app for the backup-server rendering
-// Returns `{ appIps, drainingIps }` — the in-rotation backends and, separately, the ones
-// draining. They stay separate lists on purpose: `appIps` keeps its exact meaning for the
-// mandatory-app emptiness check, the first-server directives and the syncFirst backup
-// selection, none of which should start counting a node that is on its way out.
+// Returns `{ appIps, drainingIps, backends }`. `backends` is what config assembly
+// consumes — one entry per running instance, carrying its replica name and drain state,
+// so co-located replicas stay distinguishable. `appIps`/`drainingIps` remain the node
+// address lists, which is what the mandatory-app emptiness check wants (a node hosting
+// two replicas is still one node) and what /appips reports.
 // Sets app.syncFirst as a side effect (the renderer reads it).
 async function resolveBackends(app, appLocations) {
   // Drain: keep only backends the platform still considers active.
@@ -436,7 +483,7 @@ async function resolveBackends(app, appLocations) {
   const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
   // eslint-disable-next-line no-param-reassign
   app.syncFirst = Object.values(deployment.components).some((c) => c.requiresSyncBeforeStart());
-  return { appIps, drainingIps };
+  return { appIps, drainingIps, backends: toBackends(appIps, drainingIps, appLocations) };
 }
 
 /**
@@ -536,7 +583,7 @@ async function generateActiveActiveHaproxyConfig() {
       if (appLocations.length > 0) {
         const applicationWithChecks = applicationChecks.applicationWithChecks(app);
         // eslint-disable-next-line no-await-in-loop
-        const { appIps, drainingIps } = await resolveBackends(app, appLocations);
+        const { appIps, backends } = await resolveBackends(app, appLocations);
         if (app.name === 'explorer') {
           log.info(appIps);
         }
@@ -544,7 +591,7 @@ async function generateActiveActiveHaproxyConfig() {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         // eslint-disable-next-line no-await-in-loop
-        await appendRouteConfigs(routeConfigs, app, appIps, false, drainingIps);
+        await appendRouteConfigs(routeConfigs, app, backends, false);
         log.info(
           `Active-Active Application ${app.name} with specific checks: ${applicationWithChecks} is OK. Proceeding to FDM`,
         );
@@ -662,8 +709,11 @@ async function generateActiveStandbyHaproxyConfig() {
         const selectedIP = await selectActiveInstanceIp(locationIps, app);
         if (selectedIP) {
           appIps.push(selectedIP);
+          // Selection is per node, so a selected node hosting co-located replicas
+          // contributes each of them — toBackends resolves that from the location rows.
+          const backends = toBackends(appIps, drainingIps, appLocations);
           // eslint-disable-next-line no-await-in-loop
-          await appendRouteConfigs(routeConfigs, app, appIps, true, drainingIps);
+          await appendRouteConfigs(routeConfigs, app, backends, true);
           log.info(
             `Active-Standby Application ${app.name} is OK selected IP is ${selectedIP}. Proceeding to FDM`,
           );

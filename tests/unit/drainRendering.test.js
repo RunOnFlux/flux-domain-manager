@@ -11,6 +11,7 @@ const chai = require('chai');
 const { load } = require('@runonflux/flux-spec-cjs');
 const specLibs = require('../../src/services/flux/specLibs');
 const { buildRouteConfigs } = require('../../src/services/haproxy/buildRouteConfigs');
+const { looseBackends, looseDeployments } = require('./fixtures/renderPipeline');
 const { generateDomainBackend } = require('../../src/services/haproxyTemplate');
 
 const { expect } = chai;
@@ -73,7 +74,7 @@ const v9submission = {
 // backends, the way the routing loop assembles it.
 async function render(spec, appIps, drainingIps, syncFirst = false) {
   const dep = await specLibs.resolveDeployment(await specLibs.deserialize(spec), null);
-  const routeConfigs = buildRouteConfigs(dep, 'drainapp', appIps, false, syncFirst, () => true, drainingIps);
+  const routeConfigs = buildRouteConfigs(looseDeployments(dep), 'drainapp', looseBackends(appIps, drainingIps), false, syncFirst);
   const platform = routeConfigs.find((c) => c.domain.startsWith('drainapp_'));
   return generateDomainBackend(platform, 'http').render();
 }

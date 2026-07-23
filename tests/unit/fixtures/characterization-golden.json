@@ -104,7 +104,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -120,7 +119,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "wordpress1677413615318_38286.app2.runonflux.io"
+        "domain": "wordpress1677413615318_38286.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38286,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38286,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "wordpress1677413615318",
@@ -130,7 +143,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -146,7 +158,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon0.com"
+        "domain": "anon0.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38286,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38286,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "wordpress1677413615318",
@@ -156,7 +182,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -172,7 +197,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon0.com"
+        "domain": "www.anon0.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38286,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38286,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "wordpress1677413615318",
@@ -182,7 +221,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -198,7 +236,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon0.com"
+        "domain": "test.anon0.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38286,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38286,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "wordpress1677413615318",
@@ -208,7 +260,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -224,7 +275,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "wordpress1677413615318_34328.app2.runonflux.io"
+        "domain": "wordpress1677413615318_34328.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 34328,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 34328,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "wordpress1677413615318",
@@ -234,7 +299,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -250,7 +314,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "wordpress1677413615318_36562.app2.runonflux.io"
+        "domain": "wordpress1677413615318_36562.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36562,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36562,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "wordpress1677413615318",
@@ -260,7 +338,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -276,7 +353,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "wordpress1677413615318_34252.app2.runonflux.io"
+        "domain": "wordpress1677413615318_34252.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 34252,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 34252,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "wordpress1677413615318",
@@ -287,7 +378,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38286,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38286,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": true,
         "ssl": false,
         "timeout": false,
@@ -346,7 +450,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -357,7 +460,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp1_35051.app2.runonflux.io"
+        "domain": "anonapp1_35051.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 35051,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 35051,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp1",
@@ -368,7 +485,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 35051,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 35051,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -445,7 +575,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -456,7 +585,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp3_33702.app2.runonflux.io"
+        "domain": "anonapp3_33702.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 33702,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 33702,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp3",
@@ -467,7 +610,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 33702,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 33702,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -532,7 +688,6 @@
         "ips": [
           "135.148.60.40:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -543,7 +698,15 @@
         "enableH2": false,
         "mode": "tcp",
         "check": false,
-        "domain": "anonapp4_7777.app2.runonflux.io"
+        "domain": "anonapp4_7777.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "135.148.60.40:16127",
+            "hostPort": 7777,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp4",
@@ -552,7 +715,6 @@
         "ips": [
           "135.148.60.40:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -563,7 +725,15 @@
         "enableH2": false,
         "mode": "tcp",
         "check": false,
-        "domain": "anonapp4_27015.app2.runonflux.io"
+        "domain": "anonapp4_27015.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "135.148.60.40:16127",
+            "hostPort": 27015,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp4",
@@ -573,7 +743,14 @@
         "ips": [
           "135.148.60.40:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "135.148.60.40:16127",
+            "hostPort": 7777,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -631,7 +808,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -642,7 +818,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp5_36919.app2.runonflux.io"
+        "domain": "anonapp5_36919.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36919,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36919,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp5",
@@ -652,7 +842,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -663,7 +852,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon1.com"
+        "domain": "anon1.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36919,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36919,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp5",
@@ -673,7 +876,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -684,7 +886,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon1.com"
+        "domain": "www.anon1.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36919,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36919,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp5",
@@ -694,7 +910,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -705,7 +920,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon1.com"
+        "domain": "test.anon1.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36919,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36919,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp5",
@@ -716,7 +945,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36919,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36919,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -782,7 +1024,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -793,7 +1034,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp6_31588.app2.runonflux.io"
+        "domain": "anonapp6_31588.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31588,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31588,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp6",
@@ -803,7 +1058,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -814,7 +1068,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp6_31589.app2.runonflux.io"
+        "domain": "anonapp6_31589.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31589,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31589,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp6",
@@ -825,7 +1093,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31588,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31588,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -879,7 +1160,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -890,7 +1170,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp7_35555.app2.runonflux.io"
+        "domain": "anonapp7_35555.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 35555,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 35555,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp7",
@@ -901,7 +1195,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 35555,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 35555,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -962,7 +1269,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -973,7 +1279,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp8_36769.app2.runonflux.io"
+        "domain": "anonapp8_36769.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp8",
@@ -983,7 +1303,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -994,7 +1313,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon2.com"
+        "domain": "anon2.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp8",
@@ -1004,7 +1337,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1015,7 +1347,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon2.com"
+        "domain": "www.anon2.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp8",
@@ -1025,7 +1371,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1036,7 +1381,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon2.com"
+        "domain": "test.anon2.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp8",
@@ -1046,7 +1405,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1057,7 +1415,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon3.com"
+        "domain": "anon3.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp8",
@@ -1067,7 +1439,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1078,7 +1449,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon3.com"
+        "domain": "www.anon3.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp8",
@@ -1088,7 +1473,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1099,7 +1483,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon3.com"
+        "domain": "test.anon3.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp8",
@@ -1110,7 +1508,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36769,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -1164,7 +1575,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1175,7 +1585,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp9_31443.app2.runonflux.io"
+        "domain": "anonapp9_31443.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31443,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31443,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp9",
@@ -1186,7 +1610,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31443,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31443,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -1244,7 +1681,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1255,7 +1691,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp10_33333.app2.runonflux.io"
+        "domain": "anonapp10_33333.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp10",
@@ -1265,7 +1715,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1276,7 +1725,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon4.com"
+        "domain": "anon4.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp10",
@@ -1286,7 +1749,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1297,7 +1759,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon4.com"
+        "domain": "www.anon4.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp10",
@@ -1307,7 +1783,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1318,7 +1793,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon4.com"
+        "domain": "test.anon4.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp10",
@@ -1329,7 +1818,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -1383,7 +1885,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1394,7 +1895,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp11_38454.app2.runonflux.io"
+        "domain": "anonapp11_38454.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38454,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38454,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp11",
@@ -1405,7 +1920,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38454,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38454,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -1502,7 +2030,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1513,7 +2040,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp12_31301.app2.runonflux.io"
+        "domain": "anonapp12_31301.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31301,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31301,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp12",
@@ -1523,7 +2064,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1534,7 +2074,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon5.io"
+        "domain": "anon5.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31301,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31301,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp12",
@@ -1544,7 +2098,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1555,7 +2108,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon5.io"
+        "domain": "www.anon5.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31301,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31301,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp12",
@@ -1565,7 +2132,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1576,7 +2142,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon5.io"
+        "domain": "test.anon5.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31301,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31301,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp12",
@@ -1586,7 +2166,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1597,7 +2176,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp12_31302.app2.runonflux.io"
+        "domain": "anonapp12_31302.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31302,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31302,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp12",
@@ -1607,7 +2200,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1618,7 +2210,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon6.io"
+        "domain": "anon6.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31302,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31302,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp12",
@@ -1628,7 +2234,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1639,7 +2244,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon6.io"
+        "domain": "www.anon6.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31302,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31302,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp12",
@@ -1649,7 +2268,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1660,7 +2278,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon6.io"
+        "domain": "test.anon6.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31302,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31302,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp12",
@@ -1670,7 +2302,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1681,7 +2312,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp12_31303.app2.runonflux.io"
+        "domain": "anonapp12_31303.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31303,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31303,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp12",
@@ -1691,7 +2336,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1702,7 +2346,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp12_31304.app2.runonflux.io"
+        "domain": "anonapp12_31304.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31304,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31304,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp12",
@@ -1713,7 +2371,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31301,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31301,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -1771,7 +2442,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1782,7 +2452,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp13_36512.app2.runonflux.io"
+        "domain": "anonapp13_36512.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36512,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36512,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp13",
@@ -1792,7 +2476,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1803,7 +2486,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon7.io"
+        "domain": "anon7.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36512,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36512,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp13",
@@ -1813,7 +2510,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1824,7 +2520,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon7.io"
+        "domain": "www.anon7.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36512,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36512,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp13",
@@ -1834,7 +2544,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1845,7 +2554,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon7.io"
+        "domain": "test.anon7.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36512,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36512,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp13",
@@ -1856,7 +2579,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36512,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36512,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -1929,7 +2665,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1940,7 +2675,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp14_38080.app2.runonflux.io"
+        "domain": "anonapp14_38080.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38080,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38080,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp14",
@@ -1950,7 +2699,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1961,7 +2709,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon8.io"
+        "domain": "anon8.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38080,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38080,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp14",
@@ -1971,7 +2733,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -1982,7 +2743,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon8.io"
+        "domain": "www.anon8.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38080,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38080,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp14",
@@ -1992,7 +2767,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2003,7 +2777,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon8.io"
+        "domain": "test.anon8.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38080,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38080,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp14",
@@ -2013,7 +2801,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2024,7 +2811,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp14_38081.app2.runonflux.io"
+        "domain": "anonapp14_38081.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38081,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38081,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp14",
@@ -2034,7 +2835,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2045,7 +2845,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon9.io"
+        "domain": "anon9.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38081,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38081,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp14",
@@ -2055,7 +2869,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2066,7 +2879,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon9.io"
+        "domain": "www.anon9.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38081,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38081,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp14",
@@ -2076,7 +2903,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2087,7 +2913,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon9.io"
+        "domain": "test.anon9.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38081,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38081,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp14",
@@ -2098,7 +2938,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38080,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38080,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -2166,7 +3019,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2182,7 +3034,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "fluxwordpress_38016.app2.runonflux.io"
+        "domain": "fluxwordpress_38016.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38016,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38016,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "FluxWordPress",
@@ -2192,7 +3058,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2208,7 +3073,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon10.io"
+        "domain": "anon10.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38016,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38016,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "FluxWordPress",
@@ -2218,7 +3097,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2234,7 +3112,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon10.io"
+        "domain": "www.anon10.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38016,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38016,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "FluxWordPress",
@@ -2244,7 +3136,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2260,7 +3151,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon10.io"
+        "domain": "test.anon10.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38016,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38016,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "FluxWordPress",
@@ -2271,7 +3176,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38016,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38016,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -2334,7 +3252,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2345,7 +3262,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp16_31000.app2.runonflux.io"
+        "domain": "anonapp16_31000.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31000,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31000,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp16",
@@ -2355,7 +3286,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2366,7 +3296,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon11.fr"
+        "domain": "anon11.fr",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31000,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31000,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp16",
@@ -2376,7 +3320,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2387,7 +3330,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon11.fr"
+        "domain": "www.anon11.fr",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31000,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31000,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp16",
@@ -2397,7 +3354,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2408,7 +3364,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon11.fr"
+        "domain": "test.anon11.fr",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31000,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31000,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp16",
@@ -2419,7 +3389,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31000,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31000,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -2477,7 +3460,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2488,7 +3470,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp17_32323.app2.runonflux.io"
+        "domain": "anonapp17_32323.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 32323,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 32323,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp17",
@@ -2498,7 +3494,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2509,7 +3504,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon12.me"
+        "domain": "anon12.me",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 32323,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 32323,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp17",
@@ -2519,7 +3528,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2530,7 +3538,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon12.me"
+        "domain": "www.anon12.me",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 32323,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 32323,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp17",
@@ -2540,7 +3562,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2551,7 +3572,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon12.me"
+        "domain": "test.anon12.me",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 32323,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 32323,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp17",
@@ -2562,7 +3597,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 32323,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 32323,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -2652,7 +3700,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2663,7 +3710,21 @@
         "enableH2": false,
         "mode": "tcp",
         "check": true,
-        "domain": "kaspanode08_15110.app2.runonflux.io"
+        "domain": "kaspanode08_15110.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 15110,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 15110,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "KaspaNode08",
@@ -2673,7 +3734,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2684,7 +3744,21 @@
         "enableH2": false,
         "mode": "tcp",
         "check": true,
-        "domain": "kaspanode08_15111.app2.runonflux.io"
+        "domain": "kaspanode08_15111.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 15111,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 15111,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "KaspaNode08",
@@ -2694,7 +3768,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2705,7 +3778,21 @@
         "enableH2": false,
         "mode": "tcp",
         "check": true,
-        "domain": "kaspanode08_17110.app2.runonflux.io"
+        "domain": "kaspanode08_17110.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 17110,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 17110,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "KaspaNode08",
@@ -2715,7 +3802,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2726,7 +3812,21 @@
         "enableH2": false,
         "mode": "tcp",
         "check": true,
-        "domain": "kaspanode08_18110.app2.runonflux.io"
+        "domain": "kaspanode08_18110.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18110,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18110,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "KaspaNode08",
@@ -2737,7 +3837,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 15110,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 15110,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -2827,7 +3940,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2838,7 +3950,21 @@
         "enableH2": false,
         "mode": "tcp",
         "check": true,
-        "domain": "kaspanode16gb1760556657255_15110.app2.runonflux.io"
+        "domain": "kaspanode16gb1760556657255_15110.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 15110,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 15110,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "KaspaNode16GB1760556657255",
@@ -2848,7 +3974,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2859,7 +3984,21 @@
         "enableH2": false,
         "mode": "tcp",
         "check": true,
-        "domain": "kaspanode16gb1760556657255_15111.app2.runonflux.io"
+        "domain": "kaspanode16gb1760556657255_15111.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 15111,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 15111,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "KaspaNode16GB1760556657255",
@@ -2869,7 +4008,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2880,7 +4018,21 @@
         "enableH2": false,
         "mode": "tcp",
         "check": true,
-        "domain": "kaspanode16gb1760556657255_17110.app2.runonflux.io"
+        "domain": "kaspanode16gb1760556657255_17110.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 17110,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 17110,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "KaspaNode16GB1760556657255",
@@ -2890,7 +4042,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -2901,7 +4052,21 @@
         "enableH2": false,
         "mode": "tcp",
         "check": true,
-        "domain": "kaspanode16gb1760556657255_18110.app2.runonflux.io"
+        "domain": "kaspanode16gb1760556657255_18110.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18110,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18110,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "KaspaNode16GB1760556657255",
@@ -2912,7 +4077,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 15110,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 15110,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -2966,7 +4144,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -2977,7 +4154,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp20_8081.app2.runonflux.io"
+        "domain": "anonapp20_8081.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 8081,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 8081,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp20",
@@ -2988,7 +4179,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 8081,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 8081,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": true,
         "ssl": false,
         "timeout": false,
@@ -3042,7 +4246,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -3053,7 +4256,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp21_33333.app2.runonflux.io"
+        "domain": "anonapp21_33333.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp21",
@@ -3064,7 +4281,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 33333,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -3117,7 +4347,6 @@
         "ips": [
           "135.148.60.40:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -3128,7 +4357,15 @@
         "enableH2": false,
         "mode": "tcp",
         "check": false,
-        "domain": "anonapp22_25565.app2.runonflux.io"
+        "domain": "anonapp22_25565.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "135.148.60.40:16127",
+            "hostPort": 25565,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp22",
@@ -3138,7 +4375,14 @@
         "ips": [
           "135.148.60.40:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "135.148.60.40:16127",
+            "hostPort": 25565,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -3240,7 +4484,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3251,7 +4494,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp23_21115.app2.runonflux.io"
+        "domain": "anonapp23_21115.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 21115,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 21115,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp23",
@@ -3261,7 +4518,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3272,7 +4528,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp23_21116.app2.runonflux.io"
+        "domain": "anonapp23_21116.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 21116,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 21116,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp23",
@@ -3282,7 +4552,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3293,7 +4562,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp23_21118.app2.runonflux.io"
+        "domain": "anonapp23_21118.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 21118,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 21118,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp23",
@@ -3303,7 +4586,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3314,7 +4596,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp23_21117.app2.runonflux.io"
+        "domain": "anonapp23_21117.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 21117,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 21117,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp23",
@@ -3324,7 +4620,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3335,7 +4630,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp23_21119.app2.runonflux.io"
+        "domain": "anonapp23_21119.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 21119,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 21119,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp23",
@@ -3346,7 +4655,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 21115,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 21115,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": true,
         "ssl": false,
         "timeout": false,
@@ -3424,7 +4746,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -3435,7 +4756,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp24_35855.app2.runonflux.io"
+        "domain": "anonapp24_35855.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 35855,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 35855,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp24",
@@ -3445,7 +4780,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -3456,7 +4790,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp24_37663.app2.runonflux.io"
+        "domain": "anonapp24_37663.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 37663,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 37663,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp24",
@@ -3466,7 +4814,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": false,
         "ssl": false,
         "timeout": null,
@@ -3477,7 +4824,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp24_31922.app2.runonflux.io"
+        "domain": "anonapp24_31922.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31922,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31922,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp24",
@@ -3488,7 +4849,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 35855,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 35855,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": false,
         "ssl": false,
         "timeout": false,
@@ -3546,7 +4920,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3557,7 +4930,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp25_34517.app2.runonflux.io"
+        "domain": "anonapp25_34517.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 34517,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 34517,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp25",
@@ -3567,7 +4954,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3578,7 +4964,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon13.com"
+        "domain": "anon13.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 34517,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 34517,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp25",
@@ -3588,7 +4988,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3599,7 +4998,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon13.com"
+        "domain": "www.anon13.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 34517,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 34517,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp25",
@@ -3609,7 +5022,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3620,7 +5032,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon13.com"
+        "domain": "test.anon13.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 34517,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 34517,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp25",
@@ -3631,7 +5057,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 34517,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 34517,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": true,
         "ssl": false,
         "timeout": false,
@@ -3745,7 +5184,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3756,7 +5194,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "budibasemysql_34419.app2.runonflux.io"
+        "domain": "budibasemysql_34419.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 34419,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 34419,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "budibasemysql",
@@ -3766,7 +5218,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": true,
         "timeout": null,
@@ -3777,7 +5228,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "budibasemysql_39443.app2.runonflux.io"
+        "domain": "budibasemysql_39443.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 39443,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 39443,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "budibasemysql",
@@ -3787,7 +5252,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3798,7 +5262,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "budibasemysql_39080.app2.runonflux.io"
+        "domain": "budibasemysql_39080.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 39080,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 39080,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "budibasemysql",
@@ -3808,7 +5286,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3819,7 +5296,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "budibasemysql_36477.app2.runonflux.io"
+        "domain": "budibasemysql_36477.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36477,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36477,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "budibasemysql",
@@ -3829,7 +5320,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3840,7 +5330,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "budibasemysql_38451.app2.runonflux.io"
+        "domain": "budibasemysql_38451.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38451,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38451,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "budibasemysql",
@@ -3850,7 +5354,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -3861,7 +5364,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "budibasemysql_32069.app2.runonflux.io"
+        "domain": "budibasemysql_32069.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 32069,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 32069,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "budibasemysql",
@@ -3872,7 +5389,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 34419,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 34419,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": true,
         "ssl": false,
         "timeout": false,
@@ -4070,7 +5600,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4081,7 +5610,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp27_32442.app2.runonflux.io"
+        "domain": "anonapp27_32442.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 32442,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 32442,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp27",
@@ -4091,7 +5634,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4102,7 +5644,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp27_32409.app2.runonflux.io"
+        "domain": "anonapp27_32409.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 32409,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 32409,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp27",
@@ -4112,7 +5668,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4123,7 +5678,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp27_37734.app2.runonflux.io"
+        "domain": "anonapp27_37734.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 37734,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 37734,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp27",
@@ -4133,7 +5702,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4144,7 +5712,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp27_35382.app2.runonflux.io"
+        "domain": "anonapp27_35382.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 35382,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 35382,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp27",
@@ -4154,7 +5736,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4165,7 +5746,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp27_37483.app2.runonflux.io"
+        "domain": "anonapp27_37483.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 37483,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 37483,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp27",
@@ -4175,7 +5770,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4186,7 +5780,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp27_34083.app2.runonflux.io"
+        "domain": "anonapp27_34083.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 34083,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 34083,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp27",
@@ -4196,7 +5804,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4207,7 +5814,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp27_33035.app2.runonflux.io"
+        "domain": "anonapp27_33035.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 33035,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 33035,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp27",
@@ -4217,7 +5838,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4228,7 +5848,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp27_31889.app2.runonflux.io"
+        "domain": "anonapp27_31889.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31889,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31889,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp27",
@@ -4238,7 +5872,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4249,7 +5882,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp27_38979.app2.runonflux.io"
+        "domain": "anonapp27_38979.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38979,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38979,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp27",
@@ -4259,7 +5906,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4270,7 +5916,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp27_38527.app2.runonflux.io"
+        "domain": "anonapp27_38527.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 38527,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 38527,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp27",
@@ -4280,7 +5940,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4291,7 +5950,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp27_30752.app2.runonflux.io"
+        "domain": "anonapp27_30752.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 30752,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 30752,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp27",
@@ -4301,7 +5974,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4312,7 +5984,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp27_31868.app2.runonflux.io"
+        "domain": "anonapp27_31868.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 31868,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 31868,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp27",
@@ -4322,7 +6008,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4333,7 +6018,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp27_36220.app2.runonflux.io"
+        "domain": "anonapp27_36220.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 36220,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 36220,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp27",
@@ -4344,7 +6043,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 32442,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 32442,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": true,
         "ssl": false,
         "timeout": false,
@@ -4398,7 +6110,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4409,7 +6120,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp28_8080.app2.runonflux.io"
+        "domain": "anonapp28_8080.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 8080,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 8080,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp28",
@@ -4420,7 +6145,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 8080,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 8080,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": true,
         "ssl": false,
         "timeout": false,
@@ -4565,7 +6303,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4576,7 +6313,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp29_18080.app2.runonflux.io"
+        "domain": "anonapp29_18080.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18080,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18080,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4586,7 +6337,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4597,7 +6347,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon14.com"
+        "domain": "anon14.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18080,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18080,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4607,7 +6371,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4618,7 +6381,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon14.com"
+        "domain": "www.anon14.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18080,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18080,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4628,7 +6405,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4639,7 +6415,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon14.com"
+        "domain": "test.anon14.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18080,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18080,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4649,7 +6439,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4660,7 +6449,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp29_16379.app2.runonflux.io"
+        "domain": "anonapp29_16379.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 16379,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 16379,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4670,7 +6473,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4681,7 +6483,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp29_18081.app2.runonflux.io"
+        "domain": "anonapp29_18081.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18081,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18081,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4691,7 +6507,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4702,7 +6517,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon15.com"
+        "domain": "anon15.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18081,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18081,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4712,7 +6541,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4723,7 +6551,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon15.com"
+        "domain": "www.anon15.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18081,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18081,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4733,7 +6575,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4744,7 +6585,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon15.com"
+        "domain": "test.anon15.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18081,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18081,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4754,7 +6609,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4765,7 +6619,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp29_18082.app2.runonflux.io"
+        "domain": "anonapp29_18082.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18082,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18082,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4775,7 +6643,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4786,7 +6653,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon16.com"
+        "domain": "anon16.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18082,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18082,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4796,7 +6677,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4807,7 +6687,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon16.com"
+        "domain": "www.anon16.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18082,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18082,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4817,7 +6711,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4828,7 +6721,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon16.com"
+        "domain": "test.anon16.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18082,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18082,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4838,7 +6745,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4849,7 +6755,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp29_18083.app2.runonflux.io"
+        "domain": "anonapp29_18083.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18083,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18083,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4859,7 +6779,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4870,7 +6789,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon17.com"
+        "domain": "anon17.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18083,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18083,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4880,7 +6813,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4891,7 +6823,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon17.com"
+        "domain": "www.anon17.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18083,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18083,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4901,7 +6847,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4912,7 +6857,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon17.com"
+        "domain": "test.anon17.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18083,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18083,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4922,7 +6881,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4933,7 +6891,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp29_18084.app2.runonflux.io"
+        "domain": "anonapp29_18084.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18084,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18084,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4943,7 +6915,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4954,7 +6925,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon18.com"
+        "domain": "anon18.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18084,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18084,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4964,7 +6949,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4975,7 +6959,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon18.com"
+        "domain": "www.anon18.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18084,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18084,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -4985,7 +6983,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -4996,7 +6993,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon18.com"
+        "domain": "test.anon18.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18084,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18084,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -5006,7 +7017,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -5017,7 +7027,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anonapp29_3306.app2.runonflux.io"
+        "domain": "anonapp29_3306.app2.runonflux.io",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 3306,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 3306,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -5027,7 +7051,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -5038,7 +7061,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "anon19.com"
+        "domain": "anon19.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 3306,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 3306,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -5048,7 +7085,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -5059,7 +7095,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "www.anon19.com"
+        "domain": "www.anon19.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 3306,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 3306,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -5069,7 +7119,6 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
         "syncFirst": true,
         "ssl": false,
         "timeout": null,
@@ -5080,7 +7129,21 @@
         "enableH2": false,
         "mode": "http",
         "check": true,
-        "domain": "test.anon19.com"
+        "domain": "test.anon19.com",
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 3306,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 3306,
+            "replica": null,
+            "draining": false
+          }
+        ]
       },
       {
         "name": "anonapp29",
@@ -5091,7 +7154,20 @@
           "144.76.10.20:16127",
           "167.86.90.30:16127"
         ],
-        "drainingIps": [],
+        "servers": [
+          {
+            "ip": "144.76.10.20:16127",
+            "hostPort": 18080,
+            "replica": null,
+            "draining": false
+          },
+          {
+            "ip": "167.86.90.30:16127",
+            "hostPort": 18080,
+            "replica": null,
+            "draining": false
+          }
+        ],
         "syncFirst": true,
         "ssl": false,
         "timeout": false,

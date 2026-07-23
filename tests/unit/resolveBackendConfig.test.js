@@ -6,12 +6,25 @@ const { resolveBackendConfig } = require('../../src/services/haproxy/resolveBack
 
 const { expect } = chai;
 
+// Route configs carry `servers` (one per running instance, each with its own host
+// port); `ips` remains the de-duplicated node list. The affinity-cookie gate counts
+// servers in rotation, so fixtures must supply them.
+const servers = (ips) => ips.map((ip) => ({
+  ip, hostPort: 31000, replica: null, draining: false,
+}));
+
 const legacy = (extra) => ({
-  ips: ['1.2.3.4:16127', '5.6.7.8:16127'], check: true, syncFirst: false, healthcheck: [], ...extra,
+  ips: ['1.2.3.4:16127', '5.6.7.8:16127'],
+  servers: servers(['1.2.3.4:16127', '5.6.7.8:16127']),
+  check: true,
+  syncFirst: false,
+  healthcheck: [],
+  ...extra,
 });
 
 const v9 = (extra) => ({
   ips: ['1.2.3.4:16127', '5.6.7.8:16127'],
+  servers: servers(['1.2.3.4:16127', '5.6.7.8:16127']),
   check: true,
   syncFirst: false,
   balancing: 'leastconn',
@@ -40,7 +53,7 @@ describe('resolveBackendConfig', () => {
     });
 
     it('omits the affinity cookie for a single backend', () => {
-      const cfg = resolveBackendConfig(legacy({ ips: ['1.2.3.4:16127'] }), 'http');
+      const cfg = resolveBackendConfig(legacy({ ips: ['1.2.3.4:16127'], servers: servers(['1.2.3.4:16127']) }), 'http');
       expect(cfg.balanceLines).to.deep.equal(['balance roundrobin']);
     });
 

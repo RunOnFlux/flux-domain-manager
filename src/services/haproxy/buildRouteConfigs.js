@@ -1,16 +1,26 @@
-// Version-blind replacement for domainService.addConfigurations: turns a resolved
-// DeploymentSpec + backend IPs into the haproxy route configs the renderer consumes,
+// Version-blind replacement for domainService.addConfigurations: turns resolved
+// DeploymentSpecs + live backends into the haproxy route configs the renderer consumes,
 // sourced from the spec's loadBalancing routes rather than raw compose. Each route
-// config maps one domain to a backend (ips:port) plus its tuning. Every version flows
-// through one path — legacy apps route every port
-// (flux-spec synthesizes a loadBalancing entry per port), v9 apps route the ports
-// their owner configured. flux-spec hands back one flat route per (component, port)
-// with custom domains already split into a clean array, so this reads routes rather
-// than walking components → loadBalancing by hand.
+// config maps one domain to a backend (servers + tuning). Every version flows through
+// one path — legacy apps route every port (flux-spec synthesizes a loadBalancing entry
+// per port), v9 apps route the ports their owner configured. flux-spec hands back one
+// flat route per (component, port) with custom domains already split into a clean array,
+// so this reads routes rather than walking components → loadBalancing by hand.
 //
-// The output matches addConfigurations field-for-field so the existing renderer
-// produces byte-identical config; the platform FQDN and custom-domain expansion
-// (www./test. variants, de-duplication) reproduce the legacy behavior exactly.
+// PER REPLICA. A named replica's effective component is the canonical component deep-
+// merged with that replica's override entry — a general merge, so ANY component field
+// can in principle differ per replica. Today's schema allowlists only ports.hostPort and
+// env, but that is validation policy, not structure ("what is overridable is validation
+// policy, not schema surgery"), and it can widen without any structural change. So this
+// takes a resolved DeploymentSpec PER REPLICA and reads each replica's own routes rather
+// than assuming a shared route set with per-replica ports. Replicas converging on the
+// same domain merge their servers into one backend; if they disagree on that domain's
+// tuning, the first replica wins and the conflict is reported rather than silently
+// rendering one replica's view for all.
+//
+// The output matches addConfigurations field-for-field so the existing renderer produces
+// byte-identical config; the platform FQDN and custom-domain expansion (www./test.
+// variants, de-duplication) reproduce the legacy behavior exactly.
 const config = require('config');
 const { resolveCustomConfig } = require('../application/custom');
 
@@ -21,13 +31,49 @@ const sanitizeDomain = (domain) => domain
   .replace('http://', '')
   .replace(/[&/\\#,+()$~%'":*?<>{}]/g, '');
 
-// `ownsDomain(domain)` decides whether this app may serve a custom domain (another
-// live app may own it — first-registrant-wins). Defaults to allow-all so callers that
-// don't arbitrate ownership (e.g. the characterization harness) get every route.
-// `drainingIps` are backends the platform reports shutting down: rendered in
-// maintenance rather than dropped, so they stay visible while taking no traffic. Kept
-// apart from `appIps` so the in-rotation count and ordering are unaffected.
-function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFirst, ownsDomain = () => true, drainingIps = []) {
+// Route fields that describe the BACKEND, which every replica of a route shares. A
+// replica may legitimately differ on hostPort — that is the per-replica binding, and the
+// reason this machinery exists — but if it differs on any of these, the backend cannot
+// represent both and one replica's view would silently stand for all. Not currently
+// reachable: the override allowlist stops at ports.hostPort and env. It becomes reachable
+// the moment that policy widens, which is exactly when silence would be worst.
+const SHARED_ROUTE_FIELDS = [
+  'provider', 'mode', 'balancing', 'timeouts', 'retries', 'stickySessions',
+  'healthCheck', 'backendTls', 'maxConnectionsPerServer', 'scheme',
+  'managedCertificates', 'customDomains',
+];
+
+function conflictingFields(existing, candidate) {
+  return SHARED_ROUTE_FIELDS.filter(
+    (field) => JSON.stringify(existing[field]) !== JSON.stringify(candidate[field]),
+  );
+}
+
+/**
+ * @param {Map<string|null, Object>} deployments replica name → its resolved
+ *   DeploymentSpec; the `null` key is the declared view used by loose (unnamed)
+ *   instances, which is every legacy and every unpinned app.
+ * @param {string} appName
+ * @param {Array<{ip: string, replica: (string|null), draining: boolean}>} backends live
+ *   backends in rotation order, draining ones last. One entry per running instance, so a
+ *   node hosting two co-located replicas appears twice.
+ * @param {boolean} isActiveStandby
+ * @param {boolean} syncFirst
+ * @param {Function} [ownsDomain] decides whether this app may serve a custom domain
+ *   (another live app may own it — first-registrant-wins). Defaults to allow-all so
+ *   callers that don't arbitrate ownership (e.g. the characterization harness) get
+ *   every route.
+ * @param {Function} [onConflict] reports replicas disagreeing on a shared domain
+ */
+function buildRouteConfigs(
+  deployments,
+  appName,
+  backends,
+  isActiveStandby,
+  syncFirst,
+  ownsDomain = () => true,
+  onConflict = () => {},
+) {
   const configs = [];
   const platformSuffix = `${config.appSubDomain}.${config.mainDomain}`;
   const lowerName = appName.toLowerCase();
@@ -37,9 +83,59 @@ function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFir
 
   const has = (domain) => configs.find((entry) => entry.domain === domain);
 
+  // Identity — the domains an app answers on, its backend names and its tuning — comes
+  // from the DECLARED view, never from a replica. The platform FQDN embeds the host port
+  // (`app_31000.app2...`), and a replica may bind a different one; keying identity off
+  // the replica would publish a separate public domain per replica instead of one
+  // load-balanced across them. A replica varies only where its server points.
+  const declared = deployments.get(null);
+  if (!declared) return configs;
+
+  // A replica's own view of one declared route, matched on (component, port name) — the
+  // identity that survives a host-port override.
+  const routeFor = (deployment, componentName, portKey) => (
+    deployment === declared
+      ? null
+      : deployment.routes().find((r) => r.componentName === componentName && r.portKey === portKey)
+  );
+  // The node addresses in rotation, de-duplicated: co-located replicas share one node,
+  // and this list answers "where does this app run" (the /appips projection), not "what
+  // servers does haproxy get" — that is `servers`.
+  const appIps = [...new Set(backends.filter((b) => !b.draining).map((b) => b.ip))];
+
+  // Replicas in the order they first appear in rotation, so the emitted server order
+  // follows the backend ordering resolveBackends decided.
+  const replicaOrder = [...new Set(backends.map((b) => b.replica ?? null))];
+
+  const seen = (domain) => Boolean(has(domain));
+
   // eslint-disable-next-line no-restricted-syntax
-  for (const route of deployment.routes()) {
-    const { componentName, hostPort } = route;
+  for (const route of declared.routes()) {
+    const { componentName, portKey, hostPort } = route;
+    // Every replica's servers for this route, each on the host port ITS deployment
+    // resolved. Replicas keep the rotation order resolveBackends decided.
+    const servers = [];
+    // eslint-disable-next-line no-restricted-syntax
+    for (const replica of replicaOrder) {
+      const deployment = deployments.get(replica);
+      // A replica with no resolved deployment cannot be routed; skip rather than fall
+      // back to the declared view, which would route it on a sibling's ports.
+      // eslint-disable-next-line no-continue
+      if (!deployment) continue;
+      const replicaRoute = routeFor(deployment, componentName, portKey);
+      // A replica that does not expose this port contributes no server to it.
+      // eslint-disable-next-line no-continue
+      if (replica !== null && !replicaRoute) continue;
+      const effective = replicaRoute || route;
+      const differing = conflictingFields(route, effective);
+      if (differing.length) onConflict(`${componentName}/${portKey}`, differing, replica);
+      backends
+        .filter((b) => (b.replica ?? null) === replica)
+        .forEach((b) => servers.push({
+          ip: b.ip, hostPort: effective.hostPort, replica, draining: b.draining,
+        }));
+    }
+
     const backendName = `${appName}_${componentName}_${hostPort}`;
     const customConfig = resolveCustomConfig(appName, componentName, hostPort, isActiveStandby);
     // v9 routes carry owner-declared LB tunables off the resolved loadBalancing entry;
@@ -66,15 +162,17 @@ function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFir
       appName: backendName,
       port: hostPort,
       ips: appIps,
-      drainingIps,
       syncFirst,
       ...customConfig,
       ...v9Tuning,
       timeout: null,
     };
+    // Each domain gets its own copy: one route feeds the platform FQDN plus a bare
+    // custom domain and its www./test. variants, and a shared array would alias them.
+    const serversFor = () => servers.map((s) => ({ ...s }));
 
     // Platform FQDN for this port.
-    configs.push({ ...base, domain: `${lowerName}_${hostPort}.${platformSuffix}` });
+    configs.push({ ...base, domain: `${lowerName}_${hostPort}.${platformSuffix}`, servers: serversFor() });
 
     // Owner custom domains: flux-spec has already split them into individual, trimmed
     // domains for every version, so we just sanitize each for the ACL.
@@ -95,14 +193,15 @@ function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFir
         && portDomain.includes('.')
         && portDomain.length >= 3
         && !portDomain.toLowerCase().includes(platformToken)
-        && !has(portDomain)
+        && !seen(portDomain)
         && !portDomain.includes(platformTokenNoDot)
       ) {
-        if (!has(portDomain.toLowerCase())) configs.push({ ...base, ...exposure, domain: portDomain });
+        const exposed = { ...base, ...exposure };
+        if (!seen(portDomain.toLowerCase())) configs.push({ ...exposed, domain: portDomain, servers: serversFor() });
         const www = `www.${portDomain.toLowerCase()}`;
-        if (!has(www)) configs.push({ ...base, ...exposure, domain: www });
+        if (!seen(www)) configs.push({ ...exposed, domain: www, servers: serversFor() });
         const test = `test.${portDomain.toLowerCase()}`;
-        if (!has(test)) configs.push({ ...base, ...exposure, domain: test });
+        if (!seen(test)) configs.push({ ...exposed, domain: test, servers: serversFor() });
       }
     }
   }
@@ -117,7 +216,7 @@ function buildRouteConfigs(deployment, appName, appIps, isActiveStandby, syncFir
       domain: mainDomain,
       port: first.port,
       ips: appIps,
-      drainingIps,
+      servers: [...first.servers],
       syncFirst,
       ...resolveCustomConfig(appName, '', '', isActiveStandby),
     });

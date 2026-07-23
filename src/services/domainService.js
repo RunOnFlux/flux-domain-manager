@@ -308,8 +308,8 @@ async function selectActiveInstance(instances, app, probe = checkAppRunningWithR
 }
 
 let appIpsOnAppsChecks = [];
-async function addAppIps(app, ip) {
-  const isCheckOK = await applicationChecks.checkApplication(app, ip);
+async function addAppIps(app, ip, deployment) {
+  const isCheckOK = await applicationChecks.checkApplication(app, ip, deployment);
   if (isCheckOK) {
     appIpsOnAppsChecks.push(ip);
   }
@@ -452,10 +452,15 @@ async function resolveBackends(app, appLocations) {
   let appIps = [];
 
   if (applicationChecks.applicationWithChecks(app)) {
+    // The probes need the app's routed port. Resolved here rather than reusing the
+    // syncFirst resolution below, which deliberately runs AFTER the shared-db branch's
+    // compose surgery — a different view, and a branch this one never takes.
+    // eslint-disable-next-line no-await-in-loop
+    const probeDeployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
     // Per-app coded checks hit the network, so responses arrive out of order; sort by ip.
     let promiseArray = [];
     for (const [i, location] of live.entries()) {
-      promiseArray.push(addAppIps(app, location.ip));
+      promiseArray.push(addAppIps(app, location.ip, probeDeployment));
       if ((i + 1) % 10 === 0) {
         // eslint-disable-next-line no-await-in-loop
         await Promise.allSettled(promiseArray);

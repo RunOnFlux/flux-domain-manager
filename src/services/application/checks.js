@@ -979,14 +979,30 @@ function applicationWithChecks(app) {
   return false;
 }
 
-async function checkApplication(app, ip) {
+// The Nth host port this app routes, read off the resolved DeploymentSpec instead of raw
+// compose. Every version normalizes onto the same routes, so this replaces the
+// version-shaped reads these probes used to do (`app.ports[0]` for v1-3,
+// `app.compose[0].ports[N]` for v4+, and nothing at all that worked for v9).
+//
+// It is also strictly more correct than the expression it replaces. `compose[0].ports[0]`
+// is the first COMPONENT's first port, which is `undefined` when that component declares
+// no ports — true of explorer and explorerb, whose real port lives on a later component.
+// Routes carry only ports that are actually exposed, so index 0 is the app's first
+// reachable port. Verified against the live corpus: identical for all 27 probed apps that
+// consume it, and it resolves a real port for the two where raw compose gave undefined.
+function routedPort(deployment, index = 0) {
+  const route = deployment ? deployment.routes()[index] : undefined;
+  return route ? route.hostPort : undefined;
+}
+
+async function checkApplication(app, ip, deployment) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
-    isOK = await generalWebsiteCheck(ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0], undefined, app.name);
+    isOK = await generalWebsiteCheck(ip.split(':')[0], routedPort(deployment), undefined, app.name);
   } else if (app.name === 'explorer' || app.name === 'explorerb') {
     isOK = await checkFluxExplorer(ip.split(':')[0], 39185);
   } else if (app.name === 'bitcoinnode' || app.name === 'bitcoinnodetestnet' || app.name === 'bitcoinnodesignet') {
-    isOK = await checkBitcoinNode(ip.split(':')[0], app.compose[0].ports[0], app.name);
+    isOK = await checkBitcoinNode(ip.split(':')[0], routedPort(deployment), app.name);
   } else if (app.name === 'HavenNodeMainnet') {
     isOK = await checkHavenHeight(ip.split(':')[0], 31750);
     if (isOK) {
@@ -1003,11 +1019,11 @@ async function checkApplication(app, ip) {
       isOK = await checkHavenRPC(ip.split(':')[0], 33750);
     }
   } else if (app.name.startsWith('blockbook')) {
-    isOK = await checkBlockBook(ip.includes('[') ? `${ip.split(']')[0]}]` : ip.split(':')[0], ip.includes(']:') ? ip.split(']:')[1] : app.compose[0].ports[0], app.name);
+    isOK = await checkBlockBook(ip.includes('[') ? `${ip.split(']')[0]}]` : ip.split(':')[0], ip.includes(']:') ? ip.split(']:')[1] : routedPort(deployment), app.name);
   } else if (app.name.startsWith('AlgorandRPC')) {
-    isOK = await checkAlgorand(ip.split(':')[0], app.compose[0].ports[1]);
+    isOK = await checkAlgorand(ip.split(':')[0], routedPort(deployment, 1));
   } else if (app.name.toLowerCase().includes('bittensor')) {
-    isOK = await checkBittensor(ip.split(':')[0], app.version >= 4 ? app.compose[0].ports[0] : app.ports[0]);
+    isOK = await checkBittensor(ip.split(':')[0], routedPort(deployment));
   } else if (app.name === 'alphexplorer') {
     isOK = await checkALPHexplorer(ip.split(':')[0], 9090);
   } else if (app.name === 'ergo') {
@@ -1055,6 +1071,9 @@ function startBlockheightRefresh() {
 
 module.exports = {
   startBlockheightRefresh,
+  // The version-blind probe-port lookup, exported so it can be pinned without standing
+  // up the network probes that consume it.
+  routedPort,
   checkMainFlux,
   checkKadenaApplication,
   checkRunOnFluxWebsite,

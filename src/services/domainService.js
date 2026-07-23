@@ -27,7 +27,6 @@ const { sharedGuardStore } = require('../lib/guardStore');
 const { FdmDataFetcher } = require('./flux/dataFetcher');
 
 let myIP = null;
-let myFDMnameORip = null;
 
 const ownership = new DomainOwnershipRegistry();
 const mapOfNamesIps = {};
@@ -1308,7 +1307,6 @@ async function generateActiveActiveHaproxyConfig() {
     log.info('SSL directory checked');
     const appsOK = await processApplications(
       applicationSpecifications,
-      myFDMnameORip,
       myIP,
     );
     // check appsOK against mandatoryApps
@@ -1483,7 +1481,6 @@ async function generateActiveStandbyHaproxyConfig() {
     log.info('SSL directory checked');
     const appsOK = await processApplications(
       applicationSpecifications,
-      myFDMnameORip,
       myIP,
     );
 
@@ -1649,7 +1646,6 @@ async function obtainCertificatesMode() {
       const certOps = await executeCertificateOperations(
         allCustomDomains,
         DOMAIN_TYPE.CUSTOM,
-        myFDMnameORip,
         myIP,
       );
       certsChanged = certOps.certsChanged;
@@ -1762,11 +1758,6 @@ async function startApplicationProcessing() {
 function initializeServices() {
   myIP = ipService.localIP();
   console.log(`public IP: ${myIP}`);
-  if (config.domainAppType === 'CNAME') {
-    myFDMnameORip = config.fdmAppDomain;
-  } else {
-    myFDMnameORip = myIP;
-  }
   if (myIP) {
     if (config.manageCertificateOnly) {
       if (!dataFetcher) {

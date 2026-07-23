@@ -100,8 +100,6 @@ async function isDomainPointedToThisGroup(hostname, myIP, resolve = dnsLookup) {
 // that is not pointed here.
 async function checkDomainAction(appDomain, type, myIP, resolve = dnsLookup) {
   try {
-    if (appDomain === 'ethereumnodelight.app.runonflux.io') return { domain: appDomain, action: 'skip', reason: 'excluded' };
-
     const isAutomated = type === DOMAIN_TYPE.CUSTOM ? config.automateCertificates : config.automateCertificatesForFDMdomains;
     if (!isAutomated && !config.manageCertificateOnly) return { domain: appDomain, action: 'skip' };
 
@@ -170,10 +168,9 @@ async function executeCertificateOperations(domains, type, myIP) {
     const renewed = actions.filter((a) => a.action === 'renew').length;
     const skippedDns = count('dns backoff');
     const notPointed = count('dns not pointed');
-    const excluded = count('excluded');
     const certsChanged = obtained > 0 || renewed > 0;
-    if (obtained || renewed || skippedDns || notPointed || excluded) {
-      log.info(`Cert ops: ${obtained} obtained, ${renewed} renewed, ${skippedDns} skipped (dns backoff), ${notPointed} skipped (not pointed here), ${excluded} skipped (excluded), ${dnsCache.getCacheSize()} cached failures`);
+    if (obtained || renewed || skippedDns || notPointed) {
+      log.info(`Cert ops: ${obtained} obtained, ${renewed} renewed, ${skippedDns} skipped (dns backoff), ${notPointed} skipped (not pointed here), ${dnsCache.getCacheSize()} cached failures`);
     }
 
     return { success: true, certsChanged };

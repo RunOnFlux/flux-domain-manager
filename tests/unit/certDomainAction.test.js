@@ -37,10 +37,14 @@ describe('checkDomainAction', () => {
     expect(result).to.deep.equal({ domain, action: 'skip', reason: 'dns not pointed' });
   });
 
-  it('gives the excluded domain a reason so it can be counted', async () => {
+  // Platform names are covered by a wildcard certificate, so they are already
+  // "present" and never reach issuance — no per-domain exclusion is needed to keep
+  // any one of them out.
+  it('skips a wildcard-covered platform domain without resolving it', async () => {
+    const exploding = async () => { throw new Error('DNS should not be consulted'); };
     const domain = 'ethereumnodelight.app.runonflux.io';
-    const result = await checkDomainAction(domain, DOMAIN_TYPE.CUSTOM, null, pointedHere);
-    expect(result).to.deep.equal({ domain, action: 'skip', reason: 'excluded' });
+    const result = await checkDomainAction(domain, DOMAIN_TYPE.CUSTOM, null, exploding);
+    expect(result).to.deep.equal({ domain, action: 'skip' });
   });
 
   it('never skips without a reason on the paths that reach DNS', async () => {
@@ -50,7 +54,8 @@ describe('checkDomainAction', () => {
     ]);
     results.forEach((r) => {
       expect(r.action).to.equal('skip');
-      expect(r.reason).to.be.a('string').and.not.empty;
+      expect(r.reason).to.be.a('string');
+      expect(r.reason.length).to.be.above(0);
     });
   });
 });

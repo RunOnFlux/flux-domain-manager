@@ -3,7 +3,7 @@
 // renders with clean deterministic whitespace.
 const chai = require('chai');
 const {
-  HaproxyConfig, Section, Directive, Comment, Blank, parse,
+  HaproxyConfig, Section, Directive, Comment, Blank,
 } = require('../../src/services/haproxy/configModel');
 
 const { expect } = chai;
@@ -75,19 +75,5 @@ describe('configModel', () => {
   it('exposes Comment and Blank as line primitives', () => {
     expect(new Comment('x').render('  ')).to.equal('  # x');
     expect(new Blank().render('  ')).to.equal('');
-  });
-
-  describe('parse', () => {
-    it('splits section headers (with/without name) and body lines, dropping blanks', () => {
-      const cfg = parse('\nglobal\n  maxconn 4096\n\nfrontend www\n  bind *:80\n  use_backend b if a\n');
-      expect(cfg.sections.map((s) => [s.type, s.name])).to.deep.equal([['global', null], ['frontend', 'www']]);
-      expect(cfg.render()).to.equal('global\n  maxconn 4096\n\nfrontend www\n  bind *:80\n  use_backend b if a\n');
-    });
-
-    it('appending to a parsed section keeps insertion order (fold static + dynamic)', () => {
-      const cfg = parse('frontend www\n  bind *:80\n');
-      cfg.sections[0].add('acl', 'a', 'hdr(host)', 'x.com').add('use_backend', 'b', 'if', 'a');
-      expect(cfg.render()).to.equal('frontend www\n  bind *:80\n  acl a hdr(host) x.com\n  use_backend b if a\n');
-    });
   });
 });

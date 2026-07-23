@@ -46,56 +46,6 @@ async function obtainDomainCertificate(domain) {
   await cmdAsync(`sudo cat ${fullchainPath} ${privkeyPath} > ${CERT_DIR}/${domain}.pem`);
 }
 
-// UNWIRED — nothing calls this, and it is the only thing that writes
-// /opt/update-certs.sh. `certbot renew` tracks its own certificates, but haproxy reads
-// the concatenated ${CERT_DIR}/${domain}.pem bundles, and rebuilding those after a
-// renewal is what this appends to the script. Retained rather than deleted as dead code
-// until it is confirmed whether the bundles are rebuilt some other way: if they are not,
-// this is a renewal gap to wire up, not code to remove.
-// eslint-disable-next-line no-unused-vars
-async function adjustAutoRenewalScriptForDomain(domain) { // let it throw
-  const path = '/opt/update-certs.sh';
-  const header = `#!/usr/bin/env bash
-# Renew the certificate
-certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
-# Concatenate new cert files, with less output (avoiding the use tee and its output to stdout)\n`;
-  try {
-    await fs.readFile(path);
-    const autoRenewScript = await fs.readFile(path, { encoding: 'utf-8' });
-    // split the contents by new line
-    const lines = autoRenewScript.split(/\r?\n/);
-    if (!autoRenewScript.startsWith(header)) {
-      lines.splice(0, 0, header);
-      await fs.writeFile(path, lines.join('\n'), {
-        mode: 0o755,
-        flag: 'w',
-        encoding: 'utf-8',
-      });
-    }
-
-    const cert = `bash -c "cat ${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem ${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem > ${CERT_DIR}/${domain}.pem"`;
-    if (autoRenewScript.includes(cert)) {
-      return;
-    }
-
-    lines.splice(6, 0, cert); // push cert to top behind #Concatenate...
-    const file = lines.join('\n');
-    await fs.writeFile(path, file, {
-      mode: 0o755,
-      flag: 'w',
-      encoding: 'utf-8',
-    });
-  } catch (error) {
-    const cert = `bash -c "cat ${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem ${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem > ${CERT_DIR}/${domain}.pem"\n`;
-    const file = header + cert;
-    await fs.writeFile(path, file, {
-      mode: 0o755,
-      flag: 'w',
-      encoding: 'utf-8',
-    });
-  }
-}
-
 async function getCertDaysRemaining(domain) {
   try {
     const pemPath = `${CERT_DIR}/${domain}.pem`;
@@ -110,30 +60,6 @@ async function getCertDaysRemaining(domain) {
     return (expiryDate - now) / (1000 * 60 * 60 * 24);
   } catch (error) {
     return null;
-  }
-}
-
-// UNWIRED — superseded in practice by getCertDaysRemaining + shouldRemoveStaleCert,
-// which cleanupStaleCerts uses. Kept alongside adjustAutoRenewalScriptForDomain so both
-// are decided together rather than one being removed while the renewal question is open.
-// eslint-disable-next-line no-unused-vars
-async function isCertificateExpiringSoon(domain, thresholdDays = 30) {
-  try {
-    const pemPath = `${CERT_DIR}/${domain}.pem`;
-    await fs.access(pemPath);
-    const result = await cmdAsync(
-      `openssl x509 -enddate -noout -in ${pemPath}`,
-    );
-    // result looks like: "notAfter=Mar 15 12:00:00 2026 GMT\n"
-    const match = result.match(/notAfter=(.+)/);
-    if (!match) return true; // can't parse, treat as expiring
-    const expiryDate = new Date(match[1].trim());
-    const now = new Date();
-    const daysRemaining = (expiryDate - now) / (1000 * 60 * 60 * 24);
-    return daysRemaining < thresholdDays;
-  } catch (error) {
-    log.warn(`Cannot check expiry for ${domain}: ${error.message}`);
-    return false; // if cert doesn't exist, obtainDomainCertificate handles it
   }
 }
 

@@ -223,30 +223,6 @@ function staticBackends() {
   ];
 }
 
-/*
-function generateMinecraftSettings(minecraftAppsMap) {
-  let configs = '';
-  for (const port of Object.keys(minecraftAppsMap)) {
-    const portConf = minecraftAppsMap[port];
-    const tempFrontend = `
-frontend minecraft_${port}
-  bind 0.0.0.0:${port}
-  mode tcp
-  tcp-request inspect-delay 5s
-  tcp-request content accept if { req_ssl_hello_type 1 }
-  option tcplog
-  option tcp-check
-${portConf.acls.join('\n')}
-${portConf.usebackends.join('')}
-${portConf.backends.join('\n')}`;
-
-    configs = `${configs}\n\n${tempFrontend}`;
-  }
-
-  return configs;
-}
-*/
-
 // One TCP frontend per port (SNI-routed), plus its backend section(s). Ports 80/443
 // are never forwarded. Returns the sections in render order (frontend then backends).
 function generateAppsTCPSettings(tcpAppsMap) {
@@ -497,7 +473,6 @@ function createAppsHaproxyConfig(appConfig) {
   const backendSections = [];
   const domains = [];
   const seenApps = {};
-  const minecraftAppsMap = {};
   const tcpAppsMap = {};
 
   // v9 scheme buckets — empty for the whole legacy population (every legacy/platform
@@ -567,16 +542,9 @@ function createAppsHaproxyConfig(appConfig) {
     if (app.appName in seenApps) {
       domains.push(app.domain);
       routingAcls.push(new Directive('acl', [seenApps[app.appName], 'hdr(host)', app.domain]));
-    } else if (matchRule(app.name.toLowerCase(), configGlobal.minecraftApps)) {
-      // minecraftAppsMap is built for parity but never rendered (the minecraft-settings
-      // path is off), so a minecraft app contributes nothing to the http frontends.
-      const { port } = app;
-      if (!(port in minecraftAppsMap)) minecraftAppsMap[port] = { acls: [], usebackends: [], backends: [] };
-      minecraftAppsMap[port].acls = minecraftAppsMap[port].acls.concat(generateMinecraftACLs(app));
-      minecraftAppsMap[port].usebackends.push(`  use_backend ${domainUsed}_tcp_backend if ${domainUsed}\n`);
-      const db = generateDomainBackend(app, 'tcp').render();
-      if (!minecraftAppsMap[port].backends.includes(db)) minecraftAppsMap[port].backends.push(db);
-    } else {
+    } else if (!matchRule(app.name.toLowerCase(), configGlobal.minecraftApps)) {
+      // Minecraft apps are served by the TCP frontend below, which routes off the parsed
+      // handshake rather than a TLS hello, so they add nothing to the http frontends.
       if (routingUseBackends.some((d) => d.args[0] === `${domainUsed}backend`)) {
         // eslint-disable-next-line no-continue
         continue;

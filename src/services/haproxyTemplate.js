@@ -139,6 +139,33 @@ function buildWwwhttpsFrontend(internal = false) {
   return section;
 }
 
+// The backends an app renders, in emit order: in-rotation first, then any draining ones
+// in maintenance. Draining backends go last so the first-server directives and the
+// syncFirst backup selection (both keyed on `ips[0]`) are decided purely by the
+// in-rotation set. An ip already in rotation is never re-emitted — haproxy rejects a
+// duplicate server name fatally, which would cost the whole fleet's config, not just
+// this app's.
+function serversToRender(app) {
+  const servers = [];
+  const seen = new Set();
+  const push = (ip, draining) => {
+    if (!ip) {
+      log.error(`${app.appName}: MISSING IP`);
+      return;
+    }
+    if (!ip.split(':')[0]) {
+      log.error(`${app.appName}: unusable backend ip ${ip}`);
+      return;
+    }
+    if (seen.has(ip)) return;
+    seen.add(ip);
+    servers.push({ ip, draining });
+  };
+  for (const ip of app.ips) push(ip, false);
+  for (const ip of app.drainingIps || []) push(ip, true);
+  return servers;
+}
+
 // A v9 httpPassthrough backend: raw TLS forwarded to the app's own port (the backend
 // presents its own cert), so mode tcp and no ssl on the server line. Honors the
 // tcp-compatible tunables (balance, timeouts, health-check timing, maxconn); the
@@ -154,15 +181,10 @@ function generatePassthroughBackend(app, domainUsed) {
     .add('timeout', 'tunnel', t.tunnel);
   const hc = app.healthCheck;
   const timing = hc ? `inter ${hc.interval} rise ${hc.rise} fall ${hc.fall}` : '';
-  for (const ip of app.ips) {
-    const host = ip && ip.split(':')[0];
-    if (!host) {
-      log.error(`passthrough backend ${domainUsed}: bad ip ${ip}`);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
+  for (const { ip, draining } of serversToRender(app)) {
+    const host = ip.split(':')[0];
     const apiPort = ip.split(':')[1] || 16127;
-    section.add('server', `${host}:${apiPort}`, `${host}:${app.port}`, 'check', timing, `maxconn ${app.maxConnectionsPerServer}`);
+    section.add('server', `${host}:${apiPort}`, `${host}:${app.port}`, 'check', timing, `maxconn ${app.maxConnectionsPerServer}`, draining ? 'disabled' : '');
   }
   return section;
 }
@@ -239,17 +261,24 @@ const LEGACY_SERVER_TIMING = 'inter 3s fall 2 rise 2 fastinter 500';
 // Append one backend server line to `section`. The clause order matches legacy for a
 // legacy route and the v9 shape for a v9 route; either way absent clauses are passed
 // as '' and dropped by the model, so no trailing/doubled whitespace survives.
-function addServerLine(section, cfg, app, mode, ip) {
+//
+// `draining` renders the server in maintenance (`disabled`): haproxy keeps the slot and
+// shows it on the stats page but sends it nothing, so an operator can see a node
+// shutting down instead of watching it silently vanish from the config. A draining
+// server is never also a `backup` — the two states would contradict each other, and
+// maintenance already excludes it from every selection path.
+function addServerLine(section, cfg, app, mode, ip, draining = false) {
   const host = ip.split(':')[0];
   const apiPort = ip.split(':')[1] || 16127;
-  const backup = (app.syncFirst && app.ips[0] !== ip) ? 'backup' : '';
+  const disabled = draining ? 'disabled' : '';
+  const backup = (!draining && app.syncFirst && app.ips[0] !== ip) ? 'backup' : '';
 
   if (cfg.isV9) {
     const serverName = `${host}:${apiPort}`;
     const cookie = cfg.stickyV9 ? `cookie ${serverName}` : '';
     section.add('server', ...[
       serverName, `${host}:${app.port}`, 'check',
-      cfg.serverTiming, cfg.serverMaxconn, cfg.serverSsl, cookie, backup,
+      cfg.serverTiming, cfg.serverMaxconn, cfg.serverSsl, cookie, backup, disabled,
     ]);
     return;
   }
@@ -262,7 +291,7 @@ function addServerLine(section, cfg, app, mode, ip) {
     const h2 = app.enableH2 ? h2Suffix : '';
     section.add('server', ...[
       v6host, v6addr, check, app.serverConfig,
-      'ssl verify none', h2, cookie, LEGACY_SERVER_TIMING, backup,
+      'ssl verify none', h2, cookie, LEGACY_SERVER_TIMING, backup, disabled,
     ]);
     return;
   }
@@ -271,7 +300,7 @@ function addServerLine(section, cfg, app, mode, ip) {
   const h2 = cfg.serverSsl && app.enableH2 ? h2Suffix : '';
   section.add('server', ...[
     `${host}:${apiPort}`, `${host}:${app.port}`, check, app.serverConfig,
-    cfg.serverSsl, h2, cookie, LEGACY_SERVER_TIMING, backup,
+    cfg.serverSsl, h2, cookie, LEGACY_SERVER_TIMING, backup, disabled,
   ]);
 }
 
@@ -289,32 +318,15 @@ function generateDomainBackend(app, mode) {
   cfg.headerLines.forEach((line) => section.raw(line));
   cfg.healthCheckLines.forEach((line) => section.raw(line));
 
-  for (const ip of app.ips) {
-    if (!ip) {
-      log.error('MISSING IP');
-      log.error(ip);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-    if (!ip.split(':')[0]) {
-      log.error('INTERESTING IP');
-      log.error(ip);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-    const a = ip.split(':')[0].split('.');
-    if (!a) {
-      log.error('STRANGE IP');
-      log.error(ip);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    // Backend timeouts + retries, emitted once (with the first server).
-    if (app.ips[0] === ip) {
+  // Backend timeouts + retries, emitted once, with the first server actually rendered —
+  // so a backend whose only remaining replicas are draining still carries them.
+  let onceEmitted = false;
+  for (const { ip, draining } of serversToRender(app)) {
+    if (!onceEmitted) {
+      onceEmitted = true;
       cfg.onceLines.forEach((line) => section.raw(line));
     }
-    addServerLine(section, cfg, app, mode, ip);
+    addServerLine(section, cfg, app, mode, ip, draining);
   }
   return section;
 }

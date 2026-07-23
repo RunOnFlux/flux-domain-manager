@@ -322,7 +322,7 @@ async function updateHaproxy(haproxyRouteConfigs) {
 // app has already been through processApplications, so any domain overrides it
 // applied are carried into the resolved routes via deserialize. Custom domains this
 // app does not own (another live app registered them first) are skipped.
-async function appendRouteConfigs(routeConfigs, app, appIps, isActiveStandby) {
+async function appendRouteConfigs(routeConfigs, app, appIps, isActiveStandby, drainingIps = []) {
   const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
   const disowned = [];
   const ownsDomain = (domain) => {
@@ -330,10 +330,25 @@ async function appendRouteConfigs(routeConfigs, app, appIps, isActiveStandby) {
     if (!owned) disowned.push(domain);
     return owned;
   };
-  routeConfigs.push(...buildRouteConfigs(deployment, app.name, appIps, isActiveStandby, app.syncFirst, ownsDomain));
+  routeConfigs.push(...buildRouteConfigs(deployment, app.name, appIps, isActiveStandby, app.syncFirst, ownsDomain, drainingIps));
   if (disowned.length) {
     log.warn(`${app.name}: skipped ${disowned.length} custom domain(s) owned by another app: ${disowned.join(', ')}`);
   }
+}
+
+// The location states that mean "this replica is going away" — flux-shutdownd moves an
+// app through them before the node stops it, and the state rides the location row out
+// through fluxos. Anything else (including an absent state) counts as in rotation, so an
+// older fluxos that doesn't report state fails open.
+const DRAIN_STATES = new Set(['draining', 'stopping']);
+const isDraining = (location) => DRAIN_STATES.has(location.state);
+
+// Log the drain transition. Without this a shutting-down node just silently disappears
+// from the config, with nothing to confirm the flux-shutdownd -> fluxos -> FDM chain
+// actually delivered the state.
+function logDraining(appName, draining) {
+  if (!draining.length) return;
+  log.info(`${appName}: ${draining.length} backend(s) draining, held out of rotation: ${draining.join(', ')}`);
 }
 
 // Resolve the ordered, in-rotation backend IPs for an app from its live locations —
@@ -345,10 +360,16 @@ async function appendRouteConfigs(routeConfigs, app, appIps, isActiveStandby) {
 //                status (primary first); the renderer stays pure over the result
 //   syncFirst  - version-blind, from the typed sync mode (legacy r: and v9 both map to
 //                requiresSyncBeforeStart), set on the app for the backup-server rendering
-// Returns the backend IP list; sets app.syncFirst as a side effect (the renderer reads it).
+// Returns `{ appIps, drainingIps }` — the in-rotation backends and, separately, the ones
+// draining. They stay separate lists on purpose: `appIps` keeps its exact meaning for the
+// mandatory-app emptiness check, the first-server directives and the syncFirst backup
+// selection, none of which should start counting a node that is on its way out.
+// Sets app.syncFirst as a side effect (the renderer reads it).
 async function resolveBackends(app, appLocations) {
   // Drain: keep only backends the platform still considers active.
-  const live = appLocations.filter((l) => l.state !== 'draining' && l.state !== 'stopping');
+  const live = appLocations.filter((l) => !isDraining(l));
+  const drainingIps = appLocations.filter(isDraining).map((l) => l.ip);
+  logDraining(app.name, drainingIps);
   let appIps = [];
 
   if (applicationChecks.applicationWithChecks(app)) {
@@ -414,7 +435,7 @@ async function resolveBackends(app, appLocations) {
   const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
   // eslint-disable-next-line no-param-reassign
   app.syncFirst = Object.values(deployment.components).some((c) => c.requiresSyncBeforeStart());
-  return appIps;
+  return { appIps, drainingIps };
 }
 
 /**
@@ -514,7 +535,7 @@ async function generateActiveActiveHaproxyConfig() {
       if (appLocations.length > 0) {
         const applicationWithChecks = applicationChecks.applicationWithChecks(app);
         // eslint-disable-next-line no-await-in-loop
-        const appIps = await resolveBackends(app, appLocations);
+        const { appIps, drainingIps } = await resolveBackends(app, appLocations);
         if (app.name === 'explorer') {
           log.info(appIps);
         }
@@ -522,7 +543,7 @@ async function generateActiveActiveHaproxyConfig() {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         // eslint-disable-next-line no-await-in-loop
-        await appendRouteConfigs(routeConfigs, app, appIps, false);
+        await appendRouteConfigs(routeConfigs, app, appIps, false, drainingIps);
         log.info(
           `Active-Active Application ${app.name} with specific checks: ${applicationWithChecks} is OK. Proceeding to FDM`,
         );
@@ -629,14 +650,16 @@ async function generateActiveStandbyHaproxyConfig() {
         // Active-standby routes to a single live instance. Drop any draining/stopping
         // backend first so a shutting-down node is never selected as the active one.
         const locationIps = appLocations
-          .filter((l) => l.state !== 'draining' && l.state !== 'stopping')
+          .filter((l) => !isDraining(l))
           .map((location) => location.ip);
+        const drainingIps = appLocations.filter(isDraining).map((l) => l.ip);
+        logDraining(app.name, drainingIps);
         // eslint-disable-next-line no-await-in-loop
         const selectedIP = await selectActiveInstanceIp(locationIps, app);
         if (selectedIP) {
           appIps.push(selectedIP);
           // eslint-disable-next-line no-await-in-loop
-          await appendRouteConfigs(routeConfigs, app, appIps, true);
+          await appendRouteConfigs(routeConfigs, app, appIps, true, drainingIps);
           log.info(
             `Active-Standby Application ${app.name} is OK selected IP is ${selectedIP}. Proceeding to FDM`,
           );

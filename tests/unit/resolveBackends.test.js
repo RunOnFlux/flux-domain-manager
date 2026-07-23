@@ -43,13 +43,31 @@ const loc = (ip, state) => ({ ip, name: 'zzsyncbackendtest', state });
 
 describe('resolveBackends — drain + version-blind syncFirst', () => {
   it('drain: draining/stopping backends are pulled from rotation (absent state kept)', async () => {
-    const appIps = await resolveBackends(v8spec('/data'), [
+    const { appIps } = await resolveBackends(v8spec('/data'), [
       loc('1.1.1.1:16127', 'active'),
       loc('2.2.2.2:16127', 'draining'),
       loc('3.3.3.3:16127', 'stopping'),
       loc('4.4.4.4:16127', undefined),
     ]);
     expect(appIps).to.deep.equal(['1.1.1.1:16127', '4.4.4.4:16127']);
+  });
+
+  it('drain: the draining backends are returned separately, not discarded', async () => {
+    const { drainingIps } = await resolveBackends(v8spec('/data'), [
+      loc('1.1.1.1:16127', 'active'),
+      loc('2.2.2.2:16127', 'draining'),
+      loc('3.3.3.3:16127', 'stopping'),
+      loc('4.4.4.4:16127', undefined),
+    ]);
+    expect(drainingIps).to.deep.equal(['2.2.2.2:16127', '3.3.3.3:16127']);
+  });
+
+  it('drain: nothing draining yields an empty list, never undefined', async () => {
+    const { appIps, drainingIps } = await resolveBackends(v8spec('/data'), [
+      loc('1.1.1.1:16127', 'active'),
+    ]);
+    expect(appIps).to.deep.equal(['1.1.1.1:16127']);
+    expect(drainingIps).to.deep.equal([]);
   });
 
   it('syncFirst: true for a legacy r: app, sourced from the typed sync mode', async () => {

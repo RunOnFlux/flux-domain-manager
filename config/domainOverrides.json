@@ -1,0 +1,20 @@
+{
+  "_comment": [
+    "Custom domains FDM serves for a platform app regardless of what the owner declared.",
+    "app name -> component name ('*' matches every component) -> the domains to serve.",
+    "The listed domains replace the component's declared ones and attach to its first",
+    "routed port; that component's remaining ports serve no custom domain. Applied to the",
+    "resolved routes, so it is version-blind and never touches a raw spec.",
+    "These are platform-operated apps whose public domains FDM owns, not customer apps."
+  ],
+  "cloud": {
+    "*": ["cloud.runonflux.io", "cloud.runonflux.com"]
+  },
+  "clouddev": {
+    "*": ["dev.cloud.runonflux.io", "dev.cloud.runonflux.com"]
+  },
+  "web": {
+    "webfront": ["new.runonflux.io"],
+    "web": ["runonflux.io"]
+  }
+}

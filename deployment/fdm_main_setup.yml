@@ -90,8 +90,6 @@
         path: "flux-domain-manager/config/{{ item }}"
         state: file
       loop:
-        - cloudflareConfig.js
-        - PDNSConfig.js
         - appsConfig.js
 
     - name: Install Dependencies FDM

@@ -1,5 +1,3 @@
-const cloudflareConfig = require('./cloudflareConfig');
-const pDNSConfig = require('./PDNSConfig');
 const appsConfig = require('./appsConfig');
 
 module.exports = {
@@ -28,23 +26,9 @@ module.exports = {
   certRenewalPrimary: {{ certRenewalPrimary | default('false') | lower }},
   automateCertificates: false,
   automateCertificatesForFDMdomains: false,
-  adjustFDMdomains: false,
-  cloudflare: {
-    endpoint: 'https://api.cloudflare.com/client/v4/',
-    apiKey: cloudflareConfig.apiKey,
-    zone: cloudflareConfig.zoneID,
-    domain: cloudflareConfig.domain,
-    manageapp: {{ manageApps }},
-    enabled: true,
-  },
-  pDNS: {
-    endpoint: pDNSConfig.apiEndpoint,
-    apiKey: pDNSConfig.apiKey,
-    zone: pDNSConfig.zoneID,
-    domain: pDNSConfig.domain,
-    manageapp: false,
-    enabled: false,
-  },
+  // true: this FDM routes applications under appSubDomain.mainDomain
+  // false: it routes the main node domain instead
+  manageApps: {{ manageApps }},
   mandatoryApps: appsConfig.mandatoryApps,
   ownersApps: appsConfig.ownersApps, // Will retrieve only apps of owners specified here
   whiteListedApps: appsConfig.whiteListedApps, // If there's app in the array, blacklisting will be ignore

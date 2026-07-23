@@ -974,35 +974,14 @@ function initializeServices() {
       obtainCertificatesMode();
       startCertRsync();
       log.info('FDM Certificate Service initialized.');
-    } else if (
-      config.mainDomain === config.cloudflare.domain
-      && !config.cloudflare.manageapp
-    ) {
+    } else if (!config.manageApps) {
       generateAndReplaceMainHaproxyConfig();
       log.info('Flux Main Node Domain Service initiated.');
-    } else if (
-      config.mainDomain === config.pDNS.domain
-      && !config.pDNS.manageapp
-    ) {
-      generateAndReplaceMainHaproxyConfig();
-      log.info('Flux Main Node Domain Service initiated.');
-    } else if (
-      config.mainDomain === config.cloudflare.domain
-      && config.cloudflare.manageapp
-      && !dataFetcher
-    ) {
+    } else if (!dataFetcher) {
       // only runs on main FDM handles X.APP.runonflux.io. This only runs once
       // to add event listeners
       startApplicationProcessing();
 
-      log.info('Flux Main Application Domain Service initiated.');
-    } else if (
-      config.mainDomain === config.pDNS.domain
-      && config.pDNS.manageapp
-      && !dataFetcher
-    ) {
-      // only runs on main FDM handles X.APP.runonflux.io. This only runs once
-      startApplicationProcessing();
       log.info('Flux Main Application Domain Service initiated.');
     } else {
       log.info('CUSTOM DOMAIN SERVICE UNAVAILABLE');

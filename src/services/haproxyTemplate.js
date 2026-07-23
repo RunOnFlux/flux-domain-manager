@@ -32,7 +32,7 @@ function buildBaseConfig() {
   const config = new HaproxyConfig();
 
   const global = config.section('global');
-  if (configGlobal.cloudflare.manageapp) global.add('lua-load', '/etc/haproxy/haproxy_minecraft.lua');
+  if (configGlobal.manageApps) global.add('lua-load', '/etc/haproxy/haproxy_minecraft.lua');
   global.add('maxconn', '50000')
     .add('log', '/dev/log', 'local0', 'info', 'alert')
     .add('log', '/dev/log', 'local1', 'warning', 'alert')

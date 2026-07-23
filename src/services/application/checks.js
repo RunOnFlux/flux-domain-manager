@@ -1,16 +1,8 @@
-/* eslint-disable no-unused-vars */
-// gamedig is ESM-only and exposes itself through an exports map, which the eslint import
-// resolver cannot follow; it is a declared dependency, installed, and resolves at runtime
-// (awaited in the game-server probes below).
-// eslint-disable-next-line import/no-unresolved
-const gamedig = import('gamedig');
-
 const axios = require('axios');
 const config = require('config');
 const https = require('https');
 const ethers = require('ethers');
 const serviceHelper = require('../serviceHelper');
-const domainService = require('../domainService');
 const log = require('../../lib/log');
 
 const timeout = 5456;
@@ -273,209 +265,7 @@ async function checkMainFlux(ip, port = 16127) {
   }
 }
 
-// KUSAMA
-function checkheightOKksm(height) {
-  const currentTime = new Date().getTime();
-  const baseTime = 1622640282000;
-  const baseHeight = 7739485;
-  const timeDifference = currentTime - baseTime;
-  const blocksPassedInDifference = (timeDifference / 6000); // 6 secs
-  const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - 600; // allow being off sync for 600 blocks; 1 hour
-  console.log(minimumAcceptedBlockHeight);
-  if (height > minimumAcceptedBlockHeight) {
-    return true;
-  }
-  return false;
-}
-
-function checkheightOKdot(height) {
-  const currentTime = new Date().getTime();
-  const baseTime = 1622640408000;
-  const baseHeight = 5331005;
-  const timeDifference = currentTime - baseTime;
-  const blocksPassedInDifference = (timeDifference / 6000); // 6 secs
-  const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - 600; // allow being off sync for 600 blocks; 1 hour
-  console.log(minimumAcceptedBlockHeight);
-  if (height > minimumAcceptedBlockHeight) {
-    return true;
-  }
-  return false;
-}
-
 // POLKADOT
-
-async function getPolkaNetworkHeight(ip, port) {
-  try {
-    const max = 1000000;
-    const min = 1;
-
-    const data = {
-      jsonrpc: '2.0',
-      method: 'system_syncState',
-      params: [],
-      id: Math.floor(Math.random() * (max - min + 1)) + min,
-    };
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-    const rosettaData = await serviceHelper.httpPostRequest(`http://${ip}:${port}/network/status`, data, 3456, headers);
-    console.log(rosettaData.data.result);
-    return rosettaData.data.result.currentBlock;
-  } catch (e) {
-    // log.error(e);
-    return -1;
-  }
-}
-
-// ROSETTA
-async function checkRosettaSynced(ip, height) {
-  try {
-    const agent = new https.Agent({
-      rejectUnauthorized: false,
-    });
-    const data = {
-      network_identifier: {
-        blockchain: 'flux',
-        network: 'mainnet',
-      },
-      block_identifier: {
-        index: height - 30,
-      },
-    };
-    const rosettaData = await serviceHelper.httpPostRequest(`http://${ip}:38080/network/status`, data, 3456, undefined, agent);
-    return rosettaData.data.block.block_identifier.index;
-  } catch (e) {
-    // log.error(e);
-    return false;
-  }
-}
-
-async function getRosettaHeight(ip) {
-  try {
-    const agent = new https.Agent({
-      rejectUnauthorized: false,
-    });
-    const data = {
-      network_identifier: {
-        blockchain: 'flux',
-        network: 'mainnet',
-      },
-    };
-    const rosettaData = await serviceHelper.httpPostRequest(`http://${ip}:38080/network/status`, data, 3456, undefined, agent);
-    return rosettaData.data.current_block_identifier.index;
-  } catch (e) {
-    // log.error(e);
-    return -1;
-  }
-}
-
-function checkRosettaheightOK(height) {
-  const currentTime = new Date().getTime();
-  const baseTime = 1623245290000;
-  const baseHeight = 878090;
-  const timeDifference = currentTime - baseTime;
-  const blocksPassedInDifference = (timeDifference / 120000); // 120 secs
-  const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - 720; // allow being off sync for 720 blocks; 1 day
-  if (height > minimumAcceptedBlockHeight) {
-    return true;
-  }
-  return false;
-}
-
-// KADENA
-function kadenaCheckHeight(height) {
-  const currentTime = new Date().getTime();
-  const baseTime = 1733919199;
-  const baseHeight = 107632137;
-  const timeDifference = currentTime - baseTime;
-  const blocksPassedInDifference = (timeDifference / 30000) * 20; // 20 chains with blocktime 30 seconds
-  const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - (60 * 310); // allow being off sync for 1200 blocks; 30 mins
-  if (height > minimumAcceptedBlockHeight) {
-    return true;
-  }
-  return false;
-}
-
-function kadenaCheckPeers(peers) {
-  try {
-    const goodPeers = peers.filter((peer) => peer.address.hostname.includes('chainweb')); // has outside of flux too
-    if (goodPeers.length > 1) { // at least 2 chainweb peers
-      return true;
-    }
-    const goodPeersPort = peers.filter((peer) => peer.address.port !== 31350); // has outside of flux too
-    if (goodPeersPort.length > 4) { // at least 5 different than flux peers
-      return true;
-    }
-    return false;
-  } catch (error) {
-    log.error(error);
-    return true;
-  }
-}
-
-async function kadenaGetHeight(ip) {
-  try {
-    const agent = new https.Agent({
-      rejectUnauthorized: false,
-    });
-    const { CancelToken } = axios;
-    const source = CancelToken.source();
-    let isResolved = false;
-    setTimeout(() => {
-      if (!isResolved) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, timeout * 2);
-    const kadenaData = await axios.get(`https://${ip}:31350/chainweb/0.0/mainnet01/cut`, { httpsAgent: agent, timeout, cancelToken: source.token });
-    isResolved = true;
-    return kadenaData.data.height;
-  } catch (e) {
-    // log.error(e);
-    return -1;
-  }
-}
-
-async function kadenaGetConenctions(ip) {
-  try {
-    const agent = new https.Agent({
-      rejectUnauthorized: false,
-    });
-    const { CancelToken } = axios;
-    const source = CancelToken.source();
-    let isResolved = false;
-    setTimeout(() => {
-      if (!isResolved) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, timeout * 2);
-    const kadenaData = await axios.get(`https://${ip}:31350/chainweb/0.0/mainnet01/cut/peer`, { httpsAgent: agent, timeout, cancelToken: source.token });
-    isResolved = true;
-    return kadenaData.data.items;
-  } catch (e) {
-    // log.error(e);
-    return [];
-  }
-}
-
-async function checkKadenaApplication(ip) {
-  try {
-    const height = await kadenaGetHeight(ip);
-    if (kadenaCheckHeight(height)) {
-      // eslint-disable-next-line no-await-in-loop
-      const peers = await kadenaGetConenctions(ip);
-      if (kadenaCheckPeers(peers)) {
-        return true;
-      }
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
 
 async function checkALPHexplorer(ip, port) {
   try {
@@ -491,42 +281,6 @@ async function checkALPHexplorer(ip, port) {
     return false;
   } catch (error) {
     log.info(`Failed to check ALPH explorer: ${error.message}`);
-    return false;
-  }
-}
-
-async function checkRunOnFluxWebsite(ip, port) {
-  try {
-    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 8888);
-    if (websiteResponse.data.includes('<title>Flux')) {
-      return true;
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkMOKWebsite(ip, port) {
-  try {
-    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 5000);
-    if (websiteResponse.data.includes('<title>The Miners')) {
-      return true;
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkCloudAtlasWebsite(ip, port) {
-  try {
-    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 8888);
-    if (websiteResponse.data.includes('<title>Atlas')) {
-      return true;
-    }
-    return false;
-  } catch (error) {
     return false;
   }
 }
@@ -557,30 +311,6 @@ async function checkFluxExplorer(ip, port) {
       if (result) {
         return true;
       }
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkKDLaunch(ip, port) {
-  try {
-    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 2000);
-    if (websiteResponse.data.includes('<title>KDLaunch')) {
-      return true;
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkHavenValut(ip, port) {
-  try {
-    const websiteResponse = await serviceHelper.httpGetRequest(`http://${ip}:${port}`, 2000);
-    if (websiteResponse.data.includes('<title>Haven')) {
-      return true;
     }
     return false;
   } catch (error) {
@@ -760,54 +490,6 @@ async function checkBitcoinNode(ip, port, name) {
   return false;
 }
 
-async function checkMinecraft(ip, port) {
-  try {
-    const gg = await gamedig;
-    const state = await gg.GameDig.query({
-      type: 'minecraft',
-      host: ip,
-      port,
-      attemptTimeout: 5000,
-      maxRetries: 3,
-    });
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkPalworld(ip, port) {
-  try {
-    const gg = await gamedig;
-    const state = await gg.GameDig.query({
-      type: 'palworld',
-      host: ip,
-      port,
-      attemptTimeout: 5000,
-      maxRetries: 3,
-    });
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkEnshrouded(ip, port) {
-  try {
-    const gg = await gamedig;
-    const state = await gg.GameDig.query({
-      type: 'enshrouded',
-      host: ip,
-      port,
-      attemptTimeout: 5000,
-      maxRetries: 3,
-    });
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
 // Is this app's instance running on that node? `replica` narrows the question to one
 // named replica: a node can host several co-located replicas of the same app, and for an
 // active-standby app the answer for one of them is not the answer for its siblings.
@@ -948,13 +630,7 @@ module.exports = {
   // up the network probes that consume it.
   routedPort,
   checkMainFlux,
-  checkKadenaApplication,
-  checkRunOnFluxWebsite,
   checkFluxExplorer,
-  checkCloudAtlasWebsite,
-  checkKDLaunch,
-  checkMOKWebsite,
-  checkHavenValut,
   generalWebsiteCheck,
   checkApplication,
   applicationWithChecks,

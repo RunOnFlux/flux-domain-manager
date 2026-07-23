@@ -74,7 +74,7 @@ async function renderConfig(specs) {
 // have no offline projection — characterized as a sealed marker.
 async function domainsForSpec(spec) {
   const instance = await specLibs.deserialize(spec);
-  if (instance.sealed) return { unifiedDomains: { __sealed: true }, customDomains: { __sealed: true } };
+  if (instance.sealed) return { unifiedDomains: { sealed: true }, customDomains: { sealed: true } };
   const deployment = await specLibs.resolveDeployment(instance, null);
   return { unifiedDomains: getUnifiedDomains(deployment), customDomains: getCustomDomains(deployment) };
 }

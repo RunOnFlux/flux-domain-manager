@@ -914,7 +914,13 @@ async function checkBittensor(ip, port) {
   }
 }
 
-async function checkAppRunning(url, appName) {
+// Is this app's instance running on that node? `replica` narrows the question to one
+// named replica: a node can host several co-located replicas of the same app, and for an
+// active-standby app the answer for one of them is not the answer for its siblings.
+// Container names carry the identifier `{component}_{app}` — `{component}_{app}_{replica}`
+// when the replica is named — and none of those three segments may contain `_`, so
+// `{app}_{replica}` matches that replica and nothing else.
+async function checkAppRunning(url, appName, replica = null) {
   try {
     const { CancelToken } = axios;
     const source = CancelToken.source();
@@ -931,7 +937,8 @@ async function checkAppRunning(url, appName) {
     const response = await axios.get(`http://${ip}:${port}/apps/listrunningapps`, { timeout: checkAppRunningTimeout, cancelToken: source.token });
     isResolved = true;
     const appsRunning = response.data.data;
-    if (appsRunning.find((app) => app.Names[0].includes(appName))) {
+    const marker = replica ? `${appName}_${replica}` : appName;
+    if (appsRunning.find((app) => app.Names[0].includes(marker))) {
       return true;
     }
     return false;

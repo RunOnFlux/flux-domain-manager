@@ -26,8 +26,18 @@ let myIP = null;
 let myFDMnameORip = null;
 
 const ownership = new DomainOwnershipRegistry();
-const mapOfNamesIps = {};
-const mapOfNamesIpsLastHealthy = {}; // timestamp of last successful health check per app
+// The active-standby instance currently serving each app, and when it was last seen
+// healthy. An instance is `{ ip, replica }` — for a loose (unnamed) instance that is just
+// its node, which is every app in the wild today.
+const mapOfNamesInstances = {};
+const mapOfNamesInstancesLastHealthy = {}; // timestamp of last successful health check per app
+
+// Two instances are the same when they are the same replica on the same node. A node
+// hosting co-located replicas holds several distinct instances of one app.
+const sameInstance = (a, b) => Boolean(a) && Boolean(b)
+  && a.ip === b.ip && (a.replica || null) === (b.replica || null);
+const describeInstance = (instance) => (
+  instance.replica ? `${instance.ip} (replica ${instance.replica})` : instance.ip);
 const ACTIVE_STANDBY_HEALTH_RETRY_COUNT = 3;
 const ACTIVE_STANDBY_HEALTH_RETRY_DELAY_MS = 3000;
 const ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS = 90 * 1000; // 90 seconds before switching away from sticky IP
@@ -206,15 +216,15 @@ function selectLowestDigitSumIp(ips) {
   return chosenIp;
 }
 
-async function checkAppRunningWithRetries(ip, appName, retries = ACTIVE_STANDBY_HEALTH_RETRY_COUNT) {
+async function checkAppRunningWithRetries(instance, appName, retries = ACTIVE_STANDBY_HEALTH_RETRY_COUNT) {
   for (let attempt = 1; attempt <= retries; attempt += 1) {
     // eslint-disable-next-line no-await-in-loop
-    const isOk = await applicationChecks.checkAppRunning(ip, appName);
+    const isOk = await applicationChecks.checkAppRunning(instance.ip, appName, instance.replica);
     if (isOk) {
       return true;
     }
     if (attempt < retries) {
-      log.info(`Active-Standby App ${appName} health check attempt ${attempt}/${retries} failed for ${ip}, retrying...`);
+      log.info(`Active-Standby App ${appName} health check attempt ${attempt}/${retries} failed for ${describeInstance(instance)}, retrying...`);
       // eslint-disable-next-line no-await-in-loop
       await serviceHelper.timeout(ACTIVE_STANDBY_HEALTH_RETRY_DELAY_MS);
     }
@@ -222,55 +232,76 @@ async function checkAppRunningWithRetries(ip, appName, retries = ACTIVE_STANDBY_
   return false;
 }
 
-async function selectActiveInstanceIp(ips, app) {
+/**
+ * Choose the ONE instance an active-standby app serves from. The others are warm
+ * standbys sharing state through syncthing, so two of them serving at once is the
+ * corruption this mode exists to prevent.
+ *
+ * The unit of selection is an instance — `{ ip, replica }` — not a node. A node can host
+ * several co-located replicas of the same app, so selecting a node would leave every
+ * replica on it in rotation, and the health check would answer "is the app alive on that
+ * node" when the question is "is THIS replica alive". Both follow the instance.
+ *
+ * A loose (unnamed) instance is its node, so for every legacy app this is exactly the
+ * historical per-ip behaviour: same sticky identity, same lowest-digit-sum ordering, same
+ * unhealthy grace period.
+ *
+ * @param {Array<{ip: string, replica: (string|null)}>} instances live, non-draining
+ * @param {Object} app
+ * @param {Function} [probe] health check, injectable for tests
+ * @returns {Promise<{ip: string, replica: (string|null)}|null>}
+ */
+async function selectActiveInstance(instances, app, probe = checkAppRunningWithRetries) {
+  if (!instances || !instances.length) return null;
   // choose the ip address whose sum of digits is the lowest
-  if (ips && ips.length) {
-    const lowestDigitSumIp = selectLowestDigitSumIp(ips);
+  const lowestDigitSumIp = selectLowestDigitSumIp(instances.map((i) => i.ip));
 
-    // Use sticky IP if it's still in the location list
-    const stickyIp = mapOfNamesIps[app.name];
-    if (stickyIp && ips.includes(stickyIp)) {
-      // Sticky IP still exists in locations - health check it with retries
-      const isOk = await checkAppRunningWithRetries(stickyIp, app.name);
-      if (isOk) {
-        mapOfNamesIpsLastHealthy[app.name] = Date.now();
-        return stickyIp;
-      }
-      // Sticky IP failed all retries - check if we should still keep it
-      // based on how recently it was last seen healthy
-      const lastHealthy = mapOfNamesIpsLastHealthy[app.name] || 0;
-      const timeSinceHealthy = Date.now() - lastHealthy;
-      if (lastHealthy > 0 && timeSinceHealthy < ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS) {
-        log.warn(
-          `Active-Standby App ${app.name} sticky IP ${stickyIp} failed health check but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
-        );
-        return stickyIp;
-      }
-      log.warn(
-        `Active-Standby App ${app.name} sticky IP ${stickyIp} failed health check for >${ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS / 1000}s, selecting new IP`,
-      );
+  // Use the sticky instance if it is still placed
+  const sticky = mapOfNamesInstances[app.name];
+  const stickyPlaced = sticky && instances.find((i) => sameInstance(i, sticky));
+  if (stickyPlaced) {
+    // Sticky instance still exists in locations - health check it with retries
+    const isOk = await probe(stickyPlaced, app.name);
+    if (isOk) {
+      mapOfNamesInstancesLastHealthy[app.name] = Date.now();
+      return stickyPlaced;
     }
+    // Sticky instance failed all retries - check if we should still keep it
+    // based on how recently it was last seen healthy
+    const lastHealthy = mapOfNamesInstancesLastHealthy[app.name] || 0;
+    const timeSinceHealthy = Date.now() - lastHealthy;
+    if (lastHealthy > 0 && timeSinceHealthy < ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS) {
+      log.warn(
+        `Active-Standby App ${app.name} sticky instance ${describeInstance(stickyPlaced)} failed health check but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
+      );
+      return stickyPlaced;
+    }
+    log.warn(
+      `Active-Standby App ${app.name} sticky instance ${describeInstance(stickyPlaced)} failed health check for >${ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS / 1000}s, selecting a new one`,
+    );
+  }
 
-    // No valid sticky IP - select from available IPs starting with lowest digit sum
-    // Sort candidates: lowest digit sum first for deterministic fallback order
-    const candidates = stickyIp
-      ? ips.filter((ip) => ip !== stickyIp)
-      : [...ips];
-    // Put lowest digit sum IP first, then the rest
-    candidates.sort((a, b) => {
-      if (a === lowestDigitSumIp) return -1;
-      if (b === lowestDigitSumIp) return 1;
-      return 0;
-    });
+  // No valid sticky instance - select from those available, lowest digit sum first
+  const candidates = sticky
+    ? instances.filter((i) => !sameInstance(i, sticky))
+    : [...instances];
+  // Put the lowest-digit-sum node first, then the rest; co-located replicas of the same
+  // node break the tie on replica name so the choice is deterministic across directors.
+  candidates.sort((a, b) => {
+    if (a.ip === lowestDigitSumIp && b.ip !== lowestDigitSumIp) return -1;
+    if (b.ip === lowestDigitSumIp && a.ip !== lowestDigitSumIp) return 1;
+    if (a.ip === b.ip) return String(a.replica || '').localeCompare(String(b.replica || ''));
+    return 0;
+  });
 
-    for (const candidate of candidates) {
-      // eslint-disable-next-line no-await-in-loop
-      const isOk = await checkAppRunningWithRetries(candidate, app.name);
-      if (isOk) {
-        mapOfNamesIps[app.name] = candidate;
-        mapOfNamesIpsLastHealthy[app.name] = Date.now();
-        return candidate;
-      }
+  // eslint-disable-next-line no-restricted-syntax
+  for (const candidate of candidates) {
+    // eslint-disable-next-line no-await-in-loop
+    const isOk = await probe(candidate, app.name);
+    if (isOk) {
+      mapOfNamesInstances[app.name] = candidate;
+      mapOfNamesInstancesLastHealthy[app.name] = Date.now();
+      return candidate;
     }
   }
   return null;
@@ -698,24 +729,29 @@ async function generateActiveStandbyHaproxyConfig() {
       if (appLocations.length > 0) {
         const appIps = [];
 
-        // Active-standby routes to a single live instance. Drop any draining/stopping
-        // backend first so a shutting-down node is never selected as the active one.
-        const locationIps = appLocations
+        // Active-standby routes to a single live INSTANCE — one replica on one node, not
+        // a whole node, since a node may host co-located replicas and only one of them
+        // may serve. Draining instances are dropped from selection first, so a
+        // shutting-down one is never chosen, then rendered in maintenance below.
+        const liveInstances = appLocations
           .filter((l) => !isDraining(l))
-          .map((location) => location.ip);
-        const drainingIps = appLocations.filter(isDraining).map((l) => l.ip);
-        logDraining(app.name, drainingIps);
+          .map((l) => ({ ip: l.ip, replica: l.replica || null }));
+        const drainingBackends = appLocations
+          .filter(isDraining)
+          .map((l) => ({ ip: l.ip, replica: l.replica || null, draining: true }));
+        logDraining(app.name, drainingBackends.map((b) => b.ip));
         // eslint-disable-next-line no-await-in-loop
-        const selectedIP = await selectActiveInstanceIp(locationIps, app);
-        if (selectedIP) {
-          appIps.push(selectedIP);
-          // Selection is per node, so a selected node hosting co-located replicas
-          // contributes each of them — toBackends resolves that from the location rows.
-          const backends = toBackends(appIps, drainingIps, appLocations);
+        const selected = await selectActiveInstance(liveInstances, app);
+        if (selected) {
+          appIps.push(selected.ip);
+          // Exactly the selected instance goes into rotation. Its co-located siblings are
+          // standbys and must not appear as servers, or the single-writer guarantee is
+          // gone the moment haproxy balances between them.
+          const backends = [{ ...selected, draining: false }, ...drainingBackends];
           // eslint-disable-next-line no-await-in-loop
           await appendRouteConfigs(routeConfigs, app, backends, true);
           log.info(
-            `Active-Standby Application ${app.name} is OK selected IP is ${selectedIP}. Proceeding to FDM`,
+            `Active-Standby Application ${app.name} is OK selected instance is ${describeInstance(selected)}. Proceeding to FDM`,
           );
         }
 
@@ -1002,4 +1038,5 @@ module.exports = {
   start,
   getRouteConfigs,
   resolveBackends,
+  selectActiveInstance,
 };

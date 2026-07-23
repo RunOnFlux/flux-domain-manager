@@ -16,6 +16,7 @@ const applicationChecks = require('./application/checks');
 const { getApplicationsToProcess } = require('./application/subset');
 const { buildRouteConfigs } = require('./haproxy/buildRouteConfigs');
 const { publishRouteConfigs } = require('./haproxy/publication');
+const { resolveAppLocations, runPerApp } = require('./haproxy/appCycle');
 const { ConditionLog } = require('./conditionLog');
 const specLibs = require('./flux/specLibs');
 const { DOMAIN_TYPE } = require('./constants');
@@ -1338,80 +1339,30 @@ async function generateActiveActiveHaproxyConfig() {
     reportMissingMandatoryApps(appsOK, 'Active-Active');
     // continue with appsOK
     const routeConfigs = [];
-    for (const app of appsOK) {
+    await runPerApp(appsOK, 'Active-Active', async (app) => {
       const appStartTime = process.hrtime.bigint();
+      const { locations: appLocations, requests } = await resolveAppLocations({
+        appName: app.name,
+        known: appsLocations,
+        fetchLocations: fluxService.getApplicationLocation,
+      });
+      searchRequests += requests;
 
-      const appLocations = appsLocations.get(app.name) || [];
-
-      // Same rule as the active-standby pass: the attempts are for an API that could not be
-      // reached. An explicit "nothing is running it" is final.
-      if (!appLocations.length) {
-        for (let attempt = 1; attempt <= ACTIVE_STANDBY_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
-          searchRequests += 1;
-          // eslint-disable-next-line no-await-in-loop
-          const { answered, locations: found } = await fluxService
-            .getApplicationLocation(app.name);
-          appLocations.push(...found);
-          if (found.length || answered) break;
-        }
-      }
-
-      if (app.name === 'blockbookbitcoin') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::20]:9130' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::21]:9130' });
-      }
-      if (app.name === 'blockbooklitecoin') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::24]:9134' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::25]:9134' });
-      }
-      if (app.name === 'blockbookdogecoin') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::36]:9138' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::37]:9138' });
-      }
-      if (app.name === 'blockbookravencoin') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::46]:9159' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::47]:9159' });
-      }
-      if (app.name === 'blockbookbitcointestnet') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::42]:19129' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::43]:19129' });
-      }
-      if (app.name === 'blockbookbitcoinsignet') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::97]:19120' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::98]:19120' });
-      }
-      if (app.name === 'blockbookzcash') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::26]:9132' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::27]:9132' });
-      }
-      if (app.name === 'blockbookbitcoincash') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::91]:9131' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::92]:9131' });
-      }
-      // One app must never take the cycle down with it. An app with no healthy instances
-      // is ordinary - it expired, its owner stopped paying, its nodes died - and the
-      // correct response is to route it nowhere, not to abandon every other app's routing
-      // update. Whether the cycle as a whole looks trustworthy is decided once, below,
-      // from the size of what it built.
       try {
         if (appLocations.length > 0) {
-          // eslint-disable-next-line no-await-in-loop
           const { appIps, backends } = await resolveBackends(app, appLocations);
           unhealthyApps.report(app.name, appIps.length < 1, () => `Active-Active Application ${app.name} has no healthy instances`);
-          // eslint-disable-next-line no-await-in-loop
           await appendRouteConfigs(routeConfigs, app, backends, false);
           reportExclusion('Active-Active', app.name, false);
         } else {
           reportExclusion('Active-Active', app.name, true);
         }
-      } catch (error) {
-        log.error(`Active-Active Application ${app.name} failed and is excluded from this cycle: ${error.message}`);
+      } finally {
+        const elapsedNs = Number(process.hrtime.bigint() - appStartTime);
+        appsProcessingTimeNs += elapsedNs;
+        slowestApp = elapsedNs > slowestApp.ns ? { name: app.name, ns: elapsedNs } : slowestApp;
       }
-
-      const elapsedNs = Number(process.hrtime.bigint() - appStartTime);
-      appsProcessingTimeNs += elapsedNs;
-      slowestApp = elapsedNs > slowestApp.ns ? { name: app.name, ns: elapsedNs } : slowestApp;
-    }
+    });
 
     const elapsedAppsS = Math.round((appsProcessingTimeNs / 1_000_000_000) * 100) / 100;
     const slowestS = Math.round((slowestApp.ns / 1_000_000_000) * 100) / 100;
@@ -1538,47 +1489,45 @@ async function generateActiveStandbyHaproxyConfig() {
       }
     }
 
+    // Fixed addresses the feed does not carry, as the active-active loop adds them.
+    for (const app of appsOK) {
+      const fixed = config.staticLocations[app.name];
+      if (fixed) locationsForPass.set(app.name, [...(locationsForPass.get(app.name) || []), ...fixed.map((ip) => ({ ip }))]);
+    }
+
     // A draining or stopping instance is never selected as the active one.
     const liveLocations = new Map([...locationsForPass].map(([name, locations]) => [
       name, locations.filter((l) => !isDraining(l)),
     ]));
     const selected = await selectActiveStandbyPrimaries(appsOK, liveLocations);
 
-    // continue with appsOK
     const routeConfigs = [];
-    for (const app of appsOK) {
+    await runPerApp(appsOK, 'Active-Standby', async (app) => {
       const appLocations = locationsForPass.get(app.name) || [];
-
-      // As in the active-active loop: one app never takes the cycle down with it.
-      try {
-        if (appLocations.length > 0) {
-          // Active-standby routes to a single INSTANCE - one replica on one node, not a
-          // whole node, since a node may host co-located replicas and only one of them may
-          // serve. Draining instances were dropped from selection; they render in
-          // maintenance here.
-          const selectedKey = selected.get(app.name);
-          const draining = appLocations
-            .filter(isDraining)
-            .map((l) => ({ ip: l.ip, replica: l.replica || null, draining: true }));
-          logDraining(app.name, draining.map((b) => b.ip));
-          unhealthyApps.report(app.name, !selectedKey, () => `Active-Standby Application ${app.name} has no instance fit to serve`);
-          if (selectedKey) {
-            const instance = { ip: nodeOf(selectedKey), replica: replicaOf(selectedKey) };
-            // Exactly the selected instance goes into rotation. Its co-located siblings are
-            // standbys and must not appear as servers, or the single-writer guarantee is
-            // gone the moment haproxy balances between them.
-            const backends = [{ ...instance, draining: false }, ...draining];
-            // eslint-disable-next-line no-await-in-loop
-            await appendRouteConfigs(routeConfigs, app, backends, true);
-          }
-          reportExclusion('G', app.name, false);
-        } else {
-          reportExclusion('G', app.name, true);
+      if (appLocations.length > 0) {
+        // Active-standby routes to a single INSTANCE - one replica on one node, not a
+        // whole node, since a node may host co-located replicas and only one of them may
+        // serve. Draining instances were dropped from selection; they render in
+        // maintenance here.
+        const selectedKey = selected.get(app.name);
+        const draining = appLocations
+          .filter(isDraining)
+          .map((l) => ({ ip: l.ip, replica: l.replica || null, draining: true }));
+        logDraining(app.name, draining.map((b) => b.ip));
+        unhealthyApps.report(app.name, !selectedKey, () => `Active-Standby Application ${app.name} has no instance fit to serve`);
+        if (selectedKey) {
+          const instance = { ip: nodeOf(selectedKey), replica: replicaOf(selectedKey) };
+          // Exactly the selected instance goes into rotation. Its co-located siblings are
+          // standbys and must not appear as servers, or the single-writer guarantee is
+          // gone the moment haproxy balances between them.
+          const backends = [{ ...instance, draining: false }, ...draining];
+          await appendRouteConfigs(routeConfigs, app, backends, true);
         }
-      } catch (error) {
-        log.error(`Active-Standby Application ${app.name} failed and is excluded from this cycle: ${error.message}`);
+        reportExclusion('G', app.name, false);
+      } else {
+        reportExclusion('G', app.name, true);
       }
-    }
+    });
 
     if (!admitConfiguredHalf('G', routeConfigs.length)) return;
 

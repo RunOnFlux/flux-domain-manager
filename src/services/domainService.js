@@ -558,6 +558,13 @@ function ipDigitSum(ip) {
     .reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
 }
 
+// An active-standby candidate is an INSTANCE: its node address, and `#{replica}` for a
+// named replica. A loose instance is its node, so its key is the node address. A node
+// can host co-located replicas, and only one of them may serve.
+const instanceKey = (ip, replica) => (replica ? `${ip}#${replica}` : ip);
+const nodeOf = (key) => key.split('#')[0];
+const replicaOf = (key) => (key.includes('#') ? key.slice(key.indexOf('#') + 1) : null);
+
 function orderedCandidates(ips, stickyIp) {
   const candidates = stickyIp ? ips.filter((ip) => ip !== stickyIp) : [...ips];
   return candidates.sort((a, b) => {
@@ -568,10 +575,13 @@ function orderedCandidates(ips, stickyIp) {
   });
 }
 
-function probeState(snapshot, ip, app) {
+// One probe per node answers for every instance on it: the instance's own container
+// names are matched in that node's answer.
+function probeState(snapshot, key, app) {
   return applicationChecks.stateFromNames(
-    snapshot.get(ip) || { ok: false, names: new Set() },
+    snapshot.get(nodeOf(key)) || { ok: false, names: new Set() },
     app,
+    replicaOf(key),
   );
 }
 
@@ -798,7 +808,7 @@ async function selectActiveStandbyPrimaries(apps, locations, options = {}) {
   // it is the total that sets the cadence.
   const passOptions = { ...options, deadlineAt: passDeadline(options) };
   const ipsFor = (app) => (locations.get(app.name) || [])
-    .map((loc) => (typeof loc === 'string' ? loc : loc.ip))
+    .map((loc) => (typeof loc === 'string' ? loc : loc.ip && instanceKey(loc.ip, loc.replica)))
     .filter(Boolean);
 
   const withIps = apps.map((app) => ({ app, ips: ipsFor(app) })).filter((e) => e.ips.length);
@@ -821,7 +831,7 @@ async function selectActiveStandbyPrimaries(apps, locations, options = {}) {
     .filter(Boolean);
 
   const stickySnapshot = await buildNodeSnapshot(
-    stickyIps,
+    stickyIps.map(nodeOf),
     applicationChecks.fetchRunningNames,
     passOptions,
   );
@@ -841,7 +851,7 @@ async function selectActiveStandbyPrimaries(apps, locations, options = {}) {
     // Extends phase 1's snapshot. Every sticky is in there already - including
     // the ones that failed - so this asks only about nodes nobody has asked yet.
     const candidateSnapshot = await buildNodeSnapshot(
-      needCandidates.flatMap((e) => e.ips),
+      needCandidates.flatMap((e) => e.ips).map(nodeOf),
       applicationChecks.fetchRunningNames,
       passOptions,
       stickySnapshot,
@@ -865,7 +875,7 @@ async function selectActiveStandbyPrimaries(apps, locations, options = {}) {
       if (!value.ok && !value.answered) seed.set(ip, value);
     }
     const heldSnapshot = await buildNodeSnapshot(
-      unresolved.flatMap((e) => e.ips),
+      unresolved.flatMap((e) => e.ips).map(nodeOf),
       applicationChecks.fetchHeldNames,
       passOptions,
       seed,
@@ -1535,15 +1545,21 @@ async function generateActiveStandbyHaproxyConfig() {
       if (appLocations.length > 0) {
         const appIps = [];
 
-        // if it is an active-standby application, use just one IP
-        const selectedIP = selected.get(app.name);
-        const drainingIps = appLocations.filter(isDraining).map((l) => l.ip);
-        logDraining(app.name, drainingIps);
-        if (selectedIP) {
-          appIps.push(selectedIP);
-          // Selection is per node, so a selected node hosting co-located replicas
-          // contributes each of them — toBackends resolves that from the location rows.
-          const backends = toBackends(appIps, drainingIps, appLocations);
+        // Active-standby routes to a single INSTANCE - one replica on one node, not a whole
+        // node, since a node may host co-located replicas and only one of them may serve.
+        // Draining instances were dropped from selection; they render in maintenance here.
+        const selectedKey = selected.get(app.name);
+        const drainingBackends = appLocations
+          .filter(isDraining)
+          .map((l) => ({ ip: l.ip, replica: l.replica || null, draining: true }));
+        logDraining(app.name, drainingBackends.map((b) => b.ip));
+        if (selectedKey) {
+          const instance = { ip: nodeOf(selectedKey), replica: replicaOf(selectedKey) };
+          appIps.push(instance.ip);
+          // Exactly the selected instance goes into rotation. Its co-located siblings are
+          // standbys and must not appear as servers, or the single-writer guarantee is
+          // gone the moment haproxy balances between them.
+          const backends = [{ ...instance, draining: false }, ...drainingBackends];
           // eslint-disable-next-line no-await-in-loop
           await appendRouteConfigs(routeConfigs, app, backends, true);
         }

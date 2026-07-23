@@ -845,18 +845,24 @@ function getDockerNameIdentifier(baseName) {
  * The docker names of the components that only run on a g: app's elected master.
  * Every instance of a compose app runs the components without g: storage, so those
  * say nothing about which node is the master.
+ *
+ * A named replica's containers carry it as a final `_{replica}` segment. No component,
+ * app or replica name may contain `_`, so a replica's names match that replica and none
+ * of its co-located siblings.
  * @param {Object} appSpec full application specification
+ * @param {string|null} [replica] the named replica, or null for a loose instance
  * @returns {string[]} docker names that identify the master when running
  */
-function getGComponentDockerNames(appSpec) {
+function getGComponentDockerNames(appSpec, replica = null) {
+  const suffix = replica ? `_${replica}` : '';
   if (appSpec.version <= 3) {
     return appSpec.containerData.includes('g:')
-      ? [getDockerNameIdentifier(appSpec.name)]
+      ? [getDockerNameIdentifier(`${appSpec.name}${suffix}`)]
       : [];
   }
   return appSpec.compose
     .filter((comp) => comp.containerData.includes('g:'))
-    .map((comp) => getDockerNameIdentifier(`${comp.name}_${appSpec.name}`));
+    .map((comp) => getDockerNameIdentifier(`${comp.name}_${appSpec.name}${suffix}`));
 }
 
 /**
@@ -969,14 +975,15 @@ function fetchHeldNames(url, timeoutMs) {
 }
 
 /**
- * Read a fetched name set as a verdict about one app's g: components.
+ * Read a fetched name set as a verdict about one instance of an app's g: components.
  * @param {{ok: boolean, names: Set<string>}} fetched
  * @param {Object} appSpec full application specification
+ * @param {string|null} [replica] the named replica, or null for a loose instance
  * @returns {string} a ProbeState
  */
-function stateFromNames(fetched, appSpec) {
+function stateFromNames(fetched, appSpec, replica = null) {
   if (!fetched.ok) return ProbeState.UNKNOWN;
-  const expectedNames = getGComponentDockerNames(appSpec);
+  const expectedNames = getGComponentDockerNames(appSpec, replica);
   if (!expectedNames.length) return ProbeState.NOT_RUNNING;
   const hit = expectedNames.some((name) => fetched.names.has(name.replace(/^\//, '')));
   return hit ? ProbeState.RUNNING : ProbeState.NOT_RUNNING;

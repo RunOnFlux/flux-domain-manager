@@ -54,7 +54,7 @@ describe('v9 schemes — edge exposure + cert gating', () => {
     const { config, deployment } = await render({ web: component('web', 31000, { customDomains: ['shop.com'], managedCertificates: true }) });
     // custom domain routes on the terminating side; no deny/serve/router present
     expect(config).to.include('hdr(host) shop.com');
-    expect(config).to.include('redirect scheme https if !letsencrypt-acl !cloudflare-flux-acl\n');
+    expect(config).to.include('redirect scheme https if !letsencrypt-acl !pki-validation-acl\n');
     expect(config).to.not.include('http-request deny if httpsonly-hosts');
     expect(config).to.not.include('https-sni-router');
     // platform FQDN + custom domain both cert-eligible
@@ -74,7 +74,7 @@ describe('v9 schemes — edge exposure + cert gating', () => {
   it('httpOnly: served on :80, excluded from the redirect, no cert', async () => {
     const { config, deployment } = await render({ web: component('web', 31000, { scheme: 'httpOnly', customDomains: ['plain.com'] }) });
     expect(config).to.include('use_backend plaincombackend if plaincom');
-    expect(config).to.include('redirect scheme https if !letsencrypt-acl !cloudflare-flux-acl !plaincom');
+    expect(config).to.include('redirect scheme https if !letsencrypt-acl !pki-validation-acl !plaincom');
     // not terminated -> not managed -> excluded from the cert path
     expect(getCustomDomains(deployment)).to.not.include('plain.com');
     // platform FQDN still terminates + certs

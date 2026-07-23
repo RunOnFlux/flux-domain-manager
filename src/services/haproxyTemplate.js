@@ -83,7 +83,7 @@ function buildBaseConfig() {
     .raw(CORS_EXPOSE_HEADERS)
     .raw(CORS_ALLOW_ORIGIN)
     .add('acl', 'letsencrypt-acl', 'path_beg', '/.well-known/acme-challenge/')
-    .add('acl', 'cloudflare-flux-acl', 'path_beg', '/.well-known/pki-validation/');
+    .add('acl', 'pki-validation-acl', 'path_beg', '/.well-known/pki-validation/');
 
   return config;
 }
@@ -93,9 +93,9 @@ function buildBaseConfig() {
 // no exclusions this is byte-identical to the historical blanket redirect.
 function appendHttpTail(frontend, redirectExcept = []) {
   frontend
-    .add('redirect', 'scheme', 'https', 'if', '!letsencrypt-acl', '!cloudflare-flux-acl', ...redirectExcept)
+    .add('redirect', 'scheme', 'https', 'if', '!letsencrypt-acl', '!pki-validation-acl', ...redirectExcept)
     .add('use_backend', 'letsencrypt-backend', 'if', 'letsencrypt-acl')
-    .add('use_backend', 'cloudflare-flux-backend', 'if', 'cloudflare-flux-acl');
+    .add('use_backend', 'pki-validation-backend', 'if', 'pki-validation-acl');
 }
 
 const h2Suffix = 'alpn h2,http/1.1';
@@ -210,12 +210,12 @@ function generatePassthroughBackend(app, domainUsed) {
   return section;
 }
 
-// The fixed platform backends every config ends with: ACME, cloudflare validation, the
-// FDM API, and the catch-all forbidden backend.
+// The fixed platform backends every config ends with: ACME, HTTP domain-control
+// validation, the FDM API, and the catch-all forbidden backend.
 function staticBackends() {
   return [
     new Section('backend', 'letsencrypt-backend').add('server', 'letsencrypt', `${letsEncryptTarget}:8787`),
-    new Section('backend', 'cloudflare-flux-backend').add('server', 'cloudflareflux', `127.0.0.1:${configGlobal.server.port}`),
+    new Section('backend', 'pki-validation-backend').add('server', 'pki-validation', `127.0.0.1:${configGlobal.server.port}`),
     new Section('backend', 'fdm-api-backend')
       .add('http-request', 'set-path', '%[path,regsub(^/api/,/)]')
       .add('server', 'fdm-api', `127.0.0.1:${configGlobal.server.port}`),

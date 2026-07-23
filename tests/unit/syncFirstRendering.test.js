@@ -52,7 +52,11 @@ async function render(submission) {
   const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(wire), null);
   const syncFirst = Object.values(deployment.components).some((c) => c.requiresSyncBeforeStart());
   const routeConfigs = buildRouteConfigs(
-    looseDeployments(deployment), 'syncapp', looseBackends(IPS), false, syncFirst,
+    looseDeployments(deployment),
+    'syncapp',
+    looseBackends(IPS),
+    false,
+    syncFirst,
   );
   const platform = routeConfigs.find((c) => c.domain.startsWith('syncapp_'));
   return { syncFirst, text: generateDomainBackend(platform, 'http').render() };

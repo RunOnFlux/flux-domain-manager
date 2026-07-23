@@ -4,8 +4,6 @@
       "version": 7,
       "unifiedDomains": [
         "wordpress1677413615318_38286.app2.runonflux.io",
-        "wordpress1677413615318_34328.app2.runonflux.io",
-        "wordpress1677413615318_36562.app2.runonflux.io",
         "wordpress1677413615318_34252.app2.runonflux.io",
         "wordpress1677413615318.app2.runonflux.io"
       ],
@@ -248,84 +246,6 @@
             {
               "ip": "167.86.90.30:16127",
               "hostPort": 38286,
-              "replica": null,
-              "draining": false
-            }
-          ]
-        },
-        {
-          "name": "wordpress1677413615318",
-          "appName": "wordpress1677413615318_operator_34328",
-          "port": 34328,
-          "ips": [
-            "144.76.10.20:16127",
-            "167.86.90.30:16127"
-          ],
-          "syncFirst": true,
-          "ssl": false,
-          "timeout": null,
-          "headers": [
-            "http-request add-header X-Forwarded-Proto https"
-          ],
-          "loadBalance": false,
-          "healthcheck": [
-            "option httpchk",
-            "http-check send meth GET uri /"
-          ],
-          "serverConfig": "",
-          "enableH2": false,
-          "mode": "http",
-          "check": true,
-          "domain": "wordpress1677413615318_34328.app2.runonflux.io",
-          "servers": [
-            {
-              "ip": "144.76.10.20:16127",
-              "hostPort": 34328,
-              "replica": null,
-              "draining": false
-            },
-            {
-              "ip": "167.86.90.30:16127",
-              "hostPort": 34328,
-              "replica": null,
-              "draining": false
-            }
-          ]
-        },
-        {
-          "name": "wordpress1677413615318",
-          "appName": "wordpress1677413615318_operator_36562",
-          "port": 36562,
-          "ips": [
-            "144.76.10.20:16127",
-            "167.86.90.30:16127"
-          ],
-          "syncFirst": true,
-          "ssl": false,
-          "timeout": null,
-          "headers": [
-            "http-request add-header X-Forwarded-Proto https"
-          ],
-          "loadBalance": false,
-          "healthcheck": [
-            "option httpchk",
-            "http-check send meth GET uri /"
-          ],
-          "serverConfig": "",
-          "enableH2": false,
-          "mode": "http",
-          "check": true,
-          "domain": "wordpress1677413615318_36562.app2.runonflux.io",
-          "servers": [
-            {
-              "ip": "144.76.10.20:16127",
-              "hostPort": 36562,
-              "replica": null,
-              "draining": false
-            },
-            {
-              "ip": "167.86.90.30:16127",
-              "hostPort": 36562,
               "replica": null,
               "draining": false
             }
@@ -5091,8 +5011,6 @@
         "budibasemysql_34419.app2.runonflux.io",
         "budibasemysql_39443.app2.runonflux.io",
         "budibasemysql_39080.app2.runonflux.io",
-        "budibasemysql_36477.app2.runonflux.io",
-        "budibasemysql_38451.app2.runonflux.io",
         "budibasemysql_32069.app2.runonflux.io",
         "budibasemysql.app2.runonflux.io"
       ],
@@ -5274,74 +5192,6 @@
             {
               "ip": "167.86.90.30:16127",
               "hostPort": 39080,
-              "replica": null,
-              "draining": false
-            }
-          ]
-        },
-        {
-          "name": "budibasemysql",
-          "appName": "budibasemysql_operator_36477",
-          "port": 36477,
-          "ips": [
-            "144.76.10.20:16127",
-            "167.86.90.30:16127"
-          ],
-          "syncFirst": true,
-          "ssl": false,
-          "timeout": null,
-          "headers": false,
-          "loadBalance": false,
-          "healthcheck": [],
-          "serverConfig": "",
-          "enableH2": false,
-          "mode": "http",
-          "check": true,
-          "domain": "budibasemysql_36477.app2.runonflux.io",
-          "servers": [
-            {
-              "ip": "144.76.10.20:16127",
-              "hostPort": 36477,
-              "replica": null,
-              "draining": false
-            },
-            {
-              "ip": "167.86.90.30:16127",
-              "hostPort": 36477,
-              "replica": null,
-              "draining": false
-            }
-          ]
-        },
-        {
-          "name": "budibasemysql",
-          "appName": "budibasemysql_operator_38451",
-          "port": 38451,
-          "ips": [
-            "144.76.10.20:16127",
-            "167.86.90.30:16127"
-          ],
-          "syncFirst": true,
-          "ssl": false,
-          "timeout": null,
-          "headers": false,
-          "loadBalance": false,
-          "healthcheck": [],
-          "serverConfig": "",
-          "enableH2": false,
-          "mode": "http",
-          "check": true,
-          "domain": "budibasemysql_38451.app2.runonflux.io",
-          "servers": [
-            {
-              "ip": "144.76.10.20:16127",
-              "hostPort": 38451,
-              "replica": null,
-              "draining": false
-            },
-            {
-              "ip": "167.86.90.30:16127",
-              "hostPort": 38451,
               "replica": null,
               "draining": false
             }

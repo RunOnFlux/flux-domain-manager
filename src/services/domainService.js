@@ -9,6 +9,7 @@ const {
   processApplications,
   getCustomDomains,
 } = require('./domain');
+const { effectiveRoutes } = require('./domain/effectiveRoutes');
 const { DomainOwnershipRegistry } = require('./domain/ownership');
 const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/cert');
 const applicationChecks = require('./application/checks');
@@ -428,6 +429,20 @@ function toBackends(appIps, drainingIps, appLocations) {
   return take(appIps, false).concat(take(drainingIps, true));
 }
 
+// The shared-db operator's API port, or null when the app runs no operator. The operator
+// reports which node currently holds the cluster primary, which decides backend order.
+// Version-blind: read off the resolved deployment's routes, which are already reduced to
+// the ports FDM publishes, so the API port is the last one the operator still routes.
+function sharedDbApiPort(deployment) {
+  const images = config.sharedDbRouting.components.map((rule) => rule.image);
+  const isOperator = (name) => {
+    const image = (deployment.components[name]?.image || '').toLowerCase();
+    return images.some((match) => image.includes(match));
+  };
+  const operatorRoutes = effectiveRoutes(deployment).filter((route) => isOperator(route.componentName));
+  return operatorRoutes.length ? operatorRoutes[operatorRoutes.length - 1].hostPort : null;
+}
+
 // Resolve the ordered, in-rotation backend IPs for an app from its live locations —
 // the one place config assembly consults runtime state. Three concerns that used to be
 // smeared through the routing loop live here now:
@@ -450,16 +465,15 @@ async function resolveBackends(app, appLocations) {
   logDraining(app.name, drainingIps);
   let appIps = [];
 
+  // One resolved view for every branch below: the probe ports, the shared-db operator's
+  // API port, and syncFirst all read it.
+  const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
+
   if (applicationChecks.applicationWithChecks(app)) {
-    // The probes need the app's routed port. Resolved here rather than reusing the
-    // syncFirst resolution below, which deliberately runs AFTER the shared-db branch's
-    // compose surgery — a different view, and a branch this one never takes.
-    // eslint-disable-next-line no-await-in-loop
-    const probeDeployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
     // Per-app coded checks hit the network, so responses arrive out of order; sort by ip.
     let promiseArray = [];
     for (const [i, location] of live.entries()) {
-      promiseArray.push(addAppIps(app, location.ip, probeDeployment));
+      promiseArray.push(addAppIps(app, location.ip, deployment));
       if ((i + 1) % 10 === 0) {
         // eslint-disable-next-line no-await-in-loop
         await Promise.allSettled(promiseArray);
@@ -475,47 +489,37 @@ async function resolveBackends(app, appLocations) {
       appIpsOnAppsChecks = [];
     }
     serviceHelper.sortIPAddresses(appIps);
-  } else if (app.compose && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'))) {
-    // shared-db: order backends by the operator's live cluster status (primary first),
-    // and drop the internal db/operator ports from the LB.
+  } else if (sharedDbApiPort(deployment)) {
+    // shared-db: order backends by the operator's live cluster status, primary first, so
+    // writes land on the node that can take them. Which ports reach the load balancer is
+    // decided in effectiveRoutes, not here — this branch only orders.
     appIps = live.map((location) => location.ip);
-    const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
+    const apiPort = sharedDbApiPort(deployment);
     log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
-    if (componentUsingSharedDB.ports && componentUsingSharedDB.ports.length > 0) {
-      const apiPort = componentUsingSharedDB.ports[componentUsingSharedDB.ports.length - 1];
-      let operatorClusterStatus = null;
-      const httpTimeout = 5000;
-      // eslint-disable-next-line no-restricted-syntax
-      for (const ip of appIps) {
-        const url = `http://${ip.split(':')[0]}:${apiPort}/status`;
-        log.info(`sharedDBApps: ${app.name} going to check operator status on url ${url}`);
-        // eslint-disable-next-line no-await-in-loop
-        const operatorStatus = await serviceHelper.httpGetRequest(url, httpTimeout)
-          .catch((error) => log.error(`sharedDBApps: ${app.name} operatorStatus error: ${error}`));
-        if (operatorStatus && operatorStatus.data && operatorStatus.data.status === 'OK') {
-          operatorClusterStatus = operatorStatus.data.clusterStatus.map((cluster) => cluster.ip);
-          break;
-        }
+    let operatorClusterStatus = null;
+    const httpTimeout = 5000;
+    // eslint-disable-next-line no-restricted-syntax
+    for (const ip of appIps) {
+      const url = `http://${ip.split(':')[0]}:${apiPort}/status`;
+      log.info(`sharedDBApps: ${app.name} going to check operator status on url ${url}`);
+      // eslint-disable-next-line no-await-in-loop
+      const operatorStatus = await serviceHelper.httpGetRequest(url, httpTimeout)
+        .catch((error) => log.error(`sharedDBApps: ${app.name} operatorStatus error: ${error}`));
+      if (operatorStatus && operatorStatus.data && operatorStatus.data.status === 'OK') {
+        operatorClusterStatus = operatorStatus.data.clusterStatus.map((cluster) => cluster.ip);
+        break;
       }
-      if (operatorClusterStatus) {
-        appIps.sort((a, b) => operatorClusterStatus.indexOf(a) - operatorClusterStatus.indexOf(b));
-        log.info(`Application ${app.name} was setup as a sharedDBApps`);
-      }
-      const componentUsingSharedDBIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
-      const componentMySQLIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('mysql'));
-      if (componentUsingSharedDBIndex >= 0) {
-        // eslint-disable-next-line no-param-reassign
-        app.compose[componentUsingSharedDBIndex].ports = app.compose[componentUsingSharedDBIndex].ports.slice(-1);
-      }
-      if (componentMySQLIndex >= 0) app.compose.splice(componentMySQLIndex, 1);
+    }
+    if (operatorClusterStatus) {
+      appIps.sort((a, b) => operatorClusterStatus.indexOf(a) - operatorClusterStatus.indexOf(b));
+      log.info(`Application ${app.name} was setup as a sharedDBApps`);
     }
   } else {
     appIps = live.map((location) => location.ip);
   }
 
-  // syncFirst version-blind, resolved after any shared-db compose surgery above. Replaces
-  // the raw-compose r:/shared-db scan and fixes the previously mis-nested r: check.
-  const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
+  // syncFirst version-blind, from the typed sync mode: legacy `r:` container data and a
+  // v9 sync declaration both resolve to requiresSyncBeforeStart.
   // eslint-disable-next-line no-param-reassign
   app.syncFirst = Object.values(deployment.components).some((c) => c.requiresSyncBeforeStart());
   return { appIps, drainingIps, backends: toBackends(appIps, drainingIps, appLocations) };

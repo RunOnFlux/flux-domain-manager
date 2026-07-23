@@ -1,0 +1,8 @@
+{
+  "components": [
+    {
+      "image": "runonflux/shared-db",
+      "publish": "lastPort"
+    }
+  ]
+}

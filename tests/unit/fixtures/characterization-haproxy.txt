@@ -47,10 +47,10 @@ frontend wwwhttp
   http-response add-header Access-Control-Expose-Headers '*' unless { res.hdr(Access-Control-Expose-Headers) -m found }
   http-after-response add-header Access-Control-Allow-Origin "*" unless { res.hdr(Access-Control-Allow-Origin) -m found }
   acl letsencrypt-acl path_beg /.well-known/acme-challenge/
-  acl cloudflare-flux-acl path_beg /.well-known/pki-validation/
-  redirect scheme https if !letsencrypt-acl !cloudflare-flux-acl
+  acl pki-validation-acl path_beg /.well-known/pki-validation/
+  redirect scheme https if !letsencrypt-acl !pki-validation-acl
   use_backend letsencrypt-backend if letsencrypt-acl
-  use_backend cloudflare-flux-backend if cloudflare-flux-acl
+  use_backend pki-validation-backend if pki-validation-acl
   acl forbiddenacl hdr(host) racecoursejebelali.com
   acl forbiddenacl hdr(host) www.racecoursejebelali.com
   acl forbiddenacl hdr(host) sofiteldowntown.com
@@ -1799,8 +1799,8 @@ backend anonapp22_25565app2runonfluxiobackend
 backend letsencrypt-backend
   server letsencrypt 5.39.57.42:8787
 
-backend cloudflare-flux-backend
-  server cloudflareflux 127.0.0.1:16130
+backend pki-validation-backend
+  server pki-validation 127.0.0.1:16130
 
 backend fdm-api-backend
   http-request set-path %[path,regsub(^/api/,/)]

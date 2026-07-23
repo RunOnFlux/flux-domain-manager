@@ -16,6 +16,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { buildRouteConfigs } = require('../../src/services/haproxy/buildRouteConfigs');
+const { looseBackends, looseDeployments } = require('../unit/fixtures/renderPipeline');
 const { createAppsHaproxyConfig } = require('../../src/services/haproxyTemplate');
 const specLibs = require('../../src/services/flux/specLibs');
 const serviceHelper = require('../../src/services/serviceHelper');
@@ -61,7 +62,7 @@ async function main() {
     if (!appIps.length) noLoc += 1;
     maxIps = Math.max(maxIps, appIps.length);
     const dep = await specLibs.resolveDeployment(inst, null);
-    const routeConfigs = buildRouteConfigs(dep, spec.name, appIps, activeStandby, markerPresent(spec, 'r:'));
+    const routeConfigs = buildRouteConfigs(looseDeployments(dep), spec.name, looseBackends(appIps), activeStandby, markerPresent(spec, 'r:'));
     (activeStandby ? single : general).push(...routeConfigs);
     rendered += 1;
   }

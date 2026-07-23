@@ -6,6 +6,7 @@ const chai = require('chai');
 const { load } = require('@runonflux/flux-spec-cjs');
 const specLibs = require('../../src/services/flux/specLibs');
 const { buildRouteConfigs } = require('../../src/services/haproxy/buildRouteConfigs');
+const { looseBackends, looseDeployments } = require('./fixtures/renderPipeline');
 const { generateDomainBackend } = require('../../src/services/haproxyTemplate');
 
 const { expect } = chai;
@@ -37,7 +38,7 @@ async function renderV9Backend(lb) {
   const { FluxAppSpecV9 } = await load();
   const wire = FluxAppSpecV9.fromSubmission(submission(lb)).serialize();
   const dep = await specLibs.resolveDeployment(await specLibs.deserialize(wire), null);
-  const routeConfigs = buildRouteConfigs(dep, 'shop', ['144.76.10.20:16127', '167.86.90.30:16127'], false, false);
+  const routeConfigs = buildRouteConfigs(looseDeployments(dep), 'shop', looseBackends(['144.76.10.20:16127', '167.86.90.30:16127']), false, false);
   const platform = routeConfigs.find((c) => c.domain.startsWith('shop_'));
   return generateDomainBackend(platform, 'http').render();
 }

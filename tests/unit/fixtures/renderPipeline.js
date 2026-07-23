@@ -31,6 +31,14 @@ function markerPresent(spec, marker) {
 const routesToSingleInstance = (spec) => markerPresent(spec, 'g:');
 const usesOrderedData = (spec) => markerPresent(spec, 'r:');
 
+// Loose (unnamed) instances, which is every spec in the corpus and every app in the wild:
+// one backend per node, all resolved off the declared view. Named replicas are the
+// pinned-v9 case and are exercised by perReplicaRouting.test.js.
+const looseBackends = (ips, drainingIps = []) => ips
+  .map((ip) => ({ ip, replica: null, draining: false }))
+  .concat(drainingIps.map((ip) => ({ ip, replica: null, draining: true })));
+const looseDeployments = (deployment) => new Map([[null, deployment]]);
+
 // The route configs one spec produces on its own, with fixed inputs. Sealed
 // (still-encrypted) specs are decrypted before rendering in production, so they have
 // no offline projection — return null and let the caller skip them. Ownership is not
@@ -41,7 +49,7 @@ async function routeConfigsForSpec(spec) {
   const singleInstance = routesToSingleInstance(spec);
   const ips = singleInstance ? SINGLE_NODE_IP : MULTI_NODE_IPS;
   const deployment = await specLibs.resolveDeployment(instance, null);
-  return buildRouteConfigs(deployment, spec.name, ips, singleInstance, usesOrderedData(spec));
+  return buildRouteConfigs(looseDeployments(deployment), spec.name, looseBackends(ips), singleInstance, usesOrderedData(spec));
 }
 
 // The full haproxy config for a set of specs, assembled the way production does:
@@ -71,4 +79,6 @@ async function domainsForSpec(spec) {
   return { unifiedDomains: getUnifiedDomains(deployment), customDomains: getCustomDomains(deployment) };
 }
 
-module.exports = { routeConfigsForSpec, domainsForSpec, renderConfig };
+module.exports = {
+  routeConfigsForSpec, domainsForSpec, renderConfig, looseBackends, looseDeployments,
+};

@@ -8,6 +8,7 @@
 const chai = require('chai');
 const specLibs = require('../../src/services/flux/specLibs');
 const { buildRouteConfigs } = require('../../src/services/haproxy/buildRouteConfigs');
+const { looseBackends, looseDeployments } = require('./fixtures/renderPipeline');
 const { createAppsHaproxyConfig } = require('../../src/services/haproxyTemplate');
 const { getUnifiedDomains, getCustomDomains } = require('../../src/services/domain');
 
@@ -44,7 +45,7 @@ const render = async (components) => {
   const { FluxAppSpecV9 } = await specLibs.load();
   const wire = FluxAppSpecV9.fromSubmission(spec(components)).serialize();
   const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(wire), null);
-  const routeConfigs = buildRouteConfigs(deployment, 'app', IPS, false, false);
+  const routeConfigs = buildRouteConfigs(looseDeployments(deployment), 'app', looseBackends(IPS), false, false);
   return { config: createAppsHaproxyConfig(routeConfigs), deployment };
 };
 

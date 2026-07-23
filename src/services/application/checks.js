@@ -290,179 +290,7 @@ async function checkMainFlux(ip, port = 16127) {
   }
 }
 
-// KUSAMA
-function checkheightOKksm(height) {
-  const currentTime = new Date().getTime();
-  const baseTime = 1622640282000;
-  const baseHeight = 7739485;
-  const timeDifference = currentTime - baseTime;
-  const blocksPassedInDifference = (timeDifference / 6000); // 6 secs
-  const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - 600; // allow being off sync for 600 blocks; 1 hour
-  console.log(minimumAcceptedBlockHeight);
-  if (height > minimumAcceptedBlockHeight) {
-    return true;
-  }
-  return false;
-}
-
-function checkheightOKdot(height) {
-  const currentTime = new Date().getTime();
-  const baseTime = 1622640408000;
-  const baseHeight = 5331005;
-  const timeDifference = currentTime - baseTime;
-  const blocksPassedInDifference = (timeDifference / 6000); // 6 secs
-  const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - 600; // allow being off sync for 600 blocks; 1 hour
-  console.log(minimumAcceptedBlockHeight);
-  if (height > minimumAcceptedBlockHeight) {
-    return true;
-  }
-  return false;
-}
-
 // POLKADOT
-
-async function getPolkaNetworkHeight(ip, port) {
-  try {
-    const max = 1000000;
-    const min = 1;
-
-    const data = {
-      jsonrpc: '2.0',
-      method: 'system_syncState',
-      params: [],
-      id: Math.floor(Math.random() * (max - min + 1)) + min,
-    };
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-    const rosettaData = await httpClients.nodeChecks.post(`http://${ip}:${port}/network/status`, data, { timeout: 3456, headers });
-    console.log(rosettaData.data.result);
-    return rosettaData.data.result.currentBlock;
-  } catch (e) {
-    // log.error(e);
-    return -1;
-  }
-}
-
-// ROSETTA
-async function checkRosettaSynced(ip, height) {
-  try {
-    const data = {
-      network_identifier: {
-        blockchain: 'flux',
-        network: 'mainnet',
-      },
-      block_identifier: {
-        index: height - 30,
-      },
-    };
-    const rosettaData = await httpClients.nodeChecks.post(`http://${ip}:38080/network/status`, data, { timeout: 3456 });
-    return rosettaData.data.block.block_identifier.index;
-  } catch (e) {
-    // log.error(e);
-    return false;
-  }
-}
-
-async function getRosettaHeight(ip) {
-  try {
-    const data = {
-      network_identifier: {
-        blockchain: 'flux',
-        network: 'mainnet',
-      },
-    };
-    const rosettaData = await httpClients.nodeChecks.post(`http://${ip}:38080/network/status`, data, { timeout: 3456 });
-    return rosettaData.data.current_block_identifier.index;
-  } catch (e) {
-    // log.error(e);
-    return -1;
-  }
-}
-
-function checkRosettaheightOK(height) {
-  const currentTime = new Date().getTime();
-  const baseTime = 1623245290000;
-  const baseHeight = 878090;
-  const timeDifference = currentTime - baseTime;
-  const blocksPassedInDifference = (timeDifference / 120000); // 120 secs
-  const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - 720; // allow being off sync for 720 blocks; 1 day
-  if (height > minimumAcceptedBlockHeight) {
-    return true;
-  }
-  return false;
-}
-
-// KADENA
-function kadenaCheckHeight(height) {
-  const currentTime = new Date().getTime();
-  const baseTime = 1733919199;
-  const baseHeight = 107632137;
-  const timeDifference = currentTime - baseTime;
-  const blocksPassedInDifference = (timeDifference / 30000) * 20; // 20 chains with blocktime 30 seconds
-  const currentBlockEstimation = baseHeight + blocksPassedInDifference;
-  const minimumAcceptedBlockHeight = currentBlockEstimation - (60 * 310); // allow being off sync for 1200 blocks; 30 mins
-  if (height > minimumAcceptedBlockHeight) {
-    return true;
-  }
-  return false;
-}
-
-function kadenaCheckPeers(peers) {
-  try {
-    const goodPeers = peers.filter((peer) => peer.address.hostname.includes('chainweb')); // has outside of flux too
-    if (goodPeers.length > 1) { // at least 2 chainweb peers
-      return true;
-    }
-    const goodPeersPort = peers.filter((peer) => peer.address.port !== 31350); // has outside of flux too
-    if (goodPeersPort.length > 4) { // at least 5 different than flux peers
-      return true;
-    }
-    return false;
-  } catch (error) {
-    log.error(error);
-    return true;
-  }
-}
-
-async function kadenaGetHeight(ip) {
-  try {
-    const kadenaData = await httpClients.nodeChecksSelfSigned.get(`https://${ip}:31350/chainweb/0.0/mainnet01/cut`, { timeout });
-    return kadenaData.data.height;
-  } catch (e) {
-    // log.error(e);
-    return -1;
-  }
-}
-
-async function kadenaGetConenctions(ip) {
-  try {
-    const kadenaData = await httpClients.nodeChecksSelfSigned.get(`https://${ip}:31350/chainweb/0.0/mainnet01/cut/peer`, { timeout });
-    return kadenaData.data.items;
-  } catch (e) {
-    // log.error(e);
-    return [];
-  }
-}
-
-async function checkKadenaApplication(ip) {
-  try {
-    const height = await kadenaGetHeight(ip);
-    if (kadenaCheckHeight(height)) {
-      // eslint-disable-next-line no-await-in-loop
-      const peers = await kadenaGetConenctions(ip);
-      if (kadenaCheckPeers(peers)) {
-        return true;
-      }
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
 
 async function checkALPHexplorer(ip, port) {
   try {
@@ -478,42 +306,6 @@ async function checkALPHexplorer(ip, port) {
     return false;
   } catch (error) {
     log.info(`Failed to check ALPH explorer: ${error.message}`);
-    return false;
-  }
-}
-
-async function checkRunOnFluxWebsite(ip, port) {
-  try {
-    const websiteResponse = await httpClients.nodeChecks.get(`http://${ip}:${port}`, { timeout: 8888 });
-    if (websiteResponse.data.includes('<title>Flux')) {
-      return true;
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkMOKWebsite(ip, port) {
-  try {
-    const websiteResponse = await httpClients.nodeChecks.get(`http://${ip}:${port}`, { timeout: 5000 });
-    if (websiteResponse.data.includes('<title>The Miners')) {
-      return true;
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkCloudAtlasWebsite(ip, port) {
-  try {
-    const websiteResponse = await httpClients.nodeChecks.get(`http://${ip}:${port}`, { timeout: 8888 });
-    if (websiteResponse.data.includes('<title>Atlas')) {
-      return true;
-    }
-    return false;
-  } catch (error) {
     return false;
   }
 }
@@ -544,30 +336,6 @@ async function checkFluxExplorer(ip, port) {
       if (result) {
         return true;
       }
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkKDLaunch(ip, port) {
-  try {
-    const websiteResponse = await httpClients.nodeChecks.get(`http://${ip}:${port}`, { timeout: 2000 });
-    if (websiteResponse.data.includes('<title>KDLaunch')) {
-      return true;
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkHavenValut(ip, port) {
-  try {
-    const websiteResponse = await httpClients.nodeChecks.get(`http://${ip}:${port}`, { timeout: 2000 });
-    if (websiteResponse.data.includes('<title>Haven')) {
-      return true;
     }
     return false;
   } catch (error) {
@@ -1056,13 +824,7 @@ module.exports = {
   // up the network probes that consume it.
   routedPort,
   checkMainFlux,
-  checkKadenaApplication,
-  checkRunOnFluxWebsite,
   checkFluxExplorer,
-  checkCloudAtlasWebsite,
-  checkKDLaunch,
-  checkMOKWebsite,
-  checkHavenValut,
   generalWebsiteCheck,
   checkApplication,
   applicationWithChecks,

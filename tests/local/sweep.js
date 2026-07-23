@@ -16,6 +16,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const { getUnifiedDomains, getCustomDomains } = require('../../src/services/domain/index.js');
+const specLibs = require('../../src/services/flux/specLibs');
 const { getCustomConfigs } = require('../../src/services/application/custom.js');
 const { getApplicationsToProcess } = require('../../src/services/application/subset.js');
 const { routeConfigsForSpec, renderConfig } = require('../unit/fixtures/renderPipeline');
@@ -39,10 +40,13 @@ async function main() {
     unifiedDomains: 0, customDomains: 0, customConfigs: 0, configuredApps: 0,
   };
   for (const s of corpus) {
+    let dep = null;
+    // eslint-disable-next-line no-await-in-loop
+    try { dep = await specLibs.resolveDeployment(await specLibs.deserialize(s), null); } catch { /* sealed/unreadable */ }
     out[s.name] = {
       version: s.version,
-      unifiedDomains: call(() => getUnifiedDomains(s)),
-      customDomains: call(() => getCustomDomains(s)),
+      unifiedDomains: dep ? call(() => getUnifiedDomains(dep)) : { __throws: 'unresolvable' },
+      customDomains: dep ? call(() => getCustomDomains(dep)) : { __throws: 'unresolvable' },
       customConfigs: call(() => getCustomConfigs(s)),
       // eslint-disable-next-line no-await-in-loop
       configuredApps: await callAsync(() => routeConfigsForSpec(s)),

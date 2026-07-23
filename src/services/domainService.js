@@ -14,6 +14,7 @@ const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/ce
 const applicationChecks = require('./application/checks');
 const { getApplicationsToProcess } = require('./application/subset');
 const { buildRouteConfigs } = require('./haproxy/buildRouteConfigs');
+const { publishRouteConfigs } = require('./haproxy/publication');
 const specLibs = require('./flux/specLibs');
 const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
@@ -567,30 +568,33 @@ async function generateActiveActiveHaproxyConfig() {
       throw new Error('PANIC PLEASE DEV HELP ME');
     }
 
-    const serializedRouteConfigs = JSON.stringify(routeConfigs);
-    const lastSerializedRouteConfigs = JSON.stringify(recentlyConfiguredActiveActiveRouteConfigs);
+    // Active-active configs always lead the combined config, so this loop's own configs
+    // go first. The assignment is deliberately after the await: if haproxy rejects the
+    // config, publishRouteConfigs throws and the memo keeps its previous value, so the
+    // next cycle rebuilds and retries instead of matching the memo and skipping.
+    const outcome = await publishRouteConfigs({
+      next: routeConfigs,
+      remembered: recentlyConfiguredActiveActiveRouteConfigs,
+      counterpart: recentlyConfiguredActiveStandbyRouteConfigs,
+      counterpartFirst: false,
+      update: updateHaproxy,
+      // Readiness is deliberately NOT gated on the publish succeeding, and must stay that
+      // way. It gates /appips, which FluxOS uses to elect the single master for
+      // active-standby apps; on a 503 from every region the node falls back to
+      // self-election. A rejected config is app-set-driven and so hits every FDM at once,
+      // which is exactly the correlated case that fallback handles worst.
+      onChanged: () => { activeActiveAppsInitialized = true; },
+      onPublish: (combined) => {
+        log.info('Changes in Active-Active Mode configuration detected');
+        log.info(`Active-Active Mode updating haproxy with length: ${combined.length}`);
+      },
+    });
 
-    if (serializedRouteConfigs === lastSerializedRouteConfigs) {
+    if (outcome.action === 'unchanged') {
       log.info('No changes in Active-Active Mode configuration detected');
       return;
     }
-
-    let haproxyRouteConfigs = [];
-    recentlyConfiguredActiveActiveRouteConfigs = routeConfigs;
-    activeActiveAppsInitialized = true;
-
-    // if active-standby apps haven't completed once - we don't update the config
-    if (!recentlyConfiguredActiveStandbyRouteConfigs.length) return;
-
-    log.info('Changes in Active-Active Mode configuration detected');
-
-    // we need to put always in same order to avoid. non g first g at end
-    haproxyRouteConfigs = routeConfigs.concat(recentlyConfiguredActiveStandbyRouteConfigs);
-
-    log.info(
-      `Active-Active Mode updating haproxy with length: ${haproxyRouteConfigs.length}`,
-    );
-    await updateHaproxy(haproxyRouteConfigs);
+    recentlyConfiguredActiveActiveRouteConfigs = outcome.remember;
   } catch (error) {
     log.error(error);
   } finally {
@@ -678,30 +682,32 @@ async function generateActiveStandbyHaproxyConfig() {
       }
     }
 
-    const serializedRouteConfigs = JSON.stringify(routeConfigs);
-    const lastSerializedRouteConfigs = JSON.stringify(recentlyConfiguredActiveStandbyRouteConfigs);
+    // Mirror of the active-active loop; active-active leads the combined config, so this
+    // loop's counterpart goes first. Same memo ordering — advanced on the deferred path,
+    // but only after a successful publish.
+    const outcome = await publishRouteConfigs({
+      next: routeConfigs,
+      remembered: recentlyConfiguredActiveStandbyRouteConfigs,
+      counterpart: recentlyConfiguredActiveActiveRouteConfigs,
+      counterpartFirst: true,
+      update: updateHaproxy,
+      // This loop announces the change before deciding whether it can publish yet; the
+      // active-active loop announces it only when it actually publishes. Both preserved,
+      // as is readiness not being gated on the publish (see the active-active loop).
+      onChanged: () => {
+        log.info('Changes in Active-Standby Mode configuration detected');
+        activeStandbyAppsInitialized = true;
+      },
+      onPublish: (combined) => {
+        log.info(`Active-Standby Mode updating haproxy with length: ${combined.length}`);
+      },
+    });
 
-    if (serializedRouteConfigs === lastSerializedRouteConfigs) {
+    if (outcome.action === 'unchanged') {
       log.info('No changes in Active-Standby Mode configuration detected');
       return;
     }
-
-    log.info('Changes in Active-Standby Mode configuration detected');
-
-    let haproxyRouteConfigs = [];
-
-    recentlyConfiguredActiveStandbyRouteConfigs = routeConfigs;
-    activeStandbyAppsInitialized = true;
-
-    // if active-active apps haven't completed once - we don't update the config
-    if (!recentlyConfiguredActiveActiveRouteConfigs.length) return;
-
-    haproxyRouteConfigs = recentlyConfiguredActiveActiveRouteConfigs.concat(routeConfigs);
-
-    log.info(
-      `Active-Standby Mode updating haproxy with length: ${haproxyRouteConfigs.length}`,
-    );
-    await updateHaproxy(haproxyRouteConfigs);
+    recentlyConfiguredActiveStandbyRouteConfigs = outcome.remember;
   } catch (error) {
     log.error(error);
   } finally {

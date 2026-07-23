@@ -9,7 +9,10 @@ function getFilesizeInBytes(filename) {
     const fileSizeInBytes = stats.size;
     return fileSizeInBytes;
   } catch (e) {
-    console.log(e);
+    // The log file not existing yet is the normal state of a fresh checkout or a fresh
+    // deploy — the very next call creates it. Only report a failure that actually
+    // indicates something wrong (permissions, a directory in the way).
+    if (e.code !== 'ENOENT') console.log(e);
     return 0;
   }
 }

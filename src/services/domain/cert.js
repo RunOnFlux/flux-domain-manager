@@ -72,16 +72,15 @@ async function dnsLookup(hostname) {
   return (result || []).map((address) => ({ address, family: 4 }));
 }
 
-async function isDomainPointedToThisGroup(hostname, FDMnameOrIP, myIP) {
+// The addresses this FDM group answers on: its peers, from deployment/hosts.ini, plus
+// this node's own. A domain qualifies for a certificate only if it resolves to one of
+// them. `resolve` is injectable so tests need no network.
+async function isDomainPointedToThisGroup(hostname, myIP, resolve = dnsLookup) {
   try {
-    if (!FDMnameOrIP) {
-      return false;
-    }
     const groupIPs = new Set(getGroupIPs());
-    groupIPs.add(FDMnameOrIP);
     if (myIP) groupIPs.add(myIP);
 
-    const dnsLookupdRecords = await dnsLookup(hostname);
+    const dnsLookupdRecords = await resolve(hostname);
     const pointedToGroup = dnsLookupdRecords.find((record) => groupIPs.has(record.address));
     return !!pointedToGroup;
   } catch (error) {
@@ -91,7 +90,7 @@ async function isDomainPointedToThisGroup(hostname, FDMnameOrIP, myIP) {
 }
 
 // Phase 1: Parallel check to determine what action each domain needs
-async function checkDomainAction(appDomain, type, fdmOrIP, myIP) {
+async function checkDomainAction(appDomain, type, myIP) {
   try {
     if (appDomain === 'ethereumnodelight.app.runonflux.io') return { domain: appDomain, action: 'skip' };
     if (appDomain.length > 64) return { domain: appDomain, action: 'skip', reason: 'too long' };
@@ -106,7 +105,7 @@ async function checkDomainAction(appDomain, type, fdmOrIP, myIP) {
       if (!dnsCache.shouldCheckDomain(appDomain)) {
         return { domain: appDomain, action: 'skip', reason: 'dns backoff' };
       }
-      const domainIsPointedCorrectly = await isDomainPointedToThisGroup(appDomain, fdmOrIP, myIP);
+      const domainIsPointedCorrectly = await isDomainPointedToThisGroup(appDomain, myIP);
       if (!domainIsPointedCorrectly) {
         dnsCache.recordFailure(appDomain);
         return { domain: appDomain, action: 'skip', reason: 'dns not pointed' };
@@ -127,11 +126,11 @@ async function checkDomainAction(appDomain, type, fdmOrIP, myIP) {
   }
 }
 
-async function executeCertificateOperations(domains, type, fdmOrIP, myIP) {
+async function executeCertificateOperations(domains, type, myIP) {
   try {
     // Phase 1: Parallel checks to determine actions
     const checkTasks = domains.map(
-      (domain) => () => checkDomainAction(domain, type, fdmOrIP, myIP),
+      (domain) => () => checkDomainAction(domain, type, myIP),
     );
     const results = await serviceHelper.runWithConcurrency(checkTasks, CONCURRENCY_LIMIT);
 
@@ -208,6 +207,7 @@ async function cleanupStaleCerts() {
 
 module.exports = {
   executeCertificateOperations,
+  isDomainPointedToThisGroup,
   cleanupStaleCerts,
   shouldRemoveStaleCert,
 };

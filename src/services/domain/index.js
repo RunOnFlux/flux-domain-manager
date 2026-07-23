@@ -5,6 +5,7 @@ const serviceHelper = require('../serviceHelper');
 const specLibs = require('../flux/specLibs');
 const { resolveRouteExposure } = require('../haproxy/resolveRouteExposure');
 const { executeCertificateOperations } = require('./cert');
+const { effectiveRoutes } = require('./effectiveRoutes');
 const { DOMAIN_TYPE } = require('../constants');
 
 // The platform FQDNs an app is reachable on — one per routed port plus the main alias —
@@ -12,7 +13,7 @@ const { DOMAIN_TYPE } = require('../constants');
 // FDM owns these (app2.runonflux.io), so they always terminate and always need a cert.
 function getUnifiedDomains(deployment) {
   const lowerCaseName = deployment.appName.toLowerCase();
-  const domains = deployment.routes().map(
+  const domains = effectiveRoutes(deployment).map(
     (route) => `${lowerCaseName}_${route.hostPort}.${config.appSubDomain}.${config.mainDomain}`,
   );
   // The general name is an alias to the first port.
@@ -28,7 +29,7 @@ function getUnifiedDomains(deployment) {
 function getCustomDomains(deployment) {
   const domains = [];
   const platformSuffix = `${config.appSubDomain}.${config.mainDomain}`;
-  for (const route of deployment.routes()) {
+  for (const route of effectiveRoutes(deployment)) {
     if (!resolveRouteExposure(route).needsCert) {
       // eslint-disable-next-line no-continue
       continue;
@@ -68,75 +69,43 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
     }
 
     log.info(`Adjusting domains and ssl for ${appSpecs.name}`);
-    if (appSpecs.name === 'themok6') {
-      for (const component of appSpecs.compose) {
-        component.domains = ['themok.io'];
-      }
-    } else if (appSpecs.name === 'blockbookflux') {
-      for (const component of appSpecs.compose) {
-        component.domains = ['blockbook.runonflux.io', ''];
-      }
-    } else if (appSpecs.name === 'web') {
-      // appSpecs.domains = [''];
-      for (const component of appSpecs.compose) {
-        component.domains = [''];
-      }
-      appSpecs.compose[0].domains = ['new.runonflux.io'];
-      appSpecs.compose[1].domains = ['runonflux.io'];
-    } else if (appSpecs.name.startsWith('themok')) {
-      for (const component of appSpecs.compose) {
-        component.domains = [''];
-      }
-    } else if (appSpecs.name === 'cloud') { // cloud is one component and we want to have cloud available on both cloud.runonflux.com and cloud.runonflux.io
-      for (const component of appSpecs.compose) {
-        component.domains = ['cloud.runonflux.io,cloud.runonflux.com'];
-      }
-    } else if (appSpecs.name === 'clouddev') { // clouddev is one component and we want to have cloud available on both dev.cloud.runonflux.com and dev.cloud.runonflux.io
-      for (const component of appSpecs.compose) {
-        component.domains = ['dev.cloud.runonflux.io,dev.cloud.runonflux.com'];
-      }
-    }
-    // else if (appSpecs.name === 'eckodao') {
-    //   appSpecs.compose[0].domains = ['', '', '', '', ''];
-    // }
-    // Resolve once, version-blind. This also carries the domain overrides applied above
-    // (they mutate the wire, which deserialize re-ingests). A spec that can't resolve is
-    // logged and skipped, never aborting the batch.
-    let deployment;
+    // One app must never take the batch down with it: this loop provisions certificates
+    // for every app, so anything that escapes here stops routing updates for ALL of them,
+    // not just the one that failed. The guard used to cover only the resolve step, which
+    // left the domain rewrite above it — and the certificate work below it — unprotected.
     try {
       // eslint-disable-next-line no-await-in-loop
       const instance = await specLibs.deserialize(appSpecs);
       // eslint-disable-next-line no-await-in-loop
-      deployment = await specLibs.resolveDeployment(instance, null);
+      const deployment = await specLibs.resolveDeployment(instance, null);
+
+      const domains = getUnifiedDomains(deployment);
+      const customDomains = getCustomDomains(deployment);
+      const portLength = effectiveRoutes(deployment).length;
+
+      if (domains.length === portLength + 1) {
+        // eslint-disable-next-line no-await-in-loop
+        const domainOps = await executeCertificateOperations(domains, DOMAIN_TYPE.FDM, myFDMnameORip, myIP);
+        if (domainOps.success) {
+          log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
+          processedApplications.push(appSpecs);
+        } else {
+          log.error(`Domain/ssl issues for ${appSpecs.name}`);
+        }
+        if (domainOps.success && customDomains.length) {
+          // eslint-disable-next-line no-await-in-loop
+          const customOps = await executeCertificateOperations(customDomains, DOMAIN_TYPE.CUSTOM, myFDMnameORip, myIP);
+          if (customOps.success) {
+            log.info(`Application domain and ssl for custom domains of ${appSpecs.name} is ready`);
+          } else {
+            log.error(`Domain/ssl issues for custom domains of ${appSpecs.name}`);
+          }
+        }
+      } else {
+        log.error(`Application ${appSpecs.name} has wierd domain, settings. This is a bug.`);
+      }
     } catch (error) {
       log.error(`skipping ${appSpecs.name}: ${error.message}`);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-    const domains = getUnifiedDomains(deployment);
-    const customDomains = getCustomDomains(deployment);
-    const portLength = deployment.routes().length;
-
-    if (domains.length === portLength + 1) {
-      // eslint-disable-next-line no-await-in-loop
-      const domainOps = await executeCertificateOperations(domains, DOMAIN_TYPE.FDM, myFDMnameORip, myIP);
-      if (domainOps.success) {
-        log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
-        processedApplications.push(appSpecs);
-      } else {
-        log.error(`Domain/ssl issues for ${appSpecs.name}`);
-      }
-      if (domainOps.success && customDomains.length) {
-        // eslint-disable-next-line no-await-in-loop
-        const customOps = await executeCertificateOperations(customDomains, DOMAIN_TYPE.CUSTOM, myFDMnameORip, myIP);
-        if (customOps.success) {
-          log.info(`Application domain and ssl for custom domains of ${appSpecs.name} is ready`);
-        } else {
-          log.error(`Domain/ssl issues for custom domains of ${appSpecs.name}`);
-        }
-      }
-    } else {
-      log.error(`Application ${appSpecs.name} has wierd domain, settings. This is a bug.`);
     }
   }
 

@@ -23,6 +23,7 @@
 // variants, de-duplication) reproduce the legacy behavior exactly.
 const config = require('config');
 const { resolveCustomConfig } = require('../application/custom');
+const { effectiveRoutes } = require('../domain/effectiveRoutes');
 
 // Strip protocol prefixes and characters HAProxy can't carry in a host-header
 // ACL; the dot is kept.
@@ -96,7 +97,7 @@ function buildRouteConfigs(
   const routeFor = (deployment, componentName, portKey) => (
     deployment === declared
       ? null
-      : deployment.routes().find((r) => r.componentName === componentName && r.portKey === portKey)
+      : effectiveRoutes(deployment).find((r) => r.componentName === componentName && r.portKey === portKey)
   );
   // The node addresses in rotation, de-duplicated: co-located replicas share one node,
   // and this list answers "where does this app run" (the /appips projection), not "what
@@ -110,7 +111,7 @@ function buildRouteConfigs(
   const seen = (domain) => Boolean(has(domain));
 
   // eslint-disable-next-line no-restricted-syntax
-  for (const route of declared.routes()) {
+  for (const route of effectiveRoutes(declared)) {
     const { componentName, portKey, hostPort } = route;
     // Every replica's servers for this route, each on the host port ITS deployment
     // resolved. Replicas keep the rotation order resolveBackends decided.

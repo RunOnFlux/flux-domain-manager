@@ -5,6 +5,7 @@ const specDecrypt = require('./specDecrypt');
 const domainOverrides = require('./domainOverrides');
 const sharedDbRouting = require('./sharedDbRouting');
 const appChecks = require('./appChecks');
+const staticLocations = require('./staticLocations');
 
 module.exports = {
   server: {
@@ -45,6 +46,7 @@ module.exports = {
   domainOverrides,
   sharedDbRouting,
   appChecks,
+  staticLocations,
   appSubDomain: 'app2',
   fdmAppDomain: 'fdm-lb-2-1.runonflux.io',
   uiName: 'home',

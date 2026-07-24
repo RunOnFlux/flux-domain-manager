@@ -15,6 +15,7 @@ const { buildRouteConfigs } = require('./haproxy/buildRouteConfigs');
 const { publishRouteConfigs } = require('./haproxy/publication');
 const { PublishGuard } = require('./haproxy/completeness');
 const { resolveAppLocations, runPerApp } = require('./haproxy/appCycle');
+const { parseSocketAddress } = require('./socketAddress');
 const { ConditionLog } = require('./conditionLog');
 const specLibs = require('./flux/specLibs');
 const { startCertRsync } = require('./rsync');
@@ -56,8 +57,10 @@ const runQueue = {
   activeActiveApps: { running: false, queued: false },
 };
 
-// Generates config file for HAProxy
-let fluxIPsForBalancing = []; // current nodes l
+// Generates config file for HAProxy.
+// The nodes currently balanced onto for the main node domain, carried between cycles so a
+// node that is still healthy keeps its place rather than being re-elected every 30s.
+let nodesForBalancing = [];
 async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `${config.uiName}.${config.mainDomain}`;
@@ -72,70 +75,70 @@ async function generateAndReplaceMainHaproxyConfig() {
       cloudUiPrimary = `${config.cloudUiName}.${config.primaryDomain}`;
     }
 
-    // get current list of flux ip only stratus
-    const fluxIPs = (await fluxService.getFluxIPs('STRATUS')).filter(
-      (ip) => !ip.split(':')[1],
-    ); // use only stratus for home and on default api port
-    if (fluxIPs.length < 100) {
+    // Only nodes answering on the default API port are balanced onto: a node running on
+    // another port carries it in its address. That is this domain's policy, applied here
+    // rather than inside the node-list accessor, which has no reason to hold an opinion
+    // about it. More than half the network carries a port (3792 of 6541 when this was
+    // written), so it is doing real work.
+    const candidateNodes = (await fluxService.getNodeSocketAddresses('STRATUS'))
+      .filter((socketAddress) => parseSocketAddress(socketAddress).port === null);
+    if (candidateNodes.length < 100) {
       throw new Error('Invalid Flux List');
     }
 
-    const initialNodeCount = fluxIPsForBalancing.length;
+    const initialNodeCount = nodesForBalancing.length;
 
     // Remove nodes that are no longer in the current flux list
-    fluxIPsForBalancing = fluxIPsForBalancing.filter((ip) => fluxIPs.includes(ip));
-    const removedByFilter = initialNodeCount - fluxIPsForBalancing.length;
+    nodesForBalancing = nodesForBalancing.filter((node) => candidateNodes.includes(node));
+    const removedByFilter = initialNodeCount - nodesForBalancing.length;
 
     if (removedByFilter > 0) {
       console.log(`Removed ${removedByFilter} nodes no longer in flux list`);
     }
 
-    // Check each existing IP and only keep the ones that pass health check
-    const nodeCountBeforeHealthCheck = fluxIPsForBalancing.length;
-    const healthyIPs = [];
-    for (const ip of fluxIPsForBalancing) {
+    const isHealthy = async (socketAddress) => {
+      const { host, port } = parseSocketAddress(socketAddress);
+      return applicationChecks.checkMainFlux(host, port); // port may be null
+    };
+
+    // Keep only the nodes still passing their health check
+    const nodeCountBeforeHealthCheck = nodesForBalancing.length;
+    const healthyNodes = [];
+    for (const node of nodesForBalancing) {
       // eslint-disable-next-line no-await-in-loop
-      const isOK = await applicationChecks.checkMainFlux(
-        ip.split(':')[0],
-        ip.split(':')[1],
-      ); // can be undefined
-      if (isOK) {
-        healthyIPs.push(ip);
+      if (await isHealthy(node)) {
+        healthyNodes.push(node);
       } else {
-        console.log(`removing ${ip} as backend (failed health check)`);
+        console.log(`removing ${node} as backend (failed health check)`);
       }
     }
-    fluxIPsForBalancing = healthyIPs;
+    nodesForBalancing = healthyNodes;
 
-    const removedByHealthCheck = nodeCountBeforeHealthCheck - fluxIPsForBalancing.length;
+    const removedByHealthCheck = nodeCountBeforeHealthCheck - nodesForBalancing.length;
     if (removedByHealthCheck > 0) {
       console.log(
         `Removed ${removedByHealthCheck} nodes that failed health check`,
       );
     }
 
-    console.log(`Current Ips on backend ${fluxIPsForBalancing.length}`);
+    console.log(`Current nodes on backend ${nodesForBalancing.length}`);
 
     // we want to do some checks on UI and API to verify functionality
     // 1st check is loginphrase
     // 2nd check is communication
     // 3rd is ui
-    if (fluxIPsForBalancing.length < 100) {
-      console.log(`Found ${fluxIPs.length} STRATUS on default api port`);
-      for (const ip of fluxIPs) {
-        if (fluxIPsForBalancing.indexOf(ip) >= 0) {
+    if (nodesForBalancing.length < 100) {
+      console.log(`Found ${candidateNodes.length} STRATUS on default api port`);
+      for (const node of candidateNodes) {
+        if (nodesForBalancing.indexOf(node) >= 0) {
           // eslint-disable-next-line no-continue
           continue;
         }
         // eslint-disable-next-line no-await-in-loop
-        const isOK = await applicationChecks.checkMainFlux(
-          ip.split(':')[0],
-          ip.split(':')[1],
-        ); // can be undefined
-        if (isOK) {
-          fluxIPsForBalancing.push(ip);
-          console.log(`adding ${ip} as backend`);
-          if (fluxIPsForBalancing.length >= 100) {
+        if (await isHealthy(node)) {
+          nodesForBalancing.push(node);
+          console.log(`adding ${node} as backend`);
+          if (nodesForBalancing.length >= 100) {
             // maximum of 100 for load balancing
             break;
           }
@@ -143,13 +146,13 @@ async function generateAndReplaceMainHaproxyConfig() {
       }
     }
 
-    if (fluxIPsForBalancing.length < 10) {
+    if (nodesForBalancing.length < 10) {
       throw new Error('Not enough ok nodes, probably error');
     }
     const hc = await haproxyTemplate.createMainHaproxyConfig(
       ui,
       api,
-      fluxIPsForBalancing,
+      nodesForBalancing,
       uiPrimary,
       apiPrimary,
       cloudUi,

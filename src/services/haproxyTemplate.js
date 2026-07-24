@@ -355,15 +355,15 @@ function generateMinecraftACLs(app) {
   ];
 }
 
-function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudUi, cloudUiPrimary) {
+function createMainHaproxyConfig(ui, api, nodeAddresses, uiPrimary, apiPrimary, cloudUi, cloudUiPrimary) {
   const uiB = ui.split('.').join('');
   const apiB = api.split('.').join('');
 
-  // Sort IPs for consistent ordering
-  const sortedFluxIPs = [...fluxIPs].sort();
+  // Sorted for consistent ordering
+  const sortedNodes = [...nodeAddresses].sort();
 
   // Create server mapping with IDENTICAL order and count
-  const serverMapping = sortedFluxIPs.map((socketAddress, index) => {
+  const serverMapping = sortedNodes.map((socketAddress, index) => {
     const { host: baseHost, port } = parseSocketAddress(socketAddress);
     const apiPort = port || '16127';
     const uiPort = Number(apiPort) - 1;

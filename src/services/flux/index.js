@@ -1,6 +1,7 @@
 const axios = require('axios');
 const config = require('config');
 const log = require('../../lib/log');
+const { parseSocketAddress, unbracket, isBareIPv6 } = require('../socketAddress');
 
 const timeout = 13456;
 
@@ -51,21 +52,35 @@ async function getFluxList(fallback) {
   }
 }
 
-async function getFluxIPs(tier) {
+const IPV4 = /^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(.(?!$)|$)){4}$/;
+
+// A node address is usable if it is an address at all. The daemon reports a handful of
+// empty ones, and a node on a non-default API port carries that port — which is a fact
+// about the node, not a defect, so it is returned and left for callers to act on.
+function isUsableNodeAddress(socketAddress) {
+  if (!socketAddress) return false;
+  const { host } = parseSocketAddress(socketAddress);
+  return IPV4.test(unbracket(host)) || isBareIPv6(socketAddress);
+}
+
+/**
+ * The socket addresses of a tier's nodes.
+ *
+ * The daemon calls this field `ip`, but more than half of what it returns carries a port
+ * (3792 of 6541 when this was written), so these are socket addresses and are named as
+ * such. Which of them a caller wants — every node, or only those on the default API port
+ * — is the caller's question to ask.
+ *
+ * @param {string} tier
+ * @returns {Promise<Array<string>>} socket addresses, some with an explicit port
+ */
+async function getNodeSocketAddresses(tier) {
   try {
     let fluxnodes = await getFluxList();
     if (tier === 'STRATUS' || tier === 'NIMBUS' || tier === 'CUMULUS') {
       fluxnodes = fluxnodes.filter((fluxnode) => fluxnode.tier === tier);
     }
-    const ips = fluxnodes.map((fluxnode) => fluxnode.ip);
-    const correctIps = [];
-    const ipvTest = /^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(.(?!$)|$)){4}$/;
-    ips.forEach((ip) => {
-      if (ipvTest.test(ip)) {
-        correctIps.push(ip);
-      }
-    });
-    return correctIps;
+    return fluxnodes.map((fluxnode) => fluxnode.ip).filter(isUsableNodeAddress);
   } catch (e) {
     log.error(e);
     return [];
@@ -109,7 +124,7 @@ async function getApplicationLocation(appName) {
 }
 
 module.exports = {
-  getFluxIPs,
+  getNodeSocketAddresses,
   getApplicationLocation,
   getAppSpecifications,
   getFluxPermanentMessages,

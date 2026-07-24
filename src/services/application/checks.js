@@ -348,20 +348,56 @@ async function generalWebsiteCheck(ip, port, timeOut = 2500, appname) {
   }
 }
 
-async function checkBlockBook(ip, port, appsname) {
+const BLOCKBOOK_MAX_BLOCK_AGE_MS = 3 * 60 * 60 * 1000;
+// How far blockbook's own index may trail the backend daemon and still count as current.
+const BLOCKBOOK_MAX_INDEX_LAG = 100;
+
+// The app name carries its coin: blockbookdogecoin, and blockbookbitcoincash23344 for a
+// second deployment of one. The reference entry for that coin is optional — see
+// isBlockBookFresh.
+function blockBookCoin(appsname) {
+  return appsname.replace('blockbook', '').replace(/\d+/g, '');
+}
+
+// The reference table off the blockbook rule, so a direct call needs no wiring. The
+// dispatch passes rule.coins instead.
+function blockBookCoins() {
+  const rule = config.appChecks.checks.find((r) => r.probe === 'blockBook');
+  return (rule && rule.coins) || {};
+}
+
+// Is this instance's index current? Answerable from the instance alone, with no per-coin
+// reference: blockbook must have caught up with the daemon it indexes, and the chain tip
+// it reports must be recent. An instance that has never synced reports bestHeight 0 and a
+// last block weeks old while still claiming inSync, which is why its own flag is not
+// consulted.
+function isBlockBookFresh(info) {
+  const { bestHeight, lastBlockTime } = info.blockbook;
+  const lagOK = bestHeight > info.backend.blocks - BLOCKBOOK_MAX_INDEX_LAG;
+  const age = Date.now() - new Date(lastBlockTime).getTime();
+  return lagOK && age < BLOCKBOOK_MAX_BLOCK_AGE_MS;
+}
+
+// Does the address index answer consistently? The page of txids returned has to agree
+// with the totals blockbook reports for that address, which a partially built index does
+// not manage.
+function hasConsistentAddressIndex(addr) {
+  if (!addr.txids.length) return false;
+  if (addr.txs <= 50) return addr.txids.length === addr.txs;
+  if (addr.totalPages > addr.page) return addr.txids.length >= 50;
+  return addr.txids.length === addr.txs % 50;
+}
+
+// `coins` carries the per-coin reference data — a known address and a height the chain is
+// long past. It is deliberately optional: a coin with no entry is still checked for
+// freshness rather than refused outright. Reading a missing coin out of a positional list
+// used to yield index -1, so the address became `undefined` and every height comparison
+// was `> undefined`, and the app could never pass however healthy it was — silently, since
+// nothing distinguished it from a genuinely stale node.
+async function checkBlockBook(ip, port, appsname, coins = blockBookCoins()) {
   try {
-    const coinList = ['litecoin', 'flux', 'ethereumclassic', 'vertcoin', 'zcash', 'dogecoin', 'digibyte', 'groestlcoin', 'dash', 'firo', 'sin', 'ravencoin', 'pivx', 'decred', 'neurai', 'bitcoin', 'bitcointestnet', 'bitcoinsignet', 'clore', 'bitcoincash', 'bitcoingold'];
-    const addressList = ['LVjoCYFESyTbKAEU5VbFYtb9EYyBXx55V5', 't3fK9bY31MGCqhKw34cg9gg168SHCfcMGHe', '0x0e009d19cb4693fcf2d15aaf4a5ee1c8a0bb5ecf', 'VbFrQgNEiR8ZxMh9WmkjJu9kkqjJA6imdD',
-      't1UPSwfMYLe18ezbCqnR5QgdJGznzCUYHkj', 'DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8', 'DFewUat3fj7pbMiudwbWpdgyuULCiVf6q8', 'FfgZPEfmvou5VxZRnTbRjPKhgVsrx7Qjq9',
-      'XmCgmabJL2S8DJ8tmEvB8QDArgBbSSMJea', 'aBEJgEP2b7DP7tyQukv639qtdhjFhWp2QE', 'SXoqyAiZ6gQjafKmSnb2pmfwg7qLC8r4Sf', 'RKo31qpgy9278MuWNXb5NPranc4W6oaUFf',
-      'DTVg3KVrPiv9QLPT1cYQ8XYV6SUugMYkZV', 'DsUbTWsJWNzNdfUigTrUqbxmnwntDBJXasi', 'NfXjy71SH9CdC8tNzQjkYGKUCYfMsTPaKS', '12ib7dApVFvg82TXKycWBNpN8kFyiAN1dr', 'tb1qzzlexm9xz8zthacl5tl0ewp2yu9tq0jp2tt6e0', 'tb1pwzv7fv35yl7ypwj8w7al2t8apd6yf4568cs772qjwper74xqc99sk8x7tk',
-      'AMq8KfE2iJtMbKNMtHp3VmJFFKmyLoMwuG', 'bitcoincash:qr8ger8kn2fz5cr73cp7ylkqznauyjyzuqwwh4uqht', 'GLTodZWWjuMWmXhu2fAtPM4e4Sv6Z2oZYP'];
-    const heightList = [2561528, 1969000, 18510512, 2067081, 2260134, 4922428, 18038850, 4796068, 1953740, 764150, 1690368, 3015843, 4085836, 807730, 255116, 812896, 68910, 165752, 516509, 845000, 850000];
-    let coin = appsname.replace('blockbook', '');
-    coin = coin.replace(/\d+/g, '');
-    const index = coinList.indexOf(coin);
-    let response1;
-    let response2;
+    const coin = blockBookCoin(appsname);
+    const reference = coins[coin] || null;
     const agent = new https.Agent({
       rejectUnauthorized: false,
     });
@@ -373,43 +409,37 @@ async function checkBlockBook(ip, port, appsname) {
         source.cancel('Operation canceled by the user.');
       }
     }, timeout * 2);
-    if (ip.includes(':')) {
-      response1 = await axios.get(`https://${ip}:${port}/api`, { httpsAgent: agent, timeout, cancelToken: source.token });
-      response2 = await axios.get(`https://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, { httpsAgent: agent, timeout, cancelToken: source.token });
-      isResolved = true;
-    } else {
-      response1 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api`, 5000);
-      response2 = await serviceHelper.httpGetRequest(`http://${ip}:${port}/api/v2/address/${addressList[index]}?pageSize=50`, 5000);
-      isResolved = true;
+    // Blockbook is addressed over https when the node gave us an IPv6 literal.
+    const overIPv6 = ip.includes(':');
+    const get = async (path) => {
+      const response = overIPv6
+        ? await axios.get(`https://${ip}:${port}${path}`, { httpsAgent: agent, timeout, cancelToken: source.token })
+        : await serviceHelper.httpGetRequest(`http://${ip}:${port}${path}`, 5000);
+      return response.data;
+    };
+
+    const info = await get('/api');
+    isResolved = true;
+
+    if (coin === 'flux' && info.backend.version !== 'zebra' && +info.backend.version < 8000050) { // consider zebra always valid
+      return false;
     }
-    if (coin === 'flux') {
-      if (response1.data.backend.version !== 'zebra' && +response1.data.backend.version < 8000050) { // consider zebra always valid
-        return false;
-      }
+    if (!isBlockBookFresh(info)) {
+      log.error(`Bad IP ${ip}:${port} blockbook ${appsname}`);
+      return false;
     }
-    const currentTime = new Date().getTime();
-    if (response2.data.txids.length > 0 && response1.data.blockbook.bestHeight > (response1.data.backend.blocks - 100) && response1.data.blockbook.bestHeight > heightList[index] && response1.data.backend.blocks > heightList[index]) {
-      const lastBlockTmstp = new Date(response1.data.blockbook.lastBlockTime).getTime();
-      const timeDifference = currentTime - lastBlockTmstp;
-      if (response2.data.txs <= 50 && response2.data.txids.length === response2.data.txs) {
-        if (response2.data.txids.length === response2.data.txs) {
-          if (timeDifference < 1000 * 60 * 60 * 3) { // 3 hours
-            return true;
-          }
-        }
-      } else if (response2.data.txs > 50 && response2.data.totalPages > response2.data.page) {
-        if (response2.data.txids.length >= 50) {
-          if (timeDifference < 1000 * 60 * 60 * 3) { // 3 hours
-            return true;
-          }
-        }
-      } else if (response2.data.txs > 50 && response2.data.totalPages === response2.data.page) {
-        if (response2.data.txids.length === response2.data.txs % 50) {
-          if (timeDifference < 1000 * 60 * 60 * 3) { // 3 hours
-            return true;
-          }
-        }
-      }
+    if (!reference) {
+      log.warn(`blockbook ${appsname}: no reference data for coin "${coin}", checked for freshness only`);
+      return true;
+    }
+    if (info.blockbook.bestHeight <= reference.minHeight || info.backend.blocks <= reference.minHeight) {
+      log.error(`Bad IP ${ip}:${port} blockbook ${appsname}`);
+      return false;
+    }
+
+    const addr = await get(`/api/v2/address/${reference.address}?pageSize=50`);
+    if (hasConsistentAddressIndex(addr)) {
+      return true;
     }
     log.error(`Bad IP ${ip}:${port} blockbook ${appsname}`);
     return false;
@@ -584,6 +614,7 @@ const PROBES = {
     ip.includes('[') ? `${ip.split(']')[0]}]` : host,
     ip.includes(']:') ? ip.split(']:')[1] : routedPort(deployment),
     app.name,
+    rule.coins,
   ),
 };
 
@@ -591,8 +622,8 @@ function applicationWithChecks(app) {
   return checkRuleFor(app.name) !== null;
 }
 
-// `probes` is injectable so the dispatch can be tested without standing up the network
-// calls it selects. Production always uses PROBES.
+// `probes` is injectable so the dispatch can be tested without standing up
+// the network calls it selects. Production always uses PROBES.
 async function checkApplication(app, ip, deployment, probes = PROBES) {
   const rule = checkRuleFor(app.name);
   if (!rule) return true;

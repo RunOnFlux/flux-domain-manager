@@ -56,10 +56,22 @@ describe('app check dispatch', () => {
     expect(await dispatch('somerandomapp')).to.have.lengthOf(0);
   });
 
-  it('passes the explorer its fixed port from config, not the deployment', async () => {
-    const [call] = await dispatch('explorer', deploymentWithPorts(12345));
+  // explorer serves 39185 and explorerb serves 38200, so a port fixed in config is right
+  // for at most one of them: every explorerb instance was probed on a port it does not
+  // listen on and rejected. The owner's declared port is the source of truth.
+  it('probes an explorer on the port its own spec routes', async () => {
+    const [call] = await dispatch('explorer', deploymentWithPorts(38200));
     expect(call.probe).to.equal('fluxExplorer');
-    expect(call.rule.port).to.equal(39185);
+    expect(call.rule.port).to.equal(undefined);
+    expect(call.ctx.deployment.routes()[0].hostPort).to.equal(38200);
+  });
+
+  // alphexplorer is the exception the override exists for: its probe targets the backend
+  // component on 9090, which is not the first port its spec routes (the daemon's 39973).
+  it('keeps the configured port where the probe targets a later component', async () => {
+    const [call] = await dispatch('alphexplorer', deploymentWithPorts(39973, 12973, 9090));
+    expect(call.probe).to.equal('alphExplorer');
+    expect(call.rule.port).to.equal(9090);
   });
 
   it('gives the general website probe the app routed port', async () => {

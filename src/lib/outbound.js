@@ -105,11 +105,7 @@ function createHttpClient(options = {}) {
   return client;
 }
 
-/** Socket options for MongoClient, which accepts them as client options. */
-const MONGO_SOCKET_OPTIONS = SOCKET_POLICY;
-
 module.exports = {
   SOCKET_POLICY,
-  MONGO_SOCKET_OPTIONS,
   createHttpClient,
 };

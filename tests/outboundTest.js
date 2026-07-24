@@ -2,7 +2,7 @@
 const chai = require('chai');
 const http = require('http');
 const axios = require('axios');
-const { SOCKET_POLICY, MONGO_SOCKET_OPTIONS, createHttpClient } = require('../src/lib/outbound');
+const { SOCKET_POLICY, createHttpClient } = require('../src/lib/outbound');
 const httpClients = require('../src/services/httpClients');
 
 const { expect } = chai;
@@ -19,7 +19,6 @@ function listen(handler, host = '127.0.0.1') {
 describe('outbound connection policy', () => {
   it('binds through 0.0.0.0 and resolves IPv4 only', () => {
     expect(SOCKET_POLICY).to.deep.equal({ localAddress: '0.0.0.0', family: 4 });
-    expect(MONGO_SOCKET_OPTIONS).to.deep.equal(SOCKET_POLICY);
   });
 
   it('gives every shared client keep-alive agents that connect through the policy', () => {

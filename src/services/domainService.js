@@ -5,10 +5,7 @@ const log = require('../lib/log');
 const ipService = require('./ipService');
 const fluxService = require('./flux');
 const haproxyTemplate = require('./haproxyTemplate');
-const {
-  processApplications,
-  getCustomDomains,
-} = require('./domain');
+const { getCustomDomains } = require('./domain');
 const { effectiveRoutes } = require('./domain/effectiveRoutes');
 const { DomainOwnershipRegistry } = require('./domain/ownership');
 const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/cert');
@@ -1079,9 +1076,8 @@ function resetConfiguredHalfGuards(store = sharedGuardStore()) {
 
 // Resolve an app to its version-normalized DeploymentSpec and append its backend
 // routes to the config. Version-blind: legacy and v9 apps take the same path. The
-// app has already been through processApplications, so any domain overrides it
-// applied are carried into the resolved routes via deserialize. Custom domains this
-// app does not own (another live app registered them first) are skipped.
+// Domain overrides are carried into the resolved routes via deserialize. Custom domains
+// this app does not own (another live app registered them first) are skipped.
 async function appendRouteConfigs(routeConfigs, app, backends, isActiveStandby) {
   const instance = await specLibs.deserialize(app);
   // One resolved deployment per replica actually running. A named replica's effective
@@ -1322,24 +1318,13 @@ async function generateActiveActiveHaproxyConfig() {
     // filter applications based on config
     const applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
 
-    // for every application do following
-    // get name, ports
-    // main application domain is name.app.domain, for every port we have name-port.app.domain
-    // check and adjust dns record for missing domains
-    // obtain certificate
-    // add to renewal script
-    // check if certificate exist
-    // if all ok, add for creation of domain
+    // The directory haproxy loads its certificates from. The certificate process fills
+    // it and rsyncs it across the group; this loop only needs it to exist.
     await createSSLDirectory();
     log.info('SSL directory checked');
-    const appsOK = await processApplications(
-      applicationSpecifications,
-      myIP,
-    );
-    reportMissingMandatoryApps(appsOK, 'Active-Active');
-    // continue with appsOK
+    reportMissingMandatoryApps(applicationSpecifications, 'Active-Active');
     const routeConfigs = [];
-    await runPerApp(appsOK, 'Active-Active', async (app) => {
+    await runPerApp(applicationSpecifications, 'Active-Active', async (app) => {
       const appStartTime = process.hrtime.bigint();
       const { locations: appLocations, requests } = await resolveAppLocations({
         appName: app.name,
@@ -1425,21 +1410,10 @@ async function generateActiveStandbyHaproxyConfig() {
     // filter applications based on config
     const applicationSpecifications = getApplicationsToProcess(globalAppSpecs);
 
-    // for every application do following
-    // get name, ports
-    // main application domain is name.app.domain, for every port we have name-port.app.domain
-    // check and adjust dns record for missing domains
-    // obtain certificate
-    // add to renewal script
-    // check if certificate exist
-    // if all ok, add for creation of domain
+    // The directory haproxy loads its certificates from. The certificate process fills
+    // it and rsyncs it across the group; this loop only needs it to exist.
     await createSSLDirectory();
     log.info('SSL directory checked');
-    const appsOK = await processApplications(
-      applicationSpecifications,
-      myIP,
-    );
-
     // Locations for the apps the bulk feed did not carry - a handful per pass.
     //
     // The attempts are for an API that could not be REACHED. It replies `success`
@@ -1456,7 +1430,7 @@ async function generateActiveStandbyHaproxyConfig() {
     // here is discarded long before the next pass reads it.
     const locationsForPass = new Map();
     const needSearch = [];
-    for (const app of appsOK) {
+    for (const app of applicationSpecifications) {
       const cached = appsLocations.get(app.name);
       if (cached && cached.length) locationsForPass.set(app.name, cached);
       else needSearch.push(app);
@@ -1490,7 +1464,7 @@ async function generateActiveStandbyHaproxyConfig() {
     }
 
     // Fixed addresses the feed does not carry, as the active-active loop adds them.
-    for (const app of appsOK) {
+    for (const app of applicationSpecifications) {
       const fixed = config.staticLocations[app.name];
       if (fixed) locationsForPass.set(app.name, [...(locationsForPass.get(app.name) || []), ...fixed.map((ip) => ({ ip }))]);
     }
@@ -1499,10 +1473,10 @@ async function generateActiveStandbyHaproxyConfig() {
     const liveLocations = new Map([...locationsForPass].map(([name, locations]) => [
       name, locations.filter((l) => !isDraining(l)),
     ]));
-    const selected = await selectActiveStandbyPrimaries(appsOK, liveLocations);
+    const selected = await selectActiveStandbyPrimaries(applicationSpecifications, liveLocations);
 
     const routeConfigs = [];
-    await runPerApp(appsOK, 'Active-Standby', async (app) => {
+    await runPerApp(applicationSpecifications, 'Active-Standby', async (app) => {
       const appLocations = locationsForPass.get(app.name) || [];
       if (appLocations.length > 0) {
         // Active-standby routes to a single INSTANCE - one replica on one node, not a

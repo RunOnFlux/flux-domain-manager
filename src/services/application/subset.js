@@ -22,8 +22,11 @@ function filterApps(apps) {
   return appsInBucket;
 }
 
+// Materialized up front: callers are handed Map iterators as well as arrays, and every
+// return below must be an array — the routing loops both scan the result for the
+// mandatory apps AND iterate it, and an iterator would be spent by the first pass.
 function getApplicationsToProcess(apps) {
-  let applicationsToProcess = apps;
+  let applicationsToProcess = [...apps];
 
   // if running apps for a specific owner
   if (config.ownersApps.length) {

@@ -612,7 +612,11 @@ function checkRuleFor(appName) {
 // Everything else takes the port from the deployment.
 const PROBES = {
   generalWebsite: (rule, { host, app, deployment }) => generalWebsiteCheck(host, routedPort(deployment), undefined, app.name),
-  fluxExplorer: (rule, { host }) => checkFluxExplorer(host, rule.port),
+  // `rule.port` overrides the spec for the probes that target a component other than the
+  // first routed one — alphexplorer's backend, not its daemon. Everything else takes the
+  // port the owner declared, so a redeploy on a different port does not silently stop the
+  // check applying. explorer and explorerb differ here: 39185 and 38200.
+  fluxExplorer: (rule, { host, deployment }) => checkFluxExplorer(host, rule.port || routedPort(deployment)),
   bitcoinNode: (rule, { host, deployment }) => checkBitcoinNode(host, routedPort(deployment), rule.chain),
   alphExplorer: (rule, { host }) => checkALPHexplorer(host, rule.port),
   ethers: (rule, { host }) => checkEthers(host, rule.port, rule.providerURL, rule.cmd),

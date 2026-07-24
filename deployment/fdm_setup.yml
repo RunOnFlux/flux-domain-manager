@@ -178,6 +178,9 @@
         - haproxyRouting.json
         - specDecrypt.json
         - domainOverrides.json
+        - sharedDbRouting.json
+        - appChecks.json
+        - staticLocations.json
 
     - name: Ensure config files exist for CDM (they should already be there from git clone)
       ansible.builtin.file:
@@ -190,6 +193,9 @@
         - haproxyRouting.json
         - specDecrypt.json
         - domainOverrides.json
+        - sharedDbRouting.json
+        - appChecks.json
+        - staticLocations.json
 
     - name: Install Dependencies FDM
       command: npm install

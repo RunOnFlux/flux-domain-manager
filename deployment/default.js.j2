@@ -4,6 +4,9 @@ const customConfigs = require('./customConfigs');
 const haproxyRouting = require('./haproxyRouting');
 const specDecrypt = require('./specDecrypt');
 const domainOverrides = require('./domainOverrides');
+const sharedDbRouting = require('./sharedDbRouting');
+const appChecks = require('./appChecks');
+const staticLocations = require('./staticLocations');
 
 module.exports = {
   server: {
@@ -48,6 +51,9 @@ module.exports = {
   haproxyRouting,
   specDecrypt,
   domainOverrides,
+  sharedDbRouting,
+  appChecks,
+  staticLocations,
   appSubDomain: '{{ appSubDomain }}',
   fdmAppDomain: '{{ fdmAppDomain }}',
   uiName: '{{ uiName }}',

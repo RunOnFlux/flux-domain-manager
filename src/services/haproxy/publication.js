@@ -58,4 +58,34 @@ async function publishRouteConfigs({
   return { action: 'published', remember: next, combined };
 }
 
-module.exports = { publishRouteConfigs };
+/**
+ * A loop's whole end-of-cycle: ask the guard whether what was built is complete enough,
+ * and publish it if so.
+ *
+ * The order is the point. The guard runs BEFORE anything is published and before the memo
+ * moves, so a withheld cycle changes nothing at all: haproxy keeps serving, the loop keeps
+ * the configs it last published, and the next cycle rebuilds from scratch and asks again.
+ * Returning the previous memo as `remember` on the withheld path is what makes the caller
+ * assigning it unconditionally safe.
+ *
+ * @param {Object} args
+ * @param {{allows: Function}} args.guard this loop's PublishGuard
+ * @param {Array} args.next route configs this cycle just built
+ * @param {Array} args.remembered route configs this loop published (or deferred) last
+ * @param {...} rest as publishRouteConfigs
+ * @returns {Promise<{action: 'withheld'|'unchanged'|'deferred'|'published', remember: Array, combined: (Array|null)}>}
+ */
+async function runPublishCycle({
+  guard, next, remembered, counterpart, counterpartFirst, update,
+  onChanged = () => {}, onPublish = () => {},
+}) {
+  if (!guard.allows(next.length)) {
+    return { action: 'withheld', remember: remembered, combined: null };
+  }
+  const outcome = await publishRouteConfigs({
+    next, remembered, counterpart, counterpartFirst, update, onChanged, onPublish,
+  });
+  return outcome;
+}
+
+module.exports = { publishRouteConfigs, runPublishCycle };

@@ -12,7 +12,7 @@ const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/ce
 const applicationChecks = require('./application/checks');
 const { getApplicationsToProcess } = require('./application/subset');
 const { buildRouteConfigs } = require('./haproxy/buildRouteConfigs');
-const { publishRouteConfigs } = require('./haproxy/publication');
+const { runPublishCycle } = require('./haproxy/publication');
 const { PublishGuard } = require('./haproxy/completeness');
 const { resolveAppLocations, runPerApp } = require('./haproxy/appCycle');
 const { parseSocketAddress, unbracket } = require('./socketAddress');
@@ -614,15 +614,12 @@ async function generateActiveActiveHaproxyConfig() {
     const elapsedAppsS = Math.round((appsProcessingTimeNs / 1_000_000_000) * 100) / 100;
     log.info(`Total Active-Active apps processing time. Elapsed: ${elapsedAppsS}`);
 
-    if (!activeActiveGuard.allows(routeConfigs.length)) {
-      return;
-    }
-
     // Active-active configs always lead the combined config, so this loop's own configs
     // go first. The assignment is deliberately after the await: if haproxy rejects the
-    // config, publishRouteConfigs throws and the memo keeps its previous value, so the
-    // next cycle rebuilds and retries instead of matching the memo and skipping.
-    const outcome = await publishRouteConfigs({
+    // config, publishing throws and the memo keeps its previous value, so the next cycle
+    // rebuilds and retries instead of matching the memo and skipping.
+    const outcome = await runPublishCycle({
+      guard: activeActiveGuard,
       next: routeConfigs,
       remembered: recentlyConfiguredActiveActiveRouteConfigs,
       counterpart: recentlyConfiguredActiveStandbyRouteConfigs,
@@ -640,6 +637,9 @@ async function generateActiveActiveHaproxyConfig() {
       },
     });
 
+    if (outcome.action === 'withheld') {
+      return;
+    }
     if (outcome.action === 'unchanged') {
       log.info('No changes in Active-Active Mode configuration detected');
       return;
@@ -711,14 +711,11 @@ async function generateActiveStandbyHaproxyConfig() {
       }
     });
 
-    if (!activeStandbyGuard.allows(routeConfigs.length)) {
-      return;
-    }
-
     // Mirror of the active-active loop; active-active leads the combined config, so this
     // loop's counterpart goes first. Same memo ordering — advanced on the deferred path,
     // but only after a successful publish.
-    const outcome = await publishRouteConfigs({
+    const outcome = await runPublishCycle({
+      guard: activeStandbyGuard,
       next: routeConfigs,
       remembered: recentlyConfiguredActiveStandbyRouteConfigs,
       counterpart: recentlyConfiguredActiveActiveRouteConfigs,
@@ -736,6 +733,9 @@ async function generateActiveStandbyHaproxyConfig() {
       },
     });
 
+    if (outcome.action === 'withheld') {
+      return;
+    }
     if (outcome.action === 'unchanged') {
       log.info('No changes in Active-Standby Mode configuration detected');
       return;

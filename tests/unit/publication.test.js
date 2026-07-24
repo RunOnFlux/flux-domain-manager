@@ -4,7 +4,8 @@
 // as published, or the next cycle rebuilds the same configs, matches the memo and skips
 // — freezing the fleet on the last good config until the app set happens to change.
 const chai = require('chai');
-const { publishRouteConfigs } = require('../../src/services/haproxy/publication');
+const { publishRouteConfigs, runPublishCycle } = require('../../src/services/haproxy/publication');
+const { PublishGuard } = require('../../src/services/haproxy/completeness');
 
 const { expect } = chai;
 
@@ -128,5 +129,94 @@ describe('route config publication policy', () => {
       onPublish: () => order.push('publish'),
     }));
     expect(order).to.deep.equal([]);
+  });
+});
+
+// What the routing loops actually do with the guard. Until now this sequence lived inline
+// in both loops, which read module state and reach the network at every step, so nothing
+// automated covered the two properties that matter most when a cycle is withheld.
+describe('a withheld cycle changes nothing', () => {
+  const limits = { minRouteConfigs: 10, minRouteRetention: 0.7, maxConsecutiveWithholds: 3 };
+  const silent = { error: () => {} };
+  const many = (n) => Array.from({ length: n }, (_, i) => ({ domain: `app${i}.app2.runonflux.io` }));
+
+  // Publish a healthy cycle first so the guard has a last-good count to compare against.
+  const primed = (count = 100) => {
+    const guard = new PublishGuard('Active-Active', limits, silent);
+    guard.allows(count);
+    return guard;
+  };
+
+  it('does not publish when the guard withholds', async () => {
+    let published = false;
+    const outcome = await runPublishCycle({
+      guard: primed(),
+      next: many(5),
+      remembered: many(100),
+      counterpart: as,
+      counterpartFirst: false,
+      update: async () => { published = true; },
+    });
+    expect(outcome.action).to.equal('withheld');
+    expect(published).to.equal(false);
+  });
+
+  // The memo is the cross-loop handoff as well as the change-detection cache. If a
+  // withheld cycle advanced it, the next cycle would rebuild the same configs, match the
+  // memo and skip — freezing routing until the app set happened to change.
+  it('leaves the memo on its previous value, so the next cycle retries', async () => {
+    const remembered = many(100);
+    const outcome = await runPublishCycle({
+      guard: primed(),
+      next: many(5),
+      remembered,
+      counterpart: as,
+      counterpartFirst: false,
+      update: async () => {},
+    });
+    expect(outcome.remember).to.deep.equal(remembered);
+  });
+
+  it('does not mark the loop ready on a withheld cycle', async () => {
+    let ready = false;
+    await runPublishCycle({
+      guard: primed(),
+      next: many(5),
+      remembered: many(100),
+      counterpart: as,
+      counterpartFirst: false,
+      update: async () => {},
+      onChanged: () => { ready = true; },
+    });
+    expect(ready).to.equal(false);
+  });
+
+  it('publishes normally once the count recovers', async () => {
+    const guard = primed();
+    let combinedLength = 0;
+    await runPublishCycle({
+      guard, next: many(5), remembered: many(100), counterpart: as, counterpartFirst: false, update: async () => {},
+    });
+    const outcome = await runPublishCycle({
+      guard,
+      next: many(95),
+      remembered: many(100),
+      counterpart: as,
+      counterpartFirst: false,
+      update: async (combined) => { combinedLength = combined.length; },
+    });
+    expect(outcome.action).to.equal('published');
+    expect(combinedLength).to.equal(95 + as.length);
+  });
+
+  // The guard consults itself before the publish, so a cycle it allows behaves exactly as
+  // it did before the guard was in the sequence at all.
+  it('is transparent when it allows the cycle', async () => {
+    // A cold-start guard whose floor the one-config fixture clears, so the guard says yes
+    // and the outcome must be exactly what publishing alone produces.
+    const guard = new PublishGuard('Active-Active', { ...limits, minRouteConfigs: 1 }, silent);
+    const direct = await publishRouteConfigs(activeActive({}));
+    const viaCycle = await runPublishCycle({ guard, ...activeActive({}) });
+    expect(viaCycle).to.deep.equal(direct);
   });
 });

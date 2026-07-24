@@ -402,6 +402,7 @@ const isDraining = (location) => DRAIN_STATES.has(location.state);
 const drainingBackends = new ConditionLog();
 const unhealthyApps = new ConditionLog();
 const missingMandatory = new ConditionLog();
+const cycleOverrun = new ConditionLog();
 
 // Without this a shutting-down node just silently disappears from the config, with nothing
 // to confirm the flux-shutdownd -> fluxos -> FDM chain actually delivered the state.
@@ -830,20 +831,23 @@ async function startApplicationProcessing() {
     const handler = async (name, handlerState, runner) => {
       const state = handlerState;
 
+      // Locations arrive every ten seconds; a cycle taking longer than that is ordinary,
+      // so coalescing is the normal case and not worth a line per event — it was the
+      // second largest source of log volume on a director. Reported edge-triggered, so a
+      // director that starts overrunning still says so, once.
       if (state.queued && state.running) {
-        console.log('appsLocationsUpdated event received, while '
-          + `an update already queued for: ${name}, skipping`);
-
+        cycleOverrun.report(name, true, () => `${name}: locations updates are arriving faster than cycles complete; coalescing`);
         return;
       }
 
       if (state.running) {
-        console.log('appsLocationsUpdated event received while an '
-          + `update is running for: ${name}. Queueing next update.`);
+        cycleOverrun.report(name, true, () => `${name}: a cycle is still running; queueing the next update`);
         state.queued = true;
 
         return;
       }
+
+      cycleOverrun.report(name, false, () => `${name}: cycles are keeping up with locations updates again`);
 
       if (state.queued) state.queued = false;
 

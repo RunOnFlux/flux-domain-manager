@@ -61,6 +61,22 @@
     - name: Install PM2 globally using NPM
       command: npm install -g pm2
 
+    # Without this pm2 never rotates anything and the out logs grow without bound: the dev
+    # director reached 5.1GB, one file at 3.9GB, over about a year. The settings were
+    # already present in ~/.pm2/module_conf.json on the boxes — the module they configure
+    # had simply never been installed, so nothing acted on them.
+    - name: Install pm2-logrotate
+      shell: pm2 list | grep -q pm2-logrotate || pm2 install pm2-logrotate
+
+    - name: Configure pm2-logrotate
+      command: "pm2 set pm2-logrotate:{{ item.key }} {{ item.value }}"
+      loop:
+        - { key: 'max_size', value: '100M' }
+        - { key: 'retain', value: '10' }
+        - { key: 'compress', value: 'true' }
+      loop_control:
+        label: "{{ item.key }}={{ item.value }}"
+
     - name: Enable and start MongoDB service
       ansible.builtin.systemd:
         name: mongod

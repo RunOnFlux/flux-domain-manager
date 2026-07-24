@@ -508,7 +508,9 @@ async function getBlockchainInfo(host, port, username, password) {
     // console.log(response.data);
     return response.data.result;
   } catch (error) {
-    console.log(`getBlockchainInfo error: ${error.message}`);
+    // A node refusing the RPC is the ordinary case this probe exists to detect, not an
+    // event worth a line each time: every unreachable instance of every bitcoin app would
+    // log on every cycle. The app-level signal is reported edge-triggered by the caller.
     return false;
   }
 }

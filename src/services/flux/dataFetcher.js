@@ -3,7 +3,6 @@ const fs = require('node:fs');
 const https = require('node:https');
 const { EventEmitter } = require('node:events');
 const TTLCache = require('@isaacs/ttlcache');
-const url = require('node:url');
 
 const axios = require('axios');
 const { runWithConcurrency } = require('../serviceHelper');
@@ -197,8 +196,6 @@ class FdmDataFetcher extends EventEmitter {
     }
 
     const { etag, 'cache-control': cacheControl, fluxnode: backend } = headers;
-    const parsedUrl = url.parse(response.config.url);
-    console.log(parsedUrl.path, 'IS HEAD', head, 'cache-control', cacheControl);
     const { maxAge } = /^max-age=(?<maxAge>\d+)$/.exec(cacheControl).groups;
 
     // this is assuming that max-age is always present
@@ -238,10 +235,7 @@ class FdmDataFetcher extends EventEmitter {
     const { hash, height } = appSpec;
 
     const cached = hash ? this.#cache.get(hash) : null;
-    if (cached) {
-      console.log(`Sealed app spec: ${appSpec.name}, found in cache, no need to fetch`);
-      return cached;
-    }
+    if (cached) return cached;
 
     try {
       await this.#ensureProviders();
@@ -352,7 +346,7 @@ class FdmDataFetcher extends EventEmitter {
       timestamp: FdmDataFetcher.timestamp(),
     };
 
-    console.log(logger);
+    log.info(JSON.stringify(logger));
 
     if (maxAgeMs === 0) {
       // the origin server is saying the cached could be stale, so we try
@@ -518,7 +512,7 @@ class FdmDataFetcher extends EventEmitter {
       sleepTimeMs,
       timestamp: FdmDataFetcher.timestamp(),
     };
-    console.log(logger);
+    log.info(JSON.stringify(logger));
 
     return sleepTimeMs;
   }
@@ -567,7 +561,7 @@ class FdmDataFetcher extends EventEmitter {
       sleepTimeMs,
       timestamp: FdmDataFetcher.timestamp(),
     };
-    console.log(logger);
+    log.info(JSON.stringify(logger));
 
     return sleepTimeMs;
   }
@@ -601,7 +595,7 @@ class FdmDataFetcher extends EventEmitter {
       sleepTimeMs,
       timestamp: FdmDataFetcher.timestamp(),
     };
-    console.log(logger);
+    log.info(JSON.stringify(logger));
 
     return sleepTimeMs;
   }

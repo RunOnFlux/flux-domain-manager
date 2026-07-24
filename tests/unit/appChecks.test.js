@@ -20,9 +20,9 @@ function recordingProbes(sink) {
   }]));
 }
 
-const dispatch = async (name, deployment = null, ip = '1.2.3.4:16127') => {
+const dispatch = async (name, deployment = null, location = { ip: '1.2.3.4:16127' }) => {
   const sink = [];
-  await checkApplication({ name }, ip, deployment, recordingProbes(sink));
+  await checkApplication({ name }, location, deployment, recordingProbes(sink));
   return sink;
 };
 
@@ -68,10 +68,23 @@ describe('app check dispatch', () => {
     expect(call.ctx.deployment.routes()[0].hostPort).to.equal(35389);
   });
 
-  it('matches blockbook by prefix, and hands it the bracketed IPv6 literal', async () => {
-    const [call] = await dispatch('blockbookdogecoin', deploymentWithPorts(36293), '[2001:41d0:d00:b800::26]:9132');
+  // A location's port means one of two things: the node's API port when it came from the
+  // platform feed, or the app's own port when it came from the configured fixed addresses.
+  // Only the second is a port to probe, and the difference is carried on the location
+  // rather than recovered from the punctuation of the address.
+  it('hands a fixed IPv6 address its own host and service port', async () => {
+    const [call] = await dispatch('blockbookdogecoin', deploymentWithPorts(36293), {
+      ip: '[2001:41d0:d00:b800::26]:9132', servicePort: '9132',
+    });
     expect(call.probe).to.equal('blockBook');
-    expect(call.ctx.ip).to.equal('[2001:41d0:d00:b800::26]:9132');
+    expect(call.ctx.host).to.equal('[2001:41d0:d00:b800::26]');
+    expect(call.ctx.servicePort).to.equal('9132');
+  });
+
+  it('gives a feed location no service port, so the probe takes it from the deployment', async () => {
+    const [call] = await dispatch('blockbookdogecoin', deploymentWithPorts(36293), { ip: '1.2.3.4:16127' });
+    expect(call.ctx.host).to.equal('1.2.3.4');
+    expect(call.ctx.servicePort).to.equal(null);
   });
 
   it('carries each ethers app its own port, command and provider', async () => {

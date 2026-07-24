@@ -973,10 +973,10 @@ function orderByCluster(ips, clusterOrder, appLocations) {
 }
 
 let appIpsOnAppsChecks = [];
-async function addAppIps(app, ip, deployment) {
-  const isCheckOK = await applicationChecks.checkApplication(app, ip, deployment);
+async function addAppIps(app, location, deployment) {
+  const isCheckOK = await applicationChecks.checkApplication(app, location, deployment);
   if (isCheckOK) {
-    appIpsOnAppsChecks.push(ip);
+    appIpsOnAppsChecks.push(location.ip);
   }
 }
 
@@ -1228,7 +1228,7 @@ async function resolveBackends(app, appLocations) {
     // Per-app coded checks hit the network, so responses arrive out of order; sort by ip.
     let promiseArray = [];
     for (const [i, location] of live.entries()) {
-      promiseArray.push(addAppIps(app, location.ip, deployment));
+      promiseArray.push(addAppIps(app, location, deployment));
       if ((i + 1) % 10 === 0) {
         // eslint-disable-next-line no-await-in-loop
         await Promise.allSettled(promiseArray);

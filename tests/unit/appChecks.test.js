@@ -102,6 +102,29 @@ describe('app check dispatch', () => {
     expect(call.rule.prefix).to.equal('WanchainRpc');
   });
 
+  // Each bitcoin app is a different chain, and the node says which it is on. That used to
+  // be asked as a height above bitcoin mainnet's, with signet exempted by name because it
+  // could never clear it — signet is at 314534, well under half the old floor of 812722.
+  it('gives each bitcoin app the chain it is meant to serve', async () => {
+    const expected = { bitcoinnode: 'main', bitcoinnodetestnet: 'test', bitcoinnodesignet: 'signet' };
+    // eslint-disable-next-line no-restricted-syntax
+    for (const [name, chain] of Object.entries(expected)) {
+      // eslint-disable-next-line no-await-in-loop
+      const [call] = await dispatch(name, deploymentWithPorts(8332));
+      expect(call.probe).to.equal('bitcoinNode', name);
+      expect(call.rule.chain).to.equal(chain, name);
+    }
+  });
+
+  it('no longer decides a bitcoin node by an absolute height', () => {
+    const rules = config.appChecks.checks.filter((r) => r.probe === 'bitcoinNode');
+    expect(rules).to.have.lengthOf(3);
+    rules.forEach((rule) => {
+      expect(rule.chain).to.be.a('string');
+      expect(rule).to.not.have.property('minHeight');
+    });
+  });
+
   it('no longer probes apps that left the network', async () => {
     // eslint-disable-next-line no-restricted-syntax
     for (const name of ['HavenNodeMainnet', 'AlgorandRPCMainnet', 'ergo', 'CeloRPC', 'subnetbittensor', 'KDLaunch']) {

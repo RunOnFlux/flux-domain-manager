@@ -43,9 +43,27 @@
     # director reached 5.1GB, one file at 3.9GB, over about a year. The settings were
     # already present in ~/.pm2/module_conf.json on the boxes — the module they configure
     # had simply never been installed, so nothing acted on them.
-    - name: Install pm2-logrotate
-      shell: pm2 list | grep -q pm2-logrotate || pm2 install pm2-logrotate
+    #
+    # Keyed on the module directory rather than on `pm2 list` output: pm2 installs modules
+    # to ~/.pm2/modules/<name>, which is a fact about pm2 rather than about how its table
+    # happens to be formatted.
+    - name: Check whether pm2-logrotate is installed
+      ansible.builtin.stat:
+        path: /root/.pm2/modules/pm2-logrotate
+      register: pm2_logrotate_module
 
+    - name: Install pm2-logrotate
+      command: pm2 install pm2-logrotate
+      when: not pm2_logrotate_module.stat.exists
+
+    - name: Read the current pm2 module config
+      ansible.builtin.slurp:
+        src: /root/.pm2/module_conf.json
+      register: pm2_module_conf
+      failed_when: false
+
+    # `pm2 set` restarts the module, so only the settings that actually differ are applied
+    # and a converged box reports no change.
     - name: Configure pm2-logrotate
       command: "pm2 set pm2-logrotate:{{ item.key }} {{ item.value }}"
       loop:
@@ -54,6 +72,9 @@
         - { key: 'compress', value: 'true' }
       loop_control:
         label: "{{ item.key }}={{ item.value }}"
+      when: pm2_logrotate_settings[item.key] | default('', true) | string != item.value
+      vars:
+        pm2_logrotate_settings: "{{ (pm2_module_conf.content | b64decode | from_json).get('pm2-logrotate', {}) if pm2_module_conf.content is defined else {} }}"
 
     - name: Ensure directory exists
       ansible.builtin.file:

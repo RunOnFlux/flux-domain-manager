@@ -456,7 +456,7 @@ class FdmDataFetcher extends EventEmitter {
 
   async getDecryptedSpecs() {
     const getRes = await this.doAppSpecsHttpGet();
-    if (!getRes) return [];
+    if (!getRes || !getRes.payload) return [];
 
     const { payload } = getRes;
 
@@ -484,7 +484,7 @@ class FdmDataFetcher extends EventEmitter {
     const { permMessages } = this.endpoints;
 
     const getRes = await this.doPermMessagesHttpGet();
-    if (!getRes) return permMessages.defaultFetchMs;
+    if (!getRes || !getRes.payload) return permMessages.defaultFetchMs;
 
     const {
       payload, etag, maxAgeMs, backend,
@@ -527,7 +527,13 @@ class FdmDataFetcher extends EventEmitter {
     const { globalAppSpecs } = this.endpoints;
 
     const getRes = await this.doAppSpecsHttpGet();
-    if (!getRes) return globalAppSpecs.defaultFetchMs;
+    // A 200 does not guarantee a payload: an empty body, or a body whose own status is
+    // not `success`, parses to a response object carrying `payload: null`. Checking only
+    // the response object let that null through to be processed, where iterating it threw
+    // — which on a build without the loop's catch takes the process down. The dev
+    // director restarted 1093 times on exactly this. Nothing to process is not an error;
+    // it means wait and ask again.
+    if (!getRes || !getRes.payload) return globalAppSpecs.defaultFetchMs;
 
     const {
       payload, etag, maxAgeMs, backend,
@@ -572,7 +578,7 @@ class FdmDataFetcher extends EventEmitter {
     // this call is 2.1Mb without compression and 0.37Mb compressed (axios uses
     // compression)
     const getRes = await this.doAppsLocationsHttpGet();
-    if (!getRes) return appsLocations.defaultFetchMs;
+    if (!getRes || !getRes.payload) return appsLocations.defaultFetchMs;
 
     const {
       payload, etag, maxAgeMs, backend,

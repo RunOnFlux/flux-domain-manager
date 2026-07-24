@@ -794,6 +794,20 @@ async function obtainCertificatesMode() {
   }
 }
 
+// Both roles read the platform's app specs over the same mTLS channel; only the routing
+// role runs the fetch loops on top of it. The key/cert/CA are symlinked to the correct
+// files on every box, and are read here — so a box that has not received them yet fails
+// at this call rather than on the first request.
+function createDataFetcher() {
+  return new FdmDataFetcher({
+    keyPath: '/etc/ssl/private/fdm-arcane.key',
+    certPath: '/etc/ssl/certs/fdm-arcane.pem',
+    caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
+    fluxApiBaseUrl: 'https://api.runonflux.io/',
+    specDecrypt: config.specDecrypt,
+  });
+}
+
 /** Initiates application processing. Before the haproxy app config is generated,
  * it ensure that the app specs and permanent messages are populated. It then
  * runs
@@ -801,15 +815,7 @@ async function obtainCertificatesMode() {
  */
 async function startApplicationProcessing() {
   if (dataFetcher) return;
-
-  // these are symlinked to the correct key / pem on every box
-  dataFetcher = new FdmDataFetcher({
-    keyPath: '/etc/ssl/private/fdm-arcane.key',
-    certPath: '/etc/ssl/certs/fdm-arcane.pem',
-    caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
-    fluxApiBaseUrl: 'https://api.runonflux.io/',
-    specDecrypt: config.specDecrypt,
-  });
+  const fetcher = createDataFetcher();
 
   const locationsHandler = async (appsLocs) => {
     if (appsLocs) appsLocations = appsLocs;
@@ -854,7 +860,7 @@ async function startApplicationProcessing() {
     await Promise.all(promises);
   };
 
-  dataFetcher.on(
+  fetcher.on(
     'appSpecsUpdated',
     async (specs) => {
       ownership.setAppDomains(specs.appFqdns);
@@ -863,75 +869,100 @@ async function startApplicationProcessing() {
     },
   );
 
-  dataFetcher.on('permMessagesUpdated', (permMessages) => {
+  fetcher.on('permMessagesUpdated', (permMessages) => {
     ownership.setPermanentMessages(permMessages);
   });
 
-  dataFetcher.on('appsLocationsUpdated', locationsHandler);
+  fetcher.on('appsLocationsUpdated', locationsHandler);
 
   // We just run these once prior to the fetch loops ss the data is populated
-  await dataFetcher.permMessageRunner();
-  await dataFetcher.appSpecRunner();
-  await dataFetcher.appsLocationsRunner();
+  await fetcher.permMessageRunner();
+  await fetcher.appSpecRunner();
+  await fetcher.appsLocationsRunner();
 
   await locationsHandler();
 
-  dataFetcher.startAppSpecLoop();
-  dataFetcher.startPermMessagesLoop();
-  dataFetcher.startAppsLocationsLoop();
+  fetcher.startAppSpecLoop();
+  fetcher.startPermMessagesLoop();
+  fetcher.startAppsLocationsLoop();
+
+  // Published only once the loops are running, because it doubles as the "already
+  // started" guard above: a boot that fails part-way leaves it unset, so the retry
+  // builds a fresh fetcher instead of returning at the guard and never starting.
+  dataFetcher = fetcher;
 }
 
-// services run every 6 mins
-function initializeServices() {
+// The certificate role matches each custom domain against the addresses this group
+// answers on, and this node's own is one of them. It is discovered asynchronously, so
+// that role waits for it; routing reads no address of its own and does not wait.
+function whenPublicIPKnown(run) {
   myIP = ipService.localIP();
-  console.log(`public IP: ${myIP}`);
-  if (myIP) {
-    if (config.manageCertificateOnly) {
-      if (!dataFetcher) {
-        dataFetcher = new FdmDataFetcher({
-          keyPath: '/etc/ssl/private/fdm-arcane.key',
-          certPath: '/etc/ssl/certs/fdm-arcane.pem',
-          caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
-          fluxApiBaseUrl: 'https://api.runonflux.io/',
-          specDecrypt: config.specDecrypt,
-        });
-      }
-      obtainCertificatesMode();
-      startCertRsync();
-      log.info('FDM Certificate Service initialized.');
-    } else if (!config.manageApps) {
-      generateAndReplaceMainHaproxyConfig();
-      log.info('Flux Main Node Domain Service initiated.');
-    } else if (!dataFetcher) {
-      // only runs on main FDM handles X.APP.runonflux.io. This only runs once
-      // to add event listeners
-      startApplicationProcessing();
-
-      log.info('Flux Main Application Domain Service initiated.');
-    } else {
-      log.info('CUSTOM DOMAIN SERVICE UNAVAILABLE');
-    }
-  } else {
+  if (!myIP) {
     log.warn('Awaiting FDM IP address...');
-    setTimeout(() => {
-      initializeServices();
-    }, 5 * 1000);
+    setTimeout(() => whenPublicIPKnown(run), 5 * 1000);
+    return;
+  }
+  log.info(`public IP: ${myIP}`);
+  run();
+}
+
+const BOOT_RETRY_MS = 30 * 1000;
+
+// A start that survives its own failure. Both boots touch the network and the filesystem
+// — the platform API, the mTLS key a box may not have received yet — and the sequence
+// this replaces only ever caught a synchronous throw: application processing is async, so
+// its rejection sailed past the try/catch and killed the process. That matters because a
+// process that dies while booting dies again immediately, and pm2 stops restarting after
+// max_restarts and leaves it errored. So a failed boot is logged and retried here, and
+// the retry is short — the failures it sees are "the network is not up yet" or "a human
+// has to put a file on this box", and neither is helped by waiting a quarter of an hour.
+function retryOnFailure(boot) {
+  const retry = (error) => {
+    log.error(error);
+    setTimeout(() => retryOnFailure(boot), BOOT_RETRY_MS);
+  };
+  try {
+    const booting = boot();
+    if (booting && typeof booting.catch === 'function') booting.catch(retry);
+  } catch (error) {
+    retry(error);
   }
 }
 
-async function start() {
-  try {
-    log.info('Initiating FDM API services...');
+/** FDM: publish haproxy routing — for applications under appSubDomain.mainDomain, or
+ * for the main node domain, per config.manageApps. One process per director.
+ */
+function startRouting() {
+  retryOnFailure(async () => {
+    log.info('Initiating FDM routing services...');
     ipService.start();
     applicationChecks.startBlockheightRefresh();
-    initializeServices();
-  } catch (e) {
-    // restart service after 5 mins
-    log.error(e);
-    setTimeout(() => {
-      start();
-    }, 15 * 60 * 1000);
-  }
+    if (config.manageApps) {
+      // Runs once, to add the event listeners the fetch loops drive.
+      await startApplicationProcessing();
+      log.info('Flux Main Application Domain Service initiated.');
+    } else {
+      generateAndReplaceMainHaproxyConfig();
+      log.info('Flux Main Node Domain Service initiated.');
+    }
+  });
+}
+
+/** CDM: obtain and renew the owners' custom-domain certificates, and rsync them to the
+ * group. One process, on the renewal primary only. It runs no routing and holds no
+ * haproxy state, so it never writes a config.
+ */
+function startCertificates() {
+  retryOnFailure(() => {
+    log.info('Initiating CDM certificate services...');
+    ipService.start();
+    dataFetcher = createDataFetcher();
+    whenPublicIPKnown(() => {
+      obtainCertificatesMode();
+      startCertRsync();
+      log.info('CDM Certificate Service initialized.');
+    });
+  });
 }
 
 function getRouteConfigs() {
@@ -944,7 +975,8 @@ function getRouteConfigs() {
 }
 
 module.exports = {
-  start,
+  startRouting,
+  startCertificates,
   getRouteConfigs,
   resolveBackends,
   selectActiveInstance,

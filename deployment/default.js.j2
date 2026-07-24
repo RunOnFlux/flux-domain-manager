@@ -28,7 +28,6 @@ module.exports = {
   primaryDomain: 'runonflux.com',
   emailDomain: 'tadeas@runonflux.io',
   certFolder: 'fluxapps',
-  manageCertificateOnly: {{ manageCertificateOnly }},
   certRenewalPrimary: {{ certRenewalPrimary | default('false') | lower }},
   // true: this FDM routes applications under appSubDomain.mainDomain
   // false: it routes the main node domain instead

@@ -2,11 +2,6 @@
   "apps": {
     "wordpress1677413615318": {
       "version": 7,
-      "unifiedDomains": [
-        "wordpress1677413615318_38286.app2.runonflux.io",
-        "wordpress1677413615318_34252.app2.runonflux.io",
-        "wordpress1677413615318.app2.runonflux.io"
-      ],
       "customDomains": [
         "anon0.com",
         "www.anon0.com",
@@ -333,10 +328,6 @@
     },
     "anonapp1": {
       "version": 3,
-      "unifiedDomains": [
-        "anonapp1_35051.app2.runonflux.io",
-        "anonapp1.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -435,9 +426,6 @@
     },
     "anonapp2": {
       "version": 8,
-      "unifiedDomains": {
-        "sealed": true
-      },
       "customDomains": {
         "sealed": true
       },
@@ -458,10 +446,6 @@
     },
     "anonapp3": {
       "version": 6,
-      "unifiedDomains": [
-        "anonapp3_33702.app2.runonflux.io",
-        "anonapp3.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -560,11 +544,6 @@
     },
     "anonapp4": {
       "version": 7,
-      "unifiedDomains": [
-        "anonapp4_7777.app2.runonflux.io",
-        "anonapp4_27015.app2.runonflux.io",
-        "anonapp4.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -687,10 +666,6 @@
     },
     "anonapp5": {
       "version": 5,
-      "unifiedDomains": [
-        "anonapp5_36919.app2.runonflux.io",
-        "anonapp5.app2.runonflux.io"
-      ],
       "customDomains": [
         "anon1.com",
         "www.anon1.com",
@@ -895,11 +870,6 @@
     },
     "anonapp6": {
       "version": 2,
-      "unifiedDomains": [
-        "anonapp6_31588.app2.runonflux.io",
-        "anonapp6_31589.app2.runonflux.io",
-        "anonapp6.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -1043,10 +1013,6 @@
     },
     "anonapp7": {
       "version": 4,
-      "unifiedDomains": [
-        "anonapp7_35555.app2.runonflux.io",
-        "anonapp7.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -1145,10 +1111,6 @@
     },
     "anonapp8": {
       "version": 8,
-      "unifiedDomains": [
-        "anonapp8_36769.app2.runonflux.io",
-        "anonapp8.app2.runonflux.io"
-      ],
       "customDomains": [
         "anon2.com",
         "www.anon2.com",
@@ -1458,10 +1420,6 @@
     },
     "anonapp9": {
       "version": 8,
-      "unifiedDomains": [
-        "anonapp9_31443.app2.runonflux.io",
-        "anonapp9.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -1560,10 +1518,6 @@
     },
     "anonapp10": {
       "version": 7,
-      "unifiedDomains": [
-        "anonapp10_33333.app2.runonflux.io",
-        "anonapp10.app2.runonflux.io"
-      ],
       "customDomains": [
         "anon4.com",
         "www.anon4.com",
@@ -1768,10 +1722,6 @@
     },
     "anonapp11": {
       "version": 7,
-      "unifiedDomains": [
-        "anonapp11_38454.app2.runonflux.io",
-        "anonapp11.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -1870,13 +1820,6 @@
     },
     "anonapp12": {
       "version": 6,
-      "unifiedDomains": [
-        "anonapp12_31301.app2.runonflux.io",
-        "anonapp12_31302.app2.runonflux.io",
-        "anonapp12_31303.app2.runonflux.io",
-        "anonapp12_31304.app2.runonflux.io",
-        "anonapp12.app2.runonflux.io"
-      ],
       "customDomains": [
         "anon5.io",
         "www.anon5.io",
@@ -2321,10 +2264,6 @@
     },
     "anonapp13": {
       "version": 8,
-      "unifiedDomains": [
-        "anonapp13_36512.app2.runonflux.io",
-        "anonapp13.app2.runonflux.io"
-      ],
       "customDomains": [
         "anon7.io",
         "www.anon7.io",
@@ -2529,11 +2468,6 @@
     },
     "anonapp14": {
       "version": 3,
-      "unifiedDomains": [
-        "anonapp14_38080.app2.runonflux.io",
-        "anonapp14_38081.app2.runonflux.io",
-        "anonapp14.app2.runonflux.io"
-      ],
       "customDomains": [
         "anon8.io",
         "www.anon8.io",
@@ -2888,10 +2822,6 @@
     },
     "FluxWordPress": {
       "version": 7,
-      "unifiedDomains": [
-        "fluxwordpress_38016.app2.runonflux.io",
-        "fluxwordpress.app2.runonflux.io"
-      ],
       "customDomains": [
         "anon10.io",
         "www.anon10.io",
@@ -3131,10 +3061,6 @@
     },
     "anonapp16": {
       "version": 7,
-      "unifiedDomains": [
-        "anonapp16_31000.app2.runonflux.io",
-        "anonapp16.app2.runonflux.io"
-      ],
       "customDomains": [
         "anon11.fr",
         "www.anon11.fr",
@@ -3339,10 +3265,6 @@
     },
     "anonapp17": {
       "version": 7,
-      "unifiedDomains": [
-        "anonapp17_32323.app2.runonflux.io",
-        "anonapp17.app2.runonflux.io"
-      ],
       "customDomains": [
         "anon12.me",
         "www.anon12.me",
@@ -3547,13 +3469,6 @@
     },
     "KaspaNode08": {
       "version": 8,
-      "unifiedDomains": [
-        "kaspanode08_15110.app2.runonflux.io",
-        "kaspanode08_15111.app2.runonflux.io",
-        "kaspanode08_17110.app2.runonflux.io",
-        "kaspanode08_18110.app2.runonflux.io",
-        "kaspanode08.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -3787,13 +3702,6 @@
     },
     "KaspaNode16GB1760556657255": {
       "version": 7,
-      "unifiedDomains": [
-        "kaspanode16gb1760556657255_15110.app2.runonflux.io",
-        "kaspanode16gb1760556657255_15111.app2.runonflux.io",
-        "kaspanode16gb1760556657255_17110.app2.runonflux.io",
-        "kaspanode16gb1760556657255_18110.app2.runonflux.io",
-        "kaspanode16gb1760556657255.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -4027,10 +3935,6 @@
     },
     "anonapp20": {
       "version": 7,
-      "unifiedDomains": [
-        "anonapp20_8081.app2.runonflux.io",
-        "anonapp20.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -4129,10 +4033,6 @@
     },
     "anonapp21": {
       "version": 5,
-      "unifiedDomains": [
-        "anonapp21_33333.app2.runonflux.io",
-        "anonapp21.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -4231,10 +4131,6 @@
     },
     "anonapp22": {
       "version": 8,
-      "unifiedDomains": [
-        "anonapp22_25565.app2.runonflux.io",
-        "anonapp22.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -4319,14 +4215,6 @@
     },
     "anonapp23": {
       "version": 7,
-      "unifiedDomains": [
-        "anonapp23_21115.app2.runonflux.io",
-        "anonapp23_21116.app2.runonflux.io",
-        "anonapp23_21118.app2.runonflux.io",
-        "anonapp23_21117.app2.runonflux.io",
-        "anonapp23_21119.app2.runonflux.io",
-        "anonapp23.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -4605,12 +4493,6 @@
     },
     "anonapp24": {
       "version": 7,
-      "unifiedDomains": [
-        "anonapp24_35855.app2.runonflux.io",
-        "anonapp24_37663.app2.runonflux.io",
-        "anonapp24_31922.app2.runonflux.io",
-        "anonapp24.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -4799,10 +4681,6 @@
     },
     "anonapp25": {
       "version": 8,
-      "unifiedDomains": [
-        "anonapp25_34517.app2.runonflux.io",
-        "anonapp25.app2.runonflux.io"
-      ],
       "customDomains": [
         "anon13.com",
         "www.anon13.com",
@@ -5007,13 +4885,6 @@
     },
     "budibasemysql": {
       "version": 7,
-      "unifiedDomains": [
-        "budibasemysql_34419.app2.runonflux.io",
-        "budibasemysql_39443.app2.runonflux.io",
-        "budibasemysql_39080.app2.runonflux.io",
-        "budibasemysql_32069.app2.runonflux.io",
-        "budibasemysql.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -5269,22 +5140,6 @@
     },
     "anonapp27": {
       "version": 8,
-      "unifiedDomains": [
-        "anonapp27_32442.app2.runonflux.io",
-        "anonapp27_32409.app2.runonflux.io",
-        "anonapp27_37734.app2.runonflux.io",
-        "anonapp27_35382.app2.runonflux.io",
-        "anonapp27_37483.app2.runonflux.io",
-        "anonapp27_34083.app2.runonflux.io",
-        "anonapp27_33035.app2.runonflux.io",
-        "anonapp27_31889.app2.runonflux.io",
-        "anonapp27_38979.app2.runonflux.io",
-        "anonapp27_38527.app2.runonflux.io",
-        "anonapp27_30752.app2.runonflux.io",
-        "anonapp27_31868.app2.runonflux.io",
-        "anonapp27_36220.app2.runonflux.io",
-        "anonapp27.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -5923,10 +5778,6 @@
     },
     "anonapp28": {
       "version": 8,
-      "unifiedDomains": [
-        "anonapp28_8080.app2.runonflux.io",
-        "anonapp28.app2.runonflux.io"
-      ],
       "customDomains": [],
       "customConfigs": [
         {
@@ -6025,16 +5876,6 @@
     },
     "anonapp29": {
       "version": 8,
-      "unifiedDomains": [
-        "anonapp29_18080.app2.runonflux.io",
-        "anonapp29_16379.app2.runonflux.io",
-        "anonapp29_18081.app2.runonflux.io",
-        "anonapp29_18082.app2.runonflux.io",
-        "anonapp29_18083.app2.runonflux.io",
-        "anonapp29_18084.app2.runonflux.io",
-        "anonapp29_3306.app2.runonflux.io",
-        "anonapp29.app2.runonflux.io"
-      ],
       "customDomains": [
         "anon14.com",
         "www.anon14.com",

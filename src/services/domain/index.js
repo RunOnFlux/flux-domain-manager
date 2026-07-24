@@ -3,19 +3,6 @@ const config = require('config');
 const { resolveRouteExposure } = require('../haproxy/resolveRouteExposure');
 const { effectiveRoutes } = require('./effectiveRoutes');
 
-// The platform FQDNs an app is reachable on — one per routed port plus the main alias —
-// version-blind, sourced from the resolved loadBalancing routes rather than raw compose.
-// FDM owns these (app2.runonflux.io), so they always terminate and always need a cert.
-function getUnifiedDomains(deployment) {
-  const lowerCaseName = deployment.appName.toLowerCase();
-  const domains = effectiveRoutes(deployment).map(
-    (route) => `${lowerCaseName}_${route.hostPort}.${config.appSubDomain}.${config.mainDomain}`,
-  );
-  // The general name is an alias to the first port.
-  domains.push(`${lowerCaseName}.${config.appSubDomain}.${config.mainDomain}`);
-  return domains;
-}
-
 // The owner custom domains FDM should obtain certificates for — version-blind, from the
 // resolved routes (flux-spec has already split the comma blob). A domain is included only
 // when its route both terminates at FDM and is FDM-managed (Part C): v9 passthrough /
@@ -46,6 +33,5 @@ function getCustomDomains(deployment) {
 }
 
 module.exports = {
-  getUnifiedDomains,
   getCustomDomains,
 };

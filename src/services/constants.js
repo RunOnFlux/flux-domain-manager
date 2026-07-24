@@ -3,16 +3,10 @@ const util = require('util');
 
 const cmdAsync = util.promisify(nodecmd.run);
 
-const DOMAIN_TYPE = {
-  FDM: 'FDM',
-  CUSTOM: 'CUSTOM',
-};
-
 const TEMP_HAPROXY_CONFIG = '/tmp/haproxytemp.cfg';
 const HAPROXY_CONFIG = '/etc/haproxy/haproxy.cfg';
 
 module.exports = {
-  DOMAIN_TYPE,
   cmdAsync,
   TEMP_HAPROXY_CONFIG,
   HAPROXY_CONFIG,

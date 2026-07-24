@@ -10,7 +10,7 @@ const specLibs = require('../../src/services/flux/specLibs');
 const { buildRouteConfigs } = require('../../src/services/haproxy/buildRouteConfigs');
 const { looseBackends, looseDeployments } = require('./fixtures/renderPipeline');
 const { createAppsHaproxyConfig } = require('../../src/services/haproxyTemplate');
-const { getUnifiedDomains, getCustomDomains } = require('../../src/services/domain');
+const { getCustomDomains } = require('../../src/services/domain');
 
 const { expect } = chai;
 
@@ -57,8 +57,8 @@ describe('v9 schemes — edge exposure + cert gating', () => {
     expect(config).to.include('redirect scheme https if !letsencrypt-acl !pki-validation-acl\n');
     expect(config).to.not.include('http-request deny if httpsonly-hosts');
     expect(config).to.not.include('https-sni-router');
-    // platform FQDN + custom domain both cert-eligible
-    expect(getUnifiedDomains(deployment)).to.include('app_31000.app2.runonflux.io');
+    // platform FQDN routes; the custom domain is cert-eligible
+    expect(config).to.include('app_31000.app2.runonflux.io');
     expect(getCustomDomains(deployment)).to.include('shop.com');
   });
 
@@ -77,8 +77,8 @@ describe('v9 schemes — edge exposure + cert gating', () => {
     expect(config).to.include('redirect scheme https if !letsencrypt-acl !pki-validation-acl !plaincom');
     // not terminated -> not managed -> excluded from the cert path
     expect(getCustomDomains(deployment)).to.not.include('plain.com');
-    // platform FQDN still terminates + certs
-    expect(getUnifiedDomains(deployment)).to.include('app_31000.app2.runonflux.io');
+    // the platform FQDN still terminates on the https side
+    expect(config).to.include('app_31000.app2.runonflux.io');
   });
 
   it('httpPassthrough: raw TLS via the :443 SNI router, no cert', async () => {

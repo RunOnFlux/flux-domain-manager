@@ -16,7 +16,6 @@ const { publishRouteConfigs } = require('./haproxy/publication');
 const { resolveAppLocations, runPerApp } = require('./haproxy/appCycle');
 const { ConditionLog } = require('./conditionLog');
 const specLibs = require('./flux/specLibs');
-const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
 const serviceHelper = require('./serviceHelper');
 const httpClients = require('./httpClients');
@@ -1568,11 +1567,7 @@ async function obtainCertificatesMode() {
     let certsChanged = false;
     if (allCustomDomains.length) {
       log.info(`Processing ${allCustomDomains.length} unique custom domains from ${applicationSpecifications.length} apps`);
-      const certOps = await executeCertificateOperations(
-        allCustomDomains,
-        DOMAIN_TYPE.CUSTOM,
-        myIP,
-      );
+      const certOps = await executeCertificateOperations(allCustomDomains, myIP);
       certsChanged = certOps.certsChanged;
       const orphansRemoved = await cleanupStaleCerts();
       certsChanged = certsChanged || orphansRemoved;

@@ -16,7 +16,7 @@
 //   curl -s https://api.runonflux.io/apps/globalappsspecifications > tests/local/corpus-raw.json
 const fs = require('fs').promises;
 const path = require('path');
-const { getUnifiedDomains, getCustomDomains } = require('../../src/services/domain/index');
+const { getCustomDomains } = require('../../src/services/domain/index');
 const specLibs = require('../../src/services/flux/specLibs');
 const { getCustomConfigs } = require('../../src/services/application/custom');
 const { getApplicationsToProcess } = require('../../src/services/application/subset');
@@ -40,7 +40,7 @@ async function main() {
   // tell an app name apart from a summary key by how it is spelled.
   const out = { apps: {}, applicationsToProcess: [] };
   const threwByFn = {
-    unifiedDomains: 0, customDomains: 0, customConfigs: 0, configuredApps: 0,
+    customDomains: 0, customConfigs: 0, configuredApps: 0,
   };
   for (const s of corpus) {
     let dep = null;
@@ -48,7 +48,6 @@ async function main() {
     try { dep = await specLibs.resolveDeployment(await specLibs.deserialize(s), null); } catch { /* sealed/unreadable */ }
     out.apps[s.name] = {
       version: s.version,
-      unifiedDomains: dep ? call(() => getUnifiedDomains(dep)) : { threw: 'unresolvable' },
       customDomains: dep ? call(() => getCustomDomains(dep)) : { threw: 'unresolvable' },
       customConfigs: call(() => getCustomConfigs(s)),
       // eslint-disable-next-line no-await-in-loop

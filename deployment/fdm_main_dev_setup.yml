@@ -97,6 +97,9 @@
         - haproxyRouting.json
         - specDecrypt.json
         - domainOverrides.json
+        - sharedDbRouting.json
+        - appChecks.json
+        - staticLocations.json
 
     - name: Install Dependencies FDM
       command: npm install

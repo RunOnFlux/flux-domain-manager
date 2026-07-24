@@ -1,10 +1,5 @@
-const mongodb = require('mongodb');
-const config = require('config');
 const qs = require('qs');
 const axios = require('axios');
-
-const { MongoClient } = mongodb;
-const mongoUrl = `mongodb://${config.database.url}:${config.database.port}/`;
 
 /**
  * Sorts an array of IP addresses (both IPv4 and IPv6) with optional ports
@@ -251,76 +246,6 @@ function matchRule(str, rules) {
   return false;
 }
 
-// MongoDB functions
-async function connectMongoDb(url) {
-  const connectUrl = url || mongoUrl;
-  const mongoSettings = {
-    maxPoolSize: 100,
-  };
-  const db = await MongoClient.connect(connectUrl, mongoSettings).catch((error) => { throw error; });
-  return db;
-}
-
-async function findInDatabase(database, collection, query, projection) {
-  const results = await database.collection(collection).find(query, projection).toArray().catch((error) => { throw error; });
-  return results;
-}
-
-async function findOneInDatabaseReverse(database, collection, query, projection) {
-  const result = await database.collection(collection).find(query, projection).sort({ _id: -1 }).limit(1)
-    .next()
-    .catch((error) => { throw error; });
-  return result;
-}
-
-async function findOneInDatabase(database, collection, query, projection) {
-  const result = await database.collection(collection).findOne(query, projection).catch((error) => { throw error; });
-  return result;
-}
-
-async function findOneAndUpdateInDatabase(database, collection, query, update, options) {
-  const passedOptions = options || {};
-  const result = await database.collection(collection).findOneAndUpdate(query, update, passedOptions).catch((error) => { throw error; });
-  return result;
-}
-
-async function insertOneToDatabase(database, collection, value) {
-  const result = await database.collection(collection).insertOne(value).catch((error) => { throw error; });
-  return result;
-}
-
-async function updateOneInDatabase(database, collection, query, value) {
-  const result = await database.collection(collection).updateOne(query, { $set: value }).catch((error) => { throw error; });
-  return result;
-}
-
-async function updateInDatabase(database, collection, query, projection) {
-  const result = await database.collection(collection).updateMany(query, projection).catch((error) => { throw error; });
-  return result;
-}
-
-async function findOneAndDeleteInDatabase(database, collection, query, projection) {
-  const result = await database.collection(collection).findOneAndDelete(query, projection).catch((error) => { throw error; });
-  return result;
-}
-
-async function removeDocumentsFromCollection(database, collection, query) {
-  // to remove all documents from collection, the query is just {}
-  const result = await database.collection(collection).deleteMany(query).catch((error) => { throw error; });
-  return result;
-}
-
-async function dropCollection(database, collection) {
-  const result = await database.collection(collection).drop().catch((error) => { throw error; });
-  return result;
-}
-
-async function collectionStats(database, collection) {
-  // to remove all documents from collection, the query is just {}
-  const result = await database.collection(collection).stats().catch((error) => { throw error; });
-  return result;
-}
-
 // Flatten several iterables (Map keys/values, arrays, ...) into one array — e.g.
 // the union of the active-standby and active-active app groups, so callers read
 // them as a single collection instead of spreading each group inline.
@@ -336,18 +261,6 @@ module.exports = {
   ensureNumber,
   ensureObject,
   ensureString,
-  connectMongoDb,
-  findInDatabase,
-  findOneInDatabaseReverse,
-  findOneInDatabase,
-  findOneAndUpdateInDatabase,
-  insertOneToDatabase,
-  updateInDatabase,
-  updateOneInDatabase,
-  findOneAndDeleteInDatabase,
-  removeDocumentsFromCollection,
-  dropCollection,
-  collectionStats,
   createDataMessage,
   createSuccessMessage,
   createWarningMessage,

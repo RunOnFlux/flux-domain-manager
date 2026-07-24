@@ -9,6 +9,7 @@ const { getPrimaryIP } = require('./rsync/config');
 const { resolveBackendConfig } = require('./haproxy/resolveBackendConfig');
 const { resolveRouteExposure } = require('./haproxy/resolveRouteExposure');
 const { HaproxyConfig, Section, Directive } = require('./haproxy/configModel');
+const { parseSocketAddress, unbracket } = require('./socketAddress');
 
 // The loopback port the :443 SNI router hands terminating traffic to when a config has
 // v9 passthrough domains (see createAppsHaproxyConfig). Only used in that mode.
@@ -145,10 +146,13 @@ function buildWwwhttpsFrontend(internal = false) {
 // collide, and haproxy rejects a duplicate server name FATALLY, taking the whole config
 // (every app's, not just this one's) with it. Replica names are unique within an app and
 // constrained to [a-z0-9-], so they are safe to embed.
+// The dedup below and haproxy's own fatal duplicate-name check both key on this, so it
+// has to be what actually gets rendered. An IPv6 server renders under its bare address
+// (see addServerLine), an IPv4 one under host:apiPort.
 function serverName(server) {
-  const host = server.ip.split(':')[0];
-  const apiPort = server.ip.split(':')[1] || 16127;
-  return server.replica ? `${host}:${apiPort}_${server.replica}` : `${host}:${apiPort}`;
+  const { host, port } = parseSocketAddress(server.ip);
+  const base = host.startsWith('[') ? unbracket(host) : `${host}:${port || 16127}`;
+  return server.replica ? `${base}_${server.replica}` : base;
 }
 
 // The backends an app renders, in emit order: in-rotation first, then any draining ones
@@ -167,7 +171,7 @@ function serversToRender(app) {
       // eslint-disable-next-line no-continue
       continue;
     }
-    if (!ip.split(':')[0]) {
+    if (!parseSocketAddress(ip).host) {
       log.error(`${app.appName}: unusable backend ip ${ip}`);
       // eslint-disable-next-line no-continue
       continue;
@@ -204,7 +208,7 @@ function generatePassthroughBackend(app, domainUsed) {
   const hc = app.healthCheck;
   const timing = hc ? `inter ${hc.interval} rise ${hc.rise} fall ${hc.fall}` : '';
   for (const server of serversToRender(app)) {
-    const host = server.ip.split(':')[0];
+    const { host } = parseSocketAddress(server.ip);
     section.add('server', serverName(server), `${host}:${server.hostPort}`, 'check', timing, `maxconn ${app.maxConnectionsPerServer}`, server.draining ? 'disabled' : '');
   }
   return section;
@@ -266,7 +270,7 @@ const LEGACY_SERVER_TIMING = 'inter 3s fall 2 rise 2 fastinter 500';
 // maintenance already excludes it from every selection path.
 function addServerLine(section, cfg, app, mode, server, isFirstInRotation) {
   const { ip, draining } = server;
-  const host = ip.split(':')[0];
+  const { host } = parseSocketAddress(ip);
   // The port this particular server is reached on. A named replica may resolve a
   // different host port from its siblings, so it comes off the server, not the route.
   const { hostPort } = server;
@@ -359,10 +363,10 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
   const sortedFluxIPs = [...fluxIPs].sort();
 
   // Create server mapping with IDENTICAL order and count
-  const serverMapping = sortedFluxIPs.map((ip, index) => {
-    const apiPort = ip.split(':')[1] || '16127';
+  const serverMapping = sortedFluxIPs.map((socketAddress, index) => {
+    const { host: baseHost, port } = parseSocketAddress(socketAddress);
+    const apiPort = port || '16127';
     const uiPort = Number(apiPort) - 1;
-    const baseHost = ip.split(':')[0];
     return {
       index: index + 1,
       baseHost,

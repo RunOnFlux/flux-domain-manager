@@ -513,7 +513,18 @@ async function getBlockchainInfo(host, port, username, password) {
   }
 }
 
-async function checkBitcoinNode(ip, port, name) {
+const BITCOIN_MAX_TIP_AGE_MS = 6 * 60 * 60 * 1000;
+
+// Is this node serving the chain the app is for, and is it current?
+//
+// `chain` is what getblockchaininfo reports the node is actually on — "main", "test",
+// "signet", "regtest" — so the question is asked directly. It used to be asked as
+// `blocks > 812722`, a bitcoin mainnet height applied to all three apps, with signet
+// exempted by name because it could never satisfy it: signet is at 314533, less than half
+// the floor, so every signet node passed only because of that exemption. A height standing
+// in for an identity needs an exemption per chain that happens to be shorter than bitcoin,
+// and grants one to any chain that happens to be longer.
+async function checkBitcoinNode(ip, port, expectedChain) {
   const result = await getBlockchainInfo(ip, port, 'user', 'vRqrhHwrtz_zqDe9fCqN-r62wsieb_D7KWpiXIXvynM');
   if (!result) {
     return false;
@@ -521,14 +532,12 @@ async function checkBitcoinNode(ip, port, name) {
   if (result.initialblockdownload) {
     return false;
   }
-  const currentTime = new Date().getTime();
-  const timeDifference = currentTime - (result.time * 1000);
-  if (result.blocks > 812722 || name === 'bitcoinnodesignet') {
-    if (timeDifference < 1000 * 60 * 60 * 6) { // 6 hours
-      return true;
-    }
+  if (expectedChain && result.chain !== expectedChain) {
+    log.info(`Bitcoin node ${ip}:${port} is on chain ${result.chain}, expected ${expectedChain}`);
+    return false;
   }
-  return false;
+  const tipAge = Date.now() - (result.time * 1000);
+  return tipAge < BITCOIN_MAX_TIP_AGE_MS;
 }
 
 // Is this app's instance running on that node? `replica` narrows the question to one
@@ -604,7 +613,7 @@ function checkRuleFor(appName) {
 const PROBES = {
   generalWebsite: (rule, { host, app, deployment }) => generalWebsiteCheck(host, routedPort(deployment), undefined, app.name),
   fluxExplorer: (rule, { host }) => checkFluxExplorer(host, rule.port),
-  bitcoinNode: (rule, { host, app, deployment }) => checkBitcoinNode(host, routedPort(deployment), app.name),
+  bitcoinNode: (rule, { host, deployment }) => checkBitcoinNode(host, routedPort(deployment), rule.chain),
   alphExplorer: (rule, { host }) => checkALPHexplorer(host, rule.port),
   ethers: (rule, { host }) => checkEthers(host, rule.port, rule.providerURL, rule.cmd),
   blockBook: (rule, {
@@ -673,6 +682,7 @@ module.exports = {
   checkApplication,
   applicationWithChecks,
   checkBlockBook,
+  checkBitcoinNode,
   checkEthers,
   checkAppRunning,
   checkALPHexplorer,

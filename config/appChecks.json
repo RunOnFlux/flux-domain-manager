@@ -17,11 +17,18 @@
     },
     {
       "probe": "bitcoinNode",
-      "apps": [
-        "bitcoinnode",
-        "bitcoinnodetestnet",
-        "bitcoinnodesignet"
-      ]
+      "apps": ["bitcoinnode"],
+      "chain": "main"
+    },
+    {
+      "probe": "bitcoinNode",
+      "apps": ["bitcoinnodetestnet"],
+      "chain": "test"
+    },
+    {
+      "probe": "bitcoinNode",
+      "apps": ["bitcoinnodesignet"],
+      "chain": "signet"
     },
     {
       "probe": "blockBook",

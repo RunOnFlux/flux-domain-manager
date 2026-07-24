@@ -4,7 +4,7 @@ const https = require('https');
 const ethers = require('ethers');
 const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
-const { splitAddress } = require('../haproxy/appCycle');
+const { parseSocketAddress } = require('../socketAddress');
 
 const timeout = 5456;
 let currentFluxBlockheight = 1968478;
@@ -537,7 +537,7 @@ async function checkBitcoinNode(ip, port, name) {
 // Container names carry the identifier `{component}_{app}` — `{component}_{app}_{replica}`
 // when the replica is named — and none of those three segments may contain `_`, so
 // `{app}_{replica}` matches that replica and nothing else.
-async function checkAppRunning(url, appName, replica = null) {
+async function checkAppRunning(socketAddress, appName, replica = null) {
   try {
     const { CancelToken } = axios;
     const source = CancelToken.source();
@@ -549,9 +549,8 @@ async function checkAppRunning(url, appName, replica = null) {
       }
     }, checkAppRunningTimeout * 2);
 
-    const ip = url.split(':')[0];
-    const port = url.split(':')[1] || 16127;
-    const response = await axios.get(`http://${ip}:${port}/apps/listrunningapps`, { timeout: checkAppRunningTimeout, cancelToken: source.token });
+    const { host, port } = parseSocketAddress(socketAddress);
+    const response = await axios.get(`http://${host}:${port || 16127}/apps/listrunningapps`, { timeout: checkAppRunningTimeout, cancelToken: source.token });
     isResolved = true;
     const appsRunning = response.data.data;
     const marker = replica ? `${appName}_${replica}` : appName;
@@ -624,7 +623,7 @@ function applicationWithChecks(app) {
 async function checkApplication(app, location, deployment, probes = PROBES) {
   const rule = checkRuleFor(app.name);
   if (!rule) return true;
-  const { host } = splitAddress(location.ip);
+  const { host } = parseSocketAddress(location.ip);
   const isOK = await probes[rule.probe](rule, {
     ip: location.ip, host, servicePort: location.servicePort || null, app, deployment,
   });

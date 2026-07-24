@@ -6,26 +6,9 @@
 // a test could stand up. Extracted here, both are exercised directly.
 const config = require('config');
 const log = require('../../lib/log');
+const { parseSocketAddress } = require('../socketAddress');
 
 const LOCATION_SEARCH_ATTEMPTS = 5;
-
-/**
- * Split a node address into its host and port, IPv6 literals included.
- *
- * The address is bracketed for IPv6 (`[2001:db8::1]:9130`) and bare for IPv4
- * (`1.2.3.4:16127`), so the port cannot be found by splitting on the first colon —
- * doing that to an IPv6 address yields `[2001`.
- *
- * @param {string} address
- * @returns {{host: string, port: string|null}}
- */
-function splitAddress(address) {
-  const close = address.startsWith('[') ? address.indexOf(']') + 1 : address.indexOf(':');
-  if (close < 1) return { host: address, port: null };
-  const host = address.slice(0, close);
-  const rest = address.slice(close);
-  return { host, port: rest.startsWith(':') ? rest.slice(1) : null };
-}
 
 /**
  * Where an app is running.
@@ -63,7 +46,7 @@ async function resolveAppLocations({
   // address carries the port the app itself serves on. Recording that here means no
   // consumer has to infer an address's provenance from its punctuation.
   const fixed = config.staticLocations[appName];
-  if (fixed) locations.push(...fixed.map((ip) => ({ ip, servicePort: splitAddress(ip).port })));
+  if (fixed) locations.push(...fixed.map((ip) => ({ ip, servicePort: parseSocketAddress(ip).port })));
 
   return locations;
 }
@@ -97,6 +80,4 @@ async function runPerApp(apps, label, work, logger = log) {
   return excluded;
 }
 
-module.exports = {
-  resolveAppLocations, runPerApp, splitAddress, LOCATION_SEARCH_ATTEMPTS,
-};
+module.exports = { resolveAppLocations, runPerApp, LOCATION_SEARCH_ATTEMPTS };

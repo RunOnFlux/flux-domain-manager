@@ -15,7 +15,7 @@ const { buildRouteConfigs } = require('./haproxy/buildRouteConfigs');
 const { publishRouteConfigs } = require('./haproxy/publication');
 const { PublishGuard } = require('./haproxy/completeness');
 const { resolveAppLocations, runPerApp } = require('./haproxy/appCycle');
-const { parseSocketAddress } = require('./socketAddress');
+const { parseSocketAddress, unbracket } = require('./socketAddress');
 const { ConditionLog } = require('./conditionLog');
 const specLibs = require('./flux/specLibs');
 const { startCertRsync } = require('./rsync');
@@ -199,17 +199,21 @@ function filterMandatoryApps(apps) {
   return appsInBucket;
 }
 
-function selectLowestDigitSumIp(ips) {
-  let chosenIp = ips[0];
-  let chosenIpSum = ips[0]
-    .split(':')[0]
+// A deterministic tie-break across instances: every director picks the same one without
+// talking to the others. The digit sum only means anything for a dotted-quad host, so an
+// IPv6 instance sums to NaN, never compares lower, and simply never wins the tie — which
+// is the behaviour that was already there, now on purpose.
+function digitSum(socketAddress) {
+  return unbracket(parseSocketAddress(socketAddress).host)
     .split('.')
     .reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
-  for (const ip of ips) {
-    const sum = ip
-      .split(':')[0]
-      .split('.')
-      .reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
+}
+
+function selectLowestDigitSumAddress(socketAddresses) {
+  let chosenIp = socketAddresses[0];
+  let chosenIpSum = digitSum(socketAddresses[0]);
+  for (const ip of socketAddresses) {
+    const sum = digitSum(ip);
     if (sum < chosenIpSum) {
       chosenIp = ip;
       chosenIpSum = sum;
@@ -256,7 +260,7 @@ async function checkAppRunningWithRetries(instance, appName, retries = ACTIVE_ST
 async function selectActiveInstance(instances, app, probe = checkAppRunningWithRetries) {
   if (!instances || !instances.length) return null;
   // choose the ip address whose sum of digits is the lowest
-  const lowestDigitSumIp = selectLowestDigitSumIp(instances.map((i) => i.ip));
+  const lowestDigitSumIp = selectLowestDigitSumAddress(instances.map((i) => i.ip));
 
   // Use the sticky instance if it is still placed
   const sticky = mapOfNamesInstances[app.name];
@@ -529,7 +533,7 @@ async function resolveBackends(app, appLocations) {
     const httpTimeout = 5000;
     // eslint-disable-next-line no-restricted-syntax
     for (const ip of appIps) {
-      const url = `http://${ip.split(':')[0]}:${apiPort}/status`;
+      const url = `http://${parseSocketAddress(ip).host}:${apiPort}/status`;
       log.info(`sharedDBApps: ${app.name} going to check operator status on url ${url}`);
       // eslint-disable-next-line no-await-in-loop
       const operatorStatus = await serviceHelper.httpGetRequest(url, httpTimeout)

@@ -30,8 +30,6 @@ module.exports = {
   certFolder: 'fluxapps',
   manageCertificateOnly: true,
   certRenewalPrimary: false,
-  automateCertificates: false,
-  automateCertificatesForFDMdomains: false,
   // true: this FDM routes applications under appSubDomain.mainDomain
   // false: it routes the main node domain instead
   manageApps: true,

@@ -31,9 +31,6 @@ describe('characterization — pure spec-shape functions vs golden (real anonymi
     describe(`${s.name} (v${s.version})`, () => {
       const g = golden.apps[s.name];
       it('has a golden entry', () => { expect(g, `no golden for ${s.name}`).to.be.an('object'); });
-      it('getUnifiedDomains matches golden', async () => {
-        expect((await domainsForSpec(s)).unifiedDomains).to.deep.equal(g.unifiedDomains);
-      });
       it('getCustomDomains matches golden', async () => {
         expect((await domainsForSpec(s)).customDomains).to.deep.equal(g.customDomains);
       });

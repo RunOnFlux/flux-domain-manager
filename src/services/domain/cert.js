@@ -3,7 +3,7 @@ const config = require('config');
 const dns = require('dns').promises;
 const fs = require('fs').promises;
 const fsSync = require('fs');
-const { DOMAIN_TYPE, cmdAsync } = require('../constants');
+const { cmdAsync } = require('../constants');
 const log = require('../../lib/log');
 const serviceHelper = require('../serviceHelper');
 const dnsCache = require('./dnsCache');
@@ -98,11 +98,8 @@ async function isDomainPointedToThisGroup(hostname, myIP, resolve = dnsLookup) {
 // subject. Names beyond what DNS allows (63 per label, 253 overall) cannot resolve, so
 // they fail the pointed-at-this-group check below and back off like any other domain
 // that is not pointed here.
-async function checkDomainAction(appDomain, type, myIP, resolve = dnsLookup) {
+async function checkDomainAction(appDomain, myIP, resolve = dnsLookup) {
   try {
-    const isAutomated = type === DOMAIN_TYPE.CUSTOM ? config.automateCertificates : config.automateCertificatesForFDMdomains;
-    if (!isAutomated && !config.manageCertificateOnly) return { domain: appDomain, action: 'skip' };
-
     const isCertificatePresent = await checkCertificatePresetForDomain(appDomain);
 
     if (!isCertificatePresent) {
@@ -131,11 +128,11 @@ async function checkDomainAction(appDomain, type, myIP, resolve = dnsLookup) {
   }
 }
 
-async function executeCertificateOperations(domains, type, myIP) {
+async function executeCertificateOperations(domains, myIP) {
   try {
     // Phase 1: Parallel checks to determine actions
     const checkTasks = domains.map(
-      (domain) => () => checkDomainAction(domain, type, myIP),
+      (domain) => () => checkDomainAction(domain, myIP),
     );
     const results = await serviceHelper.runWithConcurrency(checkTasks, CONCURRENCY_LIMIT);
 

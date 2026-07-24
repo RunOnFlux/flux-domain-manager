@@ -1,7 +1,6 @@
 const { expect } = require('chai');
 const { checkDomainAction } = require('../../src/services/domain/cert');
 const { getGroupIPs } = require('../../src/services/rsync/config');
-const { DOMAIN_TYPE } = require('../../src/services/constants');
 
 // checkDomainAction decides, per domain, whether to obtain, renew or skip. DNS is
 // injected so these never touch the network. Certificates are read from /etc/ssl, which
@@ -20,20 +19,20 @@ describe('checkDomainAction', () => {
   it('obtains for a domain over 64 characters', async () => {
     const domain = long('over64');
     expect(domain.length).to.be.above(64);
-    const result = await checkDomainAction(domain, DOMAIN_TYPE.CUSTOM, null, pointedHere);
+    const result = await checkDomainAction(domain, null, pointedHere);
     expect(result).to.deep.equal({ domain, action: 'obtain' });
   });
 
   it('treats a long domain exactly like a short one', async () => {
     const shortDomain = 'short.example.com';
-    const shortResult = await checkDomainAction(shortDomain, DOMAIN_TYPE.CUSTOM, null, pointedHere);
-    const longResult = await checkDomainAction(long('parity'), DOMAIN_TYPE.CUSTOM, null, pointedHere);
+    const shortResult = await checkDomainAction(shortDomain, null, pointedHere);
+    const longResult = await checkDomainAction(long('parity'), null, pointedHere);
     expect(longResult.action).to.equal(shortResult.action);
   });
 
   it('skips a domain pointed somewhere else, and says so', async () => {
     const domain = long('elsewhere');
-    const result = await checkDomainAction(domain, DOMAIN_TYPE.CUSTOM, null, pointedElsewhere);
+    const result = await checkDomainAction(domain, null, pointedElsewhere);
     expect(result).to.deep.equal({ domain, action: 'skip', reason: 'dns not pointed' });
   });
 
@@ -43,19 +42,20 @@ describe('checkDomainAction', () => {
   it('skips a wildcard-covered platform domain without resolving it', async () => {
     const exploding = async () => { throw new Error('DNS should not be consulted'); };
     const domain = 'ethereumnodelight.app.runonflux.io';
-    const result = await checkDomainAction(domain, DOMAIN_TYPE.CUSTOM, null, exploding);
+    const result = await checkDomainAction(domain, null, exploding);
     expect(result).to.deep.equal({ domain, action: 'skip' });
   });
 
+  // Both skip reasons on this path, in the order one produces the other: a domain that
+  // resolves elsewhere is recorded as a failure, and once its cooldown is non-zero — the
+  // second failure — the next look at it backs off instead of resolving again.
   it('never skips without a reason on the paths that reach DNS', async () => {
-    const results = await Promise.all([
-      checkDomainAction(long('reason1'), DOMAIN_TYPE.CUSTOM, null, pointedElsewhere),
-      checkDomainAction(long('reason2'), DOMAIN_TYPE.FDM, null, pointedElsewhere),
-    ]);
-    results.forEach((r) => {
-      expect(r.action).to.equal('skip');
-      expect(r.reason).to.be.a('string');
-      expect(r.reason.length).to.be.above(0);
-    });
+    const domain = long('reasons');
+    const first = await checkDomainAction(domain, null, pointedElsewhere);
+    const second = await checkDomainAction(domain, null, pointedElsewhere);
+    const backedOff = await checkDomainAction(domain, null, pointedElsewhere);
+    expect(first).to.deep.equal({ domain, action: 'skip', reason: 'dns not pointed' });
+    expect(second).to.deep.equal({ domain, action: 'skip', reason: 'dns not pointed' });
+    expect(backedOff).to.deep.equal({ domain, action: 'skip', reason: 'dns backoff' });
   });
 });

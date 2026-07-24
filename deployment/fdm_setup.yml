@@ -143,7 +143,6 @@
         dest: flux-domain-manager/config/default.js
         mode: '0644'
       vars:
-        manageCertificateOnly: "false"
         certRenewalPrimary: "{{ certRenewalPrimary }}"
         appSubDomain: "{{ 'app2' if DEPLOY_ENV == 'staging' else 'app' }}"
         useSubset: "true"
@@ -159,7 +158,6 @@
         mode: '0644'
       when: certRenewalPrimary | bool
       vars:
-        manageCertificateOnly: "true"
         certRenewalPrimary: "{{ certRenewalPrimary }}"
         appSubDomain: "{{ 'app2' if DEPLOY_ENV == 'staging' else 'app' }}"
         useSubset: "true"
@@ -240,13 +238,14 @@
         NODE_ENV: production
         NODE_CONFIG_DIR: /root/flux-domain-manager/config
 
+    # Deleted and re-registered rather than restarted: pm2 restart re-runs the script
+    # path it recorded when the process was first started, which for an already-deployed
+    # CDM is index.js — now the routing entrypoint. Restarting it in place would put a
+    # second router on this box, writing haproxy.cfg from its own view.
     - name: Start CDM with PM2 (primary only)
       shell: |
-        if pm2 describe CDM > /dev/null 2>&1; then
-          pm2 restart CDM --update-env
-        else
-          pm2 start index.js --name CDM
-        fi
+        pm2 delete CDM > /dev/null 2>&1 || true
+        pm2 start cdm.js --name CDM
       args:
         chdir: cert-domain-manager
       environment:

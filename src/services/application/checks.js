@@ -4,6 +4,7 @@ const https = require('https');
 const ethers = require('ethers');
 const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
+const { splitAddress } = require('../haproxy/appCycle');
 
 const timeout = 5456;
 let currentFluxBlockheight = 1968478;
@@ -598,37 +599,34 @@ function checkRuleFor(appName) {
 }
 
 // Each probe takes what it needs from the rule, the app and its resolved deployment.
-// `ip` is the node address as FDM holds it (host:apiPort, IPv6 bracketed); `host` is that
-// address with the port stripped.
+// `host` is the node's address without a port; `servicePort` is the port the app answers
+// on when the location itself declared one, which only the configured fixed addresses do.
+// Everything else takes the port from the deployment.
 const PROBES = {
   generalWebsite: (rule, { host, app, deployment }) => generalWebsiteCheck(host, routedPort(deployment), undefined, app.name),
   fluxExplorer: (rule, { host }) => checkFluxExplorer(host, rule.port),
   bitcoinNode: (rule, { host, app, deployment }) => checkBitcoinNode(host, routedPort(deployment), app.name),
   alphExplorer: (rule, { host }) => checkALPHexplorer(host, rule.port),
   ethers: (rule, { host }) => checkEthers(host, rule.port, rule.providerURL, rule.cmd),
-  // Blockbook is the one probe addressed by the node's own IPv6 literal when it has one,
-  // taking the port from the address rather than the deployment.
   blockBook: (rule, {
-    ip, host, app, deployment,
-  }) => checkBlockBook(
-    ip.includes('[') ? `${ip.split(']')[0]}]` : host,
-    ip.includes(']:') ? ip.split(']:')[1] : routedPort(deployment),
-    app.name,
-    rule.coins,
-  ),
+    host, servicePort, app, deployment,
+  }) => checkBlockBook(host, servicePort || routedPort(deployment), app.name, rule.coins),
 };
 
 function applicationWithChecks(app) {
   return checkRuleFor(app.name) !== null;
 }
 
-// `probes` is injectable so the dispatch can be tested without standing up
+// `location` is where the app is running, as resolveAppLocations produced it: `ip` is the
+// address FDM routes to, and `servicePort` is set only when the location declared the
+// app's own port. `probes` is injectable so the dispatch can be tested without standing up
 // the network calls it selects. Production always uses PROBES.
-async function checkApplication(app, ip, deployment, probes = PROBES) {
+async function checkApplication(app, location, deployment, probes = PROBES) {
   const rule = checkRuleFor(app.name);
   if (!rule) return true;
+  const { host } = splitAddress(location.ip);
   const isOK = await probes[rule.probe](rule, {
-    ip, host: ip.split(':')[0], app, deployment,
+    ip: location.ip, host, servicePort: location.servicePort || null, app, deployment,
   });
   return isOK;
 }

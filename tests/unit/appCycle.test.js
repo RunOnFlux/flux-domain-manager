@@ -3,7 +3,7 @@
 // the network, so there was nothing a test could stand up.
 const { expect } = require('chai');
 const config = require('config');
-const { resolveAppLocations, runPerApp } = require('../../src/services/haproxy/appCycle');
+const { resolveAppLocations, runPerApp, splitAddress } = require('../../src/services/haproxy/appCycle');
 
 const silent = { error: () => {} };
 
@@ -66,6 +66,43 @@ describe('resolveAppLocations', () => {
     Object.values(config.staticLocations).flat().forEach((ip) => {
       expect(ip).to.match(/^\[[0-9a-f:]+\]:\d+$/);
     });
+  });
+
+  // The port on a fixed address is the app's own, unlike a feed location's, which is the
+  // node's API port. Recording that here is what stops the probe having to guess an
+  // address's provenance from whether it contains brackets.
+  it('marks a fixed address with the service port it declares', async () => {
+    const [appName] = Object.keys(config.staticLocations);
+    const found = await resolveAppLocations({
+      appName, known: new Map(), fetchLocations: async () => [], attempts: 1,
+    });
+    found.forEach((location) => {
+      expect(location.servicePort).to.equal(location.ip.split(']:')[1]);
+    });
+  });
+
+  it('leaves a feed location without a service port', async () => {
+    const known = new Map([['plainapp', [{ ip: '1.2.3.4:16127' }]]]);
+    const [location] = await resolveAppLocations({ appName: 'plainapp', known, fetchLocations: neverCalled });
+    expect(location.servicePort).to.equal(undefined);
+  });
+});
+
+describe('splitAddress', () => {
+  it('splits an IPv4 address on its port', () => {
+    expect(splitAddress('1.2.3.4:16127')).to.deep.equal({ host: '1.2.3.4', port: '16127' });
+  });
+
+  // Splitting on the first colon would return `[2001`, which is how a bracketed address
+  // used to reach the probes that read the host.
+  it('keeps a bracketed IPv6 literal whole', () => {
+    expect(splitAddress('[2001:41d0:d00:b800::26]:9132'))
+      .to.deep.equal({ host: '[2001:41d0:d00:b800::26]', port: '9132' });
+  });
+
+  it('reports no port when the address carries none', () => {
+    expect(splitAddress('1.2.3.4')).to.deep.equal({ host: '1.2.3.4', port: null });
+    expect(splitAddress('[2001:db8::1]')).to.deep.equal({ host: '[2001:db8::1]', port: null });
   });
 });
 

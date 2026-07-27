@@ -100,12 +100,39 @@ function resolveServerTiming(app, isV9) {
 }
 
 // TLS to the backend: legacy is app.ssl (verify none); v9 is backendTls with its verify mode.
-function resolveServerSsl(app, isV9) {
+//
+// `verify required` has to name a CA bundle, and it must be one that exists on disk:
+// haproxy refuses to load a configuration that names a missing (or absent) ca-file — not
+// just that server, or that backend, but the whole file, which on a director carries every
+// app. The trust anchor is the app's own Flux-derived CA, written per-app by the CA
+// provisioning pass to BACKEND_CA_DIR (absolute, so it bypasses the global `ca-base`). A
+// Flux-CA-issued backend cert only validates against that per-app anchor — the public
+// bundle would never match — so a required-verify backend is only correct once its own CA
+// is on disk.
+//
+// caReady is the set of app names whose CA the provisioning pass has confirmed present. A
+// required-verify app that is not in it renders no ssl directive at all: we never point
+// haproxy at a ca-file that is not there (that is the fleet-wide outage), and we never
+// silently downgrade to unverified TLS (`verify none`) either — the app stays down until
+// its CA lands, which for a byte-deterministic per-app CA is a one-time first-appearance
+// window. The provisioning pass logs the miss.
+const BACKEND_CA_DIR = '/etc/haproxy/ca';
+
+const backendCaFileName = (appName) => `flux-ca-${appName}.pem`;
+const backendCaFile = (appName) => `${BACKEND_CA_DIR}/${backendCaFileName(appName)}`;
+
+function resolveServerSsl(app, isV9, caReady) {
   if (!isV9) return app.ssl ? 'ssl verify none' : '';
-  return app.backendTls ? `ssl verify ${app.backendTls.verify}` : '';
+  if (!app.backendTls) return '';
+  if (app.backendTls.verify !== 'required') return `ssl verify ${app.backendTls.verify}`;
+  if (!caReady.has(app.name)) return '';
+  return `ssl verify required ca-file ${backendCaFile(app.name)}`;
 }
 
-function resolveBackendConfig(app, mode) {
+// caReady: the set of app names whose backend-TLS CA is confirmed on disk. Only consulted
+// for v9 `verify: required` backends; defaults to empty, which is the safe reading (emit no
+// ca-file we cannot back with a file). The provisioning pass builds it before rendering.
+function resolveBackendConfig(app, mode, caReady = new Set()) {
   const isV9 = app.balancing !== undefined;
   return {
     isV9,
@@ -121,11 +148,13 @@ function resolveBackendConfig(app, mode) {
     serverTiming: resolveServerTiming(app, isV9),
     serverConfig: isV9 ? '' : (app.serverConfig || ''),
     serverEnableH2: isV9 ? false : Boolean(app.enableH2),
-    serverSsl: resolveServerSsl(app, isV9),
+    serverSsl: resolveServerSsl(app, isV9, caReady),
     serverMaxconn: isV9 ? `maxconn ${app.maxConnectionsPerServer}` : '',
     // The per-server affinity cookie source (null = no affinity).
     stickyV9: isV9 ? app.stickySessions : null,
   };
 }
 
-module.exports = { resolveBackendConfig };
+module.exports = {
+  resolveBackendConfig, backendCaFile, backendCaFileName, BACKEND_CA_DIR,
+};

@@ -27,6 +27,9 @@
     "/apps/testappinstall"
   ],
   "terminateLoopbackPort": 8443,
+  "backendCa": {
+    "unusedGraceHours": 24
+  },
   "publishGuard": {
     "minRouteConfigs": 10,
     "minRouteRetention": 0.7,

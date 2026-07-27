@@ -308,12 +308,12 @@ function addServerLine(section, cfg, app, mode, server, isFirstInRotation) {
   ]);
 }
 
-function generateDomainBackend(app, mode) {
+function generateDomainBackend(app, mode, caReady) {
   let domainUsed = app.domain.split('.').join('');
   if (mode === 'tcp') {
     domainUsed += '_tcp_';
   }
-  const cfg = resolveBackendConfig(app, mode);
+  const cfg = resolveBackendConfig(app, mode, caReady);
   const section = new Section('backend', `${domainUsed}backend`);
   section.add('mode', mode);
   // Backend-level directives — balance (+ affinity cookie), request headers, and the
@@ -464,7 +464,11 @@ function createMainHaproxyConfig(ui, api, nodeAddresses, uiPrimary, apiPrimary, 
 }
 
 // appConfig is an array of object of domain, port, ips
-function createAppsHaproxyConfig(appConfig) {
+// caReady: the set of app names whose backend-TLS CA is confirmed on disk, built by the
+// provisioning pass before this runs. Threaded to every backend so `verify: required` only
+// renders a ca-file that exists. Defaults to empty — the safe reading for callers (tests,
+// the characterization harness) that render without provisioning.
+function createAppsHaproxyConfig(appConfig, caReady = new Set()) {
   // Static skeleton: global, defaults, and frontend wwwhttp (with its acme/redirect
   // setup), folded into the model from the existing template.
   const config = buildBaseConfig();
@@ -530,7 +534,7 @@ function createAppsHaproxyConfig(appConfig) {
         if (!httpOnlyRedirectExcept.includes(`!${seenDomainUsed}`)) httpOnlyRedirectExcept.push(`!${seenDomainUsed}`);
       } else {
         httpOnlySeen[app.appName] = domainUsed;
-        backendSections.push(generateDomainBackend(app, 'http'));
+        backendSections.push(generateDomainBackend(app, 'http', caReady));
         httpOnlyAcls.push(new Directive('acl', [domainUsed, 'hdr(host)', app.domain]));
         httpOnlyUseBackends.push(new Directive('use_backend', [`${domainUsed}backend`, 'if', domainUsed]));
         httpOnlyRedirectExcept.push(`!${domainUsed}`);
@@ -553,7 +557,7 @@ function createAppsHaproxyConfig(appConfig) {
         // eslint-disable-next-line no-continue
         continue;
       }
-      backendSections.push(generateDomainBackend(app, 'http'));
+      backendSections.push(generateDomainBackend(app, 'http', caReady));
       domains.push(app.domain);
       routingAcls.push(new Directive('acl', [domainUsed, 'hdr(host)', app.domain]));
       routingUseBackends.push(new Directive('use_backend', [`${domainUsed}backend`, 'if', domainUsed]));
@@ -568,7 +572,7 @@ function createAppsHaproxyConfig(appConfig) {
         };
       }
       const tcp = tcpAppsMap[port];
-      const tcpBackend = generateDomainBackend(app, 'tcp');
+      const tcpBackend = generateDomainBackend(app, 'tcp', caReady);
       const key = tcpBackend.render();
       if (!tcp.usebackends.length) tcp.usebackends.push(`default_backend ${domainUsed}_tcp_backend`);
       if (!tcp.seenBackends.has(key)) { tcp.seenBackends.add(key); tcp.backends.push(tcpBackend); }

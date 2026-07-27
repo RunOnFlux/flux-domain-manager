@@ -12,6 +12,7 @@ const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/ce
 const applicationChecks = require('./application/checks');
 const { getApplicationsToProcess } = require('./application/subset');
 const { buildRouteConfigs } = require('./haproxy/buildRouteConfigs');
+const { provisionBackendCas } = require('./haproxy/provisionBackendCas');
 const { runPublishCycle } = require('./haproxy/publication');
 const { PublishGuard } = require('./haproxy/completeness');
 const { resolveAppLocations, runPerApp } = require('./haproxy/appCycle');
@@ -341,7 +342,14 @@ async function updateHaproxy(haproxyRouteConfigs) {
       return;
     }
     updateHaproxyRunning = true;
-    const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyRouteConfigs);
+    // Provision each `verify: required` app's per-app CA before rendering, so the config
+    // never names a ca-file that is not on disk (which would make haproxy refuse the whole
+    // file). Returns the app names whose CA is confirmed present; the renderer emits the
+    // verify directive only for those. No fetcher yet (cold start) means nothing to verify.
+    const caReady = dataFetcher
+      ? await provisionBackendCas(haproxyRouteConfigs, dataFetcher)
+      : new Set();
+    const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyRouteConfigs, caReady);
     // stop logging entire ha proxy config to console
     // console.log(hc);
     const dataToWrite = hc;

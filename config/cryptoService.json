@@ -1,5 +1,6 @@
 {
   "baseUrl": "https://10.100.0.170/api/",
   "rsaDecryptPath": "decryptMessageRSA",
-  "gcmDecryptPath": "v2/decrypt"
+  "gcmDecryptPath": "v2/decrypt",
+  "caCertificatePath": "v2/caCertificate"
 }

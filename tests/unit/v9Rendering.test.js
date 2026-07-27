@@ -1,7 +1,10 @@
-// End-to-end: a v9 spec's owner-declared loadBalancing tunables flow through the
-// version-blind pipeline (deserialize -> resolveDeployment -> buildRouteConfigs ->
-// generateDomainBackend) into the haproxy backend block. Legacy specs render the same
-// as before (covered by the characterization golden); this locks the v9 path.
+// End-to-end backend rendering, version-blind. A spec flows through the same pipeline
+// regardless of version (deserialize -> resolveDeployment -> buildRouteConfigs ->
+// generateDomainBackend); resolveBackendConfig collapses the legacy-vs-v9 trichotomy at
+// one point and never inspects a version. So the helper here takes ANY spec — a legacy
+// compose object or a v9 wire — and renders it through one path. The legacy `ssl` case and
+// the v9 `backendTls` case land on the same `ssl verify none` server directive from
+// different owner-facing fields, which is exactly the collapse we want to lock.
 const chai = require('chai');
 const { load } = require('@runonflux/flux-spec-cjs');
 const specLibs = require('../../src/services/flux/specLibs');
@@ -11,7 +14,10 @@ const { generateDomainBackend } = require('../../src/services/haproxyTemplate');
 
 const { expect } = chai;
 
-const submission = (lb) => ({
+const MULTI_NODE_IPS = ['144.76.10.20:16127', '167.86.90.30:16127'];
+
+// A v9 submission carrying the given loadBalancing tunables.
+const v9Submission = (lb) => ({
   version: 9,
   name: 'shop',
   description: 'x',
@@ -34,25 +40,64 @@ const submission = (lb) => ({
   },
 });
 
-async function renderV9Backend(lb) {
+async function v9Wire(lb) {
   const { FluxAppSpecV9 } = await load();
-  const wire = FluxAppSpecV9.fromSubmission(submission(lb)).serialize();
-  const dep = await specLibs.resolveDeployment(await specLibs.deserialize(wire), null);
-  const routeConfigs = buildRouteConfigs(looseDeployments(dep), 'shop', looseBackends(['144.76.10.20:16127', '167.86.90.30:16127']), false, false);
-  const platform = routeConfigs.find((c) => c.domain.startsWith('shop_'));
+  return FluxAppSpecV9.fromSubmission(v9Submission(lb)).serialize();
+}
+
+// A legacy (v8 compose) spec. Its name drives the name-based `ssl` override in
+// resolveCustomConfig ('trilium' -> ssl:true), which is how a legacy app gets backend TLS
+// — no loadBalancing block, no version check, the same resolveCustomConfig every version
+// looks up.
+const legacySslSpec = () => ({
+  version: 8,
+  name: 'trilium',
+  description: 'x',
+  owner: '19z6SjrVrWqBTLiCXWLRjcu9ydnzWNz3UD',
+  compose: [{
+    name: 'app',
+    description: 'app',
+    repotag: 'nginx:latest',
+    ports: [31000],
+    domains: [''],
+    environmentParameters: [],
+    commands: [],
+    containerPorts: [80],
+    containerData: '/data',
+    cpu: 0.1,
+    ram: 100,
+    hdd: 1,
+    repoauth: '',
+  }],
+  instances: 3,
+  contacts: [],
+  geolocation: [],
+  expire: 88000,
+  nodes: [],
+  staticip: false,
+});
+
+// One path for every version: a legacy object or a v9 wire, both deserialized, resolved
+// and rendered identically. The app name comes off the spec, so the platform backend is
+// found the same way regardless of shape.
+async function renderBackend(spec) {
+  const dep = await specLibs.resolveDeployment(await specLibs.deserialize(spec), null);
+  const { name } = spec;
+  const routeConfigs = buildRouteConfigs(looseDeployments(dep), name, looseBackends(MULTI_NODE_IPS), false, false);
+  const platform = routeConfigs.find((c) => c.domain.startsWith(`${name.toLowerCase()}_`));
   return generateDomainBackend(platform, 'http').render();
 }
 
-describe('v9 loadBalancing rendering (end-to-end)', () => {
-  it('renders owner tunables (balance, cookie, probe, timeouts, retries, server line)', async () => {
-    const backend = await renderV9Backend({
+describe('backend rendering (end-to-end, version-blind)', () => {
+  it('renders v9 owner tunables (balance, cookie, probe, timeouts, retries, server line)', async () => {
+    const backend = await renderBackend(await v9Wire({
       balancing: 'leastconn',
       maxConnectionsPerServer: 500,
       timeouts: { server: '90s' },
       stickySessions: { cookieName: 'MYSESS' },
       healthCheck: { path: '/health' },
       backendTls: { verify: 'none' },
-    });
+    }));
     expect(backend).to.include('\n  balance leastconn');
     expect(backend).to.include('\n  cookie MYSESS insert indirect nocache maxidle 30m maxlife 8h');
     expect(backend).to.include('\n  option httpchk GET /health');
@@ -68,8 +113,18 @@ describe('v9 loadBalancing rendering (end-to-end)', () => {
     expect(backend).to.include('\n  timeout http-request 10s');
   });
 
+  // The collapse point in one assertion: legacy `ssl` (name-driven) and v9 `backendTls`
+  // both resolve to the same server directive through the same helper. If a version gate
+  // ever crept into resolveServerSsl, exactly one of these would drift.
+  it('renders backend TLS identically from the legacy ssl flag and the v9 backendTls toggle', async () => {
+    const legacy = await renderBackend(legacySslSpec());
+    const v9 = await renderBackend(await v9Wire({ balancing: 'roundrobin', backendTls: { verify: 'none' } }));
+    expect(legacy).to.include(' ssl verify none');
+    expect(v9).to.include(' ssl verify none');
+  });
+
   it('omits the cookie, probe and TLS when the v9 toggles are off', async () => {
-    const backend = await renderV9Backend({ balancing: 'roundrobin' });
+    const backend = await renderBackend(await v9Wire({ balancing: 'roundrobin' }));
     expect(backend).to.include('\n  balance roundrobin');
     expect(backend).to.not.include('cookie');
     expect(backend).to.not.include('option httpchk');

@@ -11,6 +11,7 @@ const { runWithConcurrency } = require('../serviceHelper');
 const log = require('../../lib/log');
 const specLibs = require('./specLibs');
 const { registerSpecDecryptProviders } = require('./specDecrypt');
+const { requestCaCertificate } = require('./caCertificate');
 
 /**
  * @typedef {{}} AppSpec
@@ -42,7 +43,7 @@ class FdmDataFetcher extends EventEmitter {
   #cryptoApi;
 
   /**
-   * @type {{ rsaDecrypt: string, gcmDecrypt: string }}
+   * @type {{ rsaDecrypt: string, gcmDecrypt: string, caCertificate: string }}
    */
   #cryptoEndpoints;
 
@@ -106,7 +107,8 @@ class FdmDataFetcher extends EventEmitter {
    *   certPath: string,
    *   caPath: string,
    *   fluxApiBaseUrl: string,
-   *   cryptoService: { baseUrl: string, rsaDecryptPath: string, gcmDecryptPath: string }}} options
+   *   cryptoService: { baseUrl: string, rsaDecryptPath: string, gcmDecryptPath: string,
+   *     caCertificatePath: string }}} options
    */
   constructor(options) {
     super();
@@ -133,6 +135,7 @@ class FdmDataFetcher extends EventEmitter {
     this.#cryptoEndpoints = {
       rsaDecrypt: cryptoService.rsaDecryptPath,
       gcmDecrypt: cryptoService.gcmDecryptPath,
+      caCertificate: cryptoService.caCertificatePath,
     };
   }
 
@@ -144,12 +147,32 @@ class FdmDataFetcher extends EventEmitter {
    */
   #ensureProviders() {
     if (!this.#providersReady) {
+      const { rsaDecrypt, gcmDecrypt } = this.#cryptoEndpoints;
       this.#providersReady = registerSpecDecryptProviders({
         http: this.#cryptoApi,
-        endpoints: this.#cryptoEndpoints,
+        endpoints: { rsaDecrypt, gcmDecrypt },
       });
     }
     return this.#providersReady;
+  }
+
+  /**
+   * Fetch an app's backend-TLS CA certificate over the same mTLS channel used for spec
+   * decryption. The CA is derived per-app and is byte-deterministic across the fleet, so
+   * the returned PEM is stable — a caller may cache it and treat writes as idempotent.
+   * Only meaningful for apps whose backendTls is `verify: required`; the caller decides
+   * when to ask.
+   *
+   * @param {string} appName
+   * @returns {Promise<string>} the CA certificate in PEM
+   */
+  async fetchCaCertificate(appName) {
+    const certificate = await requestCaCertificate({
+      http: this.#cryptoApi,
+      endpoint: this.#cryptoEndpoints.caCertificate,
+      appName,
+    });
+    return certificate;
   }
 
   /**

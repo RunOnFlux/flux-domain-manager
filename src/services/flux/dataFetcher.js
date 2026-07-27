@@ -186,7 +186,7 @@ class FdmDataFetcher extends EventEmitter {
    * @param {string} name the app name
    */
   static #buildFqdnMap(deployment, name) {
-    const fqdns = deployment.routes()
+    const fqdns = deployment.routes('haproxy')
       .flatMap((route) => route.customDomains || [])
       .map((domain) => domain.replace(/https?:\/\/|[&/\\#,+()$~%'":*?<>{}]/g, '').toLowerCase())
       .filter((fqdn) => fqdn !== '');

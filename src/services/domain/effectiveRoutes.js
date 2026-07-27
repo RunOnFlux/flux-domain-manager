@@ -66,7 +66,7 @@ function withoutUnaskedInternalPorts(deployment, routes) {
  * @returns {Array<Object>} routes, overridden where policy says so
  */
 function effectiveRoutes(deployment) {
-  const routes = withoutUnaskedInternalPorts(deployment, deployment.routes());
+  const routes = withoutUnaskedInternalPorts(deployment, deployment.routes('haproxy'));
   const overrides = config.domainOverrides[deployment.appName];
   if (!overrides) return routes;
 

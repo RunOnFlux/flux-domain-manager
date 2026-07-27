@@ -63,7 +63,7 @@ describe('app check dispatch', () => {
     const [call] = await dispatch('explorer', deploymentWithPorts(38200));
     expect(call.probe).to.equal('fluxExplorer');
     expect(call.rule.port).to.equal(undefined);
-    expect(call.ctx.deployment.routes()[0].hostPort).to.equal(38200);
+    expect(call.ctx.deployment.routes('haproxy')[0].hostPort).to.equal(38200);
   });
 
   // alphexplorer is the exception the override exists for: its probe targets the backend
@@ -77,7 +77,7 @@ describe('app check dispatch', () => {
   it('gives the general website probe the app routed port', async () => {
     const [call] = await dispatch('web', deploymentWithPorts(35389));
     expect(call.probe).to.equal('generalWebsite');
-    expect(call.ctx.deployment.routes()[0].hostPort).to.equal(35389);
+    expect(call.ctx.deployment.routes('haproxy')[0].hostPort).to.equal(35389);
   });
 
   // A location's port means one of two things: the node's API port when it came from the

@@ -123,6 +123,27 @@ describe('backend rendering (end-to-end, version-blind)', () => {
     expect(v9).to.include(' ssl verify none');
   });
 
+  // A body assertion is a second, independent expect rule: haproxy evaluates the status
+  // line and the body separately and both must pass. Confirmed valid against haproxy 2.9.
+  it('renders an owner body assertion alongside the status check', async () => {
+    const backend = await renderBackend(await v9Wire({
+      balancing: 'roundrobin',
+      healthCheck: { path: '/health', expectString: '<html' },
+    }));
+    expect(backend).to.include('\n  option httpchk GET /health');
+    expect(backend).to.include('\n  http-check expect status 200-399');
+    expect(backend).to.include('\n  http-check expect string <html');
+  });
+
+  it('emits no body assertion when the owner declares none', async () => {
+    const backend = await renderBackend(await v9Wire({
+      balancing: 'roundrobin',
+      healthCheck: { path: '/health' },
+    }));
+    expect(backend).to.include('\n  http-check expect status 200-399');
+    expect(backend).to.not.include('http-check expect string');
+  });
+
   it('omits the cookie, probe and TLS when the v9 toggles are off', async () => {
     const backend = await renderBackend(await v9Wire({ balancing: 'roundrobin' }));
     expect(backend).to.include('\n  balance roundrobin');

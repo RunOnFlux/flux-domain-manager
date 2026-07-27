@@ -780,7 +780,7 @@ async function checkAppHeld(url, appSpec) {
 // reachable port. Verified against the live corpus: identical for all 27 probed apps that
 // consume it, and it resolves a real port for the two where raw compose gave undefined.
 function routedPort(deployment, index = 0) {
-  const route = deployment ? deployment.routes()[index] : undefined;
+  const route = deployment ? deployment.routes('haproxy')[index] : undefined;
   return route ? route.hostPort : undefined;
 }
 

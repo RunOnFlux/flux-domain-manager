@@ -52,10 +52,14 @@ function resolveHealthCheckLines(app) {
   if (app.balancing === undefined) return app.healthcheck || [];
   const hc = app.healthCheck;
   if (!hc) return [];
-  return [
+  const lines = [
     line(`option httpchk ${hc.method} ${hc.path}`),
     line(`http-check expect status ${hc.expectedStatus}`),
   ];
+  // An owner can narrow the check to the body as well as the status. haproxy evaluates
+  // the two expect rules independently, so both must pass. Absent unless asked for.
+  if (hc.expectString) lines.push(line(`http-check expect string ${hc.expectString}`));
+  return lines;
 }
 
 function resolveOnceLines(app) {

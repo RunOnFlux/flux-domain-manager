@@ -132,7 +132,7 @@ async function isVersionOK(ip, port) {
   try {
     const url = `http://${ip}:${port}/flux/info`;
     const response = await serviceHelper.httpGetRequest(url, timeout);
-    const version = response.data.data.flux.version;
+    const { version } = response.data.data.flux;
     if (minVersionSatisfy(version, '8.2.0')) {
       if (response.data.data.flux.development === 'false' || !response.data.data.flux.development) {
         return true;
@@ -914,8 +914,55 @@ async function checkBittensor(ip, port) {
   }
 }
 
-async function checkAppRunning(url, appName) {
+/**
+ * Mirrors FluxOS dockerService.getAppDockerNameIdentifier: the docker name is the
+ * bare identifier under the flux namespace, and a name that already starts with
+ * `flux` is not prefixed again.
+ * @param {string} baseName bare identifier (`{component}_{app}`, or `{app}` for v1-3)
+ * @returns {string} docker name as reported in listrunningapps Names[0]
+ */
+function getDockerNameIdentifier(baseName) {
+  return baseName.startsWith('flux') ? `/${baseName}` : `/flux${baseName}`;
+}
+
+/**
+ * The docker names of the components that only run on a g: app's elected master.
+ * Every instance of a compose app runs the components without g: storage, so those
+ * say nothing about which node is the master.
+ * @param {Object} appSpec full application specification
+ * @returns {string[]} docker names that identify the master when running
+ */
+function getGComponentDockerNames(appSpec) {
+  if (appSpec.version <= 3) {
+    return appSpec.containerData.includes('g:')
+      ? [getDockerNameIdentifier(appSpec.name)]
+      : [];
+  }
+  return appSpec.compose
+    .filter((comp) => comp.containerData.includes('g:'))
+    .map((comp) => getDockerNameIdentifier(`${comp.name}_${appSpec.name}`));
+}
+
+/**
+ * Whether a node is the elected master of a g: application.
+ * Only the master runs g: components, so any one of them running identifies it.
+ * A master whose other components have stopped is still the master, and still
+ * serves the ports of the components it does have up, so this deliberately does
+ * not require all of them.
+ * @param {string} url node ip, optionally with api port
+ * @param {Object} appSpec full application specification
+ * @returns {Promise<boolean>} true if any g: component is running there
+ */
+async function checkAppRunning(url, appSpec) {
   try {
+    const expectedNames = getGComponentDockerNames(appSpec);
+    if (!expectedNames.length) {
+      // Only reachable if a non-g: app got routed down the g: path. Passing here
+      // would green-light every node, so refuse instead of guessing.
+      log.warn(`checkAppRunning: app ${appSpec.name} has no g: component, cannot identify a master`);
+      return false;
+    }
+
     const { CancelToken } = axios;
     const source = CancelToken.source();
     let isResolved = false;
@@ -931,10 +978,8 @@ async function checkAppRunning(url, appName) {
     const response = await axios.get(`http://${ip}:${port}/apps/listrunningapps`, { timeout: checkAppRunningTimeout, cancelToken: source.token });
     isResolved = true;
     const appsRunning = response.data.data;
-    if (appsRunning.find((app) => app.Names[0].includes(appName))) {
-      return true;
-    }
-    return false;
+    const runningNames = appsRunning.map((app) => app.Names[0]);
+    return expectedNames.some((name) => runningNames.includes(name));
   } catch (error) {
     return false;
   }
@@ -1053,6 +1098,7 @@ module.exports = {
   checkAlgorand,
   checkEthers,
   checkAppRunning,
+  getGComponentDockerNames,
   checkALPHexplorer,
   checkErgoHeight,
   isArcaneOS,

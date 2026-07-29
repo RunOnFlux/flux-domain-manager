@@ -250,15 +250,15 @@ function selectLowestDigitSumIp(ips) {
   return chosenIp;
 }
 
-async function checkAppRunningWithRetries(ip, appName, retries = G_APP_HEALTH_RETRY_COUNT) {
+async function checkAppRunningWithRetries(ip, app, retries = G_APP_HEALTH_RETRY_COUNT) {
   for (let attempt = 1; attempt <= retries; attempt += 1) {
     // eslint-disable-next-line no-await-in-loop
-    const isOk = await applicationChecks.checkAppRunning(ip, appName);
+    const isOk = await applicationChecks.checkAppRunning(ip, app);
     if (isOk) {
       return true;
     }
     if (attempt < retries) {
-      log.info(`G App ${appName} health check attempt ${attempt}/${retries} failed for ${ip}, retrying...`);
+      log.info(`G App ${app.name} health check attempt ${attempt}/${retries} failed for ${ip}, retrying...`);
       // eslint-disable-next-line no-await-in-loop
       await serviceHelper.timeout(G_APP_HEALTH_RETRY_DELAY_MS);
     }
@@ -275,7 +275,7 @@ async function selectIPforG(ips, app) {
     const stickyIp = mapOfNamesIps[app.name];
     if (stickyIp && ips.includes(stickyIp)) {
       // Sticky IP still exists in locations - health check it with retries
-      const isOk = await checkAppRunningWithRetries(stickyIp, app.name);
+      const isOk = await checkAppRunningWithRetries(stickyIp, app);
       if (isOk) {
         mapOfNamesIpsLastHealthy[app.name] = Date.now();
         return stickyIp;
@@ -309,7 +309,7 @@ async function selectIPforG(ips, app) {
 
     for (const candidate of candidates) {
       // eslint-disable-next-line no-await-in-loop
-      const isOk = await checkAppRunningWithRetries(candidate, app.name);
+      const isOk = await checkAppRunningWithRetries(candidate, app);
       if (isOk) {
         mapOfNamesIps[app.name] = candidate;
         mapOfNamesIpsLastHealthy[app.name] = Date.now();

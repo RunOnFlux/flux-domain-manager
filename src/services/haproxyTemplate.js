@@ -45,6 +45,11 @@ defaults
   load-server-state-from-file global
   log     global
   mode    http
+  # Keep server-side connections alive and pool them between requests; a request
+  # after the first in a session may ride an idle pooled connection instead of
+  # paying a fresh TCP handshake to the origin. Explicit rather than relying on
+  # the haproxy-version default (never before 2.5, safe from 2.5 on).
+  http-reuse safe
 #  option  httplog
   option  dontlognull
   timeout connect 10000
@@ -76,7 +81,6 @@ frontend wwwhttp
 const httpsPrefix = `
 frontend wwwhttps
 #  option httplog
-  option http-server-close
   option forwardfor except 127.0.0.0/8
   http-response add-header Access-Control-Expose-Headers '*' unless { res.hdr(Access-Control-Expose-Headers) -m found }
   http-after-response add-header Access-Control-Allow-Origin "*" unless { res.hdr(Access-Control-Allow-Origin) -m found }

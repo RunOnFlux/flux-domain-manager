@@ -45,6 +45,11 @@ defaults
   load-server-state-from-file global
   log     global
   mode    http
+  # Keep server-side connections alive and pool them between requests; a request
+  # after the first in a session may ride an idle pooled connection instead of
+  # paying a fresh TCP handshake to the origin. Explicit rather than relying on
+  # the haproxy-version default (never before 2.5, safe from 2.5 on).
+  http-reuse safe
 #  option  httplog
   option  dontlognull
   timeout connect 10000
@@ -76,7 +81,6 @@ frontend wwwhttp
 const httpsPrefix = `
 frontend wwwhttps
 #  option httplog
-  option http-server-close
   option forwardfor except 127.0.0.0/8
   http-response add-header Access-Control-Expose-Headers '*' unless { res.hdr(Access-Control-Expose-Headers) -m found }
   http-after-response add-header Access-Control-Allow-Origin "*" unless { res.hdr(Access-Control-Allow-Origin) -m found }
@@ -362,6 +366,13 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     option redispatch
     # RETRY: Retry failed requests automatically
     retries 3
+    # L7 retry when a pooled origin connection dies before any response byte
+    # arrives (the keep-alive close race). POSTs are excluded: the origin may
+    # have executed one before dying and haproxy must never replay it. Slow
+    # responses (response-timeout) are deliberately not retried: replaying an
+    # expensive request multiplies its cost.
+    retry-on conn-failure empty-response
+    http-request disable-l7-retry if METH_POST
     # Enhanced WebSocket support
     timeout tunnel 7200s
     timeout server 30s
@@ -382,6 +393,10 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     option redispatch
     # RETRY: Retry failed requests automatically
     retries 3
+    # L7 retry on the keep-alive close race, never replaying POSTs; see the
+    # api backend above for the rationale
+    retry-on conn-failure empty-response
+    http-request disable-l7-retry if METH_POST
     # Enhanced WebSocket support
     timeout tunnel 7200s
     timeout server 120s
@@ -401,6 +416,10 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     option redispatch
     # RETRY: Retry failed requests
     retries 3
+    # L7 retry on the keep-alive close race, never replaying POSTs; see the
+    # api backend above for the rationale
+    retry-on conn-failure empty-response
+    http-request disable-l7-retry if METH_POST
     # Standard HTTP timeouts
     timeout server 30s
     timeout connect 5s

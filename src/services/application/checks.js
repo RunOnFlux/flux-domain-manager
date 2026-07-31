@@ -918,6 +918,12 @@ async function checkBittensor(ip, port) {
  * Mirrors FluxOS dockerService.getAppDockerNameIdentifier: the docker name is the
  * bare identifier under the flux namespace, and a name that already starts with
  * `flux` is not prefixed again.
+ * FluxOS's underlying getAppIdentifier has two more branches that are deliberately
+ * not mirrored here: names already starting with `zel` stay unprefixed, and the
+ * hardcoded legacy apps KadenaChainWebNode / FoldingAtHomeB get a `zel` prefix.
+ * Neither branch applies to any g: app, and if one ever did, the name produced
+ * here would simply never match a running container: the app would fail closed
+ * (no master found, dropped from haproxy) rather than route to a standby.
  * @param {string} baseName bare identifier (`{component}_{app}`, or `{app}` for v1-3)
  * @returns {string} docker name as reported in listrunningapps Names[0]
  */

@@ -366,6 +366,13 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     option redispatch
     # RETRY: Retry failed requests automatically
     retries 3
+    # L7 retry when a pooled origin connection dies before any response byte
+    # arrives (the keep-alive close race). POSTs are excluded: the origin may
+    # have executed one before dying and haproxy must never replay it. Slow
+    # responses (response-timeout) are deliberately not retried: replaying an
+    # expensive request multiplies its cost.
+    retry-on conn-failure empty-response
+    http-request disable-l7-retry if METH_POST
     # Enhanced WebSocket support
     timeout tunnel 7200s
     timeout server 30s
@@ -386,6 +393,10 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     option redispatch
     # RETRY: Retry failed requests automatically
     retries 3
+    # L7 retry on the keep-alive close race, never replaying POSTs; see the
+    # api backend above for the rationale
+    retry-on conn-failure empty-response
+    http-request disable-l7-retry if METH_POST
     # Enhanced WebSocket support
     timeout tunnel 7200s
     timeout server 120s
@@ -405,6 +416,10 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     option redispatch
     # RETRY: Retry failed requests
     retries 3
+    # L7 retry on the keep-alive close race, never replaying POSTs; see the
+    # api backend above for the rationale
+    retry-on conn-failure empty-response
+    http-request disable-l7-retry if METH_POST
     # Standard HTTP timeouts
     timeout server 30s
     timeout connect 5s

@@ -6,7 +6,6 @@ const config = require('config');
 const https = require('https');
 const ethers = require('ethers');
 const serviceHelper = require('../serviceHelper');
-const domainService = require('../domainService');
 const log = require('../../lib/log');
 
 const timeout = 5456;

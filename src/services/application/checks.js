@@ -990,6 +990,51 @@ async function checkAppRunning(url, appSpec) {
   }
 }
 
+/**
+ * Whether a node is deliberately HOLDING a g: application's components rather
+ * than merely not running them.
+ *
+ * A master whose owner stopped it - to edit world files, swap a save, upload a
+ * mod - has no container, so checkAppRunning says no. It is still the master:
+ * it owns the writable copy of the syncthing volume, FluxOS is refusing to let
+ * any peer elect over it, and it will serve again the moment its owner starts
+ * it. Health-checking it away and re-selecting is how a stop/start cycle moves
+ * the primary onto another node's copy of the data.
+ *
+ * This is what `pause` used to give us for free: a paused container still
+ * appeared in the running list, so the master was never un-named. `apppause` is
+ * retired, and /apps/heldcomponents is the replacement - the node reporting, in
+ * its own words, which components it holds.
+ *
+ * Conservative by construction: a node too old for the endpoint answers 404, an
+ * unreachable one throws, and both mean "cannot say", which reads as false and
+ * leaves today's behaviour exactly as it was. Only an explicit yes counts.
+ *
+ * @param {string} url node ip, optionally with api port
+ * @param {Object} appSpec full application specification
+ * @returns {Promise<boolean>} true only if the node states it holds a g: component
+ */
+async function checkAppHeld(url, appSpec) {
+  try {
+    const expectedNames = getGComponentDockerNames(appSpec);
+    if (!expectedNames.length) return false;
+
+    const checkAppHeldTimeout = 12000;
+    const ip = url.split(':')[0];
+    const port = url.split(':')[1] || 16127;
+    const response = await axios.get(`http://${ip}:${port}/apps/heldcomponents`, { timeout: checkAppHeldTimeout });
+    const held = response.data && response.data.data;
+    if (!Array.isArray(held)) return false;
+
+    // getGComponentDockerNames returns docker's own names, which carry a leading
+    // slash; heldcomponents strips it. Compare on the bare identifier.
+    const heldSet = new Set(held);
+    return expectedNames.some((name) => heldSet.has(name.replace(/^\//, '')));
+  } catch (error) {
+    return false;
+  }
+}
+
 function applicationWithChecks(app) {
   if (generalWebsiteApps.includes(app.name)) {
     return true;
@@ -1103,6 +1148,7 @@ module.exports = {
   checkAlgorand,
   checkEthers,
   checkAppRunning,
+  checkAppHeld,
   getGComponentDockerNames,
   checkALPHexplorer,
   checkErgoHeight,

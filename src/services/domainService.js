@@ -266,7 +266,7 @@ async function checkAppRunningWithRetries(ip, app, retries = G_APP_HEALTH_RETRY_
   return false;
 }
 
-async function selectIPforG(ips, app) {
+async function selectIPforG(ips, app, { retries = G_APP_HEALTH_RETRY_COUNT } = {}) {
   // choose the ip address whose sum of digits is the lowest
   if (ips && ips.length) {
     const lowestDigitSumIp = selectLowestDigitSumIp(ips);
@@ -275,7 +275,7 @@ async function selectIPforG(ips, app) {
     const stickyIp = mapOfNamesIps[app.name];
     if (stickyIp && ips.includes(stickyIp)) {
       // Sticky IP still exists in locations - health check it with retries
-      const isOk = await checkAppRunningWithRetries(stickyIp, app);
+      const isOk = await checkAppRunningWithRetries(stickyIp, app, retries);
       if (isOk) {
         mapOfNamesIpsLastHealthy[app.name] = Date.now();
         return stickyIp;
@@ -309,10 +309,42 @@ async function selectIPforG(ips, app) {
 
     for (const candidate of candidates) {
       // eslint-disable-next-line no-await-in-loop
-      const isOk = await checkAppRunningWithRetries(candidate, app);
+      const isOk = await checkAppRunningWithRetries(candidate, app, retries);
       if (isOk) {
         mapOfNamesIps[app.name] = candidate;
         mapOfNamesIpsLastHealthy[app.name] = Date.now();
+        return candidate;
+      }
+    }
+
+    // Nothing is running this app anywhere. Before dropping it out of FDM
+    // entirely, ask whether a node is deliberately HOLDING it - an owner who
+    // stopped their master to work on its files has not given up the primary
+    // role, and the node still owns the writable copy of the volume.
+    //
+    // Un-naming it here is how a stop/start cycle moves the primary: the app
+    // leaves FDM, the election loses the record of who the primary was, and on
+    // restart the selection above runs from scratch and can land on a different
+    // node's copy of the data. `pause` never had this problem, because a paused
+    // container still looked like a running one and the master was never
+    // un-named. This is what replaces it.
+    //
+    // Deliberately AFTER the running checks, never before: a node that is
+    // actually serving the app always outranks one that is merely holding it.
+    // Only reached when the alternative is returning null.
+    const heldOrder = stickyIp && ips.includes(stickyIp)
+      ? [stickyIp, ...candidates.filter((ip) => ip !== stickyIp)]
+      : candidates;
+    for (const candidate of heldOrder) {
+      // eslint-disable-next-line no-await-in-loop
+      const isHeld = await applicationChecks.checkAppHeld(candidate, app);
+      if (isHeld) {
+        // The sticky is preserved rather than re-derived, so an FDM restart
+        // during a stop cannot silently promote a different instance.
+        mapOfNamesIps[app.name] = candidate;
+        log.info(
+          `G App ${app.name} is not running anywhere, but ${candidate} reports holding it (operator-stopped) - keeping it as primary`,
+        );
         return candidate;
       }
     }
@@ -1260,7 +1292,33 @@ function getConfiguredApps() {
   };
 }
 
+// Exported for tests. selectIPforG's decision rests on module-level sticky state,
+// and the ordering it enforces - a node RUNNING the app always outranks one that
+// is merely holding it - is the property that makes the held fallback safe to
+// deploy ahead of the FluxOS release that serves /apps/heldcomponents.
+function getGStickyIp(appName) {
+  return mapOfNamesIps[appName];
+}
+
+function setGStickyState(appName, ip, lastHealthyMs) {
+  mapOfNamesIps[appName] = ip;
+  if (lastHealthyMs === undefined) {
+    delete mapOfNamesIpsLastHealthy[appName];
+  } else {
+    mapOfNamesIpsLastHealthy[appName] = lastHealthyMs;
+  }
+}
+
+function resetGStickyState(appName) {
+  delete mapOfNamesIps[appName];
+  delete mapOfNamesIpsLastHealthy[appName];
+}
+
 module.exports = {
   start,
   getConfiguredApps,
+  selectIPforG,
+  getGStickyIp,
+  setGStickyState,
+  resetGStickyState,
 };

@@ -2,8 +2,9 @@
 // (EncryptedSpec.decrypt(provider) -> DecryptedCanonicalSpec). v8 does a real local
 // AES-256-GCM open after the backend unwraps the key; v9 forwards the GCM envelope to
 // the backend. Here the transport is a stub responder, so the v8 crypto is exercised
-// for real (only the key unwrap is stubbed) and the version-blind wire emission is
-// checked end to end: v8 -> compose, v9 -> components, no sealed marker.
+// for real (only the key unwrap is stubbed) and what comes back is checked end to end:
+// a readable spec of the right version that resolves to a deployment, and that refuses
+// to hand out a wire form.
 const chai = require('chai');
 const crypto = require('node:crypto');
 const { registerSpecDecryptProviders } = require('../../src/services/flux/specDecrypt');
@@ -71,7 +72,7 @@ describe('specDecrypt providers — decrypt lifecycle over a stub transport', ()
     responder = () => { throw new Error('no responder set'); };
   });
 
-  it('v8: unwraps the key, opens AES-GCM locally, and re-emits a cleartext compose wire', async () => {
+  it('v8: unwraps the key, opens AES-GCM locally, and yields a readable legacy spec', async () => {
     const aesKey = crypto.randomBytes(32);
     const enterprise = sealV8({ compose: [V8_COMPONENT], contacts: [] }, aesKey);
 
@@ -84,16 +85,26 @@ describe('specDecrypt providers — decrypt lifecycle over a stub transport', ()
     const sealed = await specLibs.deserialize(v8Wire(enterprise, { hash: 'deadbeef', height: 2743233 }));
     const provider = await sealed.createProvider();
     const decrypted = await sealed.decrypt(provider);
-    const out = decrypted.spec.serialize();
 
-    expect(out.compose).to.have.lengthOf(1);
-    expect(out.compose[0].repotag).to.equal(V8_COMPONENT.repotag);
-    expect(out.compose[0].ports).to.deep.equal(V8_COMPONENT.ports);
-    expect(out.compose[0].containerPorts).to.deep.equal(V8_COMPONENT.containerPorts);
-    expect(out.compose[0].containerData).to.equal(V8_COMPONENT.containerData);
-    // serialize() drops the sealed marker, so the result re-ingests as cleartext.
-    // (hash/height are re-attached one layer up, in #decryptAppSpec.)
-    expect(await specLibs.isSealed(out)).to.equal(false);
+    // The pair that identifies this object: an encrypted app whose contents are
+    // readable right now. `sealed` is the question every downstream guard asks.
+    expect(decrypted.isEncrypted).to.equal(true);
+    expect(decrypted.sealed).to.equal(false);
+    expect(decrypted.version).to.equal(8);
+    expect(decrypted.componentNames()).to.deep.equal([V8_COMPONENT.name]);
+
+    // and it routes — resolved straight from the object, with no document in between.
+    const deployment = await specLibs.resolveDeployment(decrypted, null);
+    const component = deployment.getComponent(V8_COMPONENT.name);
+    expect(component.image).to.equal(V8_COMPONENT.repotag);
+    expect(component.ports.tcp_443).to.include({ containerPort: 443, hostPort: 31443 });
+
+    // The document route is shut, which is why the pipeline carries the object.
+    expect(() => decrypted.spec.serialize()).to.throw(/no wire form/);
+
+    // And it survives the classifier's first line: the decrypted spec goes back through
+    // `deserialize` on the second classification pass, and must come out as itself.
+    expect(await specLibs.deserialize(decrypted)).to.equal(decrypted);
   });
 
   it('v8: throws when the backend rejects the unwrap (so the caller fails closed)', async () => {
@@ -111,7 +122,7 @@ describe('specDecrypt providers — decrypt lifecycle over a stub transport', ()
     expect(threw).to.equal(true);
   });
 
-  it('v9: forwards the GCM envelope + AAD and re-emits a cleartext components wire', async () => {
+  it('v9: forwards the GCM envelope + AAD and yields a readable v9 spec', async () => {
     const { FluxAppSpecV9, EncryptedSpecV9, CryptoProvider } = await specLibs.load();
 
     const cleartext = FluxAppSpecV9.fromSubmission({
@@ -158,13 +169,13 @@ describe('specDecrypt providers — decrypt lifecycle over a stub transport', ()
 
     const provider = await encryptedSpec.createProvider();
     const decrypted = await encryptedSpec.decrypt(provider);
-    const out = decrypted.spec.serialize();
 
-    // Version-correct shape: v9 emits components, not compose.
-    expect(out.components).to.be.an('object');
-    expect(out.components.web.image).to.equal('nginx:latest');
-    expect(out.compose).to.equal(undefined);
-    expect(await specLibs.isSealed(out)).to.equal(false);
+    // Version-correct shape, read off the object.
+    expect(decrypted.version).to.equal(9);
+    expect(decrypted.sealed).to.equal(false);
+    expect(decrypted.componentNames()).to.deep.equal(['web']);
+    expect(decrypted.getComponent('web').image).to.equal('nginx:latest');
+    expect(() => decrypted.spec.serialize()).to.throw(/no wire form/);
 
     // Transport carried the whole envelope + base64 AAD to the configured endpoint.
     expect(seenPayload).to.include.keys('appName', 'fluxID', 'ciphertext', 'nonce', 'tag', 'aad');

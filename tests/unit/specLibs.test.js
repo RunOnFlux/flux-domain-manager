@@ -50,6 +50,15 @@ describe('flux-spec consumption (specLibs)', () => {
     expect(spec.version).to.equal(9);
   });
 
+  // The pipeline hands `deserialize` a wire document on the first pass and a spec on
+  // the second — decrypted apps travel as objects, because a decrypted spec has no wire
+  // form. Without the passthrough, `deserializeSpec` would be handed a class instance
+  // and reject it, and every encrypted app would drop out of routing.
+  it('deserialize() hands back a spec that is already readable', async () => {
+    const spec = await deserialize(wire);
+    expect(await deserialize(spec)).to.equal(spec);
+  });
+
   it('resolveDeployment() merges the host port into each LB entry', async () => {
     const spec = await deserialize(wire);
     const lb = (await resolveDeployment(spec, null)).getComponent('web').loadBalancing;

@@ -13,11 +13,18 @@ const APPS_FOLDER = '/var/lib/fdm/placeholder';
 /**
  * Deserialize a wire-form spec document (any version v1-v9, cleartext or encrypted)
  * into its flux-spec instance. Callers branch on `instanceof EncryptedSpecBase`.
- * @param {Object} doc
+ *
+ * An already-readable spec is returned unchanged. Decrypted specs travel this pipeline
+ * as objects rather than documents — a decrypted spec has no wire form, flux-spec seals
+ * `serialize()` on it — so a caller that resolves a spec from whatever it was handed
+ * keeps working without knowing which of the two it has.
+ *
+ * @param {Object} doc a wire document, or a spec already deserialized/decrypted
  * @returns {Promise<Object>}
  */
 async function deserialize(doc) {
-  const { deserializeSpec } = await load();
+  const { deserializeSpec, FluxAppSpecBase, DecryptedCanonicalSpec } = await load();
+  if (doc instanceof FluxAppSpecBase || doc instanceof DecryptedCanonicalSpec) return doc;
   return deserializeSpec(doc);
 }
 

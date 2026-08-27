@@ -26,7 +26,6 @@ build/*
 !dist/electron/splash.html
 node_modules/
 npm-debug.log
-package-lock.json
 npm-debug.log.*
 thumbs.db
 !.gitkeep

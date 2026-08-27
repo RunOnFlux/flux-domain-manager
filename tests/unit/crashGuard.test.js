@@ -3,9 +3,16 @@
 // as legacy apps, not a special bucket. A spec this node can't read (a malformed
 // shape deserialize rejects) must be skipped, not abort ingestion of the rest, and
 // must never escape as an unhandled rejection that crash-loops the process.
+//
+// An ENCRYPTED app must complete the same journey. It is the case that fails quietly:
+// a decrypt that gives up is logged once and returns null, and the app is simply absent
+// from the config — registered, running, and unrouted, with no error anywhere. So the
+// second test drives a real sealed spec all the way through a stub decrypt service and
+// asserts it lands in the maps.
 const chai = require('chai');
 const os = require('node:os');
 const fs = require('node:fs');
+const http = require('node:http');
 const path = require('node:path');
 const { FdmDataFetcher } = require('../../src/services/flux/dataFetcher');
 const specLibs = require('../../src/services/flux/specLibs');
@@ -84,5 +91,62 @@ describe('ingestion — version-blind classification + crash guard', () => {
     expect(classified).to.include(legacyApp.name); // legacy readable spec classified
     expect(classified).to.include('shopv9'); // v9 flows into the same maps, not skipped
     expect(classified).to.not.include('malformedv9'); // unreadable spec skipped, batch survived
+  });
+
+  it('classifies an encrypted app, and routes it from the decrypted spec', async () => {
+    const { EncryptedSpecV9, CryptoProvider, FluxAppSpecV9 } = await specLibs.load();
+
+    // Seal the same v9 app the first test uses. The stub keeps the plaintext the real
+    // backend would hand back on decrypt.
+    class StubEncrypt extends CryptoProvider {
+      async encrypt(plaintext) {
+        this.captured = plaintext;
+        return {
+          algorithm: 'AES-256-GCM', ciphertext: 'Y3Q=', nonce: 'bm9uY2U=', tag: 'dGFn',
+        };
+      }
+    }
+    const encryptStub = new StubEncrypt();
+    const sealedDoc = (await EncryptedSpecV9.fromSpec(FluxAppSpecV9.deserialize(v9Doc), encryptStub)).serialize();
+    expect(await specLibs.isSealed(sealedDoc), 'the doc really is sealed').to.equal(true);
+
+    // A stub decrypt service on loopback, so the fetcher's own HTTP client is the one
+    // under test rather than a monkey-patched stand-in.
+    const server = http.createServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', message: encryptStub.captured.toString('base64') }));
+    });
+    await new Promise((resolve) => { server.listen(0, '127.0.0.1', resolve); });
+    const { port } = server.address();
+
+    try {
+      const fetcher = new FdmDataFetcher({
+        ...stubCerts(),
+        fluxApiBaseUrl: 'http://localhost',
+        cryptoService: {
+          baseUrl: `http://127.0.0.1:${port}`, rsaDecryptPath: 'decryptMessageRSA', gcmDecryptPath: 'v2/decrypt', caCertificatePath: 'v2/caCertificate',
+        },
+      });
+
+      const events = [];
+      fetcher.on('appSpecsUpdated', (e) => events.push(e));
+      await fetcher.processAppSpecs([sealedDoc]);
+
+      expect(events).to.have.lengthOf(1);
+      const classified = serviceHelper.concatIterables(
+        events[0].activeStandbyApps.keys(),
+        events[0].activeActiveApps.keys(),
+      );
+      expect(classified, 'the encrypted app is routable, not dropped').to.include('shopv9');
+
+      // What the maps carry is the readable spec itself — the pipeline never re-emits a
+      // cleartext document, because a decrypted spec has no wire form.
+      const app = events[0].activeActiveApps.get('shopv9') || events[0].activeStandbyApps.get('shopv9');
+      expect(app.sealed, 'contents readable').to.equal(false);
+      expect(app.isEncrypted, 'still an encrypted app').to.equal(true);
+      expect(() => app.spec.serialize()).to.throw(/no wire form/);
+    } finally {
+      await new Promise((resolve) => { server.close(resolve); });
+    }
   });
 });

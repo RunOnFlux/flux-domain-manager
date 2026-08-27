@@ -254,8 +254,27 @@ class FdmDataFetcher extends EventEmitter {
     return process.hrtime.bigint();
   }
 
+  /**
+   * Read one sealed spec, and hand back the readable spec object the rest of the
+   * pipeline routes from.
+   *
+   * The result is an object, not a document. A decrypted spec has no wire form —
+   * flux-spec seals `serialize()` on it, so the only route from decrypted content back
+   * to bytes is re-encryption — and FDM never needed one: every consumer resolves a
+   * DeploymentSpec, and `DeploymentSpec.fromSpec` takes a readable spec directly.
+   * Nothing is lost by not re-ingesting a document: `decrypt()` builds the instance
+   * through the version class's own `deserialize`, which is the same validation the
+   * round trip through a wire form was getting downstream.
+   *
+   * Event metadata (hash, height) is not carried across for the same reason: it belongs
+   * to the message, not to the spec, and there is no document left to hang it on. No
+   * consumer reads it off an app spec.
+   *
+   * @param {Object} appSpec a sealed wire document
+   * @returns {Promise<Object|null>} a readable spec, or null if it could not be read
+   */
   async #decryptAppSpec(appSpec) {
-    const { hash, height } = appSpec;
+    const { hash } = appSpec;
 
     const cached = hash ? this.#cache.get(hash) : null;
     if (cached) return cached;
@@ -264,26 +283,19 @@ class FdmDataFetcher extends EventEmitter {
       await this.#ensureProviders();
 
       // deserialize -> EncryptedSpec -> decrypt(provider) -> DecryptedCanonicalSpec:
-      // the version-blind decrypt lifecycle. serialize() re-emits a cleartext wire
-      // document in the version-correct shape (v8 compose / v9 components) with no
-      // sealed marker, which the downstream pipeline re-ingests. hash/height are event
-      // metadata that live on the wire, not the spec, so carry them across.
+      // the version-blind decrypt lifecycle.
       const sealed = await specLibs.deserialize(appSpec);
       const provider = await sealed.createProvider();
       const decrypted = await sealed.decrypt(provider);
 
-      const wire = decrypted.spec.serialize();
-      if (hash !== undefined) wire.hash = hash;
-      if (height !== undefined) wire.height = height;
-
       // random TTL between 24-48h to avoid all entries expiring at the same time (they
-      // are added nearly simultaneously via Promise.all). Skip caching a wire with no
+      // are added nearly simultaneously via Promise.all). Skip caching a spec with no
       // hash — an undefined key would collide across specs.
       if (hash) {
         const ttl = 86_400_000 + Math.floor(Math.random() * 86_400_000);
-        this.#cache.set(hash, wire, { ttl });
+        this.#cache.set(hash, decrypted, { ttl });
       }
-      return wire;
+      return decrypted;
     } catch (error) {
       log.warn(`Unable to decrypt ${appSpec.name}: ${error.message}`);
       return null;
@@ -414,6 +426,12 @@ class FdmDataFetcher extends EventEmitter {
     // active-active — for every version alike. Still-sealed specs are set aside for
     // decryption. A spec this node can't read is logged and skipped, never
     // aborting the rest of the batch.
+    //
+    // Takes a wire document on the first pass and an already-readable spec on the
+    // second (decryption yields the object, not a document); `deserialize` passes a
+    // readable one straight through, so both passes run the same code. What the maps
+    // carry is therefore whichever form the app arrived in, and every consumer of them
+    // resolves through `specLibs` rather than reading raw fields.
     const classify = async (spec) => {
       if (!spec) return; // a decrypt that gave up returns null
       try {
@@ -471,6 +489,12 @@ class FdmDataFetcher extends EventEmitter {
     });
   }
 
+  /**
+   * Every current app spec in a readable form: cleartext ones as the wire documents
+   * they arrived as, sealed ones as the spec objects decryption produced. Mixed by
+   * design — a caller resolves through `specLibs`, which takes either.
+   * @returns {Promise<Array<Object>>}
+   */
   async getDecryptedSpecs() {
     const getRes = await this.doAppSpecsHttpGet();
     if (!getRes || !getRes.payload) return [];

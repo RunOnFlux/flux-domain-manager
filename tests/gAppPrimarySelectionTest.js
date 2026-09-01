@@ -92,7 +92,12 @@ describe('g: app primary selection', () => {
     expect(await select([holder, idle])).to.equal(holder);
   });
 
-  it('records the held master as sticky, so an FDM restart cannot promote another node', async () => {
+  // Named once and then preserved, so a holder that goes quiet on a later pass is
+  // not swapped for another WHILE THIS PROCESS LIVES. It is deliberately not
+  // phrased as a restart guarantee: the sticky is module state and a restart
+  // starts empty, so the deterministic candidate order decides again from
+  // scratch. See the note in decideHeldPrimary.
+  it('records the held master as sticky, so a later pass does not re-derive it', async () => {
     const holder = await node({ running: [], held: ['fluxapp_zizy'] });
     await select([holder]);
     expect(getGStickyIp(zizySpec.name)).to.equal(holder);

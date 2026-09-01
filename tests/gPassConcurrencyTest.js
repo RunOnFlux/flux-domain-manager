@@ -309,6 +309,28 @@ describe('g: pass - probing cost and what silence means', () => {
     expect(silent.hits.running - firstPass).to.equal(1);
   });
 
+  // THE ORDER MUST NOT DEPEND ON ARRIVAL ORDER. The old comparator found the
+  // lowest digit sum across the whole list and only then removed the sticky, so
+  // whenever the sticky WAS that address - the usual case, since that rule picked
+  // it - every comparison returned 0 and a stable sort handed back whatever
+  // /apps/locations happened to return that second. Two FDMs losing the same
+  // primary could then promote different nodes. Nothing pinned this.
+  it('picks the same candidate whichever order the locations arrive in', async function () {
+    this.timeout(60000);
+    const name = track('zizy');
+    const a = await node({ running: [`fluxapp_${name}`] });
+    const b = await node({ running: [`fluxapp_${name}`] });
+    const opts = { retries: 1, delayMs: 5 };
+    const first = await selectFor([addr(a), addr(b)], name, opts);
+    resetGStickyState(name);
+    resetNodeReachability();
+    const reversed = await selectFor([addr(b), addr(a)], name, opts);
+    expect(reversed).to.equal(first);
+    // And the winner is decided by the rule, not by who was asked first.
+    const byRule = [addr(a), addr(b)].sort()[0];
+    expect(first).to.equal(byRule);
+  });
+
   // A node that recovers must not stay written off. It is asked every pass, so the
   // memo costs it one pass of being a non-candidate, never more.
   //

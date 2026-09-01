@@ -697,10 +697,21 @@ function decideHeldPrimary(app, ips, snapshot) {
 
   for (const candidate of orderedCandidates(ips, stickyIp)) {
     if (probeState(snapshot, candidate, app) === ProbeState.RUNNING) {
-      // The sticky is preserved rather than re-derived, so an FDM restart during
-      // a stop cannot silently promote a different instance.
+      // Named once and then preserved rather than re-derived on each pass, so a
+      // holder that goes quiet is not swapped for another while this process
+      // lives. It is NOT a restart guarantee: the sticky is module state, a
+      // restart starts empty, and the order below decides again from scratch.
+      // Two FDMs that restart at different times can therefore disagree about
+      // which stopped node a domain points at - bounded, because a holder serves
+      // nothing and anything RUNNING outranks it, but real.
       mapOfNamesIps[app.name] = candidate;
       mapOfNamesIpsLastHeld[app.name] = monotonicMs();
+      // A new sticky starts clean, exactly as it does on the running path. The
+      // counters below belong to the node being replaced: its consecutive
+      // failures are not this one's, and its last-healthy stamp would make this
+      // one look established before it has ever answered.
+      delete mapOfNamesIpsFailures[app.name];
+      delete mapOfNamesIpsLastHealthy[app.name];
       log.info(
         `G App ${app.name} is not running anywhere, but ${candidate} reports holding it (operator-stopped) - keeping it as primary`,
       );

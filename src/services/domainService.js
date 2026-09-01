@@ -28,6 +28,7 @@ const mapOfNamesIps = {};
 const mapOfNamesIpsLastHealthy = {}; // timestamp of last successful health check per app
 const mapOfNamesIpsLastHeld = {}; // timestamp of the last confirmed HELD answer per app
 const mapOfNamesIpsFailures = {}; // consecutive failed checks of the sticky, per app
+const mapOfNamesLastSeen = {}; // monotonic ms an app was last present in a pass
 const G_APP_HEALTH_RETRY_COUNT = 3;
 const G_APP_HEALTH_RETRY_DELAY_MS = 3000;
 const G_APP_UNHEALTHY_THRESHOLD_MS = 90 * 1000; // 90 seconds before switching away from sticky IP
@@ -64,6 +65,20 @@ const G_PASS_DEADLINE_MS = 20 * 1000;
 // pass it fails, so a node that is genuinely down never ages out; one that
 // leaves the fleet does, rather than sitting in the map forever.
 const G_UNREACHABLE_TTL_MS = 10 * 60 * 1000;
+// How long an app's sticky and health survive after it stops appearing in a pass.
+//
+// The four per-app maps are keyed by name and nothing removed a deleted app, so
+// they grew for the life of the process - and FDM is meant to run for weeks, not
+// to be restarted into cleanliness by the next deploy.
+//
+// Long, deliberately, because the cost is asymmetric. Keeping a dead app's entry
+// costs a short string. Dropping a live one costs its `lastHealthy` stamp, which
+// is what makes a primary ESTABLISHED - and an unestablished primary gets neither
+// the grace nor the confirmation count, so an app that vanished from one pass and
+// came back would be defended by nothing for a whole grace period. A day of
+// absence is ~3,400 consecutive passes: nothing transient reaches it, and an app
+// genuinely gone that long is being reinstalled rather than resumed.
+const G_APP_STATE_TTL_MS = 24 * 60 * 60 * 1000;
 // How often a written-off node is given the FULL timeout again.
 //
 // Without this the short timeout is a trap of its own: a node that answers in
@@ -382,6 +397,28 @@ function noteUnreachable(ip, gotFullTimeout) {
     failedAt: now,
     lastFullAt: gotFullTimeout ? now : (prior && prior.lastFullAt) || 0,
   });
+}
+
+/**
+ * Forget apps that have not been in a pass for a day.
+ *
+ * Absence from ONE pass means nothing - the upstream feed hiccups, and the whole
+ * point of the sticky is to survive that. Absence for a day means the app is
+ * gone. Marked on every pass the app appears in, so only a real disappearance
+ * ages out.
+ */
+function pruneGAppState(seenNames, ttlMs = G_APP_STATE_TTL_MS) {
+  const now = monotonicMs();
+  for (const name of seenNames) mapOfNamesLastSeen[name] = now;
+  for (const name of Object.keys(mapOfNamesLastSeen)) {
+    if (now - mapOfNamesLastSeen[name] >= ttlMs) {
+      delete mapOfNamesIps[name];
+      delete mapOfNamesIpsLastHealthy[name];
+      delete mapOfNamesIpsLastHeld[name];
+      delete mapOfNamesIpsFailures[name];
+      delete mapOfNamesLastSeen[name];
+    }
+  }
 }
 
 /** Drop nodes that stopped failing because they stopped existing. */
@@ -735,6 +772,7 @@ function decideHeldPrimary(app, ips, snapshot) {
  */
 async function selectGPrimaries(apps, locations, options = {}) {
   pruneUnreachable();
+  pruneGAppState(apps.map((a) => a.name), options.appStateTtlMs);
   // ONE deadline for the pass, not one per phase - the phases run in series, and
   // it is the total that sets the cadence.
   const passOptions = { ...options, deadlineAt: passDeadline(options) };
@@ -1893,6 +1931,7 @@ function setGStickyState(appName, ip, lastHealthyMs) {
 }
 
 function resetGStickyState(appName) {
+  delete mapOfNamesLastSeen[appName];
   delete mapOfNamesIps[appName];
   delete mapOfNamesIpsLastHealthy[appName];
   delete mapOfNamesIpsLastHeld[appName];

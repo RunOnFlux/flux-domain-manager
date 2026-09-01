@@ -309,6 +309,33 @@ describe('g: pass - probing cost and what silence means', () => {
     expect(silent.hits.running - firstPass).to.equal(1);
   });
 
+  // The four per-app maps are keyed by name and nothing removed a deleted app, so
+  // they grew for the life of a process that is meant to run for weeks. Absence
+  // from ONE pass must not clear anything - the feed hiccups, and surviving that
+  // is what the sticky is for - because dropping `lastHealthy` makes a primary
+  // unestablished, and an unestablished primary gets neither the grace nor the
+  // confirmation count.
+  it('keeps an app missing from one pass, and forgets one gone for a day', async function () {
+    this.timeout(60000);
+    const gone = track('zizy');
+    const other = track('stayer');
+    const primary = await node({ running: [`fluxapp_${gone}`, `fluxapp_${other}`] });
+    const opts = { retries: 1, delayMs: 5 };
+    await selectFor([addr(primary)], gone, opts);
+    expect(getGStickyIp(gone)).to.equal(addr(primary));
+
+    // A pass it is absent from, well inside the ttl: nothing is forgotten.
+    const locs = new Map([[other, [addr(primary)]]]);
+    await selectGPrimaries([spec(other)], locs, { ...opts, appStateTtlMs: 60000 });
+    expect(getGStickyIp(gone)).to.equal(addr(primary));
+
+    // Absent past the ttl, and it is dropped.
+    await selectGPrimaries([spec(other)], locs, { ...opts, appStateTtlMs: 0 });
+    expect(getGStickyIp(gone)).to.equal(undefined);
+    // The app that WAS in the pass keeps everything.
+    expect(getGStickyIp(other)).to.equal(addr(primary));
+  });
+
   // THE ORDER MUST NOT DEPEND ON ARRIVAL ORDER. The old comparator found the
   // lowest digit sum across the whole list and only then removed the sticky, so
   // whenever the sticky WAS that address - the usual case, since that rule picked

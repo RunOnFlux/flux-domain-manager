@@ -402,18 +402,58 @@ describe('g: pass - probing cost and what silence means', () => {
     expect(Date.now() - started).to.be.below(600);
   });
 
-  // Cadence is max(floor, pass duration), and the confirmations a primary gets
-  // before it is moved used to be floor(90000 / cadence). Counting them fixed the
-  // arithmetic; this makes the premise structural. A pass that cannot outrun its
-  // deadline cannot stretch the cadence, whatever the fleet does.
-  it('abandons a pass at its deadline rather than letting one silent node set the cadence', async function () {
+  // The unbounded part of a pass is the ladder: one silent node costs
+  // timeout + delay + timeout + delay + timeout however fast the rest is. The
+  // deadline stops paying for RETRIES - one attempt, not three.
+  it('stops paying for retries at its deadline', async function () {
     this.timeout(60000);
     const name = track('zizy');
     const silent = await node({ blackhole: true });
     const started = Date.now();
     await selectFor([addr(silent)], name, {
-      retries: 3, delayMs: 100, timeoutMs: 5000, deadlineMs: 700,
+      retries: 3, delayMs: 300, timeoutMs: 400, deadlineMs: 500,
     });
-    expect(Date.now() - started).to.be.below(1500);
+    // Full ladder would be 400+300+400+300+400 = 1800ms.
+    expect(Date.now() - started).to.be.below(1300);
+  });
+
+  // THE ONE THAT COST 123 HEALTHY NODES. An earlier form trimmed every probe to
+  // the time left in the pass, so once one node's ladder had eaten the budget the
+  // later phases got microsecond timeouts and every node in them "failed". On the
+  // dev FDM that wrote off 123 nodes in one pass, every one of which answered a
+  // direct probe in under 0.8s. A phase entered late still gets to ask properly.
+  it('still asks a later phase honestly after the deadline has passed', async function () {
+    this.timeout(60000);
+    const name = track('zizy');
+    const silent = await node({ blackhole: true });
+    const healthy = await node({ running: [`fluxapp_${name}`] });
+    // The silent node is the sticky, so phase 1 burns the whole deadline on it;
+    // the healthy candidate is only reached in phase 2.
+    setGStickyState(name, addr(silent), undefined);
+    const chosen = await selectFor([addr(silent), addr(healthy)], name, {
+      retries: 3, delayMs: 200, timeoutMs: 500, deadlineMs: 400,
+    });
+    expect(chosen).to.equal(addr(healthy));
+    expect(healthy.hits.running).to.be.above(0);
+  });
+
+  // A node the clock never let us ask has told us nothing, so it is not written
+  // off - otherwise one slow pass poisons the memo with healthy nodes and the log
+  // records outages that never happened.
+  it('does not write off nodes when the deadline cut the ladder short', async function () {
+    this.timeout(60000);
+    const name = track('zizy');
+    const silent = await node({ blackhole: true });
+    const warns = [];
+    const realWarn = log.warn;
+    log.warn = (m) => { warns.push(String(m)); };
+    try {
+      await selectFor([addr(silent)], name, {
+        retries: 3, delayMs: 300, timeoutMs: 400, deadlineMs: 500,
+      });
+    } finally {
+      log.warn = realWarn;
+    }
+    expect(warns.filter((m) => m.includes('written off'))).to.have.lengthOf(0);
   });
 });

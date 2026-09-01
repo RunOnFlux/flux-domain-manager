@@ -46,13 +46,19 @@ const G_PASS_CONCURRENCY = 32;
 // in 10 minutes for an answer that had not changed since the first. 2s is still
 // more than 3x the slowest real answer measured across 306 fleet primaries.
 const G_PROBE_KNOWN_BAD_TIMEOUT_MS = 2000;
-// The longest a pass may run before it settles for what it already knows.
+// When the pass stops paying for RETRIES. It does not cut short the first ask.
 //
-// Cadence is max(floor, pass duration), so without this the fleet sets the
-// cadence. That mattered when confirmations were inferred from it; counting them
-// fixed the arithmetic, and this makes the premise structural instead of lucky.
-// Unfinished probes come back UNKNOWN, which the sticky and held paths already
-// treat as "cannot say" rather than "not there", so stopping early is safe.
+// The unbounded part of a pass is the ladder: one silent node costs
+// timeout + delay + timeout + delay + timeout however fast everything else is.
+// This bounds that. It deliberately does NOT bound the first sweep, which is
+// bounded already by fleet size over concurrency.
+//
+// The distinction is the whole point. An earlier form clamped every probe to the
+// time left, so once one node's ladder had eaten the budget the later phases got
+// microsecond timeouts, every node in them "failed", and 123 healthy nodes were
+// written off in a single pass on the dev FDM - each of which answered a direct
+// probe in under 0.8s. A node that was never fairly asked has told us nothing:
+// it reads UNKNOWN for this pass, and it is NOT remembered as unreachable.
 const G_PASS_DEADLINE_MS = 20 * 1000;
 // How long a node stays written off after its last failure. Refreshed on every
 // pass it fails, so a node that is genuinely down never ages out; one that
@@ -451,14 +457,16 @@ async function buildNodeSnapshot(ips, fetcher, options = {}, into = null) {
   // Nodes we already knew were down, asked once and not laddered. Kept apart from
   // `pending` so the ladder below waits only on nodes whose silence is news.
   const writtenOff = [];
-  // Which nodes got a full-length probe this pass, so a failure is recorded as
-  // "asked properly and still silent" rather than "asked briefly".
+  // Which nodes got the long first-contact budget rather than the short known-bad
+  // one, so the recovery recheck is timed off a probe that could actually succeed.
   const gaveFullBudget = new Set();
+  // Set when the ladder was cut short. Nothing new is written off in that case:
+  // the pass ran out of time, which is not evidence about any node.
+  let deadlineCut = false;
 
   for (let attempt = 1; attempt <= retries && pending.length; attempt += 1) {
-    const remaining = deadlineAt - monotonicMs();
-    if (remaining <= 0) break;
     if (attempt > 1) {
+      if (monotonicMs() >= deadlineAt) { deadlineCut = true; break; }
       // Named, not just counted. The count alone cannot tell you whether the
       // same node is failing every pass or a different one each time, and it
       // leaves nothing to go and check by hand.
@@ -466,14 +474,17 @@ async function buildNodeSnapshot(ips, fetcher, options = {}, into = null) {
       const andMore = pending.length > 5 ? ` (+${pending.length - 5} more)` : '';
       log.info(`G pass: ${pending.length} node(s) could not be read, retry ${attempt}/${retries}: ${named}${andMore}`);
       // eslint-disable-next-line no-await-in-loop
-      await serviceHelper.timeout(Math.min(delayMs, deadlineAt - monotonicMs()));
-      if (monotonicMs() >= deadlineAt) break;
+      await serviceHelper.timeout(delayMs);
+      if (monotonicMs() >= deadlineAt) { deadlineCut = true; break; }
     }
     const targets = pending;
-    // A probe may not outlive the pass that wants its answer, and a node already
-    // believed down does not get the headroom kept for one that is merely slow -
-    // except on its periodic recheck, or a slow node could never answer its way
-    // back out of a budget chosen because we thought it was dead.
+    // A node already believed down does not get the headroom kept for one that is
+    // merely slow - except on its periodic recheck, or a slow node could never
+    // answer its way back out of a budget chosen because we thought it was dead.
+    //
+    // The budget is NOT trimmed to the time left in the pass. A probe cut to the
+    // remaining milliseconds cannot succeed, and its failure would be recorded as
+    // the node's fault rather than the clock's.
     const fullBudgetFor = (ip) => {
       const entry = unreachableNodes.get(ip);
       if (!entry) return true;
@@ -482,8 +493,7 @@ async function buildNodeSnapshot(ips, fetcher, options = {}, into = null) {
     const budget = (ip) => {
       const full = fullBudgetFor(ip);
       if (full) gaveFullBudget.add(ip);
-      const base = full ? timeoutMs : knownBadTimeoutMs;
-      return Math.max(1, Math.min(base, deadlineAt - monotonicMs()));
+      return full ? timeoutMs : knownBadTimeoutMs;
     };
     // eslint-disable-next-line no-await-in-loop
     const settled = await serviceHelper.runWithConcurrency(
@@ -514,7 +524,9 @@ async function buildNodeSnapshot(ips, fetcher, options = {}, into = null) {
   // for a node that is simply running nothing.
   for (const ip of [...pending, ...writtenOff]) {
     snapshot.set(ip, { ok: false, names: new Set() });
-    noteUnreachable(ip, gaveFullBudget.has(ip));
+    // UNKNOWN either way - but only a node that got its full ladder has actually
+    // told us anything, and only that one is remembered.
+    if (!deadlineCut) noteUnreachable(ip, gaveFullBudget.has(ip));
   }
   return snapshot;
 }

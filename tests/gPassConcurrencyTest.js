@@ -111,6 +111,37 @@ describe('g: pass - probing cost and what silence means', () => {
     expect(shared.hits.running).to.equal(1);
   });
 
+  // A healthy app costs ONE probe - the node it is already on. The other
+  // candidates only matter once its primary stops answering, and asking them
+  // anyway was 900 probes a pass where 334 would do. At a 25s cadence that
+  // difference is the whole load story.
+  it('does not probe the other candidates while the remembered primary answers', async () => {
+    const name = track('zizy');
+    const primary = await node({ running: [`fluxapp_${name}`] });
+    const standby = await node({ running: [] });
+    setGStickyState(name, addr(primary), undefined);
+    // Seed the sticky, then measure a steady-state pass.
+    const apps = [spec(name)];
+    const locations = new Map([[name, [addr(primary), addr(standby)]]]);
+    await selectGPrimaries(apps, locations, { retries: 1 });
+    primary.hits.running = 0;
+    standby.hits.running = 0;
+    const chosen = await selectGPrimaries(apps, locations, { retries: 1 });
+    expect(chosen.get(name)).to.equal(addr(primary));
+    expect(primary.hits.running).to.equal(1);
+    expect(standby.hits.running).to.equal(0);
+  });
+
+  // ...and the wider sweep still happens the moment it stops answering.
+  it('sweeps the other candidates once the remembered primary stops answering', async () => {
+    const name = track('zizy');
+    const standby = await node({ running: [`fluxapp_${name}`] });
+    const dead = await node({ running: [] });
+    setGStickyState(name, addr(dead), undefined);
+    const chosen = await selectGPrimaries([spec(name)], new Map([[name, [addr(dead), addr(standby)]]]), { retries: 1 });
+    expect(chosen.get(name)).to.equal(addr(standby));
+  });
+
   // THE SAFETY PROPERTY for the held fallback. A holder that cannot answer has
   // not said it stopped holding. Walking on to the next node that reports held
   // is how one dropped packet moves a domain - and the node most likely to

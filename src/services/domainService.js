@@ -37,21 +37,33 @@ const G_APP_UNHEALTHY_THRESHOLD_MS = 90 * 1000; // 90 seconds before switching a
 // snapshot probe each, median 0.21s - so 32 in flight turns a pass that walked
 // them one at a time into roughly one round trip's worth of wall clock.
 const G_PASS_CONCURRENCY = 32;
-// The shortest useful gap between two G passes.
+// The shortest gap between two G passes, measured start to start.
 //
-// A pass asks each node what it is running, and FluxOS serves that from a 15s
-// cache (ZelBack routes.js: `cache('15 seconds')`). Two passes closer together
-// than that read byte-identical answers, so the second one is load on the fleet
-// that cannot tell us anything the first did not.
+// Chosen against the grace above, not picked for feel. A sticky that fails its
+// check is kept while `now - lastHealthy < G_APP_UNHEALTHY_THRESHOLD_MS`, and
+// lastHealthy is stamped on the last SUCCESSFUL check - so the number of failed
+// checks that land inside the grace is how many times FDM confirms a primary is
+// gone before it moves the app. At 25s those fall at 25s, 50s and 75s:
 //
-// Not a made-up number, and not one the cadence gives us for free: the pass is
-// driven by the appsLocations poll, whose interval is whatever `Cache-Control:
-// max-age` the upstream API returns, defaulting to 30s only when the header is
-// absent (flux/dataFetcher.js). That header is not ours, and the non-G pass is
-// currently cycling on roughly 10s of it. While a pass took eight minutes none
-// of this could matter; at a few seconds it can, so the floor is stated here
-// instead of being an accident of someone else's cache policy.
-const G_PASS_MIN_INTERVAL_MS = 15 * 1000;
+//     3 x 25000 = 75000 < 90000 = G_APP_UNHEALTHY_THRESHOLD_MS
+//
+// Three confirmations with 15s to spare, and the move happens on the fourth
+// check at 100s. 30s would put the third check at exactly 90000, where
+// `90000 < 90000` is false and a few milliseconds of jitter decides whether the
+// app gets two confirmations or three; 25s keeps it off that boundary. Change
+// either constant and this inequality has to be re-checked.
+//
+// There is a second floor underneath: FluxOS serves listrunningapps from a 15s
+// cache (ZelBack routes.js: `cache('15 seconds')`), so passes closer together
+// than that read byte-identical answers. 25s clears it.
+//
+// A floor, not a period. The pass is driven by the appsLocations poll, so the
+// real cadence is max(this, the trigger interval) - and the trigger is whatever
+// `Cache-Control: max-age` the upstream API returns (flux/dataFetcher.js),
+// which is not ours to set. Measured on the dev FDM at roughly 18.75s, so this
+// governs. While a pass took eight minutes none of it could matter; at ten
+// seconds it does.
+const G_PASS_MIN_INTERVAL_MS = 25 * 1000;
 let lastGPassStartedAt = 0;
 let recentlyConfiguredApps = [];
 let recentlyConfiguredGApps = [];
@@ -255,6 +267,28 @@ function filterMandatoryApps(apps) {
   return appsInBucket;
 }
 
+/**
+ * Milliseconds on the MONOTONIC clock.
+ *
+ * Every elapsed-time decision here uses this, never Date.now(). These values
+ * decide whether a primary moves: the sticky grace holds an app while
+ * `now - lastHealthy < G_APP_UNHEALTHY_THRESHOLD_MS`, and the pass floor holds a
+ * pass while `now - lastGPassStartedAt < G_PASS_MIN_INTERVAL_MS`. A wall clock
+ * steps - an NTP correction forward expires a grace that has not expired and
+ * moves a healthy app; a step backward makes the difference negative, which
+ * compares as inside every window and pins a dead one until the clock catches up.
+ *
+ * process.hrtime.bigint() counts from an arbitrary origin and cannot go
+ * backwards, which is the only property these comparisons need. Nothing here is
+ * ever rendered as a date - the log lines report durations - so losing the wall
+ * clock costs nothing.
+ *
+ * @returns {number} monotonic milliseconds
+ */
+function monotonicMs() {
+  return Number(process.hrtime.bigint() / 1000000n);
+}
+
 function selectLowestDigitSumIp(ips) {
   let chosenIp = ips[0];
   let chosenIpSum = ips[0]
@@ -369,36 +403,42 @@ function probeState(snapshot, ip, app) {
  * copies of them.
  * @returns {string|null} the chosen ip, or null if nobody is running it
  */
-function decideRunningPrimary(app, ips, snapshot) {
+function decideStickyPrimary(app, ips, snapshot) {
   const stickyIp = mapOfNamesIps[app.name];
+  if (!stickyIp || !ips.includes(stickyIp)) return null;
 
-  if (stickyIp && ips.includes(stickyIp)) {
-    if (probeState(snapshot, stickyIp, app) === applicationChecks.ProbeState.RUNNING) {
-      mapOfNamesIpsLastHealthy[app.name] = Date.now();
-      return stickyIp;
-    }
-    // Failed the check - keep it anyway if it was healthy recently enough.
-    const lastHealthy = mapOfNamesIpsLastHealthy[app.name] || 0;
-    const timeSinceHealthy = Date.now() - lastHealthy;
-    if (lastHealthy > 0 && timeSinceHealthy < G_APP_UNHEALTHY_THRESHOLD_MS) {
-      log.warn(
-        `G App ${app.name} sticky IP ${stickyIp} failed health check but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
-      );
-      return stickyIp;
-    }
-    log.warn(
-      `G App ${app.name} sticky IP ${stickyIp} failed health check for >${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s, selecting new IP`,
-    );
+  if (probeState(snapshot, stickyIp, app) === applicationChecks.ProbeState.RUNNING) {
+    mapOfNamesIpsLastHealthy[app.name] = monotonicMs();
+    return stickyIp;
   }
+  // Failed the check - keep it anyway if it was healthy recently enough.
+  const lastHealthy = mapOfNamesIpsLastHealthy[app.name] || 0;
+  const timeSinceHealthy = monotonicMs() - lastHealthy;
+  if (lastHealthy > 0 && timeSinceHealthy < G_APP_UNHEALTHY_THRESHOLD_MS) {
+    log.warn(
+      `G App ${app.name} sticky IP ${stickyIp} failed health check but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
+    );
+    return stickyIp;
+  }
+  log.warn(
+    `G App ${app.name} sticky IP ${stickyIp} failed health check for >${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s, selecting new IP`,
+  );
+  return null;
+}
 
-  for (const candidate of orderedCandidates(ips, stickyIp)) {
+function decideCandidatePrimary(app, ips, snapshot) {
+  for (const candidate of orderedCandidates(ips, mapOfNamesIps[app.name])) {
     if (probeState(snapshot, candidate, app) === applicationChecks.ProbeState.RUNNING) {
       mapOfNamesIps[app.name] = candidate;
-      mapOfNamesIpsLastHealthy[app.name] = Date.now();
+      mapOfNamesIpsLastHealthy[app.name] = monotonicMs();
       return candidate;
     }
   }
   return null;
+}
+
+function decideRunningPrimary(app, ips, snapshot) {
+  return decideStickyPrimary(app, ips, snapshot) || decideCandidatePrimary(app, ips, snapshot);
 }
 
 /**
@@ -435,7 +475,7 @@ function decideHeldPrimary(app, ips, snapshot) {
   if (stickyIp && ips.includes(stickyIp)) {
     const state = probeState(snapshot, stickyIp, app);
     if (state === ProbeState.RUNNING) {
-      mapOfNamesIpsLastHeld[app.name] = Date.now();
+      mapOfNamesIpsLastHeld[app.name] = monotonicMs();
       log.info(
         `G App ${app.name} is not running anywhere, but ${stickyIp} reports holding it (operator-stopped) - keeping it as primary`,
       );
@@ -443,7 +483,7 @@ function decideHeldPrimary(app, ips, snapshot) {
     }
     if (state === ProbeState.UNKNOWN) {
       const lastHeld = mapOfNamesIpsLastHeld[app.name] || 0;
-      const sinceHeld = Date.now() - lastHeld;
+      const sinceHeld = monotonicMs() - lastHeld;
       if (lastHeld > 0 && sinceHeld < G_APP_UNHEALTHY_THRESHOLD_MS) {
         log.warn(
           `G App ${app.name} holder ${stickyIp} could not say what it holds, but confirmed holding ${Math.round(sinceHeld / 1000)}s ago - keeping it as primary`,
@@ -458,7 +498,7 @@ function decideHeldPrimary(app, ips, snapshot) {
       // The sticky is preserved rather than re-derived, so an FDM restart during
       // a stop cannot silently promote a different instance.
       mapOfNamesIps[app.name] = candidate;
-      mapOfNamesIpsLastHeld[app.name] = Date.now();
+      mapOfNamesIpsLastHeld[app.name] = monotonicMs();
       log.info(
         `G App ${app.name} is not running anywhere, but ${candidate} reports holding it (operator-stopped) - keeping it as primary`,
       );
@@ -487,20 +527,54 @@ async function selectGPrimaries(apps, locations, options = {}) {
 
   const withIps = apps.map((app) => ({ app, ips: ipsFor(app) })).filter((e) => e.ips.length);
 
-  const runningSnapshot = await buildNodeSnapshot(
-    withIps.flatMap((e) => e.ips),
+  const chosen = new Map();
+
+  // Phase 1: the remembered primaries, and nothing else.
+  //
+  // A healthy app needs exactly one probe - the node it is already on - and on
+  // the dev FDM that is what almost every app is on almost every pass. Probing
+  // every candidate of every app instead cost 900 probes where 334 would do,
+  // and at a 25s cadence that difference is the whole load story: the other
+  // candidates only matter for an app whose primary has actually stopped
+  // answering, and phase 2 asks about exactly those.
+  const stickyIps = withIps
+    .map(({ app, ips }) => {
+      const sticky = mapOfNamesIps[app.name];
+      return sticky && ips.includes(sticky) ? sticky : null;
+    })
+    .filter(Boolean);
+
+  const stickySnapshot = await buildNodeSnapshot(
+    stickyIps,
     applicationChecks.fetchRunningNames,
     options,
   );
 
-  const chosen = new Map();
-  const unresolved = [];
+  const needCandidates = [];
   for (const { app, ips } of withIps) {
-    const ip = decideRunningPrimary(app, ips, runningSnapshot);
+    const ip = decideStickyPrimary(app, ips, stickySnapshot);
     if (ip) chosen.set(app.name, ip);
-    else unresolved.push({ app, ips });
+    else needCandidates.push({ app, ips });
   }
 
+  // Phase 2: the wider sweep, for the apps whose primary did not hold - plus
+  // every app that has no remembered primary at all, which is how a newly
+  // deployed one gets its first.
+  const unresolved = [];
+  if (needCandidates.length) {
+    const candidateSnapshot = await buildNodeSnapshot(
+      needCandidates.flatMap((e) => e.ips),
+      applicationChecks.fetchRunningNames,
+      options,
+    );
+    for (const { app, ips } of needCandidates) {
+      const ip = decideCandidatePrimary(app, ips, candidateSnapshot);
+      if (ip) chosen.set(app.name, ip);
+      else unresolved.push({ app, ips });
+    }
+  }
+
+  // Phase 3: nothing is running these anywhere - ask who is HOLDING them.
   if (unresolved.length) {
     const heldSnapshot = await buildNodeSnapshot(
       unresolved.flatMap((e) => e.ips),
@@ -1215,13 +1289,13 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 }
 
 async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
-  const sinceLast = Date.now() - lastGPassStartedAt;
+  const sinceLast = monotonicMs() - lastGPassStartedAt;
   if (lastGPassStartedAt && sinceLast < G_PASS_MIN_INTERVAL_MS) {
     const waitMs = G_PASS_MIN_INTERVAL_MS - sinceLast;
     log.info(`G Mode holding ${Math.round(waitMs / 1000)}s - the previous pass started ${Math.round(sinceLast / 1000)}s ago and the nodes would answer from the same cache`);
     await serviceHelper.timeout(waitMs);
   }
-  lastGPassStartedAt = Date.now();
+  lastGPassStartedAt = monotonicMs();
   const startTime = process.hrtime.bigint();
 
   try {
@@ -1595,6 +1669,7 @@ module.exports = {
   selectGPrimaries,
   orderBySeniority,
   orderByCluster,
+  monotonicMs,
   getGStickyIp,
   setGStickyState,
   resetGStickyState,

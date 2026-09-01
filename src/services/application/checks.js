@@ -971,7 +971,13 @@ const ProbeState = Object.freeze({
   UNKNOWN: 'unknown',
 });
 
-const PROBE_TIMEOUT_MS = 12000;
+// First contact. Measured on the fleet from fdm-eu-2-02: 306 of 306 selected
+// primaries answered, p50 199ms, p95 503ms, slowest 608ms, none over 2s. 12s was
+// 20x the slowest real answer, and it was load-bearing only because a failed check
+// used to move a primary on its own - which counted confirmations now prevent. The
+// headroom that remains is for nodes slower than anything in that sample; it is
+// paid in full only by a node that is actually down.
+const PROBE_TIMEOUT_MS = 6000;
 
 /**
  * One node's container names, fetched once.
@@ -997,9 +1003,11 @@ const PROBE_TIMEOUT_MS = 12000;
  *
  * @param {string} url node ip, optionally with api port
  * @param {string} route endpoint path
+ * @param {number} [timeoutMs] probe timeout; a node already believed down is
+ *   given a shorter one, since that wait is paid on every pass
  * @returns {Promise<{ok: boolean, answered: boolean, names: Set<string>}>}
  */
-async function fetchNodeNames(url, route) {
+async function fetchNodeNames(url, route, timeoutMs = PROBE_TIMEOUT_MS) {
   const { CancelToken } = axios;
   const source = CancelToken.source();
   let isResolved = false;
@@ -1008,11 +1016,11 @@ async function fetchNodeNames(url, route) {
   // live timer per probe behind it.
   const backstop = setTimeout(() => {
     if (!isResolved) source.cancel('Operation canceled by timeout.');
-  }, PROBE_TIMEOUT_MS * 2);
+  }, timeoutMs * 2);
   try {
     const ip = url.split(':')[0];
     const port = url.split(':')[1] || 16127;
-    const response = await axios.get(`http://${ip}:${port}${route}`, { timeout: PROBE_TIMEOUT_MS, cancelToken: source.token });
+    const response = await axios.get(`http://${ip}:${port}${route}`, { timeout: timeoutMs, cancelToken: source.token });
     isResolved = true;
     const payload = response.data && response.data.data;
     // A 200 carrying an in-band error object: answered, but unreadable.
@@ -1043,20 +1051,22 @@ async function fetchNodeNames(url, route) {
 /**
  * Everything one node is running, as bare container names.
  * @param {string} url node ip, optionally with api port
+ * @param {number} [timeoutMs] probe timeout
  * @returns {Promise<{ok: boolean, names: Set<string>}>}
  */
-function fetchRunningNames(url) {
-  return fetchNodeNames(url, '/apps/listrunningapps');
+function fetchRunningNames(url, timeoutMs) {
+  return fetchNodeNames(url, '/apps/listrunningapps', timeoutMs);
 }
 
 /**
  * Everything one node reports HOLDING, as bare container names.
  * A node too old for the route answers 404, which is `ok: false` - it cannot say.
  * @param {string} url node ip, optionally with api port
+ * @param {number} [timeoutMs] probe timeout
  * @returns {Promise<{ok: boolean, names: Set<string>}>}
  */
-function fetchHeldNames(url) {
-  return fetchNodeNames(url, '/apps/heldcomponents');
+function fetchHeldNames(url, timeoutMs) {
+  return fetchNodeNames(url, '/apps/heldcomponents', timeoutMs);
 }
 
 /**
@@ -1250,6 +1260,7 @@ module.exports = {
   fetchHeldNames,
   stateFromNames,
   ProbeState,
+  PROBE_TIMEOUT_MS,
   getGComponentDockerNames,
   checkALPHexplorer,
   checkErgoHeight,

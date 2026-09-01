@@ -38,6 +38,39 @@ const G_APP_UNHEALTHY_THRESHOLD_MS = 90 * 1000; // 90 seconds before switching a
 // snapshot probe each, median 0.21s - so 32 in flight turns a pass that walked
 // them one at a time into roughly one round trip's worth of wall clock.
 const G_PASS_CONCURRENCY = 32;
+// What a node ALREADY believed unreachable is given before we stop waiting.
+//
+// The first-contact timeout buys headroom for a node that is merely slow. This
+// one is different: it is paid on every pass, forever, by every node that is
+// down. On the dev FDM one such node was taken through the full ladder 24 times
+// in 10 minutes for an answer that had not changed since the first. 2s is still
+// more than 3x the slowest real answer measured across 306 fleet primaries.
+const G_PROBE_KNOWN_BAD_TIMEOUT_MS = 2000;
+// The longest a pass may run before it settles for what it already knows.
+//
+// Cadence is max(floor, pass duration), so without this the fleet sets the
+// cadence. That mattered when confirmations were inferred from it; counting them
+// fixed the arithmetic, and this makes the premise structural instead of lucky.
+// Unfinished probes come back UNKNOWN, which the sticky and held paths already
+// treat as "cannot say" rather than "not there", so stopping early is safe.
+const G_PASS_DEADLINE_MS = 20 * 1000;
+// How long a node stays written off after its last failure. Refreshed on every
+// pass it fails, so a node that is genuinely down never ages out; one that
+// leaves the fleet does, rather than sitting in the map forever.
+const G_UNREACHABLE_TTL_MS = 10 * 60 * 1000;
+// How often a written-off node is given the FULL timeout again.
+//
+// Without this the short timeout is a trap of its own: a node that answers in
+// 3s - alive, just loaded - would fail a 2s probe every pass and never get a
+// long enough one to prove otherwise, so it would stay written off forever on
+// the strength of a budget chosen because we thought it was dead. The recheck
+// costs one full-length probe a minute per bad node.
+const G_UNREACHABLE_RECHECK_MS = 60 * 1000;
+// Nodes that failed a whole ladder: ip -> { failedAt, lastFullAt } in monotonic
+// ms. They are still asked once per pass, so a node that recovers is taken back
+// within one - and periodically asked with the full timeout, so a node that is
+// slow rather than gone can prove it.
+const unreachableNodes = new Map();
 // The shortest gap between two G passes, measured start to start.
 //
 // Chosen against the grace above, not picked for feel. A sticky that fails its
@@ -305,6 +338,41 @@ function monotonicMs() {
   return Number(process.hrtime.bigint() / 1000000n);
 }
 
+/** When this pass must stop, as monotonic ms. Explicit wins, then relative, then the default. */
+function passDeadline(options = {}) {
+  if (options.deadlineAt) return options.deadlineAt;
+  const { deadlineMs = G_PASS_DEADLINE_MS } = options;
+  return monotonicMs() + deadlineMs;
+}
+
+/** A node answered, so it is no longer written off. */
+function noteReachable(ip) {
+  unreachableNodes.delete(ip);
+}
+
+/** A node gave nothing at all. Remember it, so the next pass asks once, briefly. */
+function noteUnreachable(ip, gotFullTimeout) {
+  const now = monotonicMs();
+  const prior = unreachableNodes.get(ip);
+  unreachableNodes.set(ip, {
+    failedAt: now,
+    lastFullAt: gotFullTimeout ? now : (prior && prior.lastFullAt) || 0,
+  });
+}
+
+/** Drop nodes that stopped failing because they stopped existing. */
+function pruneUnreachable() {
+  const now = monotonicMs();
+  for (const [ip, entry] of unreachableNodes) {
+    if (now - entry.failedAt > G_UNREACHABLE_TTL_MS) unreachableNodes.delete(ip);
+  }
+}
+
+/** Test seam: the memo outlives a single pass by design, so tests must clear it. */
+function resetNodeReachability() {
+  unreachableNodes.clear();
+}
+
 /**
  * Ask every node once what it is running, retrying only the ones that could not
  * answer.
@@ -335,9 +403,17 @@ function monotonicMs() {
  * the pass duration is what sets the cadence - so a slow pass silently shrinks
  * the number of confirmations a primary gets before it is moved.
  *
+ * A node that failed a whole ladder is remembered. Next pass it is asked once,
+ * with a short timeout, and not laddered again - the ladder tells a blip from an
+ * outage, and that question was settled a pass ago. It is still asked EVERY pass,
+ * so a node that recovers costs itself one pass, never more.
+ *
  * @param {string[]} ips node addresses, duplicates tolerated
  * @param {Function} fetcher applicationChecks.fetchRunningNames or fetchHeldNames
  * @param {Object} [options]
+ * @param {number} [options.timeoutMs] first-contact probe timeout
+ * @param {number} [options.knownBadTimeoutMs] probe timeout for a node already down
+ * @param {number} [options.deadlineAt] monotonic ms the whole pass must stop by
  * @param {Map} [into] snapshot to extend; entries already present are not re-asked
  * @returns {Promise<Map<string, {ok: boolean, names: Set<string>}>>}
  */
@@ -346,37 +422,77 @@ async function buildNodeSnapshot(ips, fetcher, options = {}, into = null) {
     retries = G_APP_HEALTH_RETRY_COUNT,
     delayMs = G_APP_HEALTH_RETRY_DELAY_MS,
     concurrency = G_PASS_CONCURRENCY,
+    timeoutMs = applicationChecks.PROBE_TIMEOUT_MS,
+    knownBadTimeoutMs = G_PROBE_KNOWN_BAD_TIMEOUT_MS,
+    unreachableRecheckMs = G_UNREACHABLE_RECHECK_MS,
+    deadlineAt = monotonicMs() + G_PASS_DEADLINE_MS,
   } = options;
 
   const snapshot = into || new Map();
   let pending = [...new Set(ips)].filter((ip) => !snapshot.has(ip));
+  // Nodes we already knew were down, asked once and not laddered. Kept apart from
+  // `pending` so the ladder below waits only on nodes whose silence is news.
+  const writtenOff = [];
+  // Which nodes got a full-length probe this pass, so a failure is recorded as
+  // "asked properly and still silent" rather than "asked briefly".
+  const gaveFullBudget = new Set();
 
   for (let attempt = 1; attempt <= retries && pending.length; attempt += 1) {
+    const remaining = deadlineAt - monotonicMs();
+    if (remaining <= 0) break;
     if (attempt > 1) {
       log.info(`G pass: ${pending.length} node(s) could not be read, retry ${attempt}/${retries}`);
       // eslint-disable-next-line no-await-in-loop
-      await serviceHelper.timeout(delayMs);
+      await serviceHelper.timeout(Math.min(delayMs, deadlineAt - monotonicMs()));
+      if (monotonicMs() >= deadlineAt) break;
     }
     const targets = pending;
+    // A probe may not outlive the pass that wants its answer, and a node already
+    // believed down does not get the headroom kept for one that is merely slow -
+    // except on its periodic recheck, or a slow node could never answer its way
+    // back out of a budget chosen because we thought it was dead.
+    const fullBudgetFor = (ip) => {
+      const entry = unreachableNodes.get(ip);
+      if (!entry) return true;
+      return monotonicMs() - entry.lastFullAt >= unreachableRecheckMs;
+    };
+    const budget = (ip) => {
+      const full = fullBudgetFor(ip);
+      if (full) gaveFullBudget.add(ip);
+      const base = full ? timeoutMs : knownBadTimeoutMs;
+      return Math.max(1, Math.min(base, deadlineAt - monotonicMs()));
+    };
     // eslint-disable-next-line no-await-in-loop
     const settled = await serviceHelper.runWithConcurrency(
-      targets.map((ip) => () => fetcher(ip)),
+      targets.map((ip) => () => fetcher(ip, budget(ip))),
       concurrency,
     );
     pending = [];
     for (let i = 0; i < targets.length; i += 1) {
+      const ip = targets[i];
       const result = settled[i];
       const value = result && result.status === 'fulfilled' ? result.value : null;
       // Retried only when nothing came back. A node that answered - even to say
       // it has no such route - has given its final answer, and asking again three
       // seconds later cannot change it.
-      if (value && (value.ok || value.answered)) snapshot.set(targets[i], value);
-      else pending.push(targets[i]);
+      if (value && (value.ok || value.answered)) {
+        snapshot.set(ip, value);
+        noteReachable(ip);
+      } else if (attempt === 1 && unreachableNodes.has(ip)) {
+        // It was silent last pass and it is silent now. The ladder exists to tell
+        // a blip from an outage, and that question was settled a pass ago.
+        writtenOff.push(ip);
+      } else {
+        pending.push(ip);
+      }
     }
   }
-  // Everything still pending is unreadable, and must say so rather than pass for
-  // a node that is simply running nothing.
-  for (const ip of pending) snapshot.set(ip, { ok: false, names: new Set() });
+  // Everything still unanswered is unreadable, and must say so rather than pass
+  // for a node that is simply running nothing.
+  for (const ip of [...pending, ...writtenOff]) {
+    snapshot.set(ip, { ok: false, names: new Set() });
+    noteUnreachable(ip, gaveFullBudget.has(ip));
+  }
   return snapshot;
 }
 
@@ -476,10 +592,6 @@ function decideCandidatePrimary(app, ips, snapshot) {
   return null;
 }
 
-function decideRunningPrimary(app, ips, snapshot) {
-  return decideStickyPrimary(app, ips, snapshot) || decideCandidatePrimary(app, ips, snapshot);
-}
-
 /**
  * Nothing is running this app anywhere. Before dropping it out of FDM entirely,
  * ask whether a node is deliberately HOLDING it - an owner who stopped their
@@ -576,6 +688,10 @@ function decideHeldPrimary(app, ips, snapshot) {
  * @returns {Promise<Map<string, string|null>>} app name -> chosen ip
  */
 async function selectGPrimaries(apps, locations, options = {}) {
+  pruneUnreachable();
+  // ONE deadline for the pass, not one per phase - the phases run in series, and
+  // it is the total that sets the cadence.
+  const passOptions = { ...options, deadlineAt: passDeadline(options) };
   const ipsFor = (app) => (locations.get(app.name) || [])
     .map((loc) => (typeof loc === 'string' ? loc : loc.ip))
     .filter(Boolean);
@@ -602,7 +718,7 @@ async function selectGPrimaries(apps, locations, options = {}) {
   const stickySnapshot = await buildNodeSnapshot(
     stickyIps,
     applicationChecks.fetchRunningNames,
-    options,
+    passOptions,
   );
 
   const needCandidates = [];
@@ -622,7 +738,7 @@ async function selectGPrimaries(apps, locations, options = {}) {
     const candidateSnapshot = await buildNodeSnapshot(
       needCandidates.flatMap((e) => e.ips),
       applicationChecks.fetchRunningNames,
-      options,
+      passOptions,
       stickySnapshot,
     );
     for (const { app, ips } of needCandidates) {
@@ -646,7 +762,7 @@ async function selectGPrimaries(apps, locations, options = {}) {
     const heldSnapshot = await buildNodeSnapshot(
       unresolved.flatMap((e) => e.ips),
       applicationChecks.fetchHeldNames,
-      options,
+      passOptions,
       seed,
     );
     for (const { app, ips } of unresolved) {
@@ -656,19 +772,6 @@ async function selectGPrimaries(apps, locations, options = {}) {
 
   for (const app of apps) if (!chosen.has(app.name)) chosen.set(app.name, null);
   return chosen;
-}
-
-/**
- * The single-app path. Same rules, same order and the same sticky state as the
- * pass - it just builds its snapshots from one app's candidates.
- */
-async function selectIPforG(ips, app, options = {}) {
-  if (!ips || !ips.length) return null;
-  const runningSnapshot = await buildNodeSnapshot(ips, applicationChecks.fetchRunningNames, options);
-  const running = decideRunningPrimary(app, ips, runningSnapshot);
-  if (running) return running;
-  const heldSnapshot = await buildNodeSnapshot(ips, applicationChecks.fetchHeldNames, options);
-  return decideHeldPrimary(app, ips, heldSnapshot);
 }
 
 /**
@@ -1725,7 +1828,7 @@ function getConfiguredApps() {
   };
 }
 
-// Exported for tests. selectIPforG's decision rests on module-level sticky state,
+// Exported for tests. selectGPrimaries' decision rests on module-level sticky state,
 // and the ordering it enforces - a node RUNNING the app always outranks one that
 // is merely holding it - is the property that makes the held fallback safe to
 // deploy ahead of the FluxOS release that serves /apps/heldcomponents.
@@ -1753,7 +1856,6 @@ function resetGStickyState(appName) {
 module.exports = {
   start,
   getConfiguredApps,
-  selectIPforG,
   selectGPrimaries,
   orderBySeniority,
   orderByCluster,
@@ -1761,4 +1863,5 @@ module.exports = {
   getGStickyIp,
   setGStickyState,
   resetGStickyState,
+  resetNodeReachability,
 };

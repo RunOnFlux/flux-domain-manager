@@ -6,7 +6,7 @@ const { expect } = chai;
 const domainService = require('../src/services/domainService');
 
 const {
-  selectIPforG, getGStickyIp, setGStickyState, resetGStickyState,
+  selectGPrimaries, getGStickyIp, setGStickyState, resetGStickyState,
 } = domainService;
 
 // zizy: the app component holds the g: volume, mysql has its own local storage.
@@ -59,7 +59,14 @@ describe('g: app primary selection', () => {
 
   // One retry: the production backoff is 3 attempts three seconds apart, and this
   // suite is proving ordering, not the retry ladder.
-  const select = (ips) => selectIPforG(ips, zizySpec, { retries: 1 });
+  //
+  // Driven through selectGPrimaries, which is what the pass runs. The single-app
+  // entry point this used to call stopped being called by production and then
+  // silently missed a fix, so it is gone.
+  const select = async (ips) => {
+    const chosen = await selectGPrimaries([zizySpec], new Map([[zizySpec.name, ips]]), { retries: 1 });
+    return chosen.get(zizySpec.name);
+  };
 
   it('keeps a running master as primary', async () => {
     const master = await node({ running: [{ Names: ['/fluxapp_zizy'] }] });

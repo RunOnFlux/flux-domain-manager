@@ -6,8 +6,8 @@ const { expect } = chai;
 const domainService = require('../src/services/domainService');
 
 const {
-  selectIPforG, selectGPrimaries, setGStickyState, resetGStickyState, getGStickyIp,
-  monotonicMs,
+  selectGPrimaries, setGStickyState, resetGStickyState, getGStickyIp,
+  monotonicMs, resetNodeReachability,
 } = domainService;
 
 const spec = (name) => ({
@@ -25,12 +25,35 @@ const spec = (name) => ({
  */
 function serveNode({
   running = [], held = [], heldStatus = 200, runningStatus = 200, reset = false,
+  blackhole = false,
 } = {}) {
   const hits = { running: 0, held: 0 };
-  const state = { running, held, reset };
+  const state = {
+    running, held, reset, blackhole, slowMs: 0,
+  };
+  const heldSockets = [];
   const server = http.createServer((req, res) => {
     const isHeld = req.url.startsWith('/apps/heldcomponents');
     hits[isHeld ? 'held' : 'running'] += 1;
+    if (state.slowMs) {
+      // Alive, just loaded. The interesting case is a node slower than the
+      // known-bad budget but well inside the first-contact one.
+      setTimeout(() => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          status: 'success',
+          data: isHeld ? state.held : state.running.map((n) => ({ Names: [`/${n}`] })),
+        }));
+      }, state.slowMs);
+      return;
+    }
+    if (state.blackhole) {
+      // The expensive shape: the connection is ACCEPTED and then nothing is ever
+      // sent. `reset` fails in milliseconds; this one costs the full timeout,
+      // which is what turned one node into a 126s pass.
+      heldSockets.push(req.socket);
+      return;
+    }
     if (state.reset) {
       // Accepts the connection, then vanishes: no status line, so no answer.
       req.socket.destroy();
@@ -50,6 +73,7 @@ function serveNode({
   });
   server.hits = hits;
   server.state = state;
+  server.releaseHeld = () => { while (heldSockets.length) heldSockets.pop().destroy(); };
   return new Promise((resolve) => { server.listen(0, '127.0.0.1', () => resolve(server)); });
 }
 
@@ -61,14 +85,27 @@ describe('g: pass - probing cost and what silence means', () => {
   const node = async (opts) => { const s = await serveNode(opts); servers.push(s); return s; };
 
   afterEach(() => {
-    while (servers.length) servers.pop().close();
+    while (servers.length) {
+      const s = servers.pop();
+      if (s.releaseHeld) s.releaseHeld();
+      s.close();
+    }
     while (names.length) resetGStickyState(names.pop());
+    resetNodeReachability();
   });
   const track = (n) => { names.push(n); return n; };
 
+  // One app, driven through selectGPrimaries - the pass production runs. There is
+  // no single-app entry point any more: there was one, it stopped being called,
+  // and it quietly missed a fix because nothing exercised it.
+  const selectFor = async (ips, name, options) => {
+    const chosen = await selectGPrimaries([spec(name)], new Map([[name, ips]]), options);
+    return chosen.get(name);
+  };
+
   // One attempt: these cases prove ordering and grace behaviour, not the ladder,
   // and the production backoff would add seconds per assertion.
-  const select = (ips, name) => selectIPforG(ips, spec(name), { retries: 1, delayMs: 5 });
+  const select = (ips, name) => selectFor(ips, name, { retries: 1, delayMs: 5 });
 
   // THE COST PROPERTY. A node that answered has settled the question. Re-asking
   // it three seconds later cannot produce a better answer, and on fdm-eu-1-03
@@ -78,7 +115,7 @@ describe('g: pass - probing cost and what silence means', () => {
     const name = track('zizy');
     const idle = await node({ running: [] });
     const started = Date.now();
-    const chosen = await selectIPforG([addr(idle)], spec(name));
+    const chosen = await selectFor([addr(idle)], name);
     expect(chosen).to.equal(null);
     expect(idle.hits.running).to.equal(1);
     // No backoff was paid: three attempts three seconds apart would be >= 6s.
@@ -90,7 +127,7 @@ describe('g: pass - probing cost and what silence means', () => {
   it('retries a node that never replies', async () => {
     const name = track('zizy');
     const silent = await node({ reset: true });
-    await selectIPforG([addr(silent)], spec(name), { retries: 3, delayMs: 5 });
+    await selectFor([addr(silent)], name, { retries: 3, delayMs: 5 });
     expect(silent.hits.running).to.equal(3);
   });
 
@@ -101,7 +138,7 @@ describe('g: pass - probing cost and what silence means', () => {
   it('does not retry a node that answered with a status, even an error one', async () => {
     const name = track('zizy');
     const tooOld = await node({ running: [], heldStatus: 404 });
-    await selectIPforG([addr(tooOld)], spec(name), { retries: 3, delayMs: 5 });
+    await selectFor([addr(tooOld)], name, { retries: 3, delayMs: 5 });
     expect(tooOld.hits.held).to.equal(1);
   });
 
@@ -227,13 +264,13 @@ describe('g: pass - probing cost and what silence means', () => {
 
     // Pass 1: the holder answers, and is recorded as the primary.
     setGStickyState(name, addr(holder), 0);
-    expect(await selectIPforG(ips, spec(name), { retries: 1 })).to.equal(addr(holder));
+    expect(await selectFor(ips, name, { retries: 1 })).to.equal(addr(holder));
 
     // Pass 2: the holder cannot answer. The other node still claims to hold it.
     const holderAddr = addr(holder);
     holder.close();
     servers.splice(servers.indexOf(holder), 1);
-    expect(await selectIPforG(ips, spec(name), { retries: 1, delayMs: 5 })).to.equal(holderAddr);
+    expect(await selectFor(ips, name, { retries: 1, delayMs: 5 })).to.equal(holderAddr);
     expect(getGStickyIp(name)).to.equal(holderAddr);
   });
 
@@ -244,7 +281,101 @@ describe('g: pass - probing cost and what silence means', () => {
     const holder = await node({ running: [], held: [] });
     const other = await node({ running: [], held: [`fluxapp_${name}`] });
     setGStickyState(name, addr(holder), 0);
-    const chosen = await selectIPforG([addr(holder), addr(other)], spec(name), { retries: 1 });
+    const chosen = await selectFor([addr(holder), addr(other)], name, { retries: 1 });
     expect(chosen).to.equal(addr(other));
+  });
+  // ---------------------------------------------------------------------------
+  // The blackhole. A node that ACCEPTS the connection and then says nothing costs
+  // the full timeout on every attempt, and it is the shape that turned one node
+  // into a 126s pass: 3 phases x (12s + 3s + 12s + 3s + 12s) = 126s, against 128.25s
+  // measured on fdm-eu-2-02. Removing the x3 left the 42s. These three close it.
+  //
+  // ---------------------------------------------------------------------------
+
+  // A node that failed a WHOLE ladder has been asked and answered - with silence.
+  // Asking it three more times 25 seconds later cannot produce a better answer,
+  // and on the dev FDM that was paid 24 times in 10 minutes for the same node. It
+  // is still asked ONCE every pass, so a node that recovers is seen within one.
+  it('does not put a node that failed a whole ladder through it again next pass', async function () {
+    this.timeout(60000);
+    const name = track('zizy');
+    const silent = await node({ reset: true });
+    const opts = { retries: 3, delayMs: 5 };
+    await selectFor([addr(silent)], name, opts);
+    const firstPass = silent.hits.running;
+    expect(firstPass).to.equal(3);
+    await selectFor([addr(silent)], name, opts);
+    expect(silent.hits.running - firstPass).to.equal(1);
+  });
+
+  // A node that recovers must not stay written off. It is asked every pass, so the
+  // memo costs it one pass of being a non-candidate, never more.
+  //
+  // This one passes on 32912bb too - there is no memo there to get stuck in. It
+  // pins the property the memo must not break, rather than a regression.
+  it('takes a written-off node back the moment it answers again', async function () {
+    this.timeout(60000);
+    const name = track('zizy');
+    const silent = await node({ reset: true });
+    const opts = { retries: 2, delayMs: 5 };
+    await selectFor([addr(silent)], name, opts);
+    silent.state.reset = false;
+    silent.state.running = [`fluxapp_${name}`];
+    const chosen = await selectFor([addr(silent)], name, opts);
+    expect(chosen).to.equal(addr(silent));
+  });
+
+  // The short budget is a trap of its own if it is the ONLY budget a written-off
+  // node ever gets: a node that answers in 3s - alive, just loaded - would fail a
+  // 2s probe every pass forever, written off on the strength of a timeout chosen
+  // because we already believed it was dead. It gets the full one back periodically.
+  it('gives a written-off node the full timeout again on its recheck, so a slow node can return', async function () {
+    this.timeout(60000);
+    const name = track('zizy');
+    const slow = await node({ blackhole: true, running: [`fluxapp_${name}`] });
+    const opts = {
+      retries: 1, delayMs: 5, timeoutMs: 900, knownBadTimeoutMs: 100,
+    };
+    await selectFor([addr(slow)], name, { ...opts, unreachableRecheckMs: 999999 });
+    // Now it answers - but slower than the known-bad budget allows.
+    slow.state.blackhole = false;
+    slow.state.slowMs = 350;
+    const stillWrittenOff = await selectFor([addr(slow)], name, { ...opts, unreachableRecheckMs: 999999 });
+    expect(stillWrittenOff).to.equal(null);
+    // On the recheck it gets the full budget, and answers inside it.
+    const recovered = await selectFor([addr(slow)], name, { ...opts, unreachableRecheckMs: 0 });
+    expect(recovered).to.equal(addr(slow));
+  });
+
+  // The first contact keeps real headroom - a node that is merely slow must not be
+  // mistaken for one that is gone. A node we ALREADY believe is down does not: that
+  // timeout is paid every pass forever. Measured on the fleet, 306 of 306 primaries
+  // answered inside 608ms, so 2s is still 3x the slowest real answer.
+  it('asks a known-bad node with a short timeout, not the full one', async function () {
+    this.timeout(60000);
+    const name = track('zizy');
+    const silent = await node({ blackhole: true });
+    const opts = {
+      retries: 1, delayMs: 5, timeoutMs: 800, knownBadTimeoutMs: 150,
+    };
+    await selectFor([addr(silent)], name, opts);
+    const started = Date.now();
+    await selectFor([addr(silent)], name, opts);
+    expect(Date.now() - started).to.be.below(600);
+  });
+
+  // Cadence is max(floor, pass duration), and the confirmations a primary gets
+  // before it is moved used to be floor(90000 / cadence). Counting them fixed the
+  // arithmetic; this makes the premise structural. A pass that cannot outrun its
+  // deadline cannot stretch the cadence, whatever the fleet does.
+  it('abandons a pass at its deadline rather than letting one silent node set the cadence', async function () {
+    this.timeout(60000);
+    const name = track('zizy');
+    const silent = await node({ blackhole: true });
+    const started = Date.now();
+    await selectFor([addr(silent)], name, {
+      retries: 3, delayMs: 100, timeoutMs: 5000, deadlineMs: 700,
+    });
+    expect(Date.now() - started).to.be.below(1500);
   });
 });

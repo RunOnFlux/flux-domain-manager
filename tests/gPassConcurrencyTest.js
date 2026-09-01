@@ -4,6 +4,7 @@ const http = require('http');
 
 const { expect } = chai;
 const domainService = require('../src/services/domainService');
+const log = require('../src/lib/log');
 
 const {
   selectGPrimaries, setGStickyState, resetGStickyState, getGStickyIp,
@@ -323,6 +324,43 @@ describe('g: pass - probing cost and what silence means', () => {
     silent.state.running = [`fluxapp_${name}`];
     const chosen = await selectFor([addr(silent)], name, opts);
     expect(chosen).to.equal(addr(silent));
+  });
+
+  // A node that is down stays down for thousands of passes. Saying so on each one
+  // would bury the moment it changed, which is the only part anybody reads back -
+  // and the retry line has to name the node, or a count cannot tell you whether
+  // one node is failing every pass or a different one each time.
+  it('logs the write-off once on the transition, not on every pass', async function () {
+    this.timeout(60000);
+    const name = track('zizy');
+    const silent = await node({ reset: true });
+    const warns = [];
+    const infos = [];
+    const realWarn = log.warn;
+    const realInfo = log.info;
+    log.warn = (m) => { warns.push(String(m)); };
+    log.info = (m) => { infos.push(String(m)); };
+    try {
+      const opts = { retries: 2, delayMs: 5 };
+      await selectFor([addr(silent)], name, opts);
+      await selectFor([addr(silent)], name, opts);
+      await selectFor([addr(silent)], name, opts);
+      const writtenOff = warns.filter((m) => m.includes('written off'));
+      expect(writtenOff).to.have.lengthOf(1);
+      expect(writtenOff[0]).to.contain(addr(silent));
+      // And the retry line names who it is waiting on.
+      const retries = infos.filter((m) => m.includes('could not be read'));
+      expect(retries.length).to.be.above(0);
+      expect(retries[0]).to.contain(addr(silent));
+      // Recovery closes the pair, in the same file.
+      silent.state.reset = false;
+      silent.state.running = [`fluxapp_${name}`];
+      await selectFor([addr(silent)], name, opts);
+      expect(warns.filter((m) => m.includes('answering again'))).to.have.lengthOf(1);
+    } finally {
+      log.warn = realWarn;
+      log.info = realInfo;
+    }
   });
 
   // The short budget is a trap of its own if it is the ONLY budget a written-off

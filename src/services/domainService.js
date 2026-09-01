@@ -345,15 +345,33 @@ function passDeadline(options = {}) {
   return monotonicMs() + deadlineMs;
 }
 
-/** A node answered, so it is no longer written off. */
+/**
+ * A node answered, so it is no longer written off.
+ *
+ * The transitions are logged at WARN because warn.log is the only one of these
+ * files that keeps more than a few minutes of history - info.log self-truncates,
+ * debug.log holds under three. Both ends of the pair go there so a node's health
+ * can be reconstructed after the fact, which is the whole point of recording it.
+ */
 function noteReachable(ip) {
-  unreachableNodes.delete(ip);
+  if (unreachableNodes.delete(ip)) {
+    log.warn(`G pass: ${ip} is answering again, no longer written off`);
+  }
 }
 
-/** A node gave nothing at all. Remember it, so the next pass asks once, briefly. */
+/**
+ * A node gave nothing at all. Remember it, so the next pass asks once, briefly.
+ *
+ * Logged only on the TRANSITION. A node that is down stays down for thousands of
+ * passes, and saying so every 25s would bury the moment it changed - which is the
+ * only part anybody reads back.
+ */
 function noteUnreachable(ip, gotFullTimeout) {
   const now = monotonicMs();
   const prior = unreachableNodes.get(ip);
+  if (!prior) {
+    log.warn(`G pass: ${ip} written off after a full ladder - asked once per pass from here until it answers`);
+  }
   unreachableNodes.set(ip, {
     failedAt: now,
     lastFullAt: gotFullTimeout ? now : (prior && prior.lastFullAt) || 0,
@@ -441,7 +459,12 @@ async function buildNodeSnapshot(ips, fetcher, options = {}, into = null) {
     const remaining = deadlineAt - monotonicMs();
     if (remaining <= 0) break;
     if (attempt > 1) {
-      log.info(`G pass: ${pending.length} node(s) could not be read, retry ${attempt}/${retries}`);
+      // Named, not just counted. The count alone cannot tell you whether the
+      // same node is failing every pass or a different one each time, and it
+      // leaves nothing to go and check by hand.
+      const named = pending.slice(0, 5).join(', ');
+      const andMore = pending.length > 5 ? ` (+${pending.length - 5} more)` : '';
+      log.info(`G pass: ${pending.length} node(s) could not be read, retry ${attempt}/${retries}: ${named}${andMore}`);
       // eslint-disable-next-line no-await-in-loop
       await serviceHelper.timeout(Math.min(delayMs, deadlineAt - monotonicMs()));
       if (monotonicMs() >= deadlineAt) break;

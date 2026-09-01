@@ -506,6 +506,8 @@ function createAppsHaproxyConfig(appConfig) {
   acls += '  acl forbiddenacl hdr_end(host) .acessobonus.com\n';
   acls += '  acl forbiddenacl hdr(host) seuaplicativoweb.top\n';
   acls += '  acl forbiddenacl hdr_end(host) .seuaplicativoweb.top\n';
+  acls += '  acl forbiddenacl hdr(host) resgatevantagem.com\n';
+  acls += '  acl forbiddenacl hdr_end(host) .resgatevantagem.com\n';
   acls += '  acl forbiddenacl path_beg -i /product/litty-cat-thc-bars-1000mg\n';
   usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
   const domains = [];

@@ -526,6 +526,79 @@ async function selectIPforG(ips, app, options = {}) {
   return decideHeldPrimary(app, ips, heldSnapshot);
 }
 
+/**
+ * How an app's instances are ordered inside its haproxy backend.
+ *
+ * For most apps this is cosmetic - haproxy spreads traffic over every server -
+ * but it must still be STABLE, because the whole config is rebuilt each pass and
+ * a single differing byte triggers `service haproxy reload`. It was not stable:
+ * the order came straight from api.runonflux.io/apps/locations, which returns
+ * the same instances in a different order from one call to the next. Measured on
+ * fdm-eu-1-03: 64 reloads in 11 minutes, 63 passes reporting "changes detected"
+ * and not one reporting none, with consecutive configs differing by 998 and 842
+ * lines that were the same servers in a new order.
+ *
+ * For an isRdata app it is NOT cosmetic. haproxy marks every server after the
+ * first as `backup` (haproxyTemplate.js), so position zero is the only live one -
+ * the write target of a replicated app.
+ *
+ * @param {string[]} ips bare `ip:port` strings
+ * @param {Object[]} appLocations the location records they came from
+ * @returns {string[]} the same ips, ordered oldest instance first
+ */
+function orderBySeniority(ips, appLocations) {
+  const runningSince = new Map(
+    (appLocations || []).map((loc) => [loc.ip, loc.runningSince || '']),
+  );
+  // runningSince is ISO-8601, which sorts correctly as text. An instance that
+  // never reported one sorts LAST: for a replicated app position zero takes the
+  // writes, and "no idea how long this has been up" is the weakest claim on it,
+  // not the strongest. No record on the fleet is currently missing the field.
+  return [...ips].sort((a, b) => {
+    const sa = runningSince.get(a) || '';
+    const sb = runningSince.get(b) || '';
+    if (sa !== sb) {
+      if (!sa) return 1;
+      if (!sb) return -1;
+      return sa < sb ? -1 : 1;
+    }
+    if (a === b) return 0;
+    return a < b ? -1 : 1;
+  });
+}
+
+/**
+ * The order the sharedDB cluster itself puts its members in.
+ *
+ * Authoritative, and it works: clusterStatus[0] is the operator's elected master
+ * and each entry's `ip` is `ip:port`, the same shape as appIps. Verified against
+ * production - the live backend of every sharedDB app on all four FDMs matches
+ * that app's reported masterIP. Nothing here should second-guess it; a timestamp
+ * heuristic pointing writes at a node the database does not consider master is
+ * worse than any ordering problem it would solve.
+ *
+ * What it does correct is the miss. indexOf returns -1 for an instance the
+ * cluster does not list - deployed, but not joined yet - and -1 sorts AHEAD of
+ * index 0, which would put a node that is not in the cluster in front of the
+ * master and hand it the writes. Unlisted members sort last, in seniority order
+ * among themselves.
+ *
+ * @param {string[]} ips bare `ip:port` strings
+ * @param {string[]} clusterOrder `ip:port` strings, master first
+ * @param {Object[]} appLocations the location records, for the tiebreak
+ * @returns {string[]} ips in cluster order, non-members last
+ */
+function orderByCluster(ips, clusterOrder, appLocations) {
+  const rank = (ip) => {
+    const i = clusterOrder.indexOf(ip);
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  const senior = orderBySeniority(ips, appLocations);
+  return [...ips].sort(
+    (a, b) => rank(a) - rank(b) || senior.indexOf(a) - senior.indexOf(b),
+  );
+}
+
 let appIpsOnAppsChecks = [];
 async function addAppIps(app, ip) {
   const isCheckOK = await applicationChecks.checkApplication(app, ip);
@@ -991,7 +1064,10 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         ) {
           // app using sharedDB project
           app.isRdata = true;
-          appIps = appLocations.map((location) => location.ip);
+          // Ordered before the cluster has its say, so the fallbacks below start
+          // from a fixed order rather than from whatever the locations API
+          // happened to return this time.
+          appIps = orderBySeniority(appLocations.map((location) => location.ip), appLocations);
           const componentUsingSharedDB = app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
           log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
           if (
@@ -1027,33 +1103,22 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
               }
             }
             if (operatorClusterStatus) {
-              appIps.sort(
-                (a, b) => operatorClusterStatus.indexOf(a)
-                  - operatorClusterStatus.indexOf(b),
-              );
+              appIps = orderByCluster(appIps, operatorClusterStatus, appLocations);
               log.info(`Application ${app.name} was setup as a sharedDBApps`);
             } else {
-              appIps.sort((a, b) => {
-                if (!a.runningSince && b.runningSince) {
-                  return -1;
-                }
-                if (a.runningSince && !b.runningSince) {
-                  return 1;
-                }
-                if (a.runningSince < b.runningSince) {
-                  return -1;
-                }
-                if (a.runningSince > b.runningSince) {
-                  return 1;
-                }
-                if (a.ip < b.ip) {
-                  return -1;
-                }
-                if (a.ip > b.ip) {
-                  return 1;
-                }
-                return 0;
-              });
+              // No operator could be reached, so the cluster cannot say who its
+              // master is and this has to choose one. Oldest instance first: for
+              // a replicated app it is the one most likely to hold the complete
+              // data, and it is the same key FluxOS's own g: master election
+              // uses (compareInstanceSeniority, runningSince ascending).
+              //
+              // This is a degraded path that has never actually ordered anything.
+              // It compared `a.runningSince` and `a.ip` on elements that are bare
+              // `ip:port` STRINGS - every field undefined, every comparison 0, a
+              // stable sort left the arbitrary input order untouched. So when the
+              // cluster was unreachable the write target was whatever the
+              // locations API listed first that second.
+              appIps = orderBySeniority(appIps, appLocations);
             }
             // lets remove db and operator from haproxy
             const componentUsingSharedDBIndex = app.compose.findIndex((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'));
@@ -1069,31 +1134,18 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             || (app.compose
               && app.compose.find((comp) => comp.containerData.includes('r:')))
           ) {
+            // Same defect as the fallback above, and the same fix.
             app.isRdata = true;
-            appIps.sort((a, b) => {
-              if (!a.runningSince && b.runningSince) {
-                return -1;
-              }
-              if (a.runningSince && !b.runningSince) {
-                return 1;
-              }
-              if (a.runningSince < b.runningSince) {
-                return -1;
-              }
-              if (a.runningSince > b.runningSince) {
-                return 1;
-              }
-              if (a.ip < b.ip) {
-                return -1;
-              }
-              if (a.ip > b.ip) {
-                return 1;
-              }
-              return 0;
-            });
+            appIps = orderBySeniority(appIps, appLocations);
           }
         } else {
-          appIps = appLocations.map((location) => location.ip);
+          // The branch most apps take. Order carries no meaning here - haproxy
+          // spreads traffic over every server - but it has to be FIXED, because
+          // the locations API returns the same instances in a different order
+          // each call and the config is byte-compared to decide whether to
+          // reload haproxy. Sorting by address is what the checked branch above
+          // already does; this one simply never did it.
+          appIps = serviceHelper.sortIPAddresses(appLocations.map((location) => location.ip));
         }
         if (app.name === 'explorer') {
           log.info(appIps);
@@ -1538,6 +1590,8 @@ module.exports = {
   getConfiguredApps,
   selectIPforG,
   selectGPrimaries,
+  orderBySeniority,
+  orderByCluster,
   getGStickyIp,
   setGStickyState,
   resetGStickyState,

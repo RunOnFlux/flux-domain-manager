@@ -949,6 +949,109 @@ function getGComponentDockerNames(appSpec) {
 }
 
 /**
+ * What a node was able to tell us about a component.
+ *
+ * The distinction this carries is the whole point. A node that answers with its
+ * container list has settled the question: the component is there or it is not.
+ * A node that times out, refuses the connection or returns a body we cannot read
+ * has settled nothing. Collapsing those into one `false` is what made
+ * checkAppRunningWithRetries back off for six seconds after a node replied in
+ * eighty milliseconds that it is not running the app - measured on fdm-eu-1-03 as
+ * 390s of a 479s pass - and it is the same collapse that leaves the held check
+ * unable to tell "not holding it" from "could not ask".
+ *
+ * Deliberately the same three names, with the same values, as FluxOS's
+ * PeerComponent (appLifecycle/advancedWorkflows.js): both sides are answering the
+ * same question about the same component, and a shared vocabulary is what stops
+ * the two drifting into disagreeing about what silence means.
+ */
+const ProbeState = Object.freeze({
+  RUNNING: 'running',
+  NOT_RUNNING: 'notRunning',
+  UNKNOWN: 'unknown',
+});
+
+const PROBE_TIMEOUT_MS = 12000;
+
+/**
+ * One node's container names, fetched once.
+ *
+ * Split out from the per-app decision so a pass can ask each node what it runs a
+ * single time and answer every app from that. The old shape asked once per
+ * (app, candidate) pair, which re-asked the same node the same question for
+ * every app it happened to be a candidate for.
+ *
+ * @param {string} url node ip, optionally with api port
+ * @param {string} route endpoint path
+ * @returns {Promise<{ok: boolean, names: Set<string>}>} ok false means the node
+ *   could not be read at all - never that it holds or runs nothing.
+ */
+async function fetchNodeNames(url, route) {
+  const { CancelToken } = axios;
+  const source = CancelToken.source();
+  let isResolved = false;
+  // Backstop for a socket that stalls after the headers, which axios' own
+  // timeout does not cover. Cleared on settle so a pass does not leave one
+  // live timer per probe behind it.
+  const backstop = setTimeout(() => {
+    if (!isResolved) source.cancel('Operation canceled by timeout.');
+  }, PROBE_TIMEOUT_MS * 2);
+  try {
+    const ip = url.split(':')[0];
+    const port = url.split(':')[1] || 16127;
+    const response = await axios.get(`http://${ip}:${port}${route}`, { timeout: PROBE_TIMEOUT_MS, cancelToken: source.token });
+    isResolved = true;
+    const payload = response.data && response.data.data;
+    if (!Array.isArray(payload)) return { ok: false, names: new Set() };
+    // listrunningapps yields container objects, heldcomponents bare strings.
+    const names = new Set(
+      payload
+        .map((entry) => (typeof entry === 'string' ? entry : entry?.Names?.[0]))
+        .filter((raw) => typeof raw === 'string')
+        .map((raw) => raw.replace(/^\//, '')),
+    );
+    return { ok: true, names };
+  } catch (error) {
+    return { ok: false, names: new Set() };
+  } finally {
+    clearTimeout(backstop);
+  }
+}
+
+/**
+ * Everything one node is running, as bare container names.
+ * @param {string} url node ip, optionally with api port
+ * @returns {Promise<{ok: boolean, names: Set<string>}>}
+ */
+function fetchRunningNames(url) {
+  return fetchNodeNames(url, '/apps/listrunningapps');
+}
+
+/**
+ * Everything one node reports HOLDING, as bare container names.
+ * A node too old for the route answers 404, which is `ok: false` - it cannot say.
+ * @param {string} url node ip, optionally with api port
+ * @returns {Promise<{ok: boolean, names: Set<string>}>}
+ */
+function fetchHeldNames(url) {
+  return fetchNodeNames(url, '/apps/heldcomponents');
+}
+
+/**
+ * Read a fetched name set as a verdict about one app's g: components.
+ * @param {{ok: boolean, names: Set<string>}} fetched
+ * @param {Object} appSpec full application specification
+ * @returns {string} a ProbeState
+ */
+function stateFromNames(fetched, appSpec) {
+  if (!fetched.ok) return ProbeState.UNKNOWN;
+  const expectedNames = getGComponentDockerNames(appSpec);
+  if (!expectedNames.length) return ProbeState.NOT_RUNNING;
+  const hit = expectedNames.some((name) => fetched.names.has(name.replace(/^\//, '')));
+  return hit ? ProbeState.RUNNING : ProbeState.NOT_RUNNING;
+}
+
+/**
  * Whether a node is the elected master of a g: application.
  * Only the master runs g: components, so any one of them running identifies it.
  * A master whose other components have stopped is still the master, and still
@@ -958,36 +1061,18 @@ function getGComponentDockerNames(appSpec) {
  * @param {Object} appSpec full application specification
  * @returns {Promise<boolean>} true if any g: component is running there
  */
-async function checkAppRunning(url, appSpec) {
-  try {
-    const expectedNames = getGComponentDockerNames(appSpec);
-    if (!expectedNames.length) {
-      // Only reachable if a non-g: app got routed down the g: path. Passing here
-      // would green-light every node, so refuse instead of guessing.
-      log.warn(`checkAppRunning: app ${appSpec.name} has no g: component, cannot identify a master`);
-      return false;
-    }
-
-    const { CancelToken } = axios;
-    const source = CancelToken.source();
-    let isResolved = false;
-    const checkAppRunningTimeout = 12000;
-    setTimeout(() => {
-      if (!isResolved) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, checkAppRunningTimeout * 2);
-
-    const ip = url.split(':')[0];
-    const port = url.split(':')[1] || 16127;
-    const response = await axios.get(`http://${ip}:${port}/apps/listrunningapps`, { timeout: checkAppRunningTimeout, cancelToken: source.token });
-    isResolved = true;
-    const appsRunning = response.data.data;
-    const runningNames = appsRunning.map((app) => app.Names[0]);
-    return expectedNames.some((name) => runningNames.includes(name));
-  } catch (error) {
-    return false;
+async function checkAppRunningState(url, appSpec) {
+  if (!getGComponentDockerNames(appSpec).length) {
+    // Only reachable if a non-g: app got routed down the g: path. Passing here
+    // would green-light every node, so refuse instead of guessing.
+    log.warn(`checkAppRunning: app ${appSpec.name} has no g: component, cannot identify a master`);
+    return ProbeState.NOT_RUNNING;
   }
+  return stateFromNames(await fetchRunningNames(url), appSpec);
+}
+
+async function checkAppRunning(url, appSpec) {
+  return (await checkAppRunningState(url, appSpec)) === ProbeState.RUNNING;
 }
 
 /**
@@ -1014,25 +1099,13 @@ async function checkAppRunning(url, appSpec) {
  * @param {Object} appSpec full application specification
  * @returns {Promise<boolean>} true only if the node states it holds a g: component
  */
+async function checkAppHeldState(url, appSpec) {
+  if (!getGComponentDockerNames(appSpec).length) return ProbeState.NOT_RUNNING;
+  return stateFromNames(await fetchHeldNames(url), appSpec);
+}
+
 async function checkAppHeld(url, appSpec) {
-  try {
-    const expectedNames = getGComponentDockerNames(appSpec);
-    if (!expectedNames.length) return false;
-
-    const checkAppHeldTimeout = 12000;
-    const ip = url.split(':')[0];
-    const port = url.split(':')[1] || 16127;
-    const response = await axios.get(`http://${ip}:${port}/apps/heldcomponents`, { timeout: checkAppHeldTimeout });
-    const held = response.data && response.data.data;
-    if (!Array.isArray(held)) return false;
-
-    // getGComponentDockerNames returns docker's own names, which carry a leading
-    // slash; heldcomponents strips it. Compare on the bare identifier.
-    const heldSet = new Set(held);
-    return expectedNames.some((name) => heldSet.has(name.replace(/^\//, '')));
-  } catch (error) {
-    return false;
-  }
+  return (await checkAppHeldState(url, appSpec)) === ProbeState.RUNNING;
 }
 
 function applicationWithChecks(app) {
@@ -1149,6 +1222,12 @@ module.exports = {
   checkEthers,
   checkAppRunning,
   checkAppHeld,
+  checkAppRunningState,
+  checkAppHeldState,
+  fetchRunningNames,
+  fetchHeldNames,
+  stateFromNames,
+  ProbeState,
   getGComponentDockerNames,
   checkALPHexplorer,
   checkErgoHeight,

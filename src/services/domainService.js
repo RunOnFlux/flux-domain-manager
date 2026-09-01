@@ -26,9 +26,33 @@ let myFDMnameORip = null;
 let unifiedAppsDomains = [];
 const mapOfNamesIps = {};
 const mapOfNamesIpsLastHealthy = {}; // timestamp of last successful health check per app
+const mapOfNamesIpsLastHeld = {}; // timestamp of the last confirmed HELD answer per app
 const G_APP_HEALTH_RETRY_COUNT = 3;
 const G_APP_HEALTH_RETRY_DELAY_MS = 3000;
 const G_APP_UNHEALTHY_THRESHOLD_MS = 90 * 1000; // 90 seconds before switching away from sticky IP
+// How many node probes may be in flight at once during a G pass.
+//
+// The probes are independent reads of different nodes, so the only thing this
+// bounds is our own socket use. Measured on fdm-eu-1-03: 336 g: apps, one
+// snapshot probe each, median 0.21s - so 32 in flight turns a pass that walked
+// them one at a time into roughly one round trip's worth of wall clock.
+const G_PASS_CONCURRENCY = 32;
+// The shortest useful gap between two G passes.
+//
+// A pass asks each node what it is running, and FluxOS serves that from a 15s
+// cache (ZelBack routes.js: `cache('15 seconds')`). Two passes closer together
+// than that read byte-identical answers, so the second one is load on the fleet
+// that cannot tell us anything the first did not.
+//
+// Not a made-up number, and not one the cadence gives us for free: the pass is
+// driven by the appsLocations poll, whose interval is whatever `Cache-Control:
+// max-age` the upstream API returns, defaulting to 30s only when the header is
+// absent (flux/dataFetcher.js). That header is not ours, and the non-G pass is
+// currently cycling on roughly 10s of it. While a pass took eight minutes none
+// of this could matter; at a few seconds it can, so the floor is stated here
+// instead of being an accident of someone else's cache policy.
+const G_PASS_MIN_INTERVAL_MS = 15 * 1000;
+let lastGPassStartedAt = 0;
 let recentlyConfiguredApps = [];
 let recentlyConfiguredGApps = [];
 let nonGAppsInitialized = false;
@@ -250,106 +274,256 @@ function selectLowestDigitSumIp(ips) {
   return chosenIp;
 }
 
-async function checkAppRunningWithRetries(ip, app, retries = G_APP_HEALTH_RETRY_COUNT) {
-  for (let attempt = 1; attempt <= retries; attempt += 1) {
-    // eslint-disable-next-line no-await-in-loop
-    const isOk = await applicationChecks.checkAppRunning(ip, app);
-    if (isOk) {
-      return true;
-    }
-    if (attempt < retries) {
-      log.info(`G App ${app.name} health check attempt ${attempt}/${retries} failed for ${ip}, retrying...`);
+/**
+ * Ask every node once what it is running, retrying only the ones that could not
+ * answer.
+ *
+ * Two things move here, and they are the pass's whole cost.
+ *
+ * The unit of work is a NODE, not an (app, candidate) pair. The old shape asked
+ * a node "are you running app X" once for every app X it was a candidate for,
+ * which is the same HTTP call repeated with a different question in mind. One
+ * fetch answers all of them, and FluxOS already serves that route from a 15s
+ * cache, so a per-pass snapshot is no staler than what it would have returned
+ * anyway. It also makes the pass COHERENT: a 479s pass decided its first app
+ * from a fleet eight minutes older than its last.
+ *
+ * The retry ladder waits only on UNKNOWN. A node that answered has settled the
+ * question - re-asking three seconds later cannot produce a better answer, and
+ * the next pass asks again anyway. Backing off on a definitive negative is what
+ * made the production pass what it was: on fdm-eu-1-03, 65 candidate nodes each
+ * replied in under a second that they were not running the component, and each
+ * cost six seconds of sleep - 390s of a 479s pass. The ladder now costs
+ * (retries - 1) x delay for the WHOLE pass rather than per node, and only when
+ * something is genuinely unreachable.
+ *
+ * @param {string[]} ips node addresses, duplicates tolerated
+ * @param {Function} fetcher applicationChecks.fetchRunningNames or fetchHeldNames
+ * @param {Object} [options]
+ * @returns {Promise<Map<string, {ok: boolean, names: Set<string>}>>}
+ */
+async function buildNodeSnapshot(ips, fetcher, options = {}) {
+  const {
+    retries = G_APP_HEALTH_RETRY_COUNT,
+    delayMs = G_APP_HEALTH_RETRY_DELAY_MS,
+    concurrency = G_PASS_CONCURRENCY,
+  } = options;
+
+  const snapshot = new Map();
+  let pending = [...new Set(ips)];
+
+  for (let attempt = 1; attempt <= retries && pending.length; attempt += 1) {
+    if (attempt > 1) {
+      log.info(`G pass: ${pending.length} node(s) could not be read, retry ${attempt}/${retries}`);
       // eslint-disable-next-line no-await-in-loop
-      await serviceHelper.timeout(G_APP_HEALTH_RETRY_DELAY_MS);
+      await serviceHelper.timeout(delayMs);
+    }
+    const targets = pending;
+    // eslint-disable-next-line no-await-in-loop
+    const settled = await serviceHelper.runWithConcurrency(
+      targets.map((ip) => () => fetcher(ip)),
+      concurrency,
+    );
+    pending = [];
+    for (let i = 0; i < targets.length; i += 1) {
+      const result = settled[i];
+      const value = result && result.status === 'fulfilled' ? result.value : null;
+      if (value && value.ok) snapshot.set(targets[i], value);
+      else pending.push(targets[i]);
     }
   }
-  return false;
+  // Everything still pending is unreadable, and must say so rather than pass for
+  // a node that is simply running nothing.
+  for (const ip of pending) snapshot.set(ip, { ok: false, names: new Set() });
+  return snapshot;
 }
 
-async function selectIPforG(ips, app, { retries = G_APP_HEALTH_RETRY_COUNT } = {}) {
-  // choose the ip address whose sum of digits is the lowest
-  if (ips && ips.length) {
-    const lowestDigitSumIp = selectLowestDigitSumIp(ips);
+/**
+ * The candidate order the selection walks: lowest digit sum first, sticky removed
+ * because it has already had its turn.
+ */
+function orderedCandidates(ips, stickyIp) {
+  const lowestDigitSumIp = selectLowestDigitSumIp(ips);
+  const candidates = stickyIp ? ips.filter((ip) => ip !== stickyIp) : [...ips];
+  candidates.sort((a, b) => {
+    if (a === lowestDigitSumIp) return -1;
+    if (b === lowestDigitSumIp) return 1;
+    return 0;
+  });
+  return candidates;
+}
 
-    // Use sticky IP if it's still in the location list
-    const stickyIp = mapOfNamesIps[app.name];
-    if (stickyIp && ips.includes(stickyIp)) {
-      // Sticky IP still exists in locations - health check it with retries
-      const isOk = await checkAppRunningWithRetries(stickyIp, app, retries);
-      if (isOk) {
-        mapOfNamesIpsLastHealthy[app.name] = Date.now();
-        return stickyIp;
-      }
-      // Sticky IP failed all retries - check if we should still keep it
-      // based on how recently it was last seen healthy
-      const lastHealthy = mapOfNamesIpsLastHealthy[app.name] || 0;
-      const timeSinceHealthy = Date.now() - lastHealthy;
-      if (lastHealthy > 0 && timeSinceHealthy < G_APP_UNHEALTHY_THRESHOLD_MS) {
-        log.warn(
-          `G App ${app.name} sticky IP ${stickyIp} failed health check but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
-        );
-        return stickyIp;
-      }
+function probeState(snapshot, ip, app) {
+  return applicationChecks.stateFromNames(
+    snapshot.get(ip) || { ok: false, names: new Set() },
+    app,
+  );
+}
+
+/**
+ * Who is RUNNING this app, decided from a snapshot. No I/O, so the pass and the
+ * single-app path reach the same verdict by the same rules rather than by two
+ * copies of them.
+ * @returns {string|null} the chosen ip, or null if nobody is running it
+ */
+function decideRunningPrimary(app, ips, snapshot) {
+  const stickyIp = mapOfNamesIps[app.name];
+
+  if (stickyIp && ips.includes(stickyIp)) {
+    if (probeState(snapshot, stickyIp, app) === applicationChecks.ProbeState.RUNNING) {
+      mapOfNamesIpsLastHealthy[app.name] = Date.now();
+      return stickyIp;
+    }
+    // Failed the check - keep it anyway if it was healthy recently enough.
+    const lastHealthy = mapOfNamesIpsLastHealthy[app.name] || 0;
+    const timeSinceHealthy = Date.now() - lastHealthy;
+    if (lastHealthy > 0 && timeSinceHealthy < G_APP_UNHEALTHY_THRESHOLD_MS) {
       log.warn(
-        `G App ${app.name} sticky IP ${stickyIp} failed health check for >${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s, selecting new IP`,
+        `G App ${app.name} sticky IP ${stickyIp} failed health check but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
       );
+      return stickyIp;
     }
+    log.warn(
+      `G App ${app.name} sticky IP ${stickyIp} failed health check for >${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s, selecting new IP`,
+    );
+  }
 
-    // No valid sticky IP - select from available IPs starting with lowest digit sum
-    // Sort candidates: lowest digit sum first for deterministic fallback order
-    const candidates = stickyIp
-      ? ips.filter((ip) => ip !== stickyIp)
-      : [...ips];
-    // Put lowest digit sum IP first, then the rest
-    candidates.sort((a, b) => {
-      if (a === lowestDigitSumIp) return -1;
-      if (b === lowestDigitSumIp) return 1;
-      return 0;
-    });
-
-    for (const candidate of candidates) {
-      // eslint-disable-next-line no-await-in-loop
-      const isOk = await checkAppRunningWithRetries(candidate, app, retries);
-      if (isOk) {
-        mapOfNamesIps[app.name] = candidate;
-        mapOfNamesIpsLastHealthy[app.name] = Date.now();
-        return candidate;
-      }
-    }
-
-    // Nothing is running this app anywhere. Before dropping it out of FDM
-    // entirely, ask whether a node is deliberately HOLDING it - an owner who
-    // stopped their master to work on its files has not given up the primary
-    // role, and the node still owns the writable copy of the volume.
-    //
-    // Un-naming it here is how a stop/start cycle moves the primary: the app
-    // leaves FDM, the election loses the record of who the primary was, and on
-    // restart the selection above runs from scratch and can land on a different
-    // node's copy of the data. `pause` never had this problem, because a paused
-    // container still looked like a running one and the master was never
-    // un-named. This is what replaces it.
-    //
-    // Deliberately AFTER the running checks, never before: a node that is
-    // actually serving the app always outranks one that is merely holding it.
-    // Only reached when the alternative is returning null.
-    const heldOrder = stickyIp && ips.includes(stickyIp)
-      ? [stickyIp, ...candidates.filter((ip) => ip !== stickyIp)]
-      : candidates;
-    for (const candidate of heldOrder) {
-      // eslint-disable-next-line no-await-in-loop
-      const isHeld = await applicationChecks.checkAppHeld(candidate, app);
-      if (isHeld) {
-        // The sticky is preserved rather than re-derived, so an FDM restart
-        // during a stop cannot silently promote a different instance.
-        mapOfNamesIps[app.name] = candidate;
-        log.info(
-          `G App ${app.name} is not running anywhere, but ${candidate} reports holding it (operator-stopped) - keeping it as primary`,
-        );
-        return candidate;
-      }
+  for (const candidate of orderedCandidates(ips, stickyIp)) {
+    if (probeState(snapshot, candidate, app) === applicationChecks.ProbeState.RUNNING) {
+      mapOfNamesIps[app.name] = candidate;
+      mapOfNamesIpsLastHealthy[app.name] = Date.now();
+      return candidate;
     }
   }
   return null;
+}
+
+/**
+ * Nothing is running this app anywhere. Before dropping it out of FDM entirely,
+ * ask whether a node is deliberately HOLDING it - an owner who stopped their
+ * master to work on its files has not given up the primary role, and the node
+ * still owns the writable copy of the volume.
+ *
+ * Un-naming it here is how a stop/start cycle moves the primary: the app leaves
+ * FDM, the election loses the record of who the primary was, and on restart the
+ * selection above runs from scratch and can land on a different node's copy of
+ * the data. `pause` never had this problem, because a paused container still
+ * looked like a running one and the master was never un-named.
+ *
+ * Deliberately AFTER the running checks, never before: a node that is actually
+ * serving the app always outranks one that is merely holding it.
+ *
+ * The incumbent is judged FIRST and ALONE. A node that could not answer has not
+ * said it stopped holding, and walking on to the next holder on that silence is
+ * how one dropped packet moves a domain. The incumbent is released by an explicit
+ * "not holding" from itself, by leaving the location list, or by the same 90s the
+ * running path already allows before it gives up on a sticky - never by a single
+ * unanswered probe. That matters because the operator-stop lock is durable: a
+ * node carrying a stale one answers HELD indefinitely, and is also the node
+ * FluxOS's election will never pick, so handing it the domain points the app at
+ * an instance that is not coming back.
+ *
+ * @returns {string|null} the chosen ip, or null if nobody holds it
+ */
+function decideHeldPrimary(app, ips, snapshot) {
+  const stickyIp = mapOfNamesIps[app.name];
+  const { ProbeState } = applicationChecks;
+
+  if (stickyIp && ips.includes(stickyIp)) {
+    const state = probeState(snapshot, stickyIp, app);
+    if (state === ProbeState.RUNNING) {
+      mapOfNamesIpsLastHeld[app.name] = Date.now();
+      log.info(
+        `G App ${app.name} is not running anywhere, but ${stickyIp} reports holding it (operator-stopped) - keeping it as primary`,
+      );
+      return stickyIp;
+    }
+    if (state === ProbeState.UNKNOWN) {
+      const lastHeld = mapOfNamesIpsLastHeld[app.name] || 0;
+      const sinceHeld = Date.now() - lastHeld;
+      if (lastHeld > 0 && sinceHeld < G_APP_UNHEALTHY_THRESHOLD_MS) {
+        log.warn(
+          `G App ${app.name} holder ${stickyIp} could not say what it holds, but confirmed holding ${Math.round(sinceHeld / 1000)}s ago - keeping it as primary`,
+        );
+        return stickyIp;
+      }
+    }
+  }
+
+  for (const candidate of orderedCandidates(ips, stickyIp)) {
+    if (probeState(snapshot, candidate, app) === ProbeState.RUNNING) {
+      // The sticky is preserved rather than re-derived, so an FDM restart during
+      // a stop cannot silently promote a different instance.
+      mapOfNamesIps[app.name] = candidate;
+      mapOfNamesIpsLastHeld[app.name] = Date.now();
+      log.info(
+        `G App ${app.name} is not running anywhere, but ${candidate} reports holding it (operator-stopped) - keeping it as primary`,
+      );
+      return candidate;
+    }
+  }
+  return null;
+}
+
+/**
+ * Pick the primary for every g: app in one pass.
+ *
+ * Two snapshots and two pure decisions. The held snapshot covers only the apps
+ * nothing is running - 28 of 336 on fdm-eu-1-03 - so the endpoint most of a
+ * mixed-version fleet cannot serve yet is asked about almost nowhere.
+ *
+ * @param {Object[]} apps g: application specifications
+ * @param {Map<string, Array>} locations app name -> location records, or bare ips
+ * @param {Object} [options]
+ * @returns {Promise<Map<string, string|null>>} app name -> chosen ip
+ */
+async function selectGPrimaries(apps, locations, options = {}) {
+  const ipsFor = (app) => (locations.get(app.name) || [])
+    .map((loc) => (typeof loc === 'string' ? loc : loc.ip))
+    .filter(Boolean);
+
+  const withIps = apps.map((app) => ({ app, ips: ipsFor(app) })).filter((e) => e.ips.length);
+
+  const runningSnapshot = await buildNodeSnapshot(
+    withIps.flatMap((e) => e.ips),
+    applicationChecks.fetchRunningNames,
+    options,
+  );
+
+  const chosen = new Map();
+  const unresolved = [];
+  for (const { app, ips } of withIps) {
+    const ip = decideRunningPrimary(app, ips, runningSnapshot);
+    if (ip) chosen.set(app.name, ip);
+    else unresolved.push({ app, ips });
+  }
+
+  if (unresolved.length) {
+    const heldSnapshot = await buildNodeSnapshot(
+      unresolved.flatMap((e) => e.ips),
+      applicationChecks.fetchHeldNames,
+      options,
+    );
+    for (const { app, ips } of unresolved) {
+      chosen.set(app.name, decideHeldPrimary(app, ips, heldSnapshot));
+    }
+  }
+
+  for (const app of apps) if (!chosen.has(app.name)) chosen.set(app.name, null);
+  return chosen;
+}
+
+/**
+ * The single-app path. Same rules, same order and the same sticky state as the
+ * pass - it just builds its snapshots from one app's candidates.
+ */
+async function selectIPforG(ips, app, options = {}) {
+  if (!ips || !ips.length) return null;
+  const runningSnapshot = await buildNodeSnapshot(ips, applicationChecks.fetchRunningNames, options);
+  const running = decideRunningPrimary(app, ips, runningSnapshot);
+  if (running) return running;
+  const heldSnapshot = await buildNodeSnapshot(ips, applicationChecks.fetchHeldNames, options);
+  return decideHeldPrimary(app, ips, heldSnapshot);
 }
 
 let appIpsOnAppsChecks = [];
@@ -394,6 +568,38 @@ async function updateHaproxy(haproxyAppsConfig) {
   }
 }
 
+/**
+ * The configured-app list, and the one question anybody asks about it.
+ *
+ * Every guard in addConfigurations was a linear scan of the array for a matching
+ * `domain` - nine of them per app, over an array that grows with every app. At
+ * the 2,483 backends fdm-eu-1-03 carries that is ~55M string comparisons,
+ * invisible inside a 479s pass; at 10k apps it is ~5.6 BILLION, and it is CPU on
+ * the event loop, so no amount of concurrency touches it.
+ *
+ * The index lives in here rather than beside the array on purpose: there is no
+ * way to add an entry without indexing it, so the two cannot drift apart.
+ */
+function createConfiguredApps() {
+  const entries = [];
+  const domains = new Set();
+  return {
+    hasDomain(domain) {
+      return domains.has(domain);
+    },
+    push(entry) {
+      entries.push(entry);
+      domains.add(entry.domain);
+    },
+    get length() {
+      return entries.length;
+    },
+    list() {
+      return entries;
+    },
+  };
+}
+
 function addConfigurations(configuredApps, app, appIps, gMode) {
   const domains = getUnifiedDomains(app);
   const customConfigs = getCustomConfigs(app, gMode);
@@ -435,9 +641,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
             portDomain = portDomain.split('www.')[1];
           }
           // prevention for double backend on custom domains, can be improved
-          const domainAssigned = configuredApps.find(
-            (appThatIsConfigured) => appThatIsConfigured.domain === portDomain,
-          );
+          const domainAssigned = configuredApps.hasDomain(portDomain);
           if (
             portDomain
             && portDomain.includes('.')
@@ -450,9 +654,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
             && !domainAssigned
           ) {
             // prevent double backend
-            const domainExists = configuredApps.find(
-              (a) => a.domain === portDomain.toLowerCase(),
-            );
+            const domainExists = configuredApps.hasDomain(portDomain.toLowerCase());
             if (!domainExists) {
               const configuredAppCustom = {
                 name: app.name,
@@ -468,9 +670,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
             }
             const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
             if (wwwAdjustedDomain) {
-              const domainExistsB = configuredApps.find(
-                (a) => a.domain === wwwAdjustedDomain,
-              );
+              const domainExistsB = configuredApps.hasDomain(wwwAdjustedDomain);
               if (!domainExistsB) {
                 const configuredAppCustom = {
                   name: app.name,
@@ -488,9 +688,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
 
             const testAdjustedDomain = `test.${portDomain.toLowerCase()}`;
             if (testAdjustedDomain) {
-              const domainExistsB = configuredApps.find(
-                (a) => a.domain === testAdjustedDomain,
-              );
+              const domainExistsB = configuredApps.hasDomain(testAdjustedDomain);
               if (!domainExistsB) {
                 const configuredAppCustom = {
                   name: app.name,
@@ -559,9 +757,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
               portDomain = portDomain.split('www.')[1];
             }
             // prevention for double backend on custom domains, can be improved
-            const domainAssigned = configuredApps.find(
-              (appThatIsConfigured) => appThatIsConfigured.domain === portDomain,
-            );
+            const domainAssigned = configuredApps.hasDomain(portDomain);
             if (
               portDomain
               && portDomain.includes('.')
@@ -579,9 +775,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                 )
               ) {
                 // prevent double backend
-                const domainExists = configuredApps.find(
-                  (a) => a.domain === portDomain.toLowerCase(),
-                );
+                const domainExists = configuredApps.hasDomain(portDomain.toLowerCase());
                 if (!domainExists) {
                   const configuredAppCustom = {
                     name: app.name,
@@ -598,9 +792,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
 
                 const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
                 if (wwwAdjustedDomain) {
-                  const domainExistsB = configuredApps.find(
-                    (a) => a.domain === wwwAdjustedDomain,
-                  );
+                  const domainExistsB = configuredApps.hasDomain(wwwAdjustedDomain);
                   if (!domainExistsB) {
                     const configuredAppCustom = {
                       name: app.name,
@@ -618,9 +810,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
 
                 const testAdjustedDomain = `test.${portDomain.toLowerCase()}`;
                 if (testAdjustedDomain) {
-                  const domainExistsB = configuredApps.find(
-                    (a) => a.domain === testAdjustedDomain,
-                  );
+                  const domainExistsB = configuredApps.hasDomain(testAdjustedDomain);
                   if (!domainExistsB) {
                     const configuredAppCustom = {
                       name: app.name,
@@ -645,9 +835,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
     // push main domain
     for (let q = 0; q < app.compose.length; q += 1) {
       for (let w = 0; w < app.compose[q].ports.length; w += 1) {
-        const mainDomainExists = configuredApps.find(
-          (qw) => qw.domain === domains[domains.length - 1],
-        );
+        const mainDomainExists = configuredApps.hasDomain(domains[domains.length - 1]);
         if (!mainDomainExists) {
           const mainApp = {
             name: app.name,
@@ -709,7 +897,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       }
     }
     // continue with appsOK
-    const configuredApps = []; // object of domain, port, ips for backend and isRdata
+    const configuredApps = createConfiguredApps();
     for (const app of appsOK) {
       const appStartTime = process.hrtime.bigint();
 
@@ -937,7 +1125,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       throw new Error('PANIC PLEASE DEV HELP ME');
     }
 
-    const serializedApps = JSON.stringify(configuredApps);
+    const configuredAppsList = configuredApps.list();
+    const serializedApps = JSON.stringify(configuredAppsList);
     const lastSerializedApps = JSON.stringify(recentlyConfiguredApps);
 
     if (serializedApps === lastSerializedApps) {
@@ -946,7 +1135,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     }
 
     let haproxyAppsConfig = [];
-    recentlyConfiguredApps = configuredApps;
+    recentlyConfiguredApps = configuredAppsList;
     nonGAppsInitialized = true;
 
     // if g apps haven't completed once - we don't update the config
@@ -955,7 +1144,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     log.info('Changes in Non G Mode configuration detected');
 
     // we need to put always in same order to avoid. non g first g at end
-    haproxyAppsConfig = configuredApps.concat(recentlyConfiguredGApps);
+    haproxyAppsConfig = configuredAppsList.concat(recentlyConfiguredGApps);
 
     log.info(
       `Non G Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
@@ -971,6 +1160,13 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 }
 
 async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
+  const sinceLast = Date.now() - lastGPassStartedAt;
+  if (lastGPassStartedAt && sinceLast < G_PASS_MIN_INTERVAL_MS) {
+    const waitMs = G_PASS_MIN_INTERVAL_MS - sinceLast;
+    log.info(`G Mode holding ${Math.round(waitMs / 1000)}s - the previous pass started ${Math.round(sinceLast / 1000)}s ago and the nodes would answer from the same cache`);
+    await serviceHelper.timeout(waitMs);
+  }
+  lastGPassStartedAt = Date.now();
   const startTime = process.hrtime.bigint();
 
   try {
@@ -997,30 +1193,51 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
       myIP,
     );
 
+    // Locations first, and only for the apps that have none cached - 3 of 336 on
+    // fdm-eu-1-03. The answer is written BACK to the cache, which the old shape
+    // dropped: `appsLocations.get(name) || []` hands back a fresh array when the
+    // key is absent, so nothing was ever stored and the search ran again every
+    // pass, forever.
+    const locationsForPass = new Map();
+    const needSearch = [];
+    for (const app of appsOK) {
+      const cached = appsLocations.get(app.name);
+      if (cached && cached.length) locationsForPass.set(app.name, cached);
+      else needSearch.push(app);
+    }
+    if (needSearch.length) {
+      const searched = await serviceHelper.runWithConcurrency(
+        needSearch.map((app) => async () => {
+          log.info(`Application: ${app.name} not found in global locations... searching nodes`);
+          return [app.name, await fluxService.getApplicationLocation(app.name)];
+        }),
+        G_PASS_CONCURRENCY,
+      );
+      for (const result of searched) {
+        if (result.status === 'fulfilled') {
+          const [name, found] = result.value;
+          if (found && found.length) {
+            locationsForPass.set(name, found);
+            appsLocations.set(name, found);
+          }
+        }
+      }
+    }
+
+    const selected = await selectGPrimaries(appsOK, locationsForPass);
+
     // continue with appsOK
-    const configuredApps = []; // object of domain, port, ips for backend and isRdata
+    const configuredApps = createConfiguredApps();
     for (const app of appsOK) {
       log.info(`Configuring ${app.name}`);
 
-      const appLocations = appsLocations.get(app.name) || [];
-
-      let searchCount = 0;
-      while (!appLocations.length && searchCount < 5) {
-        log.info(`Application: ${app.name} not found in global locations... `
-          + 'searching nodes');
-        searchCount += 1;
-        // eslint-disable-next-line no-await-in-loop
-        const newLocations = await fluxService.getApplicationLocation(app.name);
-        appLocations.push(...newLocations);
-      }
+      const appLocations = locationsForPass.get(app.name) || [];
 
       if (appLocations.length > 0) {
         const appIps = [];
 
         // if its G data application, use just one IP
-        const locationIps = appLocations.map((location) => location.ip);
-        // eslint-disable-next-line no-await-in-loop
-        const selectedIP = await selectIPforG(locationIps, app);
+        const selectedIP = selected.get(app.name);
         if (selectedIP) {
           appIps.push(selectedIP);
           addConfigurations(configuredApps, app, appIps, true);
@@ -1042,7 +1259,8 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
       }
     }
 
-    const serializedApps = JSON.stringify(configuredApps);
+    const configuredAppsList = configuredApps.list();
+    const serializedApps = JSON.stringify(configuredAppsList);
     const lastSerializedApps = JSON.stringify(recentlyConfiguredGApps);
 
     if (serializedApps === lastSerializedApps) {
@@ -1054,13 +1272,13 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
 
     let haproxyAppsConfig = [];
 
-    recentlyConfiguredGApps = configuredApps;
+    recentlyConfiguredGApps = configuredAppsList;
     gAppsInitialized = true;
 
     // if non g apps haven't completed once - we don't update the config
     if (!recentlyConfiguredApps.length) return;
 
-    haproxyAppsConfig = recentlyConfiguredApps.concat(configuredApps);
+    haproxyAppsConfig = recentlyConfiguredApps.concat(configuredAppsList);
 
     log.info(
       `G Mode updating haproxy with length: ${haproxyAppsConfig.length}`,
@@ -1312,12 +1530,14 @@ function setGStickyState(appName, ip, lastHealthyMs) {
 function resetGStickyState(appName) {
   delete mapOfNamesIps[appName];
   delete mapOfNamesIpsLastHealthy[appName];
+  delete mapOfNamesIpsLastHeld[appName];
 }
 
 module.exports = {
   start,
   getConfiguredApps,
   selectIPforG,
+  selectGPrimaries,
   getGStickyIp,
   setGStickyState,
   resetGStickyState,

@@ -981,14 +981,16 @@ const PROBE_TIMEOUT_MS = 12000;
  * (app, candidate) pair, which re-asked the same node the same question for
  * every app it happened to be a candidate for.
  *
- * `answered` is not `ok`. A node that replies 404 has ANSWERED - it is alive and
- * simply too old for the route, and it will still be too old three seconds from
- * now, so retrying it buys nothing. A node that never replies is the one a retry
- * is for. FluxOS draws the same line probing its peers (`if (!error.response)
- * throw error` in appLifecycle/advancedWorkflows.js), and this is the same
- * mistake as the one that made the running path sleep on a definitive negative -
- * measured here as 61 nodes taken through the full ladder on every pass, because
- * most of the fleet cannot serve /apps/heldcomponents until flux#1777 ships.
+ * `answered` is not `ok`. It means "asking again cannot change this", and only a
+ * 404/501 qualifies: the route does not exist on that node and will not exist
+ * three seconds later. Most of the fleet cannot serve /apps/heldcomponents until
+ * flux#1777 ships and answers 404 to every probe - 61 nodes per pass on a dev
+ * FDM - and putting those through the full ladder is the same waste as sleeping
+ * on a definitive negative.
+ *
+ * Every other failure is retried, including 5xx: FluxOS answers 503 while a
+ * reconciler pass holds an app lock, and a node that is merely busy must not be
+ * mistaken for one that has given its final answer.
  *
  * Either way it is `ok: false`: a node that cannot say what it holds has not
  * said it holds nothing.
@@ -1024,7 +1026,15 @@ async function fetchNodeNames(url, route) {
     );
     return { ok: true, answered: true, names };
   } catch (error) {
-    return { ok: false, answered: Boolean(error.response), names: new Set() };
+    // A status is only a FINAL answer when it says the node will still be
+    // answering that way in three seconds. 404 means the route does not exist
+    // here - a node too old for it does not grow one on a retry. 5xx, 429 and
+    // 408 are the node saying "not now", which is exactly what the ladder is
+    // for: FluxOS returns 503 while a reconciler pass holds the app lock, and
+    // the old code gave that node three attempts.
+    const status = error.response ? error.response.status : 0;
+    const routeWillNeverExist = status === 404 || status === 501;
+    return { ok: false, answered: routeWillNeverExist, names: new Set() };
   } finally {
     clearTimeout(backstop);
   }

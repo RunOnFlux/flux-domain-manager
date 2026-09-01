@@ -7,6 +7,7 @@ const domainService = require('../src/services/domainService');
 
 const {
   selectIPforG, selectGPrimaries, setGStickyState, resetGStickyState, getGStickyIp,
+  monotonicMs,
 } = domainService;
 
 const spec = (name) => ({
@@ -26,10 +27,11 @@ function serveNode({
   running = [], held = [], heldStatus = 200, runningStatus = 200, reset = false,
 } = {}) {
   const hits = { running: 0, held: 0 };
+  const state = { running, held, reset };
   const server = http.createServer((req, res) => {
     const isHeld = req.url.startsWith('/apps/heldcomponents');
     hits[isHeld ? 'held' : 'running'] += 1;
-    if (reset) {
+    if (state.reset) {
       // Accepts the connection, then vanishes: no status line, so no answer.
       req.socket.destroy();
       return;
@@ -43,10 +45,11 @@ function serveNode({
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       status: 'success',
-      data: isHeld ? held : running.map((n) => ({ Names: [`/${n}`] })),
+      data: isHeld ? state.held : state.running.map((n) => ({ Names: [`/${n}`] })),
     }));
   });
   server.hits = hits;
+  server.state = state;
   return new Promise((resolve) => { server.listen(0, '127.0.0.1', () => resolve(server)); });
 }
 
@@ -62,6 +65,10 @@ describe('g: pass - probing cost and what silence means', () => {
     while (names.length) resetGStickyState(names.pop());
   });
   const track = (n) => { names.push(n); return n; };
+
+  // One attempt: these cases prove ordering and grace behaviour, not the ladder,
+  // and the production backoff would add seconds per assertion.
+  const select = (ips, name) => selectIPforG(ips, spec(name), { retries: 1, delayMs: 5 });
 
   // THE COST PROPERTY. A node that answered has settled the question. Re-asking
   // it three seconds later cannot produce a better answer, and on fdm-eu-1-03
@@ -140,6 +147,71 @@ describe('g: pass - probing cost and what silence means', () => {
     setGStickyState(name, addr(dead), undefined);
     const chosen = await selectGPrimaries([spec(name)], new Map([[name, [addr(dead), addr(standby)]]]), { retries: 1 });
     expect(chosen.get(name)).to.equal(addr(standby));
+  });
+
+  // THE GRACE. An established primary that fails one check is kept - that is the
+  // branch that absorbs a blip, and until now nothing exercised it: every test
+  // seeded lastHealthy as 0 or undefined, which skips it entirely.
+  it('keeps an established primary that fails a single check', async () => {
+    const name = track('zizy');
+    const primary = await node({ running: [] });
+    const other = await node({ running: [`fluxapp_${name}`] });
+    setGStickyState(name, addr(primary), monotonicMs());
+    expect(await select([addr(primary), addr(other)], name)).to.equal(addr(primary));
+  });
+
+  // THE CONFIRMATION COUNT, which the grace alone does not give. Cadence is
+  // max(floor, how long the pass took), so one unreachable node stretching a
+  // pass past 90s would otherwise let a SINGLE failed check move a domain. The
+  // count has to be a property of the code, not of how fast the pass ran.
+  it('does not move an established primary on one failed check, even once the grace has expired', async () => {
+    const name = track('zizy');
+    const primary = await node({ running: [] });
+    const other = await node({ running: [`fluxapp_${name}`] });
+    const ips = [addr(primary), addr(other)];
+    // Healthy long ago: the 90s grace is already spent.
+    setGStickyState(name, addr(primary), monotonicMs() - (200 * 1000));
+
+    expect(await select(ips, name)).to.equal(addr(primary)); // failure 1 of 3
+    expect(await select(ips, name)).to.equal(addr(primary)); // failure 2 of 3
+    expect(await select(ips, name)).to.equal(addr(other)); // third confirms it
+  });
+
+  // ...and a primary that recovers in between starts the count again.
+  it('resets the confirmation count when the primary answers again', async () => {
+    const name = track('zizy');
+    const primary = await node({ running: [] });
+    const other = await node({ running: [`fluxapp_${name}`] });
+    const ips = [addr(primary), addr(other)];
+    setGStickyState(name, addr(primary), monotonicMs() - (200 * 1000));
+
+    await select(ips, name); // failure 1
+    await select(ips, name); // failure 2
+    primary.state.running = [`fluxapp_${name}`]; // it comes back
+    expect(await select(ips, name)).to.equal(addr(primary));
+    primary.state.running = []; // and fails again
+    expect(await select(ips, name)).to.equal(addr(primary)); // failure 1 again, not 3
+  });
+
+  // An explicit "I am not holding it" retracts the claim. Without this the
+  // confirmation outlives the withdrawal and a later silence reinstates it.
+  it('does not reinstate a holder that explicitly said it was not holding', async () => {
+    const name = track('zizy');
+    const holder = await node({ running: [], held: [`fluxapp_${name}`] });
+    const idle = await node({ running: [], held: [] });
+    const ips = [addr(holder), addr(idle)];
+
+    // Pass 1: it holds, and is recorded.
+    setGStickyState(name, addr(holder), 0);
+    expect(await select(ips, name)).to.equal(addr(holder));
+
+    // Pass 2: it retracts.
+    holder.state.held = [];
+    expect(await select(ips, name)).to.equal(null);
+
+    // Pass 3: it goes quiet. The retracted claim must not bring it back.
+    holder.state.reset = true;
+    expect(await select(ips, name)).to.equal(null);
   });
 
   // THE SAFETY PROPERTY for the held fallback. A holder that cannot answer has

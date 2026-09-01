@@ -27,6 +27,7 @@ let unifiedAppsDomains = [];
 const mapOfNamesIps = {};
 const mapOfNamesIpsLastHealthy = {}; // timestamp of last successful health check per app
 const mapOfNamesIpsLastHeld = {}; // timestamp of the last confirmed HELD answer per app
+const mapOfNamesIpsFailures = {}; // consecutive failed checks of the sticky, per app
 const G_APP_HEALTH_RETRY_COUNT = 3;
 const G_APP_HEALTH_RETRY_DELAY_MS = 3000;
 const G_APP_UNHEALTHY_THRESHOLD_MS = 90 * 1000; // 90 seconds before switching away from sticky IP
@@ -57,13 +58,28 @@ const G_PASS_CONCURRENCY = 32;
 // cache (ZelBack routes.js: `cache('15 seconds')`), so passes closer together
 // than that read byte-identical answers. 25s clears it.
 //
-// A floor, not a period. The pass is driven by the appsLocations poll, so the
-// real cadence is max(this, the trigger interval) - and the trigger is whatever
-// `Cache-Control: max-age` the upstream API returns (flux/dataFetcher.js),
-// which is not ours to set. Measured on the dev FDM at roughly 18.75s, so this
-// governs. While a pass took eight minutes none of it could matter; at ten
-// seconds it does.
+// A floor, not a period. The real cadence is max(this, how long the pass took),
+// and the trigger underneath is the appsLocations poll - hardcoded to 10s in
+// flux/dataFetcher.js, not derived from the upstream Cache-Control, because the
+// API load-balances across nodes whose etags never match so the max-age path is
+// never taken. So this floor governs while a pass stays under 25s. It does not
+// bound the cadence when a pass runs long, which is why the confirmation count
+// below is counted rather than inferred from timing.
 const G_PASS_MIN_INTERVAL_MS = 25 * 1000;
+// A primary is never moved on fewer than this many CONSECUTIVE failed checks,
+// whatever the cadence turns out to be.
+//
+// The grace above answers "has it been unhealthy long enough". This answers
+// "have we actually asked enough times", and they are different questions. The
+// cadence is max(G_PASS_MIN_INTERVAL_MS, how long the pass took), so it is not
+// ours to fix: one node that accepts connections and never replies stretches a
+// pass by a full probe ladder, and at a 90s cadence `floor(90000 / 90000) = 1`
+// - a single failed check would move a domain. Counting the checks makes the
+// three confirmations a property of the code rather than an arithmetic accident
+// of how fast the pass happened to run.
+const G_APP_MIN_CONFIRMATIONS = 3;
+// Attempts at the per-app location lookup for an app the bulk feed omitted.
+const G_LOCATION_SEARCH_ATTEMPTS = 5;
 let lastGPassStartedAt = 0;
 let recentlyConfiguredApps = [];
 let recentlyConfiguredGApps = [];
@@ -289,25 +305,6 @@ function monotonicMs() {
   return Number(process.hrtime.bigint() / 1000000n);
 }
 
-function selectLowestDigitSumIp(ips) {
-  let chosenIp = ips[0];
-  let chosenIpSum = ips[0]
-    .split(':')[0]
-    .split('.')
-    .reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
-  for (const ip of ips) {
-    const sum = ip
-      .split(':')[0]
-      .split('.')
-      .reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
-    if (sum < chosenIpSum) {
-      chosenIp = ip;
-      chosenIpSum = sum;
-    }
-  }
-  return chosenIp;
-}
-
 /**
  * Ask every node once what it is running, retrying only the ones that could not
  * answer.
@@ -331,20 +328,28 @@ function selectLowestDigitSumIp(ips) {
  * (retries - 1) x delay for the WHOLE pass rather than per node, and only when
  * something is genuinely unreachable.
  *
+ * `into` carries a snapshot already built this pass. Anything it holds is not
+ * asked again: the phases run in series, so re-probing a node the previous phase
+ * already settled pays a second full ladder for an answer we have. That is what
+ * made one unreachable node cost nine probes and two minutes of wall clock, and
+ * the pass duration is what sets the cadence - so a slow pass silently shrinks
+ * the number of confirmations a primary gets before it is moved.
+ *
  * @param {string[]} ips node addresses, duplicates tolerated
  * @param {Function} fetcher applicationChecks.fetchRunningNames or fetchHeldNames
  * @param {Object} [options]
+ * @param {Map} [into] snapshot to extend; entries already present are not re-asked
  * @returns {Promise<Map<string, {ok: boolean, names: Set<string>}>>}
  */
-async function buildNodeSnapshot(ips, fetcher, options = {}) {
+async function buildNodeSnapshot(ips, fetcher, options = {}, into = null) {
   const {
     retries = G_APP_HEALTH_RETRY_COUNT,
     delayMs = G_APP_HEALTH_RETRY_DELAY_MS,
     concurrency = G_PASS_CONCURRENCY,
   } = options;
 
-  const snapshot = new Map();
-  let pending = [...new Set(ips)];
+  const snapshot = into || new Map();
+  let pending = [...new Set(ips)].filter((ip) => !snapshot.has(ip));
 
   for (let attempt = 1; attempt <= retries && pending.length; attempt += 1) {
     if (attempt > 1) {
@@ -378,16 +383,32 @@ async function buildNodeSnapshot(ips, fetcher, options = {}) {
 /**
  * The candidate order the selection walks: lowest digit sum first, sticky removed
  * because it has already had its turn.
+ *
+ * A TOTAL order, which the previous form was not. It found the lowest-digit-sum
+ * address across the whole list, then removed the sticky - so whenever the
+ * sticky WAS that address, which is the common case because that is the rule
+ * that selected it, no remaining candidate matched, every comparison returned 0,
+ * and a stable sort handed back the input order. That order is whatever
+ * /apps/locations returned this second, so two FDM instances losing the same
+ * primary could promote different nodes for the same app. Sorting on the digit
+ * sum itself, with the address as the tiebreak, keeps the documented intent and
+ * makes the answer the same everywhere.
  */
+function ipDigitSum(ip) {
+  return ip
+    .split(':')[0]
+    .split('.')
+    .reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
+}
+
 function orderedCandidates(ips, stickyIp) {
-  const lowestDigitSumIp = selectLowestDigitSumIp(ips);
   const candidates = stickyIp ? ips.filter((ip) => ip !== stickyIp) : [...ips];
-  candidates.sort((a, b) => {
-    if (a === lowestDigitSumIp) return -1;
-    if (b === lowestDigitSumIp) return 1;
-    return 0;
+  return candidates.sort((a, b) => {
+    const d = ipDigitSum(a) - ipDigitSum(b);
+    if (d) return d;
+    if (a === b) return 0;
+    return a < b ? -1 : 1;
   });
-  return candidates;
 }
 
 function probeState(snapshot, ip, app) {
@@ -409,19 +430,36 @@ function decideStickyPrimary(app, ips, snapshot) {
 
   if (probeState(snapshot, stickyIp, app) === applicationChecks.ProbeState.RUNNING) {
     mapOfNamesIpsLastHealthy[app.name] = monotonicMs();
+    delete mapOfNamesIpsFailures[app.name];
     return stickyIp;
   }
-  // Failed the check - keep it anyway if it was healthy recently enough.
+
+  // Failed the check. It is released only when it has been unhealthy long
+  // enough AND been asked enough times - see G_APP_MIN_CONFIRMATIONS for why
+  // the second condition is not implied by the first.
+  const failures = (mapOfNamesIpsFailures[app.name] || 0) + 1;
+  mapOfNamesIpsFailures[app.name] = failures;
+
   const lastHealthy = mapOfNamesIpsLastHealthy[app.name] || 0;
   const timeSinceHealthy = monotonicMs() - lastHealthy;
-  if (lastHealthy > 0 && timeSinceHealthy < G_APP_UNHEALTHY_THRESHOLD_MS) {
+
+  // Both protections need an ESTABLISHED primary - one this FDM has seen serving
+  // the app at least once. A sticky with no health behind it is a guess (an
+  // entry restored by the held path, or one written by a candidate sweep that
+  // has since gone quiet), and defending a guess for three passes would keep an
+  // app pointed at a node that has never answered for it.
+  const established = lastHealthy > 0;
+  const withinGrace = established && timeSinceHealthy < G_APP_UNHEALTHY_THRESHOLD_MS;
+  const tooFewChecks = established && failures < G_APP_MIN_CONFIRMATIONS;
+
+  if (withinGrace || tooFewChecks) {
     log.warn(
-      `G App ${app.name} sticky IP ${stickyIp} failed health check but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
+      `G App ${app.name} sticky IP ${stickyIp} failed health check ${failures}/${G_APP_MIN_CONFIRMATIONS} but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
     );
     return stickyIp;
   }
   log.warn(
-    `G App ${app.name} sticky IP ${stickyIp} failed health check for >${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s, selecting new IP`,
+    `G App ${app.name} sticky IP ${stickyIp} failed ${failures} consecutive health checks over >${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s, selecting new IP`,
   );
   return null;
 }
@@ -431,6 +469,7 @@ function decideCandidatePrimary(app, ips, snapshot) {
     if (probeState(snapshot, candidate, app) === applicationChecks.ProbeState.RUNNING) {
       mapOfNamesIps[app.name] = candidate;
       mapOfNamesIpsLastHealthy[app.name] = monotonicMs();
+      delete mapOfNamesIpsFailures[app.name];
       return candidate;
     }
   }
@@ -461,10 +500,19 @@ function decideRunningPrimary(app, ips, snapshot) {
  * how one dropped packet moves a domain. The incumbent is released by an explicit
  * "not holding" from itself, by leaving the location list, or by the same 90s the
  * running path already allows before it gives up on a sticky - never by a single
- * unanswered probe. That matters because the operator-stop lock is durable: a
- * node carrying a stale one answers HELD indefinitely, and is also the node
- * FluxOS's election will never pick, so handing it the domain points the app at
- * an instance that is not coming back.
+ * unanswered probe.
+ *
+ * That protects the INCUMBENT only. Once it is genuinely released the loop below
+ * takes the first node that reports holding, and the operator-stop lock is
+ * durable - no TTL, no sweeper, cleared only by an appstart or an uninstall on
+ * that node - so a node stopped once months ago still answers HELD. `appstop`
+ * has no primary check and `?global=true` fans it out to every instance, so
+ * stale locks are ordinary rather than exotic. Such a node can therefore be
+ * picked here, and it is also the node FluxOS's election will never start, so
+ * the app stays dark until something actually runs it. That is bounded by the
+ * phase order: any node RUNNING the component outranks every holder, so this
+ * decides only which stopped node the domain points at, never whether traffic is
+ * taken from a live one.
  *
  * @returns {string|null} the chosen ip, or null if nobody holds it
  */
@@ -480,6 +528,13 @@ function decideHeldPrimary(app, ips, snapshot) {
         `G App ${app.name} is not running anywhere, but ${stickyIp} reports holding it (operator-stopped) - keeping it as primary`,
       );
       return stickyIp;
+    }
+    if (state === ProbeState.NOT_RUNNING) {
+      // It said so itself, and that retracts the claim. Without this the
+      // confirmation outlives the withdrawal: the node goes quiet on the next
+      // pass, reads as UNKNOWN, and the grace below reinstates it as primary on
+      // the strength of a "yes" it has since taken back.
+      delete mapOfNamesIpsLastHeld[app.name];
     }
     if (state === ProbeState.UNKNOWN) {
       const lastHeld = mapOfNamesIpsLastHeld[app.name] || 0;
@@ -562,10 +617,13 @@ async function selectGPrimaries(apps, locations, options = {}) {
   // deployed one gets its first.
   const unresolved = [];
   if (needCandidates.length) {
+    // Extends phase 1's snapshot. Every sticky is in there already - including
+    // the ones that failed - so this asks only about nodes nobody has asked yet.
     const candidateSnapshot = await buildNodeSnapshot(
       needCandidates.flatMap((e) => e.ips),
       applicationChecks.fetchRunningNames,
       options,
+      stickySnapshot,
     );
     for (const { app, ips } of needCandidates) {
       const ip = decideCandidatePrimary(app, ips, candidateSnapshot);
@@ -576,10 +634,20 @@ async function selectGPrimaries(apps, locations, options = {}) {
 
   // Phase 3: nothing is running these anywhere - ask who is HOLDING them.
   if (unresolved.length) {
+    // A node that gave no reply at all to the running probe will give none to
+    // this one either - same process, same socket. Carrying those over as
+    // unreadable reaches the identical verdict (UNKNOWN) without paying a
+    // second ladder for it. A node that answered with a STATUS is not carried
+    // over: it is alive, and it may well serve this route.
+    const seed = new Map();
+    for (const [ip, value] of stickySnapshot) {
+      if (!value.ok && !value.answered) seed.set(ip, value);
+    }
     const heldSnapshot = await buildNodeSnapshot(
       unresolved.flatMap((e) => e.ips),
       applicationChecks.fetchHeldNames,
       options,
+      seed,
     );
     for (const { app, ips } of unresolved) {
       chosen.set(app.name, decideHeldPrimary(app, ips, heldSnapshot));
@@ -627,10 +695,21 @@ function orderBySeniority(ips, appLocations) {
   const runningSince = new Map(
     (appLocations || []).map((loc) => [loc.ip, loc.runningSince || '']),
   );
-  // runningSince is ISO-8601, which sorts correctly as text. An instance that
-  // never reported one sorts LAST: for a replicated app position zero takes the
-  // writes, and "no idea how long this has been up" is the weakest claim on it,
-  // not the strongest. No record on the fleet is currently missing the field.
+  // runningSince is ISO-8601, which sorts correctly as text.
+  //
+  // An instance that never reported one sorts LAST, and that is a DELIBERATE
+  // divergence from FluxOS's compareInstanceSeniority
+  // (ZelBack/src/services/utils/instanceOrdering.js), which sorts it first so a
+  // still-settling instance is never counted as surplus. The key is the same;
+  // the null goes the other way. Here position zero takes the writes of a
+  // replicated app, and "no idea how long this has been up" is the weakest claim
+  // on that, not the strongest. Where the two disagree, FDM's position 0 will
+  // not be FluxOS's primary - but this ordering is only ever reached when the
+  // sharedDB cluster could not be asked, and the cluster's own answer outranks
+  // it whenever there is one.
+  //
+  // A sampled 7,085 location records all carried the field; it is not guaranteed
+  // to be there, so this handles its absence rather than assuming it.
   return [...ips].sort((a, b) => {
     const sa = runningSince.get(a) || '';
     const sb = runningSince.get(b) || '';
@@ -1322,11 +1401,16 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
       myIP,
     );
 
-    // Locations first, and only for the apps that have none cached - 3 of 336 on
-    // fdm-eu-1-03. The answer is written BACK to the cache, which the old shape
-    // dropped: `appsLocations.get(name) || []` hands back a fresh array when the
-    // key is absent, so nothing was ever stored and the search ran again every
-    // pass, forever.
+    // Locations for the apps the bulk feed did not carry - a handful per pass.
+    //
+    // Still five attempts each, as before: getApplicationLocation has a 3s
+    // timeout and swallows every error into [], so one slow answer would
+    // otherwise drop the app out of HAProxy until the next pass. What changed is
+    // that the apps are searched CONCURRENTLY rather than one after another.
+    //
+    // The result is deliberately not cached back into appsLocations. That map is
+    // replaced wholesale every 10s by the locations poll, so anything written
+    // here is discarded long before the next pass reads it.
     const locationsForPass = new Map();
     const needSearch = [];
     for (const app of appsOK) {
@@ -1337,18 +1421,20 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     if (needSearch.length) {
       const searched = await serviceHelper.runWithConcurrency(
         needSearch.map((app) => async () => {
-          log.info(`Application: ${app.name} not found in global locations... searching nodes`);
-          return [app.name, await fluxService.getApplicationLocation(app.name)];
+          for (let attempt = 1; attempt <= G_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
+            log.info(`Application: ${app.name} not found in global locations... searching nodes`);
+            // eslint-disable-next-line no-await-in-loop
+            const found = await fluxService.getApplicationLocation(app.name);
+            if (found && found.length) return [app.name, found];
+          }
+          return [app.name, []];
         }),
         G_PASS_CONCURRENCY,
       );
       for (const result of searched) {
         if (result.status === 'fulfilled') {
           const [name, found] = result.value;
-          if (found && found.length) {
-            locationsForPass.set(name, found);
-            appsLocations.set(name, found);
-          }
+          if (found && found.length) locationsForPass.set(name, found);
         }
       }
     }
@@ -1649,6 +1735,7 @@ function getGStickyIp(appName) {
 
 function setGStickyState(appName, ip, lastHealthyMs) {
   mapOfNamesIps[appName] = ip;
+  delete mapOfNamesIpsFailures[appName];
   if (lastHealthyMs === undefined) {
     delete mapOfNamesIpsLastHealthy[appName];
   } else {
@@ -1660,6 +1747,7 @@ function resetGStickyState(appName) {
   delete mapOfNamesIps[appName];
   delete mapOfNamesIpsLastHealthy[appName];
   delete mapOfNamesIpsLastHeld[appName];
+  delete mapOfNamesIpsFailures[appName];
 }
 
 module.exports = {

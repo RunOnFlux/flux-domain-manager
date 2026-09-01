@@ -59,7 +59,7 @@ async function main() {
   // eslint-disable-next-line import/no-dynamic-require, global-require
   const domainService = require(path.join(IMPL_ROOT, 'src/services/domainService.js'));
   const {
-    selectIPforG, setGStickyState, resetGStickyState, selectGPrimaries,
+    selectIPforG, setGStickyState, resetGStickyState, selectGPrimaries, monotonicMs,
   } = domainService;
 
   const sc = scenario.build(APPS, NODES, HOST, PORT_BASE);
@@ -68,7 +68,12 @@ async function main() {
   // Warm steady state: the healthy apps already have a remembered primary, which
   // is what production is doing on every pass after the first.
   for (const app of sc.apps) resetGStickyState(app.name);
-  for (const [name, ip] of sc.stickies) setGStickyState(name, ip, Date.now());
+  // The module compares this against its MONOTONIC clock, so a wall-clock value
+  // reads as roughly 1.79e12 ms in the past - inside every window - and leaves
+  // the 90s grace permanently open, so the sweep-after-primary-fails path could
+  // never be exercised.
+  const now = typeof monotonicMs === 'function' ? monotonicMs() : Date.now();
+  for (const [name, ip] of sc.stickies) setGStickyState(name, ip, now);
 
   await get('/probes/reset');
   const mode = typeof selectGPrimaries === 'function' ? 'concurrent' : 'serial';

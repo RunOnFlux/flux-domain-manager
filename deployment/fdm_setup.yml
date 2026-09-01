@@ -256,3 +256,67 @@
     - name: Stop CDM on non-primary hosts
       shell: pm2 describe CDM > /dev/null 2>&1 && pm2 delete CDM || true
       when: not certRenewalPrimary | bool
+
+    # Log volume is an availability risk on these boxes, not a tidiness one.
+    # fdm-fn-2-2 reached 100% disk with ~29GB of logs, of which ~19GB was one
+    # HAProxy file and its uncompressed previous rotation. The EU hosts have 47GB
+    # where US and SG have 150GB, so they hit the wall first, but every host is
+    # accumulating the same way.
+    #
+    # The shipped haproxy config had `daily` together with `size 1G`. A size cap
+    # is only tested WHEN logrotate runs, and that was once a day, so the file
+    # grew to ~10GB between checks and the 1G cap never fired once. Size-driven
+    # only, and checked hourly, is what makes the bound real.
+    - name: Bound the HAProxy log by size rather than by day
+      ansible.builtin.copy:
+        dest: /etc/logrotate.d/haproxy
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          /var/log/haproxy.log {
+              size 1G
+              rotate 4
+              missingok
+              notifempty
+              compress
+              su root adm
+              sharedscripts
+              postrotate
+                  [ ! -x /usr/lib/rsyslog/rsyslog-rotate ] || /usr/lib/rsyslog/rsyslog-rotate
+              endscript
+          }
+
+    # Nothing was rotating these at all. Observed up to 6GB (FDM-out.log on
+    # fdm-fn-1-2) and 4GB (CDM-out.log on fdm-fn-2-1). copytruncate because pm2
+    # holds the descriptors and will not reopen on rotation.
+    - name: Rotate the PM2 logs, which nothing was rotating
+      ansible.builtin.copy:
+        dest: /etc/logrotate.d/flux-pm2
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          /root/.pm2/logs/*.log {
+              size 200M
+              rotate 3
+              missingok
+              notifempty
+              compress
+              copytruncate
+              su root root
+          }
+
+    # The caps above are only evaluated when logrotate runs. HAProxy writes one
+    # line per proxy per reload - 649 backends against a reload every ~25s - so
+    # daily is far too coarse. Configs that ask for `daily` still rotate daily;
+    # logrotate's own state file stops this over-rotating them.
+    - name: Run logrotate hourly so the size caps are actually tested
+      ansible.builtin.copy:
+        dest: /etc/cron.hourly/flux-logrotate
+        owner: root
+        group: root
+        mode: '0755'
+        content: |
+          #!/bin/sh
+          exec /usr/sbin/logrotate /etc/logrotate.conf

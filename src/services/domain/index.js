@@ -94,7 +94,7 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
       }
     }
 
-    log.info(`Adjusting domains and ssl for ${appSpecs.name}`);
+    log.debug(`Adjusting domains and ssl for ${appSpecs.name}`);
     if (appSpecs.name === 'themok6') {
       for (const component of appSpecs.compose) {
         component.domains = ['themok.io'];
@@ -137,7 +137,7 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
       // eslint-disable-next-line no-await-in-loop
       const domainOps = await executeCertificateOperations(domains, DOMAIN_TYPE.FDM, myFDMnameORip, myIP);
       if (domainOps.success) {
-        log.info(`Application domain and ssl for ${appSpecs.name} is ready`);
+        log.debug(`Application domain and ssl for ${appSpecs.name} is ready`);
         processedApplications.push(appSpecs);
       } else {
         log.error(`Domain/ssl issues for ${appSpecs.name}`);
@@ -146,7 +146,7 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
         // eslint-disable-next-line no-await-in-loop
         const customOps = await executeCertificateOperations(customDomains, DOMAIN_TYPE.CUSTOM, myFDMnameORip, myIP);
         if (customOps.success) {
-          log.info(`Application domain and ssl for custom domains of ${appSpecs.name} is ready`);
+          log.debug(`Application domain and ssl for custom domains of ${appSpecs.name} is ready`);
         } else {
           log.error(`Domain/ssl issues for custom domains of ${appSpecs.name}`);
         }

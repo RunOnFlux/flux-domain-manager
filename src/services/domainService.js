@@ -1317,7 +1317,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     for (const app of appsOK) {
       const appStartTime = process.hrtime.bigint();
 
-      log.info(`Configuring Non G App ${app.name}`);
+      log.debug(`Configuring Non G App ${app.name}`);
 
       const appLocations = appsLocations.get(app.name) || [];
 
@@ -1510,7 +1510,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       const elapsedNs = Number(process.hrtime.bigint() - appStartTime);
       const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
       appsProcessingTimeNs += elapsedNs;
-      log.info(`Non G App: ${app.name}, Elapsed: ${elapsedS}`);
+      log.debug(`Non G App: ${app.name}, Elapsed: ${elapsedS}`);
     }
 
     const elapsedAppsS = Math.round((appsProcessingTimeNs / 1_000_000_000) * 100) / 100;
@@ -1631,7 +1631,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     // continue with appsOK
     const configuredApps = createConfiguredApps();
     for (const app of appsOK) {
-      log.info(`Configuring ${app.name}`);
+      log.debug(`Configuring ${app.name}`);
 
       const appLocations = locationsForPass.get(app.name) || [];
 

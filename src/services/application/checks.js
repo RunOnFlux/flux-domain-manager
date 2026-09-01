@@ -981,10 +981,21 @@ const PROBE_TIMEOUT_MS = 12000;
  * (app, candidate) pair, which re-asked the same node the same question for
  * every app it happened to be a candidate for.
  *
+ * `answered` is not `ok`. A node that replies 404 has ANSWERED - it is alive and
+ * simply too old for the route, and it will still be too old three seconds from
+ * now, so retrying it buys nothing. A node that never replies is the one a retry
+ * is for. FluxOS draws the same line probing its peers (`if (!error.response)
+ * throw error` in appLifecycle/advancedWorkflows.js), and this is the same
+ * mistake as the one that made the running path sleep on a definitive negative -
+ * measured here as 61 nodes taken through the full ladder on every pass, because
+ * most of the fleet cannot serve /apps/heldcomponents until flux#1777 ships.
+ *
+ * Either way it is `ok: false`: a node that cannot say what it holds has not
+ * said it holds nothing.
+ *
  * @param {string} url node ip, optionally with api port
  * @param {string} route endpoint path
- * @returns {Promise<{ok: boolean, names: Set<string>}>} ok false means the node
- *   could not be read at all - never that it holds or runs nothing.
+ * @returns {Promise<{ok: boolean, answered: boolean, names: Set<string>}>}
  */
 async function fetchNodeNames(url, route) {
   const { CancelToken } = axios;
@@ -1002,7 +1013,8 @@ async function fetchNodeNames(url, route) {
     const response = await axios.get(`http://${ip}:${port}${route}`, { timeout: PROBE_TIMEOUT_MS, cancelToken: source.token });
     isResolved = true;
     const payload = response.data && response.data.data;
-    if (!Array.isArray(payload)) return { ok: false, names: new Set() };
+    // A 200 carrying an in-band error object: answered, but unreadable.
+    if (!Array.isArray(payload)) return { ok: false, answered: true, names: new Set() };
     // listrunningapps yields container objects, heldcomponents bare strings.
     const names = new Set(
       payload
@@ -1010,9 +1022,9 @@ async function fetchNodeNames(url, route) {
         .filter((raw) => typeof raw === 'string')
         .map((raw) => raw.replace(/^\//, '')),
     );
-    return { ok: true, names };
+    return { ok: true, answered: true, names };
   } catch (error) {
-    return { ok: false, names: new Set() };
+    return { ok: false, answered: Boolean(error.response), names: new Set() };
   } finally {
     clearTimeout(backstop);
   }

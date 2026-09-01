@@ -23,12 +23,17 @@ const spec = (name) => ({
  * how many times a question was put to it rather than only on the answer.
  */
 function serveNode({
-  running = [], held = [], heldStatus = 200, runningStatus = 200,
+  running = [], held = [], heldStatus = 200, runningStatus = 200, reset = false,
 } = {}) {
   const hits = { running: 0, held: 0 };
   const server = http.createServer((req, res) => {
     const isHeld = req.url.startsWith('/apps/heldcomponents');
     hits[isHeld ? 'held' : 'running'] += 1;
+    if (reset) {
+      // Accepts the connection, then vanishes: no status line, so no answer.
+      req.socket.destroy();
+      return;
+    }
     const status = isHeld ? heldStatus : runningStatus;
     if (status !== 200) {
       res.writeHead(status, { 'Content-Type': 'application/json' });
@@ -73,12 +78,24 @@ describe('g: pass - probing cost and what silence means', () => {
     expect(Date.now() - started).to.be.below(3000);
   });
 
-  // The retry ladder still exists - it just waits on the case it was written for.
-  it('retries a node that could not answer at all', async () => {
+  // The retry ladder still exists - it just waits on the case it was written for:
+  // a node that never replied. Nothing came back, so nothing has been settled.
+  it('retries a node that never replies', async () => {
     const name = track('zizy');
-    const broken = await node({ runningStatus: 500, heldStatus: 500 });
-    await selectIPforG([addr(broken)], spec(name), { retries: 3, delayMs: 5 });
-    expect(broken.hits.running).to.equal(3);
+    const silent = await node({ reset: true });
+    await selectIPforG([addr(silent)], spec(name), { retries: 3, delayMs: 5 });
+    expect(silent.hits.running).to.equal(3);
+  });
+
+  // A STATUS IS AN ANSWER. Most of the fleet cannot serve /apps/heldcomponents
+  // until flux#1777 ships, and answers 404 - it is alive, and it will still be
+  // too old three seconds from now, so the ladder buys nothing. Measured on the
+  // dev FDM before this: 61 nodes taken through the full ladder every pass.
+  it('does not retry a node that answered with a status, even an error one', async () => {
+    const name = track('zizy');
+    const tooOld = await node({ running: [], heldStatus: 404 });
+    await selectIPforG([addr(tooOld)], spec(name), { retries: 3, delayMs: 5 });
+    expect(tooOld.hits.held).to.equal(1);
   });
 
   // One question per node per pass, however many apps that node is a candidate

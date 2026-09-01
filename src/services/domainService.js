@@ -328,7 +328,10 @@ async function buildNodeSnapshot(ips, fetcher, options = {}) {
     for (let i = 0; i < targets.length; i += 1) {
       const result = settled[i];
       const value = result && result.status === 'fulfilled' ? result.value : null;
-      if (value && value.ok) snapshot.set(targets[i], value);
+      // Retried only when nothing came back. A node that answered - even to say
+      // it has no such route - has given its final answer, and asking again three
+      // seconds later cannot change it.
+      if (value && (value.ok || value.answered)) snapshot.set(targets[i], value);
       else pending.push(targets[i]);
     }
   }

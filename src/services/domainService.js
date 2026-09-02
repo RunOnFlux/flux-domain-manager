@@ -30,6 +30,7 @@ const mapOfNamesIpsLastHeld = {}; // timestamp of the last confirmed HELD answer
 const mapOfNamesIpsFailures = {}; // consecutive failed checks of the sticky, per app
 const mapOfNamesLastSeen = {}; // monotonic ms an app was last present in a pass
 const mapOfNamesLastChosen = {}; // the primary the previous pass actually selected
+const mapOfNamesExcluded = {}; // apps currently reported as excluded, by pass and name
 const G_APP_HEALTH_RETRY_COUNT = 3;
 const G_APP_HEALTH_RETRY_DELAY_MS = 3000;
 const G_APP_UNHEALTHY_THRESHOLD_MS = 90 * 1000; // 90 seconds before switching away from sticky IP
@@ -758,6 +759,30 @@ function decideHeldPrimary(app, ips, snapshot) {
     }
   }
   return null;
+}
+
+/**
+ * Report an application entering or leaving exclusion, and nothing in between.
+ *
+ * An app with no locations stays that way for as long as it is dead, so a line
+ * per pass is the same sentence about the same name every 25 seconds, in the one
+ * log that keeps real history. Only the two edges carry information: it went
+ * dark, and it came back.
+ *
+ * @param {string} label pass this app belongs to, for the message
+ * @param {string} name application name
+ * @param {boolean} excluded whether it is excluded on this pass
+ */
+function reportExclusion(label, name, excluded) {
+  const key = `${label}:${name}`;
+  if (excluded === Boolean(mapOfNamesExcluded[key])) return;
+  if (excluded) {
+    mapOfNamesExcluded[key] = true;
+    log.warn(`${label} Application ${name} is excluded. Not running properly?`);
+  } else {
+    delete mapOfNamesExcluded[key];
+    log.warn(`${label} Application ${name} is no longer excluded`);
+  }
 }
 
 /**
@@ -1531,11 +1556,12 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
         addConfigurations(configuredApps, app, appIps, false);
-        log.info(
+        reportExclusion('Non G', app.name, false);
+        log.debug(
           `Non G Application ${app.name} with specific checks: ${applicationWithChecks} is OK. Proceeding to FDM`,
         );
       } else {
-        log.warn(`Non G Application ${app.name} is excluded. Not running properly?`);
+        reportExclusion('Non G', app.name, true);
         if (config.mandatoryApps.includes(app.name)) {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
@@ -1687,7 +1713,8 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
         if (selectedIP) {
           appIps.push(selectedIP);
           addConfigurations(configuredApps, app, appIps, true);
-          log.info(
+          // The selection is reported on its edges by selectGPrimaries.
+          log.debug(
             `G Application ${app.name} is OK selected IP is ${selectedIP}. Proceeding to FDM`,
           );
         }
@@ -1695,10 +1722,9 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {
           throw new Error(`Application ${app.name} checks not ok. PANIC.`);
         }
+        reportExclusion('G', app.name, false);
       } else {
-        log.warn(
-          `G Application ${app.name} is excluded. Not running properly?`,
-        );
+        reportExclusion('G', app.name, true);
         if (config.mandatoryApps.includes(app.name)) {
           throw new Error(`Application ${app.name} is not running well PANIC.`);
         }
@@ -1977,6 +2003,8 @@ function setGStickyState(appName, ip, lastHealthyMs) {
 function resetGStickyState(appName) {
   delete mapOfNamesLastSeen[appName];
   delete mapOfNamesLastChosen[appName];
+  delete mapOfNamesExcluded[`G:${appName}`];
+  delete mapOfNamesExcluded[`Non G:${appName}`];
   delete mapOfNamesIps[appName];
   delete mapOfNamesIpsLastHealthy[appName];
   delete mapOfNamesIpsLastHeld[appName];
@@ -1994,4 +2022,5 @@ module.exports = {
   setGStickyState,
   resetGStickyState,
   resetNodeReachability,
+  reportExclusion,
 };

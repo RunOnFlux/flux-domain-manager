@@ -206,6 +206,23 @@ describe('g: app primary selection', () => {
 
     // A held app is not pinned: the instant a node starts running it, the very
     // next pass moves.
+    // Exclusion is reported on its edges too: an app with no locations stays
+    // that way for as long as it is dead, and only "went dark" and "came back"
+    // carry anything.
+    it('reports an app going dark and coming back, and nothing in between', () => {
+      const { reportExclusion } = domainService;
+      for (let pass = 0; pass < 4; pass += 1) reportExclusion('G', zizySpec.name, true);
+      expect(warns).to.have.lengthOf(1);
+      expect(warns[0]).to.contain('is excluded');
+
+      for (let pass = 0; pass < 4; pass += 1) reportExclusion('G', zizySpec.name, false);
+      expect(warns).to.have.lengthOf(2);
+      expect(warns[1]).to.contain('no longer excluded');
+
+      reportExclusion('G', zizySpec.name, true);
+      expect(warns).to.have.lengthOf(3);
+    });
+
     it('moves a held app to a node that starts running it, on the next pass', async () => {
       // From the third pass on - once the confirmations are spent, which is the
       // steady state of an operator-stopped app. Swept over its length because

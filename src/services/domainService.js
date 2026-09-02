@@ -1333,6 +1333,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
   const startTime = process.hrtime.bigint();
   let appsProcessingTimeNs = 0;
   let slowestApp = { name: null, ns: 0 };
+  // What the pass cost api.runonflux.io - see the g: pass for the reasoning.
+  let searchRequests = 0;
 
   try {
     log.info('Non G Mode STARTED');
@@ -1380,6 +1382,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       // reached. An explicit "nothing is running it" is final.
       if (!appLocations.length) {
         for (let attempt = 1; attempt <= G_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
+          searchRequests += 1;
           // eslint-disable-next-line no-await-in-loop
           const { answered, locations: found } = await fluxService
             .getApplicationLocation(app.name);
@@ -1569,7 +1572,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
     const elapsedAppsS = Math.round((appsProcessingTimeNs / 1_000_000_000) * 100) / 100;
     const slowestS = Math.round((slowestApp.ns / 1_000_000_000) * 100) / 100;
-    log.info(`Total Non G apps processing time. Elapsed: ${elapsedAppsS}, slowest ${slowestApp.name} at ${slowestS}`);
+    log.info(`Total Non G apps processing time. Elapsed: ${elapsedAppsS}, slowest ${slowestApp.name} at ${slowestS}, location searches: ${searchRequests}`);
 
     if (configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');
@@ -1618,6 +1621,10 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
   }
   lastGPassStartedAt = monotonicMs();
   const startTime = process.hrtime.bigint();
+  // What the pass cost api.runonflux.io, reported with its duration. An
+  // application absent from the bulk feed is asked about directly, and that is
+  // the only outbound request the pass makes per application.
+  let searchRequests = 0;
 
   try {
     log.info('G Mode STARTED');
@@ -1667,23 +1674,26 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     if (needSearch.length) {
       const searched = await serviceHelper.runWithConcurrency(
         needSearch.map((app) => async () => {
+          let requests = 0;
           for (let attempt = 1; attempt <= G_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
+            requests += 1;
             // eslint-disable-next-line no-await-in-loop
             const { answered, locations: found } = await fluxService
               .getApplicationLocation(app.name);
             if (found.length) {
               log.info(`Application: ${app.name} was missing from the bulk feed, found on ${found.length} node(s) by search`);
-              return [app.name, found];
+              return [app.name, found, requests];
             }
-            if (answered) return [app.name, []];
+            if (answered) return [app.name, [], requests];
           }
-          return [app.name, []];
+          return [app.name, [], requests];
         }),
         G_PASS_CONCURRENCY,
       );
       for (const result of searched) {
         if (result.status === 'fulfilled') {
-          const [name, found] = result.value;
+          const [name, found, requests] = result.value;
+          searchRequests += requests;
           if (found && found.length) locationsForPass.set(name, found);
         }
       }
@@ -1748,7 +1758,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
   } finally {
     const elapsedNs = Number(process.hrtime.bigint() - startTime);
     const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
-    log.info(`G Mode ENDED. Elapsed: ${elapsedS}s`);
+    log.info(`G Mode ENDED. Elapsed: ${elapsedS}s, location searches: ${searchRequests}`);
   }
 }
 

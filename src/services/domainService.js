@@ -29,6 +29,7 @@ const mapOfNamesIpsLastHealthy = {}; // timestamp of last successful health chec
 const mapOfNamesIpsLastHeld = {}; // timestamp of the last confirmed HELD answer per app
 const mapOfNamesIpsFailures = {}; // consecutive failed checks of the sticky, per app
 const mapOfNamesLastSeen = {}; // monotonic ms an app was last present in a pass
+const mapOfNamesLastChosen = {}; // the primary the previous pass actually selected
 const G_APP_HEALTH_RETRY_COUNT = 3;
 const G_APP_HEALTH_RETRY_DELAY_MS = 3000;
 const G_APP_UNHEALTHY_THRESHOLD_MS = 90 * 1000; // 90 seconds before switching away from sticky IP
@@ -417,6 +418,7 @@ function pruneGAppState(seenNames, ttlMs = G_APP_STATE_TTL_MS) {
       delete mapOfNamesIpsLastHeld[name];
       delete mapOfNamesIpsFailures[name];
       delete mapOfNamesLastSeen[name];
+      delete mapOfNamesLastChosen[name];
     }
   }
 }
@@ -646,8 +648,14 @@ function decideStickyPrimary(app, ips, snapshot) {
     );
     return stickyIp;
   }
-  log.warn(
-    `G App ${app.name} sticky IP ${stickyIp} failed ${failures} consecutive health checks over >${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s, selecting new IP`,
+  // Deliberately NOT a warning, and deliberately not phrased as a move. This
+  // phase releases the sticky; it does not decide what replaces it. For an
+  // operator-stopped app the held phase re-pins this very node, every pass,
+  // forever - and logging the release as "selecting new IP" put one line per
+  // held app per pass into warn.log for something that never happened. The pass
+  // reports the actual move at the end, where the outcome is known.
+  log.debug(
+    `G App ${app.name} sticky IP ${stickyIp} failed ${failures} consecutive health checks over >${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s, releasing it`,
   );
   return null;
 }
@@ -759,6 +767,35 @@ function decideHeldPrimary(app, ips, snapshot) {
 }
 
 /**
+ * The one thing about a g: app worth keeping in warn.log: its primary changed.
+ *
+ * Compared against what the LAST PASS CHOSE, not against the sticky. A released
+ * sticky is not a move - the held phase re-pins the same node most of the time -
+ * and mapOfNamesIps keeps its stale entry when a pass resolves nothing, so
+ * comparing against it would report the same non-event every 25 seconds. Only a
+ * transition is logged, which is what makes this affordable in a file that keeps
+ * an hour of history and self-truncates at 25MB.
+ */
+function reportPrimaryChanges(chosen) {
+  chosen.forEach((ip, name) => {
+    const previous = name in mapOfNamesLastChosen ? mapOfNamesLastChosen[name] : undefined;
+    if (previous === ip) return;
+    mapOfNamesLastChosen[name] = ip;
+    if (previous === undefined) {
+      // First pass this app has been in. Nothing moved; nothing to report.
+      if (ip) log.info(`G App ${name} primary is ${ip}`);
+      else log.warn(`G App ${name} has no primary - nothing is running or holding it`);
+    } else if (ip && previous) {
+      log.warn(`G App ${name} PRIMARY MOVED ${previous} -> ${ip}`);
+    } else if (ip) {
+      log.warn(`G App ${name} has a primary again: ${ip}`);
+    } else {
+      log.warn(`G App ${name} lost its primary ${previous} - nothing is running or holding it`);
+    }
+  });
+}
+
+/**
  * Pick the primary for every g: app in one pass.
  *
  * Two snapshots and two pure decisions. The held snapshot covers only the apps
@@ -855,6 +892,7 @@ async function selectGPrimaries(apps, locations, options = {}) {
   }
 
   for (const app of apps) if (!chosen.has(app.name)) chosen.set(app.name, null);
+  reportPrimaryChanges(chosen);
   return chosen;
 }
 
@@ -1947,6 +1985,7 @@ function setGStickyState(appName, ip, lastHealthyMs) {
 
 function resetGStickyState(appName) {
   delete mapOfNamesLastSeen[appName];
+  delete mapOfNamesLastChosen[appName];
   delete mapOfNamesIps[appName];
   delete mapOfNamesIpsLastHealthy[appName];
   delete mapOfNamesIpsLastHeld[appName];

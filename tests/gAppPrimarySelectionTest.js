@@ -22,20 +22,24 @@ const zizySpec = {
 // One stand-in FluxOS node answering both questions the selection asks:
 // /apps/listrunningapps (is it serving?) and /apps/heldcomponents (is it holding?).
 function serveNode({ running = [], held = [], heldStatus = 200 } = {}) {
+  // Mutable, so a test can have a node start or stop serving the app between
+  // passes - which is the only way to exercise a primary actually moving.
+  const state = { running, held, heldStatus };
   const server = http.createServer((req, res) => {
     if (req.url.startsWith('/apps/heldcomponents')) {
-      if (heldStatus !== 200) {
-        res.writeHead(heldStatus, { 'Content-Type': 'application/json' });
+      if (state.heldStatus !== 200) {
+        res.writeHead(state.heldStatus, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'error', data: { message: 'Not Found' } }));
         return;
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'success', data: held }));
+      res.end(JSON.stringify({ status: 'success', data: state.held }));
       return;
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'success', data: running }));
+    res.end(JSON.stringify({ status: 'success', data: state.running }));
   });
+  server.state = state;
   return new Promise((resolve) => {
     server.listen(0, '127.0.0.1', () => resolve(server));
   });
@@ -46,11 +50,12 @@ const addr = (server) => `127.0.0.1:${server.address().port}`;
 describe('g: app primary selection', () => {
   const servers = [];
 
-  const node = async (opts) => {
+  const nodeServer = async (opts) => {
     const server = await serveNode(opts);
     servers.push(server);
-    return addr(server);
+    return server;
   };
+  const node = async (opts) => addr(await nodeServer(opts));
 
   afterEach(() => {
     while (servers.length) servers.pop().close();
@@ -129,5 +134,107 @@ describe('g: app primary selection', () => {
   it('does not treat a node holding only the non-g: component as the primary', async () => {
     const mysqlOnly = await node({ running: [], held: ['fluxmysql_zizy'] });
     expect(await select([mysqlOnly])).to.equal(null);
+  });
+
+  // WHAT warn.log IS FOR.
+  //
+  // It is the only log that keeps real history - info.log self-truncates at 25MB
+  // and holds about an hour - so what goes in it has to be events, not states.
+  // An operator-stopped app is a state: the running phase releases the sticky and
+  // the held phase re-pins the very same node, every pass, for as long as the app
+  // stays stopped. Reporting that release as "selecting new IP" put one warning
+  // per held app per pass into the file, for a move that never happened - roughly
+  // 28 apps on the dev FDM against a 25-64s cadence.
+  //
+  // The fix is NOT to reset the failure counter on the held path. That re-arms
+  // the confirmation guard, so the running phase keeps the stopped node and the
+  // candidate sweep - the phase that finds a node which has since started running
+  // the app - never runs. Measured: the app moves in one pass today and in three
+  // with the counter reset. The last two cases here pin both halves of that.
+  describe('what reaches warn.log', () => {
+    // eslint-disable-next-line global-require
+    const log = require('../src/lib/log');
+    const G_APP_MIN_CONFIRMATIONS = 3;
+    let warns = [];
+    let realWarn;
+
+    beforeEach(() => {
+      warns = [];
+      realWarn = log.warn;
+      log.warn = (m) => { warns.push(String(m)); };
+    });
+    afterEach(() => { log.warn = realWarn; });
+
+    it('says nothing every pass about an operator-stopped app whose primary is unchanged', async () => {
+      const holder = await node({ running: [], held: ['fluxapp_zizy'] });
+      const idle = await node({ running: [], held: [] });
+      // Healthy long enough ago that the grace and the confirmations are both
+      // spent, which is the steady state after a stop.
+      setGStickyState(zizySpec.name, holder, domainService.monotonicMs() - 600_000);
+      // Spend the two confirmations the running phase owes a primary.
+      await select([holder, idle]);
+      await select([holder, idle]);
+      warns = [];
+      for (let pass = 0; pass < 4; pass += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        expect(await select([holder, idle])).to.equal(holder);
+      }
+      expect(warns).to.deep.equal([]);
+    });
+
+    it('reports the move, once, when the primary actually changes', async () => {
+      const first = await nodeServer({ running: [{ Names: ['/fluxapp_zizy'] }] });
+      const second = await nodeServer({ running: [] });
+      expect(await select([addr(first), addr(second)])).to.equal(addr(first));
+      warns = [];
+
+      // The primary stops serving it and the other node picks it up. Neither is
+      // holding it, so this is the running path, start to finish.
+      first.state.running = [];
+      second.state.running = [{ Names: ['/fluxapp_zizy'] }];
+      // Last healthy well outside the 90s grace, which a test running in
+      // milliseconds cannot otherwise leave. The confirmations are still spent
+      // one pass at a time below - release needs BOTH.
+      setGStickyState(zizySpec.name, addr(first), domainService.monotonicMs() - 600_000);
+
+      for (let pass = 1; pass < G_APP_MIN_CONFIRMATIONS; pass += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        expect(await select([addr(first), addr(second)])).to.equal(addr(first));
+      }
+      expect(await select([addr(first), addr(second)])).to.equal(addr(second));
+
+      const moves = warns.filter((w) => w.includes('PRIMARY MOVED'));
+      expect(moves).to.have.lengthOf(1);
+      expect(moves[0]).to.contain(addr(first)).and.to.contain(addr(second));
+    });
+
+    // The regression the counter reset would have introduced. A held app is not
+    // pinned: the instant a node starts running it, the very next pass moves.
+    it('moves a held app to a node that starts running it, on the next pass', async () => {
+      // From the third pass on - once the confirmations are spent, which is the
+      // steady state of an operator-stopped app. Swept over its length, because
+      // the regression this guards is CYCLIC: resetting the counter on the held
+      // path makes the running phase keep the stopped node for two passes out of
+      // every three, and a single warm-up length can land on the third by luck.
+      // Every length has to move on the next pass, not just the convenient one.
+      for (let held = 3; held <= 8; held += 1) {
+        resetGStickyState(zizySpec.name);
+        // eslint-disable-next-line no-await-in-loop
+        const holder = await nodeServer({ running: [], held: ['fluxapp_zizy'] });
+        // eslint-disable-next-line no-await-in-loop
+        const other = await nodeServer({ running: [], held: [] });
+        setGStickyState(zizySpec.name, addr(holder), domainService.monotonicMs() - 600_000);
+        for (let pass = 0; pass < held; pass += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          expect(await select([addr(holder), addr(other)])).to.equal(addr(holder));
+        }
+
+        // `other` starts serving it. The NEXT pass moves - never the third.
+        other.state.running = [{ Names: ['/fluxapp_zizy'] }];
+        // eslint-disable-next-line no-await-in-loop
+        expect(await select([addr(holder), addr(other)]), `after ${held} held pass(es)`)
+          .to.equal(addr(other));
+      }
+    });
   });
 });

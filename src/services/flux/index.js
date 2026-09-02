@@ -88,7 +88,19 @@ async function getAppSpecifications() {
     return [];
   }
 }
-// Retrieves IP's that a given application in running on
+/**
+ * Where a given application is running, as the API sees it.
+ *
+ * `answered` is the distinction the callers need: an empty list means two
+ * different things - "the API says nobody is running it" and "I could not reach
+ * the API" - and only the second is worth another request. Every app the bulk
+ * feed omits replies `success` with zero locations in under 200ms, so a caller
+ * that cannot tell them apart spends five requests to settle one question. Same
+ * distinction, and the same word, as the node probes in application/checks.js.
+ *
+ * @param {string} appName application name
+ * @returns {Promise<{answered: boolean, locations: Object[]}>}
+ */
 async function getApplicationLocation(appName) {
   try {
     const fluxnodeList = await axios.get(
@@ -96,15 +108,16 @@ async function getApplicationLocation(appName) {
       { timeout: 3_000 },
     );
     if (fluxnodeList.data.status === 'success') {
-      return fluxnodeList.data.data || [];
+      return { answered: true, locations: fluxnodeList.data.data || [] };
     }
     console.log(
       `${fluxnodeList.data.status} received from getApplicationLocation`,
     );
-    return [];
+    // A 200 carrying an in-band error: it replied, but not with an answer.
+    return { answered: false, locations: [] };
   } catch (e) {
     log.error(`Failed to get app location for ${appName}. ${e.message}`);
-    return [];
+    return { answered: false, locations: [] };
   }
 }
 

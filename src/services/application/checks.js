@@ -6,7 +6,6 @@ const config = require('config');
 const https = require('https');
 const ethers = require('ethers');
 const serviceHelper = require('../serviceHelper');
-const domainService = require('../domainService');
 const log = require('../../lib/log');
 
 const timeout = 5456;
@@ -950,6 +949,141 @@ function getGComponentDockerNames(appSpec) {
 }
 
 /**
+ * What a node was able to tell us about a component.
+ *
+ * The distinction this carries is the whole point. A node that answers with its
+ * container list has settled the question: the component is there or it is not.
+ * A node that times out, refuses the connection or returns a body we cannot read
+ * has settled nothing. Collapsing those into one `false` is what made
+ * checkAppRunningWithRetries back off for six seconds after a node replied in
+ * eighty milliseconds that it is not running the app - measured on fdm-eu-1-03 as
+ * 390s of a 479s pass - and it is the same collapse that leaves the held check
+ * unable to tell "not holding it" from "could not ask".
+ *
+ * Deliberately the same three names, with the same values, as FluxOS's
+ * PeerComponent (appLifecycle/advancedWorkflows.js): both sides are answering the
+ * same question about the same component, and a shared vocabulary is what stops
+ * the two drifting into disagreeing about what silence means.
+ */
+const ProbeState = Object.freeze({
+  RUNNING: 'running',
+  NOT_RUNNING: 'notRunning',
+  UNKNOWN: 'unknown',
+});
+
+// First contact. Measured on the fleet from fdm-eu-2-02: 306 of 306 selected
+// primaries answered, p50 199ms, p95 503ms, slowest 608ms, none over 2s. 12s was
+// 20x the slowest real answer, and it was load-bearing only because a failed check
+// used to move a primary on its own - which counted confirmations now prevent. The
+// headroom that remains is for nodes slower than anything in that sample; it is
+// paid in full only by a node that is actually down.
+const PROBE_TIMEOUT_MS = 6000;
+
+/**
+ * One node's container names, fetched once.
+ *
+ * Split out from the per-app decision so a pass can ask each node what it runs a
+ * single time and answer every app from that. The old shape asked once per
+ * (app, candidate) pair, which re-asked the same node the same question for
+ * every app it happened to be a candidate for.
+ *
+ * `answered` is not `ok`. It means "asking again cannot change this", and only a
+ * 404/501 qualifies: the route does not exist on that node and will not exist
+ * three seconds later. Most of the fleet cannot serve /apps/heldcomponents until
+ * flux#1777 ships and answers 404 to every probe - 61 nodes per pass on a dev
+ * FDM - and putting those through the full ladder is the same waste as sleeping
+ * on a definitive negative.
+ *
+ * Every other failure is retried, including 5xx: FluxOS answers 503 while a
+ * reconciler pass holds an app lock, and a node that is merely busy must not be
+ * mistaken for one that has given its final answer.
+ *
+ * Either way it is `ok: false`: a node that cannot say what it holds has not
+ * said it holds nothing.
+ *
+ * @param {string} url node ip, optionally with api port
+ * @param {string} route endpoint path
+ * @param {number} [timeoutMs] probe timeout; a node already believed down is
+ *   given a shorter one, since that wait is paid on every pass
+ * @returns {Promise<{ok: boolean, answered: boolean, names: Set<string>}>}
+ */
+async function fetchNodeNames(url, route, timeoutMs = PROBE_TIMEOUT_MS) {
+  const { CancelToken } = axios;
+  const source = CancelToken.source();
+  let isResolved = false;
+  // Backstop for a socket that stalls after the headers, which axios' own
+  // timeout does not cover. Cleared on settle so a pass does not leave one
+  // live timer per probe behind it.
+  const backstop = setTimeout(() => {
+    if (!isResolved) source.cancel('Operation canceled by timeout.');
+  }, timeoutMs * 2);
+  try {
+    const ip = url.split(':')[0];
+    const port = url.split(':')[1] || 16127;
+    const response = await axios.get(`http://${ip}:${port}${route}`, { timeout: timeoutMs, cancelToken: source.token });
+    isResolved = true;
+    const payload = response.data && response.data.data;
+    // A 200 carrying an in-band error object: answered, but unreadable.
+    if (!Array.isArray(payload)) return { ok: false, answered: true, names: new Set() };
+    // listrunningapps yields container objects, heldcomponents bare strings.
+    const names = new Set(
+      payload
+        .map((entry) => (typeof entry === 'string' ? entry : entry?.Names?.[0]))
+        .filter((raw) => typeof raw === 'string')
+        .map((raw) => raw.replace(/^\//, '')),
+    );
+    return { ok: true, answered: true, names };
+  } catch (error) {
+    // A status is only a FINAL answer when it says the node will still be
+    // answering that way in three seconds. 404 means the route does not exist
+    // here - a node too old for it does not grow one on a retry. 5xx, 429 and
+    // 408 are the node saying "not now", which is exactly what the ladder is
+    // for: FluxOS returns 503 while a reconciler pass holds the app lock, and
+    // the old code gave that node three attempts.
+    const status = error.response ? error.response.status : 0;
+    const routeWillNeverExist = status === 404 || status === 501;
+    return { ok: false, answered: routeWillNeverExist, names: new Set() };
+  } finally {
+    clearTimeout(backstop);
+  }
+}
+
+/**
+ * Everything one node is running, as bare container names.
+ * @param {string} url node ip, optionally with api port
+ * @param {number} [timeoutMs] probe timeout
+ * @returns {Promise<{ok: boolean, names: Set<string>}>}
+ */
+function fetchRunningNames(url, timeoutMs) {
+  return fetchNodeNames(url, '/apps/listrunningapps', timeoutMs);
+}
+
+/**
+ * Everything one node reports HOLDING, as bare container names.
+ * A node too old for the route answers 404, which is `ok: false` - it cannot say.
+ * @param {string} url node ip, optionally with api port
+ * @param {number} [timeoutMs] probe timeout
+ * @returns {Promise<{ok: boolean, names: Set<string>}>}
+ */
+function fetchHeldNames(url, timeoutMs) {
+  return fetchNodeNames(url, '/apps/heldcomponents', timeoutMs);
+}
+
+/**
+ * Read a fetched name set as a verdict about one app's g: components.
+ * @param {{ok: boolean, names: Set<string>}} fetched
+ * @param {Object} appSpec full application specification
+ * @returns {string} a ProbeState
+ */
+function stateFromNames(fetched, appSpec) {
+  if (!fetched.ok) return ProbeState.UNKNOWN;
+  const expectedNames = getGComponentDockerNames(appSpec);
+  if (!expectedNames.length) return ProbeState.NOT_RUNNING;
+  const hit = expectedNames.some((name) => fetched.names.has(name.replace(/^\//, '')));
+  return hit ? ProbeState.RUNNING : ProbeState.NOT_RUNNING;
+}
+
+/**
  * Whether a node is the elected master of a g: application.
  * Only the master runs g: components, so any one of them running identifies it.
  * A master whose other components have stopped is still the master, and still
@@ -959,36 +1093,51 @@ function getGComponentDockerNames(appSpec) {
  * @param {Object} appSpec full application specification
  * @returns {Promise<boolean>} true if any g: component is running there
  */
-async function checkAppRunning(url, appSpec) {
-  try {
-    const expectedNames = getGComponentDockerNames(appSpec);
-    if (!expectedNames.length) {
-      // Only reachable if a non-g: app got routed down the g: path. Passing here
-      // would green-light every node, so refuse instead of guessing.
-      log.warn(`checkAppRunning: app ${appSpec.name} has no g: component, cannot identify a master`);
-      return false;
-    }
-
-    const { CancelToken } = axios;
-    const source = CancelToken.source();
-    let isResolved = false;
-    const checkAppRunningTimeout = 12000;
-    setTimeout(() => {
-      if (!isResolved) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, checkAppRunningTimeout * 2);
-
-    const ip = url.split(':')[0];
-    const port = url.split(':')[1] || 16127;
-    const response = await axios.get(`http://${ip}:${port}/apps/listrunningapps`, { timeout: checkAppRunningTimeout, cancelToken: source.token });
-    isResolved = true;
-    const appsRunning = response.data.data;
-    const runningNames = appsRunning.map((app) => app.Names[0]);
-    return expectedNames.some((name) => runningNames.includes(name));
-  } catch (error) {
-    return false;
+async function checkAppRunningState(url, appSpec) {
+  if (!getGComponentDockerNames(appSpec).length) {
+    // Only reachable if a non-g: app got routed down the g: path. Passing here
+    // would green-light every node, so refuse instead of guessing.
+    log.warn(`checkAppRunning: app ${appSpec.name} has no g: component, cannot identify a master`);
+    return ProbeState.NOT_RUNNING;
   }
+  return stateFromNames(await fetchRunningNames(url), appSpec);
+}
+
+async function checkAppRunning(url, appSpec) {
+  return (await checkAppRunningState(url, appSpec)) === ProbeState.RUNNING;
+}
+
+/**
+ * Whether a node is deliberately HOLDING a g: application's components rather
+ * than merely not running them.
+ *
+ * A master whose owner stopped it - to edit world files, swap a save, upload a
+ * mod - has no container, so checkAppRunning says no. It is still the master:
+ * it owns the writable copy of the syncthing volume, FluxOS is refusing to let
+ * any peer elect over it, and it will serve again the moment its owner starts
+ * it. Health-checking it away and re-selecting is how a stop/start cycle moves
+ * the primary onto another node's copy of the data.
+ *
+ * This is what `pause` used to give us for free: a paused container still
+ * appeared in the running list, so the master was never un-named. `apppause` is
+ * retired, and /apps/heldcomponents is the replacement - the node reporting, in
+ * its own words, which components it holds.
+ *
+ * Conservative by construction: a node too old for the endpoint answers 404, an
+ * unreachable one throws, and both mean "cannot say", which reads as false and
+ * leaves today's behaviour exactly as it was. Only an explicit yes counts.
+ *
+ * @param {string} url node ip, optionally with api port
+ * @param {Object} appSpec full application specification
+ * @returns {Promise<boolean>} true only if the node states it holds a g: component
+ */
+async function checkAppHeldState(url, appSpec) {
+  if (!getGComponentDockerNames(appSpec).length) return ProbeState.NOT_RUNNING;
+  return stateFromNames(await fetchHeldNames(url), appSpec);
+}
+
+async function checkAppHeld(url, appSpec) {
+  return (await checkAppHeldState(url, appSpec)) === ProbeState.RUNNING;
 }
 
 function applicationWithChecks(app) {
@@ -1104,6 +1253,14 @@ module.exports = {
   checkAlgorand,
   checkEthers,
   checkAppRunning,
+  checkAppHeld,
+  checkAppRunningState,
+  checkAppHeldState,
+  fetchRunningNames,
+  fetchHeldNames,
+  stateFromNames,
+  ProbeState,
+  PROBE_TIMEOUT_MS,
   getGComponentDockerNames,
   checkALPHexplorer,
   checkErgoHeight,

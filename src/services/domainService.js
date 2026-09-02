@@ -648,15 +648,11 @@ function decideStickyPrimary(app, ips, snapshot) {
     );
     return stickyIp;
   }
-  // Deliberately NOT a warning, and deliberately not phrased as a move. This
-  // phase releases the sticky; it does not decide what replaces it. For an
-  // operator-stopped app the held phase re-pins this very node, every pass,
-  // forever - and logging the release as "selecting new IP" put one line per
-  // held app per pass into warn.log for something that never happened. The pass
-  // reports the actual move at the end, where the outcome is known.
-  log.debug(
-    `G App ${app.name} sticky IP ${stickyIp} failed ${failures} consecutive health checks over >${G_APP_UNHEALTHY_THRESHOLD_MS / 1000}s, releasing it`,
-  );
+  // Nothing is logged here. This phase releases the sticky; it does not decide
+  // what replaces it, and for an operator-stopped app the held phase re-pins
+  // this very node on the same pass, every pass, for as long as it stays
+  // stopped. The line that used to be here announced a move that never
+  // happened. The pass reports the outcome at the end, where it is known.
   return null;
 }
 

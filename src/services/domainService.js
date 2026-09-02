@@ -1462,7 +1462,15 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
           app.compose
           && app.compose.find((comp) => comp.repotag.toLowerCase().includes('runonflux/shared-db'))
         ) {
-          // app using sharedDB project
+          // app using sharedDB project.
+          //
+          // isRdata makes haproxy mark every server after the first as `backup`,
+          // so position zero is the only one taking traffic - the write target of
+          // a database whose members must not be written to concurrently. It is
+          // set here and nowhere else: an `r:` volume is syncthing-replicated
+          // across instances that are ALL meant to run and ALL meant to serve, so
+          // pinning those to one node would defeat the point of deploying them.
+          // An app that needs a single serving instance says so with `g:`.
           app.isRdata = true;
           // Ordered before the cluster has its say, so the fallbacks below start
           // from a fixed order rather than from whatever the locations API
@@ -1529,14 +1537,6 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
             if (componentMySQLIndex >= 0) {
               app.compose.splice(componentMySQLIndex, 1);
             }
-          } else if (
-            (app.version <= 3 && app.containerData.includes('r:'))
-            || (app.compose
-              && app.compose.find((comp) => comp.containerData.includes('r:')))
-          ) {
-            // Same defect as the fallback above, and the same fix.
-            app.isRdata = true;
-            appIps = orderBySeniority(appIps, appLocations);
           }
         } else {
           // The branch most apps take. Order carries no meaning here - haproxy

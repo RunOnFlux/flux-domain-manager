@@ -136,21 +136,17 @@ describe('g: app primary selection', () => {
     expect(await select([mysqlOnly])).to.equal(null);
   });
 
-  // WHAT warn.log IS FOR.
+  // warn.log is the only log that keeps real history, so what goes in it has to
+  // be events, not states. An operator-stopped app is a state: the running phase
+  // releases the sticky and the held phase re-pins the very same node, on every
+  // pass, for as long as the app stays stopped - roughly 28 apps on the dev FDM
+  // against a 25-64s cadence. Only a primary that actually changed is reported.
   //
-  // It is the only log that keeps real history - info.log self-truncates at 25MB
-  // and holds about an hour - so what goes in it has to be events, not states.
-  // An operator-stopped app is a state: the running phase releases the sticky and
-  // the held phase re-pins the very same node, every pass, for as long as the app
-  // stays stopped. Reporting that release as "selecting new IP" put one warning
-  // per held app per pass into the file, for a move that never happened - roughly
-  // 28 apps on the dev FDM against a 25-64s cadence.
-  //
-  // The fix is NOT to reset the failure counter on the held path. That re-arms
-  // the confirmation guard, so the running phase keeps the stopped node and the
-  // candidate sweep - the phase that finds a node which has since started running
-  // the app - never runs. Measured: the app moves in one pass today and in three
-  // with the counter reset. The last two cases here pin both halves of that.
+  // Resetting the failure counter on the held path would silence it too, and must
+  // not: it re-arms the confirmation guard, so the running phase keeps the
+  // stopped node and the candidate sweep - the phase that finds a node which has
+  // since started running the app - never runs. That is three passes to move
+  // where there is one. The last two cases pin both halves.
   describe('what reaches warn.log', () => {
     // eslint-disable-next-line global-require
     const log = require('../src/lib/log');
@@ -193,8 +189,8 @@ describe('g: app primary selection', () => {
       first.state.running = [];
       second.state.running = [{ Names: ['/fluxapp_zizy'] }];
       // Last healthy well outside the 90s grace, which a test running in
-      // milliseconds cannot otherwise leave. The confirmations are still spent
-      // one pass at a time below - release needs BOTH.
+      // milliseconds cannot otherwise leave. The confirmations are spent one
+      // pass at a time below - release needs BOTH.
       setGStickyState(zizySpec.name, addr(first), domainService.monotonicMs() - 600_000);
 
       for (let pass = 1; pass < G_APP_MIN_CONFIRMATIONS; pass += 1) {
@@ -208,15 +204,15 @@ describe('g: app primary selection', () => {
       expect(moves[0]).to.contain(addr(first)).and.to.contain(addr(second));
     });
 
-    // The regression the counter reset would have introduced. A held app is not
-    // pinned: the instant a node starts running it, the very next pass moves.
+    // A held app is not pinned: the instant a node starts running it, the very
+    // next pass moves.
     it('moves a held app to a node that starts running it, on the next pass', async () => {
       // From the third pass on - once the confirmations are spent, which is the
-      // steady state of an operator-stopped app. Swept over its length, because
-      // the regression this guards is CYCLIC: resetting the counter on the held
-      // path makes the running phase keep the stopped node for two passes out of
-      // every three, and a single warm-up length can land on the third by luck.
-      // Every length has to move on the next pass, not just the convenient one.
+      // steady state of an operator-stopped app. Swept over its length because
+      // the failure it guards against is cyclic: a running phase that keeps the
+      // stopped node for two passes out of every three still moves on the third,
+      // so a single warm-up length can pass by luck. Every length must move on
+      // the next pass, not just the convenient one.
       for (let held = 3; held <= 8; held += 1) {
         resetGStickyState(zizySpec.name);
         // eslint-disable-next-line no-await-in-loop

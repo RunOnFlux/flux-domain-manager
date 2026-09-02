@@ -648,11 +648,9 @@ function decideStickyPrimary(app, ips, snapshot) {
     );
     return stickyIp;
   }
-  // Nothing is logged here. This phase releases the sticky; it does not decide
-  // what replaces it, and for an operator-stopped app the held phase re-pins
-  // this very node on the same pass, every pass, for as long as it stays
-  // stopped. The line that used to be here announced a move that never
-  // happened. The pass reports the outcome at the end, where it is known.
+  // Silent. This phase releases the sticky; it does not decide what replaces it,
+  // and for an operator-stopped app the held phase re-pins this same node on the
+  // same pass. The pass reports the outcome at the end, where it is known.
   return null;
 }
 
@@ -767,10 +765,9 @@ function decideHeldPrimary(app, ips, snapshot) {
  *
  * Compared against what the LAST PASS CHOSE, not against the sticky. A released
  * sticky is not a move - the held phase re-pins the same node most of the time -
- * and mapOfNamesIps keeps its stale entry when a pass resolves nothing, so
- * comparing against it would report the same non-event every 25 seconds. Only a
- * transition is logged, which is what makes this affordable in a file that keeps
- * an hour of history and self-truncates at 25MB.
+ * and mapOfNamesIps keeps its stale entry when a pass resolves nothing, so the
+ * sticky would read as a change on every pass. Only a transition is logged,
+ * which is what keeps this affordable in a file that self-truncates at 25MB.
  */
 function reportPrimaryChanges(chosen) {
   chosen.forEach((ip, name) => {
@@ -1355,8 +1352,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
       const appLocations = appsLocations.get(app.name) || [];
 
-      // Same rule as the G pass above: the attempts are for an API that could
-      // not be reached. An explicit "nothing is running it" is final.
+      // Same rule as the G pass: the attempts are for an API that could not be
+      // reached. An explicit "nothing is running it" is final.
       if (!appLocations.length) {
         log.debug(`Application: ${app.name} not found in global locations... searching nodes`);
         for (let attempt = 1; attempt <= G_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
@@ -1627,15 +1624,14 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
 
     // Locations for the apps the bulk feed did not carry - a handful per pass.
     //
-    // The attempts are for an API that could not be REACHED, not for one that
-    // answered. It replies `success` with an empty list in under 200ms for an app
-    // nothing is running, and re-asking that four more times cannot produce a
-    // different answer: the 15 apps the feed omits are dead ones, so 28 of every
-    // 35 requests a pass made settled nothing. Only an unreachable API is retried
-    // now, which is the same rule the node probes follow.
+    // The attempts are for an API that could not be REACHED. It replies `success`
+    // with an empty list in under 200ms for an app nothing is running, and the
+    // 15 applications the feed omits are dead ones that answer that way every
+    // time - so an answer, empty or not, settles the question. Same rule as the
+    // node probes: a status is final, silence is not.
     //
     // Searched concurrently across apps, so five attempts against a genuinely
-    // slow API still cost one app's wall clock rather than the whole pass's.
+    // slow API cost one app's wall clock rather than the whole pass's.
     //
     // The result is deliberately not cached back into appsLocations. That map is
     // replaced wholesale every 10s by the locations poll, so anything written
@@ -1650,8 +1646,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     if (needSearch.length) {
       const searched = await serviceHelper.runWithConcurrency(
         needSearch.map((app) => async () => {
-          // An app missing from the bulk feed is a steady state, not an event -
-          // the same names every pass, forever. Once per app, at debug.
+          // A steady state, not an event: the same names every pass. Debug.
           log.debug(`Application: ${app.name} not found in global locations... searching nodes`);
           for (let attempt = 1; attempt <= G_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
             // eslint-disable-next-line no-await-in-loop

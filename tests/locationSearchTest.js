@@ -8,11 +8,10 @@ const fluxService = require('../src/services/flux');
 const { getApplicationLocation } = fluxService;
 
 // The search loops in domainService retry on `answered === false` and stop on
-// `true`. That one flag is the whole cost story: measured against the live API,
-// every app the bulk feed omits replies `success` with zero locations in under
-// 200ms, so a loop that cannot tell that from an unreachable API pays five
-// requests where one settles it - 35 per pass against 7, for apps that are dead
-// and will answer the same way forever.
+// `true`. That one flag is the whole cost story: every app the bulk feed omits
+// replies `success` with zero locations in under 200ms, so a loop that cannot
+// tell that from an unreachable API pays five requests where one settles it -
+// 35 a pass against 7, for apps that will answer the same way forever.
 describe('getApplicationLocation - an empty answer is still an answer', () => {
   const realGet = axios.get;
   afterEach(() => { axios.get = realGet; });
@@ -38,7 +37,7 @@ describe('getApplicationLocation - an empty answer is still an answer', () => {
     expect(result.locations).to.deep.equal(rows);
   });
 
-  // The case the attempts exist for. Nothing was settled, so asking again can
+  // The case the attempts exist for: nothing was settled, so asking again can
   // still produce a different answer.
   it('reports NOT answered when the API could not be reached', async () => {
     stub(async () => { throw new Error('timeout of 3000ms exceeded'); });

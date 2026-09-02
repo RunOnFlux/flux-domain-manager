@@ -1332,6 +1332,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
 async function generateAndReplaceMainApplicationHaproxyConfig() {
   const startTime = process.hrtime.bigint();
   let appsProcessingTimeNs = 0;
+  let slowestApp = { name: null, ns: 0 };
 
   try {
     log.info('Non G Mode STARTED');
@@ -1373,14 +1374,11 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     for (const app of appsOK) {
       const appStartTime = process.hrtime.bigint();
 
-      log.debug(`Configuring Non G App ${app.name}`);
-
       const appLocations = appsLocations.get(app.name) || [];
 
       // Same rule as the G pass: the attempts are for an API that could not be
       // reached. An explicit "nothing is running it" is final.
       if (!appLocations.length) {
-        log.debug(`Application: ${app.name} not found in global locations... searching nodes`);
         for (let attempt = 1; attempt <= G_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
           // eslint-disable-next-line no-await-in-loop
           const { answered, locations: found } = await fluxService
@@ -1557,9 +1555,6 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         }
         addConfigurations(configuredApps, app, appIps, false);
         reportExclusion('Non G', app.name, false);
-        log.debug(
-          `Non G Application ${app.name} with specific checks: ${applicationWithChecks} is OK. Proceeding to FDM`,
-        );
       } else {
         reportExclusion('Non G', app.name, true);
         if (config.mandatoryApps.includes(app.name)) {
@@ -1568,13 +1563,13 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
       }
 
       const elapsedNs = Number(process.hrtime.bigint() - appStartTime);
-      const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
       appsProcessingTimeNs += elapsedNs;
-      log.debug(`Non G App: ${app.name}, Elapsed: ${elapsedS}`);
+      slowestApp = elapsedNs > slowestApp.ns ? { name: app.name, ns: elapsedNs } : slowestApp;
     }
 
     const elapsedAppsS = Math.round((appsProcessingTimeNs / 1_000_000_000) * 100) / 100;
-    log.info(`Total Non G apps processing time. Elapsed: ${elapsedAppsS}`);
+    const slowestS = Math.round((slowestApp.ns / 1_000_000_000) * 100) / 100;
+    log.info(`Total Non G apps processing time. Elapsed: ${elapsedAppsS}, slowest ${slowestApp.name} at ${slowestS}`);
 
     if (configuredApps.length < 10) {
       throw new Error('PANIC PLEASE DEV HELP ME');
@@ -1672,8 +1667,6 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     if (needSearch.length) {
       const searched = await serviceHelper.runWithConcurrency(
         needSearch.map((app) => async () => {
-          // A steady state, not an event: the same names every pass. Debug.
-          log.debug(`Application: ${app.name} not found in global locations... searching nodes`);
           for (let attempt = 1; attempt <= G_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
             // eslint-disable-next-line no-await-in-loop
             const { answered, locations: found } = await fluxService
@@ -1701,8 +1694,6 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     // continue with appsOK
     const configuredApps = createConfiguredApps();
     for (const app of appsOK) {
-      log.debug(`Configuring ${app.name}`);
-
       const appLocations = locationsForPass.get(app.name) || [];
 
       if (appLocations.length > 0) {
@@ -1713,10 +1704,6 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
         if (selectedIP) {
           appIps.push(selectedIP);
           addConfigurations(configuredApps, app, appIps, true);
-          // The selection is reported on its edges by selectGPrimaries.
-          log.debug(
-            `G Application ${app.name} is OK selected IP is ${selectedIP}. Proceeding to FDM`,
-          );
         }
 
         if (config.mandatoryApps.includes(app.name) && appIps.length < 1) {

@@ -1321,14 +1321,17 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
 
       const appLocations = appsLocations.get(app.name) || [];
 
-      let searchCount = 0;
-      while (!appLocations.length && searchCount < 5) {
-        log.info(`Application: ${app.name} not found in global locations... `
-          + 'searching nodes');
-        searchCount += 1;
-        // eslint-disable-next-line no-await-in-loop
-        const newLocations = await fluxService.getApplicationLocation(app.name);
-        appLocations.push(...newLocations);
+      // Same rule as the G pass above: the attempts are for an API that could
+      // not be reached. An explicit "nothing is running it" is final.
+      if (!appLocations.length) {
+        log.debug(`Application: ${app.name} not found in global locations... searching nodes`);
+        for (let attempt = 1; attempt <= G_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          const { answered, locations: found } = await fluxService
+            .getApplicationLocation(app.name);
+          appLocations.push(...found);
+          if (found.length || answered) break;
+        }
       }
 
       if (app.name === 'blockbookbitcoin') {
@@ -1590,10 +1593,15 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
 
     // Locations for the apps the bulk feed did not carry - a handful per pass.
     //
-    // Still five attempts each, as before: getApplicationLocation has a 3s
-    // timeout and swallows every error into [], so one slow answer would
-    // otherwise drop the app out of HAProxy until the next pass. What changed is
-    // that the apps are searched CONCURRENTLY rather than one after another.
+    // The attempts are for an API that could not be REACHED, not for one that
+    // answered. It replies `success` with an empty list in under 200ms for an app
+    // nothing is running, and re-asking that four more times cannot produce a
+    // different answer: the 15 apps the feed omits are dead ones, so 28 of every
+    // 35 requests a pass made settled nothing. Only an unreachable API is retried
+    // now, which is the same rule the node probes follow.
+    //
+    // Searched concurrently across apps, so five attempts against a genuinely
+    // slow API still cost one app's wall clock rather than the whole pass's.
     //
     // The result is deliberately not cached back into appsLocations. That map is
     // replaced wholesale every 10s by the locations poll, so anything written
@@ -1608,11 +1616,18 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     if (needSearch.length) {
       const searched = await serviceHelper.runWithConcurrency(
         needSearch.map((app) => async () => {
+          // An app missing from the bulk feed is a steady state, not an event -
+          // the same names every pass, forever. Once per app, at debug.
+          log.debug(`Application: ${app.name} not found in global locations... searching nodes`);
           for (let attempt = 1; attempt <= G_LOCATION_SEARCH_ATTEMPTS; attempt += 1) {
-            log.info(`Application: ${app.name} not found in global locations... searching nodes`);
             // eslint-disable-next-line no-await-in-loop
-            const found = await fluxService.getApplicationLocation(app.name);
-            if (found && found.length) return [app.name, found];
+            const { answered, locations: found } = await fluxService
+              .getApplicationLocation(app.name);
+            if (found.length) {
+              log.info(`Application: ${app.name} was missing from the bulk feed, found on ${found.length} node(s) by search`);
+              return [app.name, found];
+            }
+            if (answered) return [app.name, []];
           }
           return [app.name, []];
         }),

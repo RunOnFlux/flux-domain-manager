@@ -2,7 +2,7 @@
 // syncing: only the first backend serves, the rest render as haproxy `backup` servers
 // and take over only if it fails.
 //
-// The flag is version-blind — resolveBackends derives it from the typed sync mode
+// The flag is version-blind — the deployment answers it from the typed sync mode
 // (`persistentStorage.sync.mode`), which legacy `r:` container data and a v9
 // `syncFirst` declaration both resolve to. These tests drive it the same way the
 // routing loop does, from the deployment rather than a hand-passed boolean, so the
@@ -45,12 +45,14 @@ const v9submission = (syncMode) => ({
   },
 });
 
-// Resolve the deployment, derive syncFirst exactly as resolveBackends does, then render.
+// Resolve the deployment, ask it the same question the routing loop asks, then render.
+// Asking rather than folding is the point: a fold written here would agree with itself
+// whatever the library decided, which is what this file existed to rule out.
 async function render(submission) {
   const { FluxAppSpecV9 } = await load();
   const wire = FluxAppSpecV9.fromSubmission(submission).serialize();
   const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(wire), null);
-  const syncFirst = Object.values(deployment.components).some((c) => c.requiresSyncBeforeStart());
+  const syncFirst = deployment.requiresSyncBeforeStart();
   const routeConfigs = buildRouteConfigs(
     looseDeployments(deployment),
     'syncapp',

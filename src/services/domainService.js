@@ -390,7 +390,11 @@ async function appendRouteConfigs(routeConfigs, app, backends, isActiveStandby) 
   const onConflict = (domain, fields, replica) => {
     log.warn(`${app.name}: replica ${replica} disagrees with an earlier replica on ${domain} (${fields.join(', ')}); keeping the first`);
   };
-  routeConfigs.push(...buildRouteConfigs(deployments, app.name, backends, isActiveStandby, app.syncFirst, ownsDomain, onConflict));
+  // Version-blind, and asked of the deployment rather than folded here: legacy `r:`
+  // container data and a v9 sync declaration both resolve to the same answer, and
+  // which modes count is the spec library's to know, not this file's.
+  const syncFirst = deployments.get(null).requiresSyncBeforeStart();
+  routeConfigs.push(...buildRouteConfigs(deployments, app.name, backends, isActiveStandby, syncFirst, ownsDomain, onConflict));
   if (disowned.length) {
     log.warn(`${app.name}: skipped ${disowned.length} custom domain(s) owned by another app: ${disowned.join(', ')}`);
   }
@@ -486,20 +490,23 @@ function sharedDbApiPort(deployment) {
 }
 
 // Resolve the ordered, in-rotation backend IPs for an app from its live locations —
-// the one place config assembly consults runtime state. Three concerns that used to be
+// the one place config assembly consults runtime state. Two concerns that used to be
 // smeared through the routing loop live here now:
 //   drain      - a replica the platform reports draining/stopping is pulled from rotation
 //                (state rides the location row from flux-shutdownd -> fluxos)
 //   ordering   - app-specific health checks, or the shared-db operator's live cluster
 //                status (primary first); the renderer stays pure over the result
-//   syncFirst  - version-blind, from the typed sync mode (legacy r: and v9 both map to
-//                requiresSyncBeforeStart), set on the app for the backup-server rendering
 // Returns `{ appIps, drainingIps, backends }`. `backends` is what config assembly
 // consumes — one entry per running instance, carrying its replica name and drain state,
 // so co-located replicas stay distinguishable. `appIps`/`drainingIps` remain the node
 // address lists, which is what the mandatory-app emptiness check wants (a node hosting
 // two replicas is still one node) and what /appips reports.
-// Sets app.syncFirst as a side effect (the renderer reads it).
+//
+// It used to also set `app.syncFirst` for the renderer to read back. That wrote a
+// property onto whatever the app map held — and for an enterprise app that object IS
+// the decrypted spec the fetcher caches for 24-48h, so the write outlived this call and
+// was shared by every later reader. The renderer resolves the same deployment itself,
+// so it asks for the answer directly.
 async function resolveBackends(app, appLocations) {
   // Drain: keep only backends the platform still considers active.
   const live = appLocations.filter((l) => !isDraining(l));
@@ -507,8 +514,8 @@ async function resolveBackends(app, appLocations) {
   logDraining(app.name, drainingIps);
   let appIps = [];
 
-  // One resolved view for every branch below: the probe ports, the shared-db operator's
-  // API port, and syncFirst all read it.
+  // One resolved view for every branch below: the probe ports and the shared-db
+  // operator's API port both read it.
   const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
 
   if (applicationChecks.applicationWithChecks(app)) {
@@ -560,10 +567,6 @@ async function resolveBackends(app, appLocations) {
     appIps = live.map((location) => location.ip);
   }
 
-  // syncFirst version-blind, from the typed sync mode: legacy `r:` container data and a
-  // v9 sync declaration both resolve to requiresSyncBeforeStart.
-  // eslint-disable-next-line no-param-reassign
-  app.syncFirst = Object.values(deployment.components).some((c) => c.requiresSyncBeforeStart());
   return { appIps, drainingIps, backends: toBackends(appIps, drainingIps, appLocations) };
 }
 

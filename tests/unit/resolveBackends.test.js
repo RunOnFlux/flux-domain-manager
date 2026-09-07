@@ -1,8 +1,12 @@
 // resolveBackends is the one place config assembly consults runtime backend state. Its
-// two new behaviours over the extracted-verbatim ordering are the drain filter (a
-// draining/stopping replica is pulled from rotation) and version-blind syncFirst (from
-// the typed sync mode, replacing the raw-compose r: scan). v8 specs keep this stable and
+// behaviour over the extracted-verbatim ordering is the drain filter: a
+// draining/stopping replica is pulled from rotation. v8 specs keep this stable and
 // independent of the v9 submission schema.
+//
+// It used to derive syncFirst too and write it onto the app for the renderer to read
+// back. It no longer computes it at all — the renderer resolves the same deployment and
+// asks it — so what is left to check here is that this function does not touch the app
+// it is handed. See syncFirstRendering.test.js for the flag itself.
 const chai = require('chai');
 const { resolveBackends } = require('../../src/services/domainService');
 
@@ -70,15 +74,30 @@ describe('resolveBackends — drain + version-blind syncFirst', () => {
     expect(drainingIps).to.deep.equal([]);
   });
 
-  it('syncFirst: true for a legacy r: app, sourced from the typed sync mode', async () => {
+  it('does not write to the app it is given', async () => {
+    // The app map holds whichever form the app arrived in, and for an enterprise app
+    // that is the decrypted spec the fetcher caches for 24-48h — a frozen flux-spec
+    // domain object shared by every reader of that cache entry for as long as it
+    // lives. Nothing here may leave a mark on it.
+    //
+    // Deliberately NOT frozen for this check. domainService is not in strict mode, so
+    // a write to a frozen object is discarded in silence — freezing the fixture would
+    // make this pass whether or not the write happened, which is the same blindness
+    // that made the original side effect dangerous. An ordinary object records it.
     const app = v8spec('r:/data');
+    const before = new Set(Object.keys(app));
+
     await resolveBackends(app, [loc('1.1.1.1:16127', 'active')]);
-    expect(app.syncFirst).to.equal(true);
+
+    const added = Object.keys(app).filter((k) => !before.has(k));
+    expect(added, `resolveBackends added ${added.join(', ')} to the app`).to.deep.equal([]);
   });
 
-  it('syncFirst: false for a plain app', async () => {
-    const app = v8spec('/data');
-    await resolveBackends(app, [loc('1.1.1.1:16127', 'active')]);
-    expect(app.syncFirst).to.equal(false);
+  it('survives an app that refuses writes, which is what an enterprise app is', async () => {
+    const app = Object.freeze(v8spec('r:/data'));
+
+    const { appIps } = await resolveBackends(app, [loc('1.1.1.1:16127', 'active')]);
+
+    expect(appIps).to.deep.equal(['1.1.1.1:16127']);
   });
 });

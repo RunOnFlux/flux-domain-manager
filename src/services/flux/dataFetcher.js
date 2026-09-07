@@ -441,8 +441,9 @@ class FdmDataFetcher extends EventEmitter {
           return;
         }
         const deployment = await specLibs.resolveDeployment(instance, null);
-        const isActiveStandby = Object.values(deployment.components)
-          .some((component) => component.hasActiveStandbySyncthing());
+        // Asked of the deployment, not folded here: which sync modes count, and
+        // how each version spells them, is the spec library's to know.
+        const isActiveStandby = deployment.hasActiveStandbySyncthing();
         (isActiveStandby ? activeStandbyAppsMap : activeActiveAppsMap).set(spec.name, spec);
         // Custom-domain FQDNs feed the cross-app ownership check, sourced from the
         // resolved loadBalancing so v9 is covered like every other version.

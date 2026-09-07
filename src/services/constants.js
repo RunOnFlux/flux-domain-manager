@@ -1,3 +1,5 @@
+'use strict';
+
 const nodecmd = require('node-cmd');
 const util = require('util');
 

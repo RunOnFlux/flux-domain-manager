@@ -1,3 +1,5 @@
+'use strict';
+
 /* eslint-disable func-names */
 // Proves FDM consumes flux-spec through the CommonJS bridge: version-dispatched
 // deserialize, then DeploymentSpec resolution with ports x loadBalancing merged and

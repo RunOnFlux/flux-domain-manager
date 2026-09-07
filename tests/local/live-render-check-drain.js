@@ -1,3 +1,5 @@
+'use strict';
+
 // Prove the draining-backend rendering on real haproxy 2.9, in two steps:
 //
 //   1. a full FDM config carrying draining backends parses (`haproxy -c`);

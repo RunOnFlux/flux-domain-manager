@@ -1,3 +1,5 @@
+'use strict';
+
 // A sync-first app must not take traffic on an instance whose data has not finished
 // syncing: only the first backend serves, the rest render as haproxy `backup` servers
 // and take over only if it fails.

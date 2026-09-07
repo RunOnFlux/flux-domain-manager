@@ -1,3 +1,5 @@
+'use strict';
+
 // Prove real haproxy 2.9 accepts the v9 scheme output: build a synthetic v9 app that
 // exercises all four schemes (httpsRedirect / httpsOnly / httpOnly / httpPassthrough)
 // across components with the full tunable set, run the pipeline, and haproxy -c it.

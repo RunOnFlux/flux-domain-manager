@@ -1,3 +1,5 @@
+'use strict';
+
 const apicache = require('apicache');
 const apiService = require('./services/api');
 

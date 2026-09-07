@@ -1,3 +1,5 @@
+'use strict';
+
 // v9 has no apps in the wild yet, so these synthetic specs are the regression net for
 // the HTTP load-balancer surface: each scheme (httpsRedirect / httpsOnly / httpOnly /
 // httpPassthrough), the managed-certificate gate, and a kitchen-sink app exercising all

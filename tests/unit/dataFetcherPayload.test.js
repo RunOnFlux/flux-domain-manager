@@ -1,3 +1,5 @@
+'use strict';
+
 // A 200 from the platform API does not guarantee a payload. #parseAxiosResponse returns
 // a response object carrying `payload: null` for an empty body, a body whose own status
 // is not `success`, and empty data — all on a 200. Guarding only the response object let

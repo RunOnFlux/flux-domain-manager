@@ -1,3 +1,5 @@
+'use strict';
+
 // The per-app mechanics of a routing cycle. These lived inline in the two loops, which is
 // why neither had a test: the loops read module-level state and every step inside reaches
 // the network, so there was nothing a test could stand up.

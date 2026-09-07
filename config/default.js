@@ -1,3 +1,5 @@
+'use strict';
+
 const appsConfig = require('./appsConfig');
 const customConfigs = require('./customConfigs');
 const haproxyRouting = require('./haproxyRouting');

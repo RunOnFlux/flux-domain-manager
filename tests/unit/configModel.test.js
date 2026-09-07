@@ -1,3 +1,5 @@
+'use strict';
+
 // The generic HAProxy config model: directives are keyword + tokens (any directive
 // representable, empty tokens dropped), sections keep insertion order, and the whole
 // renders with clean deterministic whitespace.

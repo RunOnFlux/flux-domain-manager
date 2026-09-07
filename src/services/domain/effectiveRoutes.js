@@ -1,3 +1,5 @@
+'use strict';
+
 // A handful of platform apps are served on domains FDM owns rather than the ones their
 // spec declares — `cloud` answers on both runonflux.io and runonflux.com, `web` splits
 // its front end across two names. That policy is FDM's, not the owner's, so it belongs

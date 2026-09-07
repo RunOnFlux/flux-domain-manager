@@ -1,3 +1,5 @@
+'use strict';
+
 // Version-blind replacement for domainService.addConfigurations: turns resolved
 // DeploymentSpecs + live backends into the haproxy route configs the renderer consumes,
 // sourced from the spec's loadBalancing routes rather than raw compose. Each route

@@ -1,3 +1,5 @@
+'use strict';
+
 // Whether a freshly built set of route configs is complete enough to publish.
 //
 // A cycle that produced far fewer routes than the last good one has almost certainly built

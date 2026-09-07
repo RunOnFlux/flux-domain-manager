@@ -1,3 +1,5 @@
+'use strict';
+
 // FDM reads sealed (encrypted) app specs through flux-spec's decrypt lifecycle:
 // EncryptedSpec.decrypt(provider) -> DecryptedCanonicalSpec. flux-spec is transport-
 // agnostic — it never knows how the bytes are decrypted — so FDM supplies that here.

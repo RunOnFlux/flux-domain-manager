@@ -1,3 +1,5 @@
+'use strict';
+
 // When one of the two routing loops (active-active / active-standby) finishes building
 // its route configs, this decides what happens to them. The two loops are symmetric —
 // each publishes the concatenation of both sides' configs and remembers its own — so the

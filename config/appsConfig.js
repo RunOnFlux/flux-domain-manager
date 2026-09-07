@@ -1,3 +1,5 @@
+'use strict';
+
 module.exports = {
   mandatoryApps: ['explorer', 'web', 'themok6', 'paoverview'],
   ownersApps: [], // Will retrieve only apps of owners specified here

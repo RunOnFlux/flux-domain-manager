@@ -1,3 +1,5 @@
+'use strict';
+
 const { expect } = require('chai');
 const { checkDomainAction } = require('../../src/services/domain/cert');
 const { getGroupIPs } = require('../../src/services/rsync/config');

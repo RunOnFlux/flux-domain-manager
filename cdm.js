@@ -1,3 +1,5 @@
+'use strict';
+
 // The certificate role. Runs from its own checkout, as its own pm2 process, alongside
 // FDM on the renewal primary — see deployment/fdm_setup.yml.
 //

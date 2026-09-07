@@ -1,3 +1,5 @@
+'use strict';
+
 // The decrypt providers plug FDM's HTTP transport into flux-spec's decrypt lifecycle
 // (EncryptedSpec.decrypt(provider) -> DecryptedCanonicalSpec). v8 does a real local
 // AES-256-GCM open after the backend unwraps the key; v9 forwards the GCM envelope to

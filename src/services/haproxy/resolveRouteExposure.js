@@ -1,3 +1,5 @@
+'use strict';
+
 // Normalize one route config's edge exposure — how the domain is served at :80/:443
 // and whether FDM obtains a certificate — collapsing the legacy-vs-v9 split in one
 // place so the frontend/cert code stays version-blind. The backend-scoped analog is

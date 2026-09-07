@@ -1,3 +1,5 @@
+'use strict';
+
 // Prove co-located replicas on real haproxy 2.9, in two steps:
 //
 //   1. a full FDM config with two replicas of one app on ONE node parses (`haproxy -c`).

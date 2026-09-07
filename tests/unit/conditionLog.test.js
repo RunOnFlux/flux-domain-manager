@@ -1,3 +1,5 @@
+'use strict';
+
 // The routing loops run every time the fetcher emits locations — every 10 seconds,
 // unconditionally. Anything logged straight from a loop body while a condition holds is
 // emitted thousands of times a day per app, which buries the event it was meant to

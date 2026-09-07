@@ -1,3 +1,5 @@
+'use strict';
+
 const qs = require('qs');
 const axios = require('axios');
 

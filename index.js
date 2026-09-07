@@ -1,3 +1,5 @@
+'use strict';
+
 const http = require('http');
 const config = require('config');
 const app = require('./src/lib/server');

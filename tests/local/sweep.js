@@ -1,3 +1,5 @@
+'use strict';
+
 /* eslint-disable no-restricted-syntax */ // sequential await per spec over the corpus
 // Exhaustive characterization sweep over the FULL real corpus (gitignored). Runs
 // FDM's pure spec-shape functions AND the backend-config/renderer over every real

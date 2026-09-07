@@ -1,3 +1,5 @@
+'use strict';
+
 // First-registrant-wins custom-domain ownership. Locks the security behaviour the
 // live check had lost (it was a no-op): among the apps that are LIVE right now and
 // claim the same domain, the one whose earliest permanent-message registration is

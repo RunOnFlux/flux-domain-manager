@@ -1,3 +1,5 @@
+'use strict';
+
 /* eslint-disable no-restricted-syntax */ // sequential await per spec over the corpus
 // Regenerate the characterization golden from the CURRENT FDM code + committed
 // fixtures. The golden is the exact output the config-generation rewrite must

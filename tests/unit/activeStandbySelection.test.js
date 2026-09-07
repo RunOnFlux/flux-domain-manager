@@ -1,3 +1,5 @@
+'use strict';
+
 // Active-standby picks the ONE instance that serves; the rest are warm standbys sharing
 // state through syncthing, and two serving at once is the corruption the mode exists to
 // prevent. The unit of selection is an instance — `{ ip, replica }` — not a node, because

@@ -1,3 +1,5 @@
+'use strict';
+
 // A node address as FDM holds it is a socket address — a host and a port — not an IP.
 // The distinction matters because the two forms punctuate differently: IPv4 is bare
 // (`1.2.3.4:16127`) and IPv6 is bracketed (`[2001:db8::1]:9130`), so the port cannot be

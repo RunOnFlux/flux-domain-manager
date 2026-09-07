@@ -1,3 +1,5 @@
+'use strict';
+
 // Co-located replicas: two named replicas of one app on ONE node. They share a node
 // address but are separate containers on separate host ports, so they must render as two
 // distinct haproxy servers. haproxy rejects a duplicate server name FATALLY — it refuses

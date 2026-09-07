@@ -1,3 +1,5 @@
+'use strict';
+
 /* eslint-disable no-restricted-syntax, no-continue */ // sequential await per payload
 // Prove real haproxy 2.9 accepts everything a hostile owner can get past validation.
 //

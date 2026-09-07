@@ -1,3 +1,5 @@
+'use strict';
+
 // A cycle that built far fewer routes than the last good one has probably built them from
 // an incomplete view of the network. Withholding leaves haproxy on the last good config,
 // which is the safe failure — but it must not be able to withhold forever, or a population

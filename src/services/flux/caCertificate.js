@@ -1,3 +1,5 @@
+'use strict';
+
 // FDM fetches an app's backend-TLS CA over the same mTLS channel it uses to decrypt
 // sealed specs. The CA is derived per-app and is byte-deterministic across the fleet, so
 // the PEM returned here is stable for a given app name — a caller may cache it and treat

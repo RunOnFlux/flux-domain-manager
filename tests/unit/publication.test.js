@@ -1,3 +1,5 @@
+'use strict';
+
 // The publication policy the two routing loops share. The memo it returns is both a
 // change-detection cache and the cross-loop handoff, and the bug this locks down is the
 // interaction between those two roles: a config haproxy rejects must NOT be remembered

@@ -1,3 +1,5 @@
+'use strict';
+
 /* eslint-disable func-names */
 const chai = require('chai');
 const { shouldRemoveStaleCert } = require('../src/services/domain/cert');

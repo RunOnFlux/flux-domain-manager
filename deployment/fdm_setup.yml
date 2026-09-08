@@ -256,3 +256,6 @@
     - name: Stop CDM on non-primary hosts
       shell: pm2 describe CDM > /dev/null 2>&1 && pm2 delete CDM || true
       when: not certRenewalPrimary | bool
+
+    - name: Bound the log volume on every FDM host
+      import_tasks: ./tasks/logrotate.yml

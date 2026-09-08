@@ -553,7 +553,7 @@ function createAppsHaproxyConfig(appConfig) {
       seenApps[app.appName] = domainUsed;
     }
     if (app.mode === 'tcp') {
-      log.info(`TCP APP: ${app.name}`);
+      log.debug(`TCP APP: ${app.name}`);
       // also configure tcp
       const domainUsed = app.domain.split('.').join('');
       const { port } = app;

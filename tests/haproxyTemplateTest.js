@@ -77,3 +77,52 @@ describe('haproxyTemplate connection handling', () => {
     expect(appsConfig).to.include('option redispatch 1');
   });
 });
+
+// isRdata is what makes a backend single-target: haproxy takes the first server
+// and marks every other one `backup`, so only position zero receives traffic
+// until it fails. It is set for sharedDB applications, whose cluster members must
+// not be written to concurrently. Every other application - including one with an
+// `r:` syncthing-replicated volume, whose instances are all meant to run and all
+// meant to serve - keeps every server active.
+describe('haproxyTemplate isRdata backends', () => {
+  // The shape addConfigurations builds, with application/custom.js defaults.
+  const app = (isRdata) => ({
+    name: 'someapp',
+    appName: 'someapp_31512',
+    domain: 'someapp.app.runonflux.io',
+    port: 31512,
+    ips: ['1.2.3.4:16127', '5.6.7.8:16127', '9.10.11.12:16127'],
+    isRdata,
+    ssl: false,
+    timeout: false,
+    headers: false,
+    loadBalance: false,
+    healthcheck: [],
+    serverConfig: '',
+    enableH2: false,
+    mode: 'http',
+    check: true,
+  });
+
+  const backendFor = (isRdata) => {
+    const generated = haproxyTemplate.createAppsHaproxyConfig([app(isRdata)]);
+    // Leading newline: `use_backend <name>` appears in the frontend first.
+    return generated.split('\nbackend someappapprunonfluxiobackend')[1].split('\nbackend ')[0];
+  };
+
+  it('marks every server after the first as backup for a replicated database', () => {
+    const backend = backendFor(true);
+    const servers = backend.split('\n').filter((l) => l.trim().startsWith('server '));
+    expect(servers).to.have.lengthOf(3);
+    expect(servers[0]).to.not.contain(' backup');
+    expect(servers[1]).to.contain(' backup');
+    expect(servers[2]).to.contain(' backup');
+  });
+
+  it('leaves every server active for an application that is not one', () => {
+    const backend = backendFor(false);
+    const servers = backend.split('\n').filter((l) => l.trim().startsWith('server '));
+    expect(servers).to.have.lengthOf(3);
+    servers.forEach((line) => expect(line).to.not.contain(' backup'));
+  });
+});

@@ -5,7 +5,7 @@ const http = require('http');
 const { expect } = chai;
 const checks = require('../src/services/application/checks');
 
-const { getGComponentDockerNames, checkAppRunning } = checks;
+const { getGComponentDockerNames, checkAppRunning, checkAppHeld } = checks;
 
 // zizy: the app component holds the g: volume, mysql has its own local storage.
 // Only the elected master runs fluxapp_zizy; every instance runs fluxmysql_zizy.
@@ -23,6 +23,23 @@ const masterContainers = [
   { Names: ['/fluxapp_zizy'] },
 ];
 const standbyContainers = [{ Names: ['/fluxmysql_zizy'] }];
+
+// /apps/heldcomponents answers with the identifiers WITHOUT docker's leading
+// slash, which is the join this check has to get right.
+function serveHeldComponents(held, { status = 200 } = {}) {
+  const server = http.createServer((req, res) => {
+    if (status !== 200) {
+      res.writeHead(status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'error', data: { message: 'Not Found' } }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'success', data: held }));
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => resolve(server));
+  });
+}
 
 function serveRunningApps(containers) {
   const server = http.createServer((req, res) => {
@@ -70,6 +87,65 @@ describe('g: app master health check', () => {
         ],
       };
       expect(getGComponentDockerNames(spec)).to.deep.equal(['/fluxone_multi', '/fluxtwo_multi']);
+    });
+  });
+
+  describe('checkAppHeld', () => {
+    let server;
+
+    afterEach(() => {
+      if (server) server.close();
+      server = null;
+    });
+
+    // An owner who stopped their master to work on its files still owns the
+    // writable copy of the volume. Health-checking it away and re-selecting is
+    // how a stop/start cycle moves the primary onto a different node's data.
+    it('recognises a master that is deliberately holding the g: component', async () => {
+      server = await serveHeldComponents(['fluxapp_zizy', 'fluxmysql_zizy']);
+      const result = await checkAppHeld(`127.0.0.1:${server.address().port}`, zizySpec);
+      expect(result).to.equal(true);
+    });
+
+    it('does not treat a node holding only the non-g: component as the master', async () => {
+      server = await serveHeldComponents(['fluxmysql_zizy']);
+      const result = await checkAppHeld(`127.0.0.1:${server.address().port}`, zizySpec);
+      expect(result).to.equal(false);
+    });
+
+    it('does not match a different app that shares a name prefix', async () => {
+      server = await serveHeldComponents(['fluxapp_zizy2']);
+      const result = await checkAppHeld(`127.0.0.1:${server.address().port}`, zizySpec);
+      expect(result).to.equal(false);
+    });
+
+    it('reports nothing held when the list is empty', async () => {
+      server = await serveHeldComponents([]);
+      const result = await checkAppHeld(`127.0.0.1:${server.address().port}`, zizySpec);
+      expect(result).to.equal(false);
+    });
+
+    // THE SAFETY PROPERTY. /apps/heldcomponents does not exist on the released
+    // FluxOS line, so most of the fleet answers 404 until it upgrades. That must
+    // read as "cannot say" and leave the existing selection untouched - never as
+    // "held", which would pin traffic to a node on no evidence at all.
+    it('says nothing is held when the node is too old for the endpoint', async () => {
+      server = await serveHeldComponents(null, { status: 404 });
+      const result = await checkAppHeld(`127.0.0.1:${server.address().port}`, zizySpec);
+      expect(result).to.equal(false);
+    });
+
+    it('says nothing is held when the node cannot be reached', async () => {
+      // port 1 is reserved and nothing listens on it
+      const result = await checkAppHeld('127.0.0.1:1', zizySpec);
+      expect(result).to.equal(false);
+    });
+
+    it('says nothing is held for an app with no g: component at all', async () => {
+      server = await serveHeldComponents(['fluxapp_plain']);
+      const spec = { version: 3, name: 'plain', containerData: '/data' };
+      const result = await checkAppHeld(`127.0.0.1:${server.address().port}`, spec);
+      expect(result).to.equal(false);
     });
   });
 

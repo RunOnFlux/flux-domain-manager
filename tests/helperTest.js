@@ -33,18 +33,41 @@ describe('serviceHelper - runWithConcurrency', () => {
     expect(settled.every((r) => r.status === 'fulfilled')).to.equal(true);
   });
 
-  it('handles task failures without stopping others', async () => {
+  // The failing task must SETTLE FIRST, and that is the whole test.
+  //
+  // Promise.race rejects as soon as any promise it is watching rejects, and this
+  // function awaited it bare - so one failure threw out of the loop, every task
+  // not yet started never ran, and the promises already created were left with
+  // no handler, which by default takes the process down.
+  //
+  // With an already-resolved task ahead of the failing one, the race settles on
+  // THAT and the bug never shows: the previous version of this test put
+  // `Promise.resolve('ok')` first and passed against the broken implementation.
+  // A delayed first task is what puts the rejection at the front of the race.
+  it('reports a failing task instead of aborting the batch', async () => {
     const tasks = [
-      () => Promise.resolve('ok'),
+      () => new Promise((r) => { setTimeout(() => r('ok'), 20); }),
       () => Promise.reject(new Error('fail')),
       () => Promise.resolve('also ok'),
+      () => Promise.resolve('started after the failure'),
     ];
 
     const settled = await serviceHelper.runWithConcurrency(tasks, 2);
-    expect(settled).to.have.lengthOf(3);
-    expect(settled[0].status).to.equal('fulfilled');
-    expect(settled[1].status).to.equal('rejected');
-    expect(settled[2].status).to.equal('fulfilled');
+    expect(settled).to.have.lengthOf(4);
+    expect(settled.map((r) => r.status)).to.deep.equal(['fulfilled', 'rejected', 'fulfilled', 'fulfilled']);
+    // The tasks queued behind the failure still ran.
+    expect(settled[3].value).to.equal('started after the failure');
+  });
+
+  // A thunk that throws before returning a promise never became one, so it
+  // unwound this function on the spot rather than being reported.
+  it('reports a task that throws synchronously', async () => {
+    const settled = await serviceHelper.runWithConcurrency(
+      [() => { throw new Error('sync'); }, () => Promise.resolve('after')],
+      2,
+    );
+    expect(settled[0].status).to.equal('rejected');
+    expect(settled[1].value).to.equal('after');
   });
 });
 

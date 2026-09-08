@@ -146,17 +146,41 @@ function timeout(ms) {
   });
 }
 
+/**
+ * Run tasks with at most `limit` in flight, and report every outcome.
+ *
+ * Returns settled results in task order - callers read `r.status === 'fulfilled'`
+ * - so a task that throws is data, not an abort. Two things are needed to make
+ * that true, and neither is decoration:
+ *
+ * `Promise.resolve().then(task)` rather than `task()`, so a task that throws
+ * SYNCHRONOUSLY becomes a rejected promise instead of unwinding this function on
+ * the spot, before allSettled is ever reached.
+ *
+ * `.catch()` on the race, because Promise.race REJECTS as soon as any promise it
+ * is watching rejects. Awaiting it bare meant one failing task threw out of the
+ * loop: every task not yet started never ran, the caller never got its results,
+ * and the promises already created were left with no handler attached - an
+ * unhandled rejection, which by default takes the process down. The rejection is
+ * not swallowed; it is still carried in `results` and surfaced by allSettled.
+ * The race is only being used as a "one slot freed" signal, and a task failing
+ * frees a slot exactly as a task succeeding does.
+ *
+ * @param {Array<function(): Promise<any>>} tasks thunks, invoked here
+ * @param {number} limit maximum in flight
+ * @returns {Promise<Array<{status: string, value?: any, reason?: any}>>}
+ */
 async function runWithConcurrency(tasks, limit) {
   const results = [];
   const executing = new Set();
   for (const task of tasks) {
     // eslint-disable-next-line no-loop-func
-    const p = task().finally(() => executing.delete(p));
+    const p = Promise.resolve().then(task).finally(() => executing.delete(p));
     executing.add(p);
     results.push(p);
     if (executing.size >= limit) {
       // eslint-disable-next-line no-await-in-loop
-      await Promise.race(executing);
+      await Promise.race(executing).catch(() => {});
     }
   }
   return Promise.allSettled(results);

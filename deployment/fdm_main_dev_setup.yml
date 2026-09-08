@@ -114,3 +114,5 @@
         NODE_ENV: production
         NODE_CONFIG_DIR: /root/flux-domain-manager/config
 
+    - name: Bound the log volume on every FDM host
+      import_tasks: ./tasks/logrotate.yml

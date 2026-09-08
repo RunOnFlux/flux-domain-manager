@@ -37,6 +37,14 @@
 # Nothing was rotating these at all. Observed up to 6GB (FDM-out.log on
 # fdm-fn-1-2) and 4GB (CDM-out.log on fdm-fn-2-1). copytruncate because pm2 holds
 # the descriptors and will not reopen on rotation.
+#
+# /root/.pm2/module_conf.json carries a pm2-logrotate block (max_size 100M,
+# retain 30), but the module is NOT installed - /root/.pm2/modules is empty and
+# pm2 ls shows no module rows. fdm_eu's 2.6GB FDM-out.log is the proof. Read
+# that file and assume rotation is handled and you will be wrong.
+#
+# The daemon's own pm2.log is covered here too. It records lifecycle events
+# only, ~4 lines and ~250 bytes a day, so this bounds it rather than rescues it.
 - name: Rotate the PM2 logs, which nothing was rotating
   ansible.builtin.copy:
     dest: /etc/logrotate.d/flux-pm2
@@ -44,7 +52,8 @@
     group: root
     mode: '0644'
     content: |
-      /root/.pm2/logs/*.log {
+      /root/.pm2/logs/*.log
+      /root/.pm2/pm2.log {
           size 200M
           rotate 3
           missingok

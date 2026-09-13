@@ -142,11 +142,13 @@ describe('ingestion — version-blind classification + crash guard', () => {
       expect(classified, 'the encrypted app is routable, not dropped').to.include('shopv9');
 
       // What the maps carry is the readable spec itself — the pipeline never re-emits a
-      // cleartext document, because a decrypted spec has no wire form.
+      // cleartext document: a decrypted spec has no wire form and hands out no
+      // instance that could produce one.
       const app = events[0].activeActiveApps.get('shopv9') || events[0].activeStandbyApps.get('shopv9');
       expect(app.sealed, 'contents readable').to.equal(false);
       expect(app.isEncrypted, 'still an encrypted app').to.equal(true);
-      expect(() => app.spec.serialize()).to.throw(/no wire form/);
+      expect(app.spec, 'no route to the inner spec').to.equal(undefined);
+      expect(app.serialize, 'and no wire form on the wrapper').to.equal(undefined);
     } finally {
       await new Promise((resolve) => { server.close(resolve); });
     }

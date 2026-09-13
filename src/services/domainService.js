@@ -1368,6 +1368,18 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     for (const mandatoryApp of mandatoryApps) {
       const appExists = appsOK.find((app) => app.name === mandatoryApp);
       if (!appExists) {
+        // A mandatory app is a canary: if processing dropped it, something is
+        // wrong with this pass and the config must not be written. But an app
+        // that is not registered on the network at all (expired, cancelled)
+        // cannot be a processing failure - it is a stale entry in
+        // config.mandatoryApps. Throwing here froze every node of a letter
+        // bucket for days when a test canary was cancelled (themok6, Sept
+        // 2026): no new or changed app in the bucket got a backend.
+        if (!nonGApps.has(mandatoryApp)) {
+          log.error(`Mandatory app ${mandatoryApp} is not registered on the network; it cannot act as a canary. Remove it from config.mandatoryApps.`);
+          // eslint-disable-next-line no-continue
+          continue;
+        }
         throw new Error(`Mandatory app ${mandatoryApp} does not exist. PANIC`);
       }
     }

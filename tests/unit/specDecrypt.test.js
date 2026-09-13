@@ -99,10 +99,15 @@ describe('specDecrypt providers — decrypt lifecycle over a stub transport', ()
     const deployment = await specLibs.resolveDeployment(decrypted, null);
     const component = deployment.getComponent(V8_COMPONENT.name);
     expect(component.image).to.equal(V8_COMPONENT.repotag);
-    expect(component.ports.tcp_443).to.include({ containerPort: 443, hostPort: 31443 });
+    expect(component.ports.tcp_31443).to.include({ containerPort: 443, hostPort: 31443 });
 
     // The document route is shut, which is why the pipeline carries the object.
-    expect(() => decrypted.spec.serialize()).to.throw(/no wire form/);
+    // It used to be shut by a throwing serialize planted on the inner spec;
+    // there is simply no way to the inner spec now, and neither name that emits
+    // a wire form is delegated.
+    expect(decrypted.spec).to.equal(undefined);
+    expect(decrypted.serialize).to.equal(undefined);
+    expect(decrypted.allSerializations).to.equal(undefined);
 
     // And it survives the classifier's first line: the decrypted spec goes back through
     // `deserialize` on the second classification pass, and must come out as itself.
@@ -177,7 +182,8 @@ describe('specDecrypt providers — decrypt lifecycle over a stub transport', ()
     expect(decrypted.sealed).to.equal(false);
     expect(decrypted.componentNames()).to.deep.equal(['web']);
     expect(decrypted.getComponent('web').image).to.equal('nginx:latest');
-    expect(() => decrypted.spec.serialize()).to.throw(/no wire form/);
+    expect(decrypted.spec, 'no route to the inner spec').to.equal(undefined);
+    expect(decrypted.serialize, 'and no wire form on the wrapper').to.equal(undefined);
 
     // Transport carried the whole envelope + base64 AAD to the configured endpoint.
     expect(seenPayload).to.include.keys('appName', 'fluxID', 'ciphertext', 'nonce', 'tag', 'aad');

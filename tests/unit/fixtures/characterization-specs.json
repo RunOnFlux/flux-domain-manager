@@ -145,7 +145,7 @@
     "owner": "1AnonOwner0003FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp3_0",
+        "name": "anoncomp3c0",
         "description": "www",
         "repotag": "smartico/aave:latest",
         "ports": [
@@ -180,7 +180,7 @@
     "owner": "1AnonOwner0004FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp4_0",
+        "name": "anoncomp4c0",
         "description": "AbioticFactor server",
         "repotag": "littlestache/abioticfactorserver:latest",
         "ports": [
@@ -237,7 +237,7 @@
     "owner": "1AnonOwner0005FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp5_0",
+        "name": "anoncomp5c0",
         "description": "DiBi-Fetch is a decentralised oracle for fetching markets and rates about many cryptocurrencies",
         "repotag": "zelcash/dibi-fetch:latest",
         "ports": [
@@ -299,7 +299,7 @@
     "owner": "1AnonOwner0007FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp7_0",
+        "name": "anoncomp7c0",
         "description": "Folding @ Home for AMD64 Devices.",
         "repotag": "yurinnick/folding-at-home:latest",
         "ports": [
@@ -334,7 +334,7 @@
     "owner": "1AnonOwner0008FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp8_0",
+        "name": "anoncomp8c0",
         "description": "A Sacramento Barber",
         "repotag": "saxbonsai/bookabarber916:latest",
         "ports": [
@@ -376,7 +376,7 @@
     "owner": "1AnonOwner0009FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp9_0",
+        "name": "anoncomp9c0",
         "description": "1",
         "repotag": "siomiz/softethervpn:5.02.5185",
         "ports": [
@@ -418,7 +418,7 @@
     "owner": "1AnonOwner0010FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp10_0",
+        "name": "anoncomp10c0",
         "description": "CompoenetDesc1",
         "repotag": "cctechvishal/chaincade-website:0.1",
         "ports": [
@@ -460,7 +460,7 @@
     "owner": "1AnonOwner0011FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp11_0",
+        "name": "anoncomp11c0",
         "description": "docanno",
         "repotag": "doccano/doccano:latest",
         "ports": [
@@ -501,7 +501,7 @@
     "owner": "1AnonOwner0012FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp12_0",
+        "name": "anoncomp12c0",
         "description": "Geth Client",
         "repotag": "ethereum/client-go:stable",
         "ports": [
@@ -552,7 +552,7 @@
     "owner": "1AnonOwner0013FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp13_0",
+        "name": "anoncomp13c0",
         "description": "FluxFoundation",
         "repotag": "jefke/flux-foundation-site:latest",
         "ports": [
@@ -662,7 +662,7 @@
     "owner": "1AnonOwner0016FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp16_0",
+        "name": "anoncomp16c0",
         "description": "Showcase website of GF65",
         "repotag": "nicolasbertuol/website-nginx:latest",
         "ports": [
@@ -707,7 +707,7 @@
     "owner": "1AnonOwner0017FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp17_0",
+        "name": "anoncomp17c0",
         "description": "",
         "repotag": "megachips/ipshow:web",
         "ports": [],
@@ -724,7 +724,7 @@
         "secrets": ""
       },
       {
-        "name": "anoncomp17_1",
+        "name": "anoncomp17c1",
         "description": "",
         "repotag": "megachips/ipshow:proxy",
         "ports": [
@@ -884,7 +884,7 @@
     "owner": "1AnonOwner0020FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp20_0",
+        "name": "anoncomp20c0",
         "description": "",
         "repotag": "metatronapp/discovery:latest",
         "ports": [
@@ -928,7 +928,7 @@
     "owner": "1AnonOwner0021FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp21_0",
+        "name": "anoncomp21c0",
         "description": "woot",
         "repotag": "itzg/minecraft-server:latest",
         "ports": [
@@ -965,7 +965,7 @@
     "owner": "1AnonOwner0022FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp22_0",
+        "name": "anoncomp22c0",
         "description": "minecraft server",
         "repotag": "itzg/minecraft-server:latest",
         "ports": [
@@ -1014,7 +1014,7 @@
     "owner": "1AnonOwner0023FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp23_0",
+        "name": "anoncomp23c0",
         "description": "hbbs",
         "repotag": "rustdesk/rustdesk-server:latest",
         "ports": [
@@ -1045,7 +1045,7 @@
         "secrets": ""
       },
       {
-        "name": "anoncomp23_1",
+        "name": "anoncomp23c1",
         "description": "hbbr",
         "repotag": "rustdesk/rustdesk-server:latest",
         "ports": [
@@ -1091,7 +1091,7 @@
     "owner": "1AnonOwner0024FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp24_0",
+        "name": "anoncomp24c0",
         "description": "test",
         "repotag": "travelping/nettools:latest",
         "ports": [
@@ -1120,7 +1120,7 @@
         "secrets": ""
       },
       {
-        "name": "anoncomp24_1",
+        "name": "anoncomp24c1",
         "description": "test",
         "repotag": "travelping/nettools:latest",
         "ports": [
@@ -1149,7 +1149,7 @@
         "secrets": ""
       },
       {
-        "name": "anoncomp24_2",
+        "name": "anoncomp24c2",
         "description": "test",
         "repotag": "travelping/nettools:latest",
         "ports": [
@@ -1194,7 +1194,7 @@
     "owner": "1AnonOwner0025FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp25_0",
+        "name": "anoncomp25c0",
         "description": "",
         "repotag": "cheesesause/bu:latest",
         "ports": [
@@ -1364,7 +1364,7 @@
     "owner": "1AnonOwner0027FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp27_0",
+        "name": "anoncomp27c0",
         "description": "ssh",
         "repotag": "sandmanshiri/ssh:latest",
         "ports": [
@@ -1393,7 +1393,7 @@
         "repoauth": ""
       },
       {
-        "name": "anoncomp27_1",
+        "name": "anoncomp27c1",
         "description": "shadowsocks",
         "repotag": "sandmanshiri/shadowsocks:latest",
         "ports": [
@@ -1425,7 +1425,7 @@
         "repoauth": ""
       },
       {
-        "name": "anoncomp27_2",
+        "name": "anoncomp27c2",
         "description": "vless",
         "repotag": "sandmanshiri/vless:latest",
         "ports": [
@@ -1454,7 +1454,7 @@
         "repoauth": ""
       },
       {
-        "name": "anoncomp27_3",
+        "name": "anoncomp27c3",
         "description": "trojan",
         "repotag": "sandmanshiri/trojan:latest",
         "ports": [
@@ -1483,7 +1483,7 @@
         "repoauth": ""
       },
       {
-        "name": "anoncomp27_4",
+        "name": "anoncomp27c4",
         "description": "outline",
         "repotag": "sandmanshiri/outline:latest",
         "ports": [
@@ -1512,7 +1512,7 @@
         "repoauth": ""
       },
       {
-        "name": "anoncomp27_5",
+        "name": "anoncomp27c5",
         "description": "httpproxy",
         "repotag": "sandmanshiri/http-proxy:latest",
         "ports": [
@@ -1566,7 +1566,7 @@
     "owner": "1AnonOwner0028FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp28_0",
+        "name": "anoncomp28c0",
         "description": "",
         "repotag": "vinnydev1/dcms-flux-backend:1.1.0",
         "ports": [
@@ -1608,7 +1608,7 @@
     "owner": "1AnonOwner0029FixtureXXXXXXXXXXXX",
     "compose": [
       {
-        "name": "anoncomp29_0",
+        "name": "anoncomp29c0",
         "description": "Doius Telegram main bot service",
         "repotag": "manhvcl/doiusbot:v11",
         "ports": [
@@ -1647,7 +1647,7 @@
         "repoauth": ""
       },
       {
-        "name": "anoncomp29_1",
+        "name": "anoncomp29c1",
         "description": "Doius payment webhook service",
         "repotag": "manhvcl/doiusbot:v11",
         "ports": [
@@ -1678,7 +1678,7 @@
         "repoauth": ""
       },
       {
-        "name": "anoncomp29_2",
+        "name": "anoncomp29c2",
         "description": "Doius tracking webhook service",
         "repotag": "manhvcl/doiusbot:v11",
         "ports": [
@@ -1711,7 +1711,7 @@
         "repoauth": ""
       },
       {
-        "name": "anoncomp29_3",
+        "name": "anoncomp29c3",
         "description": "Doius monitor worker service",
         "repotag": "manhvcl/doiusbot:v11",
         "ports": [
@@ -1746,7 +1746,7 @@
         "repoauth": ""
       },
       {
-        "name": "anoncomp29_4",
+        "name": "anoncomp29c4",
         "description": "",
         "repotag": "manhvcl/doiusbot:v11",
         "ports": [
@@ -1776,7 +1776,7 @@
         "repoauth": ""
       },
       {
-        "name": "anoncomp29_5",
+        "name": "anoncomp29c5",
         "description": "",
         "repotag": "manhvcl/doiusbot:v11",
         "ports": [],
@@ -1796,7 +1796,7 @@
         "repoauth": ""
       },
       {
-        "name": "anoncomp29_6",
+        "name": "anoncomp29c6",
         "description": "",
         "repotag": "manhvcl/doiusbot-mysql:mysql_v3_native",
         "ports": [

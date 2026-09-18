@@ -101,7 +101,7 @@ function anonymize(spec, i, feats) {
   if (s.hash) s.hash = `anonhash${String(i).padStart(4, '0')}`;
   if (!feats.has('customConfigRule')) {
     s.name = `anonapp${i}`;
-    if (Array.isArray(s.compose)) s.compose.forEach((c, j) => { c.name = `anoncomp${i}_${j}`; });
+    if (Array.isArray(s.compose)) s.compose.forEach((c, j) => { c.name = `anoncomp${i}c${j}`; });
   }
   if (Array.isArray(s.domains)) s.domains = s.domains.map(anonDomainField);
   if (Array.isArray(s.compose)) s.compose.forEach((c) => { if (Array.isArray(c.domains)) c.domains = c.domains.map(anonDomainField); });

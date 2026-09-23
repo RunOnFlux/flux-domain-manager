@@ -1,6 +1,6 @@
 /* eslint-disable func-names */
 const chai = require('chai');
-const axios = require('axios');
+const httpClients = require('../src/services/httpClients');
 
 const { expect } = chai;
 const fluxService = require('../src/services/flux');
@@ -13,12 +13,12 @@ const { getApplicationLocation } = fluxService;
 // tell that from an unreachable API pays five requests where one settles it -
 // 35 a pass against 7, for apps that will answer the same way forever.
 describe('getApplicationLocation - an empty answer is still an answer', () => {
-  const realGet = axios.get;
-  afterEach(() => { axios.get = realGet; });
+  const realGet = httpClients.fluxApi.get;
+  afterEach(() => { httpClients.fluxApi.get = realGet; });
 
   const stub = (impl) => {
     let calls = 0;
-    axios.get = async (...args) => { calls += 1; return impl(...args); };
+    httpClients.fluxApi.get = async (...args) => { calls += 1; return impl(...args); };
     return () => calls;
   };
 

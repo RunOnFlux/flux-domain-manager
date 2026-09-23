@@ -1,0 +1,20 @@
+{
+  "specList": {
+    "floor": 10,
+    "maxDropRatio": 0.3,
+    "confirmMs": 600000,
+    "alertAfterMs": 120000
+  },
+  "configPass": {
+    "nonGFloor": 10,
+    "gFloor": 0,
+    "maxDropRatio": 0.3,
+    "confirmMs": 600000,
+    "alertAfterMs": 120000
+  },
+  "reload": {
+    "verifyTimeoutMs": 15000,
+    "pollMs": 500,
+    "alertAfterFailures": 3
+  }
+}

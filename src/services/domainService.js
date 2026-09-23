@@ -17,6 +17,8 @@ const { getApplicationsToProcess } = require('./application/subset');
 const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
 const serviceHelper = require('./serviceHelper');
+const alerts = require('./alertService');
+const { evaluateListChange, initialListState } = require('../lib/listGuard');
 
 const { FdmDataFetcher } = require('./flux/dataFetcher');
 
@@ -141,6 +143,12 @@ let recentlyConfiguredApps = [];
 let recentlyConfiguredGApps = [];
 let nonGAppsInitialized = false;
 let gAppsInitialized = false;
+// The size each half last published, for the drop guard in admitConfiguredHalf.
+let configuredHalfGuards = { nonG: initialListState(), G: initialListState() };
+// A publish that did not reach a verified reload. While set, a pass publishes
+// even when its own list is unchanged, so the failed config is retried rather
+// than skipped as "no changes".
+let haproxyRetryPending = false;
 
 let dataFetcher = null;
 
@@ -302,9 +310,9 @@ async function generateAndReplaceMainHaproxyConfig() {
     // console.log(hc);
     const dataToWrite = hc;
     // test haproxy config
-    const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
-    if (!successRestart) {
-      throw new Error('Invalid HAPROXY Config File!');
+    const result = await haproxyTemplate.restartProxy(dataToWrite);
+    if (!result.ok) {
+      throw new Error(`Haproxy not updated: ${result.reason}`);
     }
     setTimeout(() => {
       generateAndReplaceMainHaproxyConfig();
@@ -1031,13 +1039,64 @@ async function updateHaproxy(haproxyAppsConfig) {
     // console.log(hc);
     const dataToWrite = hc;
     // test haproxy config
-    const successRestart = await haproxyTemplate.restartProxy(dataToWrite);
-    if (!successRestart) {
-      throw new Error('Invalid HAPROXY Config File!');
+    const result = await haproxyTemplate.restartProxy(dataToWrite);
+    haproxyRetryPending = !result.ok;
+    if (!result.ok) {
+      throw new Error(`Haproxy not updated: ${result.reason}`);
     }
   } finally {
     updateHaproxyRunning = false;
   }
+}
+
+/**
+ * Whether a half's freshly computed list may replace what it last published.
+ *
+ * A half that collapses - every G app missing because the spec list briefly came
+ * back empty, a location outage - would otherwise be published whole, and the
+ * frontends it drops release their ports. The rule is lib/listGuard's; a refused
+ * list leaves the published half untouched.
+ *
+ * @param {'nonG'|'G'} half
+ * @param {number} count entries the pass computed
+ * @param {number} [now] monotonic ms
+ * @returns {boolean}
+ */
+function admitConfiguredHalf(half, count, now = monotonicMs()) {
+  const { configPass } = config.guards;
+  const limits = {
+    floor: half === 'G' ? configPass.gFloor : configPass.nonGFloor,
+    maxDropRatio: configPass.maxDropRatio,
+    confirmMs: configPass.confirmMs,
+  };
+  const verdict = evaluateListChange(count, configuredHalfGuards[half], limits, now);
+  configuredHalfGuards[half] = verdict.state;
+
+  const key = `config-refused:${half}`;
+  const { lastAcceptedCount } = verdict.state;
+
+  if (!verdict.accept) {
+    const message = `${half} pass computed ${count} entries (last published `
+      + `${lastAcceptedCount ?? 'none'}), reason ${verdict.reason}; the published ${half} config is kept`;
+    // Before a half has published anything there is nothing to protect, and a
+    // shard can legitimately start with no G apps: log only.
+    if (lastAcceptedCount === null) {
+      log.info(message);
+    } else {
+      alerts.raise(key, message, { afterMs: configPass.alertAfterMs });
+    }
+    return false;
+  }
+
+  if (verdict.reason === 'confirmed-drop') {
+    log.warn(`${half} pass: a drop to ${count} entries has held for ${Math.round(configPass.confirmMs / 1000)}s; publishing it`);
+  }
+  alerts.resolve(key);
+  return true;
+}
+
+function resetConfiguredHalfGuards() {
+  configuredHalfGuards = { nonG: initialListState(), G: initialListState() };
 }
 
 /**
@@ -1586,15 +1645,13 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     const slowestS = Math.round((slowestApp.ns / 1_000_000_000) * 100) / 100;
     log.info(`Total Non G apps processing time. Elapsed: ${elapsedAppsS}, slowest ${slowestApp.name} at ${slowestS}, location searches: ${searchRequests}`);
 
-    if (configuredApps.length < 10) {
-      throw new Error('PANIC PLEASE DEV HELP ME');
-    }
+    if (!admitConfiguredHalf('nonG', configuredApps.length)) return;
 
     const configuredAppsList = configuredApps.list();
     const serializedApps = JSON.stringify(configuredAppsList);
     const lastSerializedApps = JSON.stringify(recentlyConfiguredApps);
 
-    if (serializedApps === lastSerializedApps) {
+    if (serializedApps === lastSerializedApps && !haproxyRetryPending) {
       log.info('No changes in Non G Mode configuration detected');
       return;
     }
@@ -1606,7 +1663,9 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     // if g apps haven't completed once - we don't update the config
     if (!recentlyConfiguredGApps.length) return;
 
-    log.info('Changes in Non G Mode configuration detected');
+    log.info(haproxyRetryPending
+      ? 'Non G Mode republishing after a failed haproxy update'
+      : 'Changes in Non G Mode configuration detected');
 
     // we need to put always in same order to avoid. non g first g at end
     haproxyAppsConfig = configuredAppsList.concat(recentlyConfiguredGApps);
@@ -1740,16 +1799,20 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
       }
     }
 
+    if (!admitConfiguredHalf('G', configuredApps.length)) return;
+
     const configuredAppsList = configuredApps.list();
     const serializedApps = JSON.stringify(configuredAppsList);
     const lastSerializedApps = JSON.stringify(recentlyConfiguredGApps);
 
-    if (serializedApps === lastSerializedApps) {
+    if (serializedApps === lastSerializedApps && !haproxyRetryPending) {
       log.info('No changes in G Mode configuration detected');
       return;
     }
 
-    log.info('Changes in G Mode configuration detected');
+    log.info(haproxyRetryPending
+      ? 'G Mode republishing after a failed haproxy update'
+      : 'Changes in G Mode configuration detected');
 
     let haproxyAppsConfig = [];
 
@@ -2032,4 +2095,6 @@ module.exports = {
   resetGStickyState,
   resetNodeReachability,
   reportExclusion,
+  admitConfiguredHalf,
+  resetConfiguredHalfGuards,
 };

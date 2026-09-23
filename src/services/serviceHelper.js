@@ -1,7 +1,7 @@
 const mongodb = require('mongodb');
 const config = require('config');
 const qs = require('qs');
-const axios = require('axios');
+const { MONGO_SOCKET_OPTIONS } = require('../lib/outbound');
 
 const { MongoClient } = mongodb;
 const mongoUrl = `mongodb://${config.database.url}:${config.database.port}/`;
@@ -94,50 +94,6 @@ function sortIPAddresses(addresses) {
     // If IPs are equal, sort by port
     return addrA.port - addrB.port;
   });
-}
-
-async function httpGetRequest(url, awaitTime = 30000, headers = {}, httpsAgent) {
-  const { CancelToken } = axios;
-  const source = CancelToken.source();
-  let isResolved = false;
-  setTimeout(() => {
-    if (!isResolved) {
-      source.cancel('Operation canceled');
-    }
-  }, awaitTime * 2);
-  const options = {
-    cancelToken: source.token,
-    timeout: awaitTime,
-    headers,
-  };
-  if (httpsAgent) {
-    options.httpsAgent = httpsAgent;
-  }
-  const response = await axios.get(url, options);
-  isResolved = true;
-  return response;
-}
-
-async function httpPostRequest(url, data, awaitTime = 30000, headers = {}, httpsAgent) {
-  const { CancelToken } = axios;
-  const source = CancelToken.source();
-  let isResolved = false;
-  setTimeout(() => {
-    if (!isResolved) {
-      source.cancel('Operation canceled');
-    }
-  }, awaitTime * 2);
-  const options = {
-    cancelToken: source.token,
-    timeout: awaitTime,
-    headers,
-  };
-  if (httpsAgent) {
-    options.httpsAgent = httpsAgent;
-  }
-  const response = await axios.post(url, data, options);
-  isResolved = true;
-  return response;
 }
 
 function timeout(ms) {
@@ -277,6 +233,7 @@ async function connectMongoDb(url) {
   const connectUrl = url || mongoUrl;
   const mongoSettings = {
     maxPoolSize: 100,
+    ...MONGO_SOCKET_OPTIONS,
   };
   const db = await MongoClient.connect(connectUrl, mongoSettings).catch((error) => { throw error; });
   return db;
@@ -343,8 +300,6 @@ async function collectionStats(database, collection) {
 }
 
 module.exports = {
-  httpGetRequest,
-  httpPostRequest,
   timeout,
   ensureBoolean,
   ensureNumber,

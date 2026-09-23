@@ -1,13 +1,9 @@
-const axios = require('axios');
+const httpClients = require('./httpClients');
 
 let myIP = null;
 
-const axiosConfig = {
-  timeout: 13456,
-};
-
 function getSingleIP(url) {
-  return axios.get(url, axiosConfig)
+  return httpClients.ipLookup.get(url)
     .then((response) => response.data)
     .catch(() => null);
 }

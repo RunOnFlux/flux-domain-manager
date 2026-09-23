@@ -1,27 +1,22 @@
 /* eslint-disable no-restricted-syntax */
-const axios = require('axios');
 const qs = require('qs');
 const config = require('config');
+const { createHttpClient } = require('../../lib/outbound');
 
-const https = require('https');
-
-const cloudFlareAxiosConfig = {
+const cloudflare = createHttpClient({
   headers: {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${config.cloudflare.apiKey}`,
   },
-};
-
-// set rejectUnauthorized to false to accept self signed certificates.
-const agent = new https.Agent({
-  rejectUnauthorized: false,
 });
-const pDNSAxiosConfig = {
+
+// The PowerDNS API serves a self-signed certificate.
+const powerDns = createHttpClient({
   headers: {
     'X-API-Key': config.pDNS.apiKey,
   },
-  httpsAgent: agent,
-};
+  tls: { rejectUnauthorized: false },
+});
 // Lists DNS records for given input, will return all if no input provided
 async function listDNSRecords(name, content, type = 'all', page = 1, perPage = 100, records = []) {
   // https://api.cloudflare.com/#dns-records-for-a-zone-list-dns-records
@@ -37,7 +32,7 @@ async function listDNSRecords(name, content, type = 'all', page = 1, perPage = 1
     }
     const queryString = qs.stringify(query);
     const url = `${config.cloudflare.endpoint}zones/${config.cloudflare.zone}/dns_records?${queryString}`;
-    const response = await axios.get(url, cloudFlareAxiosConfig);
+    const response = await cloudflare.get(url);
     if (response.data.result_info.total_pages > page) {
       const recs = records.concat(response.data.result);
       return listDNSRecords(name, content, type, page + 1, perPage, recs);
@@ -50,7 +45,7 @@ async function listDNSRecords(name, content, type = 'all', page = 1, perPage = 1
       adjustedName = '*';
     }
     const url = `${config.pDNS.endpoint}search-data?q=${adjustedName}&object_type=record`;
-    const response = await axios.get(url, pDNSAxiosConfig);
+    const response = await powerDns.get(url);
     let filteredData = response.data;
     if (content) {
       filteredData = filteredData.filter((data) => data.content === content);
@@ -77,7 +72,7 @@ async function deleteDNSRecordCloudflare(record) {
   }
   // https://api.cloudflare.com/#dns-records-for-a-zone-delete-dns-record
   const url = `${config.cloudflare.endpoint}zones/${config.cloudflare.zone}/dns_records/${id}`;
-  const response = await axios.delete(url, cloudFlareAxiosConfig);
+  const response = await cloudflare.delete(url);
   return response.data;
 }
 
@@ -97,7 +92,7 @@ async function deleteDNSRecordPDNS(name, content, type = 'A', ttl = 60) {
       }],
     };
     const url = `${config.pDNS.endpoint}zones/${config.pDNS.zone}`;
-    const response = await axios.patch(url, data, pDNSAxiosConfig);
+    const response = await powerDns.patch(url, data);
     return response.data;
   }
   throw new Error('No DNS provider is enable!');
@@ -120,7 +115,7 @@ async function createDNSRecord(name, content, type = config.domainAppType, ttl =
       ttl,
     };
     const url = `${config.cloudflare.endpoint}zones/${config.cloudflare.zone}/dns_records`;
-    const response = await axios.post(url, data, cloudFlareAxiosConfig);
+    const response = await cloudflare.post(url, data);
     return response.data;
   } if (config.pDNS.enabled) {
     let adjustedContent = content;
@@ -137,7 +132,7 @@ async function createDNSRecord(name, content, type = config.domainAppType, ttl =
       }],
     };
     const url = `${config.pDNS.endpoint}zones/${config.pDNS.zone}`;
-    const response = await axios.patch(url, data, pDNSAxiosConfig);
+    const response = await powerDns.patch(url, data);
     return response.data;
   }
   throw new Error('No DNS provider is not enabled!');

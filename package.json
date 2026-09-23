@@ -22,7 +22,6 @@
     "start": "nodemon index.js",
     "test": "mocha tests --timeout 10000 --exit",
     "test:integration": "mocha tests/integration --timeout 20000",
-    "test:cloudflare": "mocha tests/integration --timeout 20000 --grep 'cloudflareService'",
     "lint": "eslint ./",
     "lint:fix": "eslint ./ --fix"
   },
@@ -33,9 +32,7 @@
     "chai": "^4.3.6",
     "config": "^3.3.12",
     "cors": "^2.8.5",
-    "ethers": "^5.7.2",
     "express": "^4.21.1",
-    "gamedig": "^5.0.0-beta.2",
     "ini": "^4.1.1",
     "mocha": "^9.2.2",
     "mongodb": "^6.17.0",

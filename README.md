@@ -28,6 +28,16 @@ domainAppType: 'CNEME' or 'A'
 -   pDNS/Cloudflare
 -   letsencrypt, certbot, auto cert renewal
 
+## Operator alerts
+
+FDM posts to a Discord webhook when it keeps the current haproxy config instead of publishing a new one:
+
+- `spec-refused` - the app spec list from the Flux API was empty, malformed, or more than 30% smaller than the last accepted one, for longer than 2 minutes
+- `config-refused:G` / `config-refused:nonG` - a config pass computed a half more than 30% smaller than the one it last published, for longer than 2 minutes
+- `haproxy-reload` - three consecutive reloads did not bring up a new haproxy worker; the message names each port that failed to bind and the socket holding it
+
+Each condition sends one message when it starts and one when it clears. Set `alerts.discordWebhookUrl` in config; the ansible playbooks fill it from the `discord_webhook_url` variable (`-e discord_webhook_url=...` or an encrypted vars file, never a tracked file). Empty sends nothing. Thresholds are in `config/guardsConfig.json`.
+
 ## Application Overview
 
 Prerequisites: 

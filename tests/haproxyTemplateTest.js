@@ -126,3 +126,46 @@ describe('haproxyTemplate isRdata backends', () => {
     servers.forEach((line) => expect(line).to.not.contain(' backup'));
   });
 });
+
+describe('haproxyTemplate server-side sockets and minecraft apps', () => {
+  const mainConfig = haproxyTemplate.createMainHaproxyConfig(
+    'home.runonflux.io',
+    'api.runonflux.io',
+    ['1.2.3.4:16127', '5.6.7.8:16137'],
+    'home.zel.network',
+    'api.zel.network',
+    'cloud.runonflux.io',
+    'cloud.zel.network',
+  );
+
+  const app = (name, mode, port) => ({
+    domain: `${name}.app.runonflux.io`,
+    appName: name,
+    name,
+    port,
+    ips: ['1.2.3.4:16127'],
+    healthcheck: [],
+    serverConfig: '',
+    mode,
+  });
+
+  const appsConfig = haproxyTemplate.createAppsHaproxyConfig([
+    app('minecraftsrv', 'tcp', 25565),
+    app('webapp', 'http', 36127),
+  ]);
+
+  it('binds every server-side connection through source 0.0.0.0, once, in defaults', () => {
+    [mainConfig, appsConfig].forEach((cfg) => {
+      const defaults = cfg.slice(cfg.indexOf('\ndefaults\n'), cfg.indexOf('\nfrontend '));
+      expect(defaults).to.match(/^\s*source 0\.0\.0\.0$/m);
+      expect(cfg.match(/^\s*source /gm)).to.have.lengthOf(1);
+    });
+  });
+
+  it('serves a minecraft app from its TCP frontend only, with no HTTP backend', () => {
+    expect(appsConfig).to.include('frontend tcp_app_25565');
+    expect(appsConfig).to.include('backend minecraftsrvapprunonfluxio_tcp_backend');
+    expect(appsConfig).to.not.include('backend minecraftsrvapprunonfluxiobackend');
+    expect(appsConfig).to.include('backend webappapprunonfluxiobackend');
+  });
+});

@@ -1,26 +1,8 @@
-const axios = require('axios');
 const config = require('config');
 const log = require('../../lib/log');
+const httpClients = require('../httpClients');
 
 const timeout = 13456;
-
-const axiosConfig = {
-  timeout,
-};
-
-async function getFluxPermanentMessages() {
-  try {
-    const url = 'https://api.runonflux.io/apps/permanentmessages';
-    const response = await axios.get(url);
-    if (response.data.status === 'success') {
-      return response.data.data;
-    }
-    throw new Error(response.data.data);
-  } catch (error) {
-    log.error(error);
-    return [];
-  }
-}
 
 async function getFluxList(fallback) {
   try {
@@ -28,19 +10,7 @@ async function getFluxList(fallback) {
     if (fallback) {
       url = `${config.fallbackexplorer}/api/fluxnode/listfluxnodes`;
     }
-    const { CancelToken } = axios;
-    const source = CancelToken.source();
-    let isResolved = false;
-    setTimeout(() => {
-      if (!isResolved) {
-        source.cancel('Operation canceled by the user.');
-      }
-    }, timeout * 2);
-    const fluxnodeList = await axios.get(url, {
-      cancelToken: source.token,
-      timeout,
-    });
-    isResolved = true;
+    const fluxnodeList = await httpClients.explorer.get(url, { timeout });
     return fluxnodeList.data.result || [];
   } catch (e) {
     if (!fallback) {
@@ -72,22 +42,6 @@ async function getFluxIPs(tier) {
   }
 }
 
-// Retrieves application specifications from network api
-async function getAppSpecifications() {
-  try {
-    const fluxnodeList = await axios.get(
-      'https://api.runonflux.io/apps/globalappsspecifications',
-      axiosConfig,
-    );
-    if (fluxnodeList.data.status === 'success') {
-      return fluxnodeList.data.data || [];
-    }
-    return [];
-  } catch (e) {
-    log.error(e);
-    return [];
-  }
-}
 /**
  * Where a given application is running, as the API sees it.
  *
@@ -103,7 +57,7 @@ async function getAppSpecifications() {
  */
 async function getApplicationLocation(appName) {
   try {
-    const fluxnodeList = await axios.get(
+    const fluxnodeList = await httpClients.fluxApi.get(
       `https://api.runonflux.io/apps/location/${appName}`,
       { timeout: 3_000 },
     );
@@ -124,6 +78,4 @@ async function getApplicationLocation(appName) {
 module.exports = {
   getFluxIPs,
   getApplicationLocation,
-  getAppSpecifications,
-  getFluxPermanentMessages,
 };

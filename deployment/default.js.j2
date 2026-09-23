@@ -53,8 +53,9 @@ module.exports = {
   minecraftApps: appsConfig.minecraftApps,
   guards: guardsConfig,
   alerts: {
-    // Discord webhook for operator alerts; empty sends nothing.
-    discordWebhookUrl: '{{ discord_webhook_url | default('') }}',
+    // Discord webhook for operator alerts; empty sends nothing. The deploy
+    // workflow supplies it from the DISCORD_WEBHOOK_URL repository secret.
+    discordWebhookUrl: '{{ discord_webhook_url | default(lookup('env', 'DISCORD_WEBHOOK_URL'), true) }}',
   },
   appSubDomain: '{{ appSubDomain }}',
   fdmAppDomain: '{{ fdmAppDomain }}',

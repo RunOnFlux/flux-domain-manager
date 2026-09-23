@@ -36,7 +36,7 @@ FDM posts to a Discord webhook when it keeps the current haproxy config instead 
 - `config-refused:G` / `config-refused:nonG` - a config pass computed a half more than 30% smaller than the one it last published, for longer than 2 minutes
 - `haproxy-reload` - three consecutive reloads did not bring up a new haproxy worker; the message names each port that failed to bind and the socket holding it
 
-Each condition sends one message when it starts and one when it clears. Set `alerts.discordWebhookUrl` in config; the ansible playbooks fill it from the `discord_webhook_url` variable (`-e discord_webhook_url=...` or an encrypted vars file, never a tracked file). Empty sends nothing. Thresholds are in `config/guardsConfig.json`.
+Each condition sends one message when it starts and one when it clears. Set `alerts.discordWebhookUrl` in config. The ansible playbooks render it from the `DISCORD_WEBHOOK_URL` environment variable, which the deploy workflow sets from the repository secret of the same name; `-e discord_webhook_url=...` overrides it for a manual run. It never goes in a tracked file. Empty sends nothing. Thresholds are in `config/guardsConfig.json`.
 
 ## Application Overview
 

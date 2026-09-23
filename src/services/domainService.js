@@ -17,6 +17,7 @@ const { getApplicationsToProcess } = require('./application/subset');
 const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
 const serviceHelper = require('./serviceHelper');
+const httpClients = require('./httpClients');
 const alerts = require('./alertService');
 const { evaluateListChange, initialListState } = require('../lib/listGuard');
 
@@ -1568,8 +1569,8 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
                 `sharedDBApps: ${app.name} going to check operator status on url ${url}`,
               );
               // eslint-disable-next-line no-await-in-loop
-              const operatorStatus = await serviceHelper
-                .httpGetRequest(url, httpTimeout)
+              const operatorStatus = await httpClients.nodeChecks
+                .get(url, { timeout: httpTimeout })
                 .catch((error) => log.error(
                   `sharedDBApps: ${app.name} operatorStatus error: ${error}`,
                 ));

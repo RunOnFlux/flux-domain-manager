@@ -63,7 +63,7 @@ const HOSTILE = [
 // `http-request deny` was indistinguishable from a real one and the test passed against a
 // known-vulnerable schema. Counting lines does not care what the payload is called.
 
-const submission = (overrides, mode = 'http') => ({
+const submission = (overrides) => ({
   version: 9,
   name: 'shop',
   description: 'x',
@@ -81,18 +81,18 @@ const submission = (overrides, mode = 'http') => ({
       rootFsGb: 2,
       persistentStorage: { sizeGb: 10, mounts: { '/data': { source: 'data', destination: '/data' } } },
       ports: { http: { containerPort: 80, hostPort: 31000 } },
-      loadBalancing: { http: { provider: 'haproxy', mode, ...overrides } },
+      loadBalancing: { http: { provider: 'haproxy', mode: 'http', ...overrides } },
     },
   },
 });
 
 // Render through the real pipeline. Returns null when the spec is refused anywhere on the
 // way — refusal is a pass, and which layer refused is not this test's business.
-async function renderOrReject(overrides, mode = 'http') {
+async function renderOrReject(overrides) {
   const { FluxAppSpecV9 } = await load();
   let wire;
   try {
-    wire = FluxAppSpecV9.fromSubmission(submission(overrides, mode)).serialize();
+    wire = FluxAppSpecV9.fromSubmission(submission(overrides)).serialize();
   } catch (e) {
     return null;
   }
@@ -102,7 +102,7 @@ async function renderOrReject(overrides, mode = 'http') {
     const routeConfigs = buildRouteConfigs(looseDeployments(dep), 'shop', backends, false, false);
     const platform = routeConfigs.find((c) => c.domain.startsWith('shop_'));
     if (!platform) return null;
-    return generateDomainBackend(platform, mode).render();
+    return generateDomainBackend(platform, 'http').render();
   } catch (e) {
     return null;
   }
@@ -142,27 +142,14 @@ describe('haproxy config injection — owner-controlled values', () => {
     ['customDomains', (v) => ({ customDomains: [`shop.example.com${v}`] })],
   ];
 
-  // The tcp variant's own owner-controlled fields, rendered as the tcp backend they reach.
-  const TCP_FIELDS = [
-    ['tcp healthCheck.probe.send', (v) => ({ healthCheck: { probe: { send: `PING${v}`, expect: 'PONG' } } })],
-    ['tcp healthCheck.probe.expect', (v) => ({ healthCheck: { probe: { send: 'PING', expect: `PONG${v}` } } })],
-    ['tcp healthCheck.interval', (v) => ({ healthCheck: { interval: `5s${v}` } })],
-    ['tcp stickySessions.expire', (v) => ({ stickySessions: { expire: `30m${v}` } })],
-    ['tcp balancing', (v) => ({ balancing: `roundrobin${v}` })],
-    ['tcp timeouts.server', (v) => ({ timeouts: { server: `30s${v}` } })],
-  ];
-
-  [
-    ...FIELDS.map(([field, build]) => [field, build, 'http']),
-    ...TCP_FIELDS.map(([field, build]) => [field, build, 'tcp']),
-  ].forEach(([field, build, mode]) => {
+  FIELDS.forEach(([field, build]) => {
     describe(field, () => {
       HOSTILE.forEach(([name, payload]) => {
         it(`is rejected, or adds no line, for ${name}`, async () => {
-          const block = await renderOrReject(build(payload), mode);
+          const block = await renderOrReject(build(payload));
           if (block === null) return; // refused — the desired outcome
 
-          const reference = await renderOrReject(build(''), mode);
+          const reference = await renderOrReject(build(''));
           expect(reference, `${field}: base value must render`).to.not.equal(null);
 
           const label = `${field} / ${name}`;
@@ -189,21 +176,9 @@ describe('haproxy config injection — owner-controlled values', () => {
       ['drain bare', { drain: {} }],
     ];
 
-    const TCP_PARTIALS = [
-      ['tcp healthCheck bare', { healthCheck: {} }],
-      ['tcp healthCheck with a probe', { healthCheck: { probe: { send: 'a', expect: 'b' } } }],
-      ['tcp stickySessions bare', { stickySessions: {} }],
-      ['tcp timeouts partial', { timeouts: { server: '30s' } }],
-      ['tcp retries partial', { retries: { count: 2 } }],
-      ['tcp drain bare', { drain: {} }],
-    ];
-
-    [
-      ...PARTIALS.map(([label, overrides]) => [label, overrides, 'http']),
-      ...TCP_PARTIALS.map(([label, overrides]) => [label, overrides, 'tcp']),
-    ].forEach(([label, overrides, mode]) => {
+    PARTIALS.forEach(([label, overrides]) => {
       it(`renders no undefined or null for ${label}`, async () => {
-        const block = await renderOrReject(overrides, mode);
+        const block = await renderOrReject(overrides);
         expect(block, `${label}: must render`).to.not.equal(null);
         expect(block, label).to.not.match(/\bundefined\b/);
         expect(block, label).to.not.match(/\bNaN\b/);

@@ -152,10 +152,10 @@ function buildRouteConfigs(
       healthCheck: route.healthCheck,
       backendTls: route.backendTls,
       maxConnectionsPerServer: route.maxConnectionsPerServer,
-      // A route declaring the tcp variant is pure passthrough on its own port: served by
-      // a tcp frontend alone, never by the shared http frontends. An http route carries
-      // no mode here, so a mode resolveCustomConfig set (active-standby) stands.
-      ...(route.mode === 'tcp' ? { mode: 'tcp', tcpOnly: true } : {}),
+      // The haproxy tcp variant is not offered: a raw tcp route needs a port reserved
+      // for it on the balancer fleet, which FDM does not allocate. The renderer refuses
+      // a route marked so.
+      ...(route.mode === 'tcp' ? { declaredTcp: true } : {}),
     };
     // Edge exposure (scheme + managed cert) applies to the owner's custom domains only;
     // a v9 route carries a scheme, legacy carries none. Platform FQDNs never get this —
@@ -213,10 +213,11 @@ function buildRouteConfigs(
     }
   }
 
-  // Main domain — alias to the first route's backend.
+  // Main domain — alias to the first routed route's backend; a route that declared tcp
+  // is not routed, so it is never the alias.
   const mainDomain = `${lowerName}.${platformSuffix}`;
-  if (!has(mainDomain) && configs.length) {
-    const first = configs[0];
+  const first = configs.find((route) => !route.declaredTcp);
+  if (!has(mainDomain) && first) {
     configs.push({
       name: appName,
       appName: first.appName,

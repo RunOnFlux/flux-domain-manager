@@ -2,7 +2,8 @@
 
 // Prove real haproxy 2.9 accepts the v9 scheme output: build a synthetic v9 app that
 // exercises all four schemes (httpsRedirect / httpsOnly / httpOnly / httpPassthrough)
-// across components with the full tunable set, run the pipeline, and haproxy -c it.
+// and the tcp variant across components with the full tunable set, run the pipeline,
+// and haproxy -c it.
 // The committed unit test (tests/unit/v9Schemes.test.js) asserts the directive strings;
 // this proves haproxy actually parses them (incl. the tcp SNI router + loopback
 // terminating listener). Local/dev only: needs docker + the haproxy:2.9 image.
@@ -16,7 +17,7 @@ const { looseBackends, looseDeployments } = require('../unit/fixtures/renderPipe
 const { createAppsHaproxyConfig } = require('../../src/services/haproxyTemplate');
 const specLibs = require('../../src/services/flux/specLibs');
 
-const component = (name, hostPort, lb) => ({
+const component = (name, hostPort, lb, mode = 'http') => ({
   name,
   description: name,
   image: 'nginx:latest',
@@ -25,7 +26,7 @@ const component = (name, hostPort, lb) => ({
   rootFsGb: 2,
   persistentStorage: { sizeGb: 5 },
   ports: { web: { containerPort: 80, hostPort } },
-  loadBalancing: { web: { provider: 'haproxy', mode: 'http', ...lb } },
+  loadBalancing: { web: { provider: 'haproxy', mode, ...lb } },
 });
 
 const submission = {
@@ -54,6 +55,16 @@ const submission = {
     thru: component('thru', 31003, {
       scheme: 'httpPassthrough', customDomains: ['thru.example.com'], balancing: 'roundrobin', healthCheck: {},
     }),
+    // The tcp variant: pure passthrough on its own port, every toggle on, and bare.
+    game: component('game', 31004, {
+      balancing: 'leastconn',
+      maxConnectionsPerServer: 300,
+      stickySessions: { expire: '45m', tableSize: 5000 },
+      healthCheck: { interval: '7s', rise: 3, fall: 4, probe: { send: 'PING\r\n', expect: '+PONG' } },
+      timeouts: { server: '120s' },
+      retries: { count: 2 },
+    }, 'tcp'),
+    bare: component('bare', 31005, {}, 'tcp'),
   },
 };
 
@@ -93,7 +104,7 @@ async function main() {
     'haproxy:2.9', 'haproxy', '-c', '-f', '/cfg'];
   try {
     execFileSync('docker', args, { encoding: 'utf8', stdio: 'pipe' });
-    process.stdout.write('✓ haproxy 2.9 accepts the all-schemes v9 config (tcp SNI router + loopback terminating listener)\n');
+    process.stdout.write('✓ haproxy 2.9 accepts the all-schemes v9 config (tcp SNI router + loopback terminating listener + tcp routes)\n');
     process.exit(0);
   } catch (e) {
     const alerts = ((e.stderr || '') + (e.stdout || '')).split('\n').filter((l) => l.includes('ALERT') || l.includes('parsing')).slice(0, 12);

@@ -23,16 +23,6 @@
 // One backend-level directive line (no indentation — the renderer adds it).
 const line = (text) => text;
 
-// A v9 route that declared the tcp variant carries that variant's fields: source-IP
-// stickiness, a tcp probe, no http timeouts or retry-on. The declaration decides, not
-// the mode a backend is rendered in: an http route is also rendered as a tcp backend
-// for its active-standby listener, and still carries the http variant's fields.
-const isTcpVariant = (app) => app.balancing !== undefined && app.tcpOnly === true;
-
-// Owner-supplied probe text is rendered as hex, so its bytes reach the wire exactly and
-// nothing in it can be read as haproxy syntax.
-const hex = (text) => Buffer.from(text, 'utf8').toString('hex');
-
 function resolveBalanceLines(app, mode) {
   // Legacy: an explicit customConfig balance directive wins; otherwise round-robin
   // with the FDMSERVERID affinity cookie when there is more than one backend (http
@@ -51,14 +41,6 @@ function resolveBalanceLines(app, mode) {
     return lines;
   }
   const lines = [line(`balance ${app.balancing}`)];
-  if (isTcpVariant(app)) {
-    if (app.stickySessions) {
-      const ss = app.stickySessions;
-      lines.push(line(`stick-table type ip size ${ss.tableSize} expire ${ss.expire}`));
-      lines.push(line('stick on src'));
-    }
-    return lines;
-  }
   if (app.stickySessions) {
     const ss = app.stickySessions;
     lines.push(line(`cookie ${ss.cookieName} insert indirect nocache maxidle ${ss.maxIdle} maxlife ${ss.maxLife}`));
@@ -72,14 +54,6 @@ function resolveHealthCheckLines(app) {
   if (app.balancing === undefined) return app.healthcheck || [];
   const hc = app.healthCheck;
   if (!hc) return [];
-  if (isTcpVariant(app)) {
-    const tcpLines = [line('option tcp-check')];
-    if (hc.probe) {
-      tcpLines.push(line(`tcp-check send-binary ${hex(hc.probe.send)}`));
-      tcpLines.push(line(`tcp-check expect binary ${hex(hc.probe.expect)}`));
-    }
-    return tcpLines;
-  }
   const lines = [
     line(`option httpchk ${hc.method} ${hc.path}`),
     line(`http-check expect status ${hc.expectedStatus}`),
@@ -104,16 +78,6 @@ function resolveOnceLines(app) {
   }
   const t = app.timeouts;
   const r = app.retries;
-  if (isTcpVariant(app)) {
-    const tcpLines = [
-      line(`timeout connect ${t.connect}`),
-      line(`timeout server ${t.server}`),
-      line(`timeout tunnel ${t.tunnel}`),
-      line(`retries ${r.count}`),
-    ];
-    if (r.redispatch) tcpLines.push(line('option redispatch'));
-    return tcpLines;
-  }
   const lines = [
     line(`timeout connect ${t.connect}`),
     line(`timeout server ${t.server}`),
@@ -188,9 +152,8 @@ function resolveBackendConfig(app, mode, caReady = new Set()) {
     serverEnableH2: isV9 ? false : Boolean(app.enableH2),
     serverSsl: resolveServerSsl(app, isV9, caReady),
     serverMaxconn: isV9 ? `maxconn ${app.maxConnectionsPerServer}` : '',
-    // The per-server affinity cookie source (null = no affinity). The tcp variant's
-    // affinity is the stick-table, never a cookie.
-    stickyV9: isV9 && !isTcpVariant(app) ? app.stickySessions : null,
+    // The per-server affinity cookie source (null = no affinity).
+    stickyV9: isV9 ? app.stickySessions : null,
   };
 }
 

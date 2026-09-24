@@ -475,25 +475,21 @@ function createMainHaproxyConfig(ui, api, nodeAddresses, uiPrimary, apiPrimary, 
 // file, so every later routing change on the director goes unapplied.
 const UNRENDERABLE = /\bundefined\b|\bNaN\b|\[object Object\]/;
 
-// The routes whose backends render whole. A route that does not is dropped, loudly, so
-// one route cannot stop the director applying routing for every other app.
+// The routes this director writes. A route that declared the tcp variant is not
+// offered, so it is not routed at all. A route whose backend does not render whole is
+// dropped, loudly, so one route cannot stop the director applying routing for every
+// other app.
 function renderableRoutes(appConfig, caReady) {
   return appConfig.filter((app) => {
-    const modes = app.tcpOnly ? ['tcp'] : ['http', ...(app.mode === 'tcp' ? ['tcp'] : [])];
+    if (app.declaredTcp) {
+      log.error(`haproxy: route ${app.domain} declares tcp load balancing, which is not offered; not routed`);
+      return false;
+    }
+    const modes = ['http', ...(app.mode === 'tcp' ? ['tcp'] : [])];
     const bad = modes.find((mode) => UNRENDERABLE.test(generateDomainBackend(app, mode, caReady).render()));
     if (bad) log.error(`haproxy: route ${app.domain} renders an unset value in its ${bad} backend; dropped from this config`);
     return !bad;
   });
-}
-
-// A route that declared the tcp variant: a frontend on its own port, handing every
-// connection to its backend without inspecting it.
-function generateTcpRouteFrontend(app, backendName) {
-  return new Section('frontend', `tcp_route_${app.port}`)
-    .add('bind', `0.0.0.0:${app.port}`)
-    .add('mode', 'tcp')
-    .add('option', 'tcplog')
-    .add('default_backend', backendName);
 }
 
 function createAppsHaproxyConfig(appConfig, caReady = new Set()) {
@@ -510,8 +506,6 @@ function createAppsHaproxyConfig(appConfig, caReady = new Set()) {
   const domains = [];
   const seenApps = {};
   const tcpAppsMap = {};
-  const tcpRouteSections = [];
-  const tcpRoutePorts = new Set();
 
   // v9 scheme buckets — empty for the whole legacy population (every legacy/platform
   // route terminates, so the loop below never fills these and the output is unchanged).
@@ -537,21 +531,6 @@ function createAppsHaproxyConfig(appConfig, caReady = new Set()) {
       continue;
     }
     const domainUsed = app.domain.split('.').join('');
-
-    // A declared tcp route is served on its own port and nowhere else. Its platform and
-    // custom domains all name that one port, so the first renders it.
-    if (app.tcpOnly) {
-      domains.push(app.domain);
-      if (+app.port === 443 || +app.port === 80) {
-        log.error(`haproxy: tcp route ${app.domain} claims port ${app.port}, which the http frontends own; not routed`);
-      } else if (!tcpRoutePorts.has(app.port)) {
-        tcpRoutePorts.add(app.port);
-        tcpRouteSections.push(generateTcpRouteFrontend(app, `${domainUsed}_tcp_backend`));
-        tcpRouteSections.push(generateDomainBackend(app, 'tcp', caReady));
-      }
-      // eslint-disable-next-line no-continue
-      continue;
-    }
     const exposure = resolveRouteExposure(app);
 
     // v9 httpPassthrough: SNI-route the raw TLS connection to the app's own tcp backend
@@ -643,7 +622,6 @@ function createAppsHaproxyConfig(appConfig, caReady = new Set()) {
 
   // TCP frontends (+ their backends).
   generateAppsTCPSettings(tcpAppsMap).forEach((section) => config.sections.push(section));
-  tcpRouteSections.forEach((section) => config.sections.push(section));
 
   // :443. Without passthrough domains this terminates directly on *:443 (unchanged).
   // With them, a tcp SNI router owns *:443 — passthrough domains go raw to their backend,

@@ -14,11 +14,14 @@
  * port is then chosen at bind time, so these sockets share one ephemeral pool
  * rather than one per destination.
  *
- * An IPv4 bind cannot reach an IPv6 address (EINVAL), so name resolution is
- * restricted to A records.
+ * The policy applies to IPv4 destinations, and name resolution is restricted to
+ * A records. A connection to an IPv6 address is left unbound: an IPv4 bind
+ * cannot reach it (EINVAL), and every haproxy frontend listens on IPv4, whose
+ * ports an IPv6 socket does not hold.
  */
 const http = require('node:http');
 const https = require('node:https');
+const net = require('node:net');
 const axios = require('axios');
 
 const SOCKET_POLICY = Object.freeze({ localAddress: '0.0.0.0', family: 4 });
@@ -29,18 +32,30 @@ const AGENT_DEFAULTS = Object.freeze({ keepAlive: true, timeout: 5_000, scheduli
 
 const HARD_STOP = Symbol('hardStop');
 
+function withSocketPolicy(Agent) {
+  return class extends Agent {
+    createConnection(options, callback) {
+      const connectOptions = net.isIPv6(options.host) ? options : { ...options, ...SOCKET_POLICY };
+      return super.createConnection(connectOptions, callback);
+    }
+  };
+}
+
+const PolicyHttpAgent = withSocketPolicy(http.Agent);
+const PolicyHttpsAgent = withSocketPolicy(https.Agent);
+
 /**
  * @param {{ ca?: Buffer, cert?: Buffer, key?: Buffer, rejectUnauthorized?: boolean }} [tls]
  */
 function createAgents(tls = {}) {
   return {
-    httpAgent: new http.Agent({ ...AGENT_DEFAULTS, ...SOCKET_POLICY }),
-    httpsAgent: new https.Agent({ ...AGENT_DEFAULTS, ...tls, ...SOCKET_POLICY }),
+    httpAgent: new PolicyHttpAgent(AGENT_DEFAULTS),
+    httpsAgent: new PolicyHttpsAgent({ ...AGENT_DEFAULTS, ...tls }),
   };
 }
 
 /**
- * An axios instance whose connections carry SOCKET_POLICY.
+ * An axios instance whose IPv4 connections carry SOCKET_POLICY.
  *
  * A request's `timeout` bounds the wait for a response; the request is aborted
  * outright at twice that.

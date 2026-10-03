@@ -16,5 +16,9 @@
     "verifyTimeoutMs": 15000,
     "pollMs": 500,
     "alertAfterFailures": 3
+  },
+  "mainNode": {
+    "maxShortfallRatio": 0.3,
+    "windowMs": 600000
   }
 }

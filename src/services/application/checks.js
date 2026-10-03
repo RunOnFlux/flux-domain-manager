@@ -2,6 +2,7 @@
 const config = require('config');
 const httpClients = require('../httpClients');
 const log = require('../../lib/log');
+const { createAppCountReference } = require('../../lib/appCountReference');
 
 const timeout = 5456;
 const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'web', 'eckodexswap', 'eckodexvault'];
@@ -184,20 +185,31 @@ async function isDaemonSyncedOK(ip, port) {
   }
 }
 
-async function hasManyApps(ip, port) {
+const appCountReference = createAppCountReference(config.guards.mainNode.windowMs);
+
+/**
+ * Whether a node's app registry looks complete: it lists at least one app, and
+ * no more than `maxShortfallRatio` fewer than the largest count any node
+ * reported in the last `windowMs`.
+ *
+ * @param {string} ip
+ * @param {string|number} port
+ * @param {number} [now] monotonic ms
+ * @returns {Promise<boolean>}
+ */
+async function hasManyApps(ip, port, now = Number(process.hrtime.bigint() / 1_000_000n)) {
   try {
     const url = `http://${ip}:${port}/apps/globalappsspecifications`;
     const response = await httpClients.nodeChecks.get(url, { timeout });
-    const appsAmount = response.data.data.length;
-    if (appsAmount > 500) { // we surely have at least 1000 apps on network
-      // eslint-disable-next-line no-restricted-syntax
-      for (const app of config.mandatoryApps) {
-        const appExists = response.data.data.find((a) => a.name === app);
-        if (!appExists) {
-          log.info(`Function hasManyApps false for ip ${ip}`);
-          return false;
-        }
-      }
+    const apps = response.data.data;
+    if (!Array.isArray(apps) || apps.length === 0) {
+      log.info(`Function hasManyApps false for ip ${ip}: no app list`);
+      return false;
+    }
+    const reference = appCountReference.observe(apps.length, now);
+    if (apps.length < reference * (1 - config.guards.mainNode.maxShortfallRatio)) {
+      log.info(`Function hasManyApps false for ip ${ip}: ${apps.length} apps, largest recent ${reference}`);
+      return false;
     }
     return true;
   } catch (error) {
@@ -1128,4 +1140,5 @@ module.exports = {
   checkALPHexplorer,
   checkErgoHeight,
   isArcaneOS,
+  hasManyApps,
 };

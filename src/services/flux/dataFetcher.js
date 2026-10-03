@@ -620,30 +620,21 @@ class FdmDataFetcher extends EventEmitter {
     const getRes = await this.doAppSpecsHttpGet();
     if (!getRes) return [];
 
-    const { payload } = getRes;
-    const allSpecs = [];
-    const enterpriseApps = [];
-
-    for (const spec of payload) {
-      if (!spec) continue;
-      const isEnterprise = Boolean(spec.version >= 8 && spec.enterprise);
-      if (isEnterprise) {
-        enterpriseApps.push(spec);
-      } else {
-        allSpecs.push(spec);
-      }
-    }
+    const specs = getRes.payload.filter(Boolean);
+    const isEnterprise = (spec) => Boolean(spec.version >= 8 && spec.enterprise);
+    const allSpecs = specs.filter((spec) => !isEnterprise(spec));
+    const enterpriseApps = specs.filter(isEnterprise);
 
     if (enterpriseApps.length) {
       const decryptTasks = enterpriseApps.map(
         (spec) => () => this.#decryptAppSpec(spec),
       );
       const results = await runWithConcurrency(decryptTasks, 5);
-      for (const result of results) {
+      results.forEach((result) => {
         if (result.status === 'fulfilled' && result.value) {
           allSpecs.push(result.value);
         }
-      }
+      });
     }
 
     return allSpecs;

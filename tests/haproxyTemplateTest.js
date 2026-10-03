@@ -2,6 +2,7 @@
 const chai = require('chai');
 const config = require('config');
 const haproxyTemplate = require('../src/services/haproxyTemplate');
+const { getPrimaryIP } = require('../src/services/rsync/config');
 
 const { expect } = chai;
 
@@ -15,7 +16,6 @@ describe('haproxyTemplate', () => {
 
     // We can't easily re-require with different config, but we can verify the
     // generated config string contains the expected primary IP
-    const { getPrimaryIP } = require('../src/services/rsync/config');
     const primaryIP = getPrimaryIP();
     expect(primaryIP).to.be.a('string');
 
@@ -26,7 +26,6 @@ describe('haproxyTemplate', () => {
   });
 
   it('getPrimaryIP returns the fn host IP for the default test config', () => {
-    const { getPrimaryIP } = require('../src/services/rsync/config');
     const primaryIP = getPrimaryIP();
     // Default rsync_config.json is fdm_fn1_app, group 1 fn host is itself: 5.39.57.42
     expect(primaryIP).to.equal('5.39.57.42');

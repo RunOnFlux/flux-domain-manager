@@ -44,7 +44,7 @@ async function checkPem() {
   const pemPath = `${CERT_DIR}/${domain}.pem`;
   try {
     await fs.access(pemPath);
-    const size = fsSync.statSync(pemPath).size;
+    const { size } = fsSync.statSync(pemPath);
     if (size <= 128) {
       console.log(`PEM exists but is empty/corrupt (${size} bytes)`);
       return { exists: false };
@@ -81,7 +81,7 @@ function checkLetsencrypt() {
 
 function rsyncToPeers() {
   const peers = getGroupPeerIPs();
-  for (const ip of peers) {
+  peers.forEach((ip) => {
     try {
       console.log(`Syncing to ${ip}...`);
       execSync(`rsync -a --delete -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /etc/ssl/fluxapps/ ${ip}:/etc/ssl/fluxapps/`, { timeout: 30000 });
@@ -89,7 +89,7 @@ function rsyncToPeers() {
     } catch (err) {
       console.error(`Failed to sync to ${ip}: ${err.message}`);
     }
-  }
+  });
 }
 
 function obtainCert() {
@@ -132,7 +132,7 @@ function obtainCert() {
   console.log('');
 
   // Letsencrypt check
-  const leExists = checkLetsencrypt();
+  checkLetsencrypt();
   console.log('');
 
   // Decision

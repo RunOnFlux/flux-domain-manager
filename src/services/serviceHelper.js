@@ -129,6 +129,7 @@ function timeout(ms) {
 async function runWithConcurrency(tasks, limit) {
   const results = [];
   const executing = new Set();
+  // eslint-disable-next-line no-restricted-syntax
   for (const task of tasks) {
     // eslint-disable-next-line no-loop-func
     const p = Promise.resolve().then(task).finally(() => executing.delete(p));

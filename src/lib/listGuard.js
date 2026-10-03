@@ -1,50 +1,42 @@
 /**
  * Whether a newly computed list may replace the last accepted one.
  *
- * An empty list is always refused. The first list, with nothing to compare it to,
- * must reach `floor`. After that, a list more than `maxDropRatio` smaller than the
- * last accepted one is refused until every result for `confirmMs` has been that
- * much smaller; one result within the ratio clears the pending drop. A registry
- * mid-rebuild answers for tens of seconds, so it never outlasts the confirmation;
- * a genuine shrink does, and is then accepted.
+ * A list is implausible when there is no last accepted list and it is below
+ * `floor`, or when it is more than `maxDropRatio` smaller than the last accepted
+ * one (an empty list is such a drop). An implausible list is refused until every
+ * result for `confirmMs` has been implausible, and is then accepted; one
+ * plausible result clears the pending wait. A registry mid-rebuild answers for
+ * tens of seconds, so it never outlasts the confirmation; a genuine change does.
  *
  * @param {number} count size of the candidate list
- * @param {{ lastAcceptedCount: (number|null), dropSince: (number|null) }} state
+ * @param {{ lastAcceptedCount: (number|null), pendingSince: (number|null) }} state
  * @param {{ floor: number, maxDropRatio: number, confirmMs: number }} limits
  * @param {number} now milliseconds, any monotonic clock
  * @returns {{
  *   accept: boolean,
- *   reason: ('empty'|'below-floor'|'drop'|'confirmed-drop'|null),
- *   state: { lastAcceptedCount: (number|null), dropSince: (number|null) },
+ *   reason: ('below-floor'|'drop'|'confirmed'|null),
+ *   state: { lastAcceptedCount: (number|null), pendingSince: (number|null) },
  * }}
  */
 function evaluateListChange(count, state, limits, now) {
-  const { lastAcceptedCount, dropSince } = state;
+  const { lastAcceptedCount, pendingSince } = state;
 
-  if (count === 0) return { accept: false, reason: 'empty', state };
+  const implausible = lastAcceptedCount === null
+    ? count < limits.floor
+    : lastAcceptedCount - count > lastAcceptedCount * limits.maxDropRatio;
 
-  if (lastAcceptedCount === null) {
-    if (count < limits.floor) return { accept: false, reason: 'below-floor', state };
-    return { accept: true, reason: null, state: { lastAcceptedCount: count, dropSince: null } };
+  if (!implausible) {
+    return { accept: true, reason: null, state: { lastAcceptedCount: count, pendingSince: null } };
   }
 
-  const drop = lastAcceptedCount - count;
-  if (drop > lastAcceptedCount * limits.maxDropRatio) {
-    const since = dropSince ?? now;
-    if (now - since < limits.confirmMs) {
-      return { accept: false, reason: 'drop', state: { lastAcceptedCount, dropSince: since } };
-    }
-    return { accept: true, reason: 'confirmed-drop', state: { lastAcceptedCount: count, dropSince: null } };
+  const since = pendingSince ?? now;
+  if (now - since < limits.confirmMs) {
+    const reason = lastAcceptedCount === null ? 'below-floor' : 'drop';
+    return { accept: false, reason, state: { lastAcceptedCount, pendingSince: since } };
   }
-
-  return { accept: true, reason: null, state: { lastAcceptedCount: count, dropSince: null } };
-}
-
-function initialListState() {
-  return { lastAcceptedCount: null, dropSince: null };
+  return { accept: true, reason: 'confirmed', state: { lastAcceptedCount: count, pendingSince: null } };
 }
 
 module.exports = {
   evaluateListChange,
-  initialListState,
 };

@@ -5,6 +5,7 @@ const http = require('http');
 const os = require('os');
 const path = require('path');
 const { FdmDataFetcher } = require('../src/services/flux/dataFetcher');
+const { createGuardStore } = require('../src/lib/guardStore');
 
 const { expect } = chai;
 
@@ -41,8 +42,9 @@ async function serveSpecs() {
 const tlsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fdm-spec-guard-'));
 ['key', 'cert', 'ca'].forEach((name) => fs.writeFileSync(path.join(tlsDir, name), 'placeholder'));
 
-function newFetcher(port) {
+function newFetcher(port, guardStateFile) {
   return new FdmDataFetcher({
+    guardStore: createGuardStore(guardStateFile),
     keyPath: path.join(tlsDir, 'key'),
     certPath: path.join(tlsDir, 'cert'),
     caPath: path.join(tlsDir, 'ca'),
@@ -55,10 +57,12 @@ describe('spec-list guard', () => {
   let api;
   let fetcher;
   let updates;
+  let stateFile;
 
   beforeEach(async () => {
     api = await serveSpecs();
-    fetcher = newFetcher(api.port);
+    stateFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fdm-spec-state-')), 'list-guards.json');
+    fetcher = newFetcher(api.port, stateFile);
     updates = [];
     fetcher.on('appSpecsUpdated', (update) => updates.push(update));
 
@@ -66,7 +70,10 @@ describe('spec-list guard', () => {
     await fetcher.getAndProcessAppSpecs();
   });
 
-  afterEach(() => { api.server.close(); });
+  afterEach(() => {
+    api.server.close();
+    fs.rmSync(path.dirname(stateFile), { recursive: true, force: true });
+  });
 
   after(() => { fs.rmSync(tlsDir, { recursive: true, force: true }); });
 
@@ -103,11 +110,20 @@ describe('spec-list guard', () => {
   });
 
   it('refuses a first list below the floor', async () => {
-    const fresh = newFetcher(api.port);
+    const fresh = newFetcher(api.port, `${stateFile}.fresh`);
     const freshUpdates = [];
     fresh.on('appSpecsUpdated', (update) => freshUpdates.push(update));
-    api.serve({ status: 'success', data: specs(9) }, 'W/"a-9"');
+    api.serve({ status: 'success', data: specs(4) }, 'W/"a-4"');
     await fresh.getAndProcessAppSpecs();
     expect(freshUpdates).to.have.lengthOf(0);
+  });
+
+  it('judges the first list after a restart against the one accepted before it', async () => {
+    const restarted = newFetcher(api.port, stateFile);
+    const restartedUpdates = [];
+    restarted.on('appSpecsUpdated', (update) => restartedUpdates.push(update));
+    api.serve({ status: 'success', data: specs(13) }, 'W/"a-13"');
+    await restarted.getAndProcessAppSpecs();
+    expect(restartedUpdates).to.have.lengthOf(0);
   });
 });

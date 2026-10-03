@@ -7,7 +7,8 @@ const url = require('node:url');
 const config = require('config');
 const { runWithConcurrency } = require('../serviceHelper');
 const { createHttpClient } = require('../../lib/outbound');
-const { evaluateListChange, initialListState } = require('../../lib/listGuard');
+const { evaluateListChange } = require('../../lib/listGuard');
+const { sharedGuardStore } = require('../../lib/guardStore');
 const alerts = require('../alertService');
 
 // const log = require('./log');
@@ -42,7 +43,9 @@ class FdmDataFetcher extends EventEmitter {
    */
   #decryptApi;
 
-  #specListGuard = initialListState();
+  #guardStore;
+
+  #specListGuard;
 
   #aborted = false;
 
@@ -107,8 +110,11 @@ class FdmDataFetcher extends EventEmitter {
     super();
 
     const {
-      keyPath, certPath, caPath, fluxApiBaseUrl, sasApiBaseUrl,
+      keyPath, certPath, caPath, fluxApiBaseUrl, sasApiBaseUrl, guardStore,
     } = options;
+
+    this.#guardStore = guardStore ?? sharedGuardStore();
+    this.#specListGuard = this.#guardStore.initialState('specList');
 
     this.#fluxApi = createHttpClient({
       baseURL: fluxApiBaseUrl,
@@ -163,10 +169,11 @@ class FdmDataFetcher extends EventEmitter {
       return false;
     }
 
-    if (verdict.reason === 'confirmed-drop') {
-      log.warn(`spec list dropped to ${payload.length} (from ${lastAccepted}) and held `
+    if (verdict.reason === 'confirmed') {
+      log.warn(`spec list of ${payload.length} (last accepted ${lastAccepted ?? 'none'}) held `
         + `for ${Math.round(specList.confirmMs / 1000)}s; accepting it`);
     }
+    this.#guardStore.recordAccepted('specList', payload.length);
     alerts.resolve('spec-refused');
     return true;
   }

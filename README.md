@@ -32,8 +32,10 @@ domainAppType: 'CNEME' or 'A'
 
 FDM posts to a Discord webhook when it keeps the current haproxy config instead of publishing a new one:
 
-- `spec-refused` - the app spec list from the Flux API was empty, malformed, or more than 30% smaller than the last accepted one, for longer than 2 minutes
+- `spec-refused` - the app spec list from the Flux API was malformed, or more than 30% smaller than the last accepted one, for longer than 2 minutes
 - `config-refused:G` / `config-refused:nonG` - a config pass computed a half more than 30% smaller than the one it last published, for longer than 2 minutes
+
+A list more than 30% smaller than the last accepted one, an empty list included, is published once every result for 10 minutes has been that small. With nothing accepted before, a list needs at least 5 entries, or the same 10 minutes. The last accepted sizes are kept in `/var/lib/flux-domain-manager/list-guards.json`, so a restart is judged against them.
 - `haproxy-reload` - three consecutive reloads did not bring up a new haproxy worker; the message names each port that failed to bind and the socket holding it
 
 Each condition sends one message when it starts and one when it clears. Set `alerts.discordWebhookUrl` in config. The ansible playbooks render it from the `DISCORD_WEBHOOK_URL` environment variable, which the deploy workflow sets from the repository secret of the same name; `-e discord_webhook_url=...` overrides it for a manual run. It never goes in a tracked file. Empty sends nothing. Thresholds are in `config/guardsConfig.json`.

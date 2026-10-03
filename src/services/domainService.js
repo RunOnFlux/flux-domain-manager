@@ -19,7 +19,8 @@ const { startCertRsync } = require('./rsync');
 const serviceHelper = require('./serviceHelper');
 const httpClients = require('./httpClients');
 const alerts = require('./alertService');
-const { evaluateListChange, initialListState } = require('../lib/listGuard');
+const { evaluateListChange } = require('../lib/listGuard');
+const { sharedGuardStore } = require('../lib/guardStore');
 
 const { FdmDataFetcher } = require('./flux/dataFetcher');
 
@@ -144,8 +145,12 @@ let recentlyConfiguredApps = [];
 let recentlyConfiguredGApps = [];
 let nonGAppsInitialized = false;
 let gAppsInitialized = false;
-// The size each half last published, for the drop guard in admitConfiguredHalf.
-let configuredHalfGuards = { nonG: initialListState(), G: initialListState() };
+// The size each half last published, for the guard in admitConfiguredHalf.
+let configuredHalfStore = sharedGuardStore();
+let configuredHalfGuards = {
+  nonG: configuredHalfStore.initialState('nonG'),
+  G: configuredHalfStore.initialState('G'),
+};
 // A publish that did not reach a verified reload. While set, a pass publishes
 // even when its own list is unchanged, so the failed config is retried rather
 // than skipped as "no changes".
@@ -1066,22 +1071,22 @@ async function updateHaproxy(haproxyAppsConfig) {
 function admitConfiguredHalf(half, count, now = monotonicMs()) {
   const { configPass } = config.guards;
   const limits = {
-    floor: half === 'G' ? configPass.gFloor : configPass.nonGFloor,
+    floor: configPass.floor,
     maxDropRatio: configPass.maxDropRatio,
     confirmMs: configPass.confirmMs,
   };
+  const lastPublished = configuredHalfGuards[half].lastAcceptedCount;
   const verdict = evaluateListChange(count, configuredHalfGuards[half], limits, now);
   configuredHalfGuards[half] = verdict.state;
 
   const key = `config-refused:${half}`;
-  const { lastAcceptedCount } = verdict.state;
 
   if (!verdict.accept) {
     const message = `${half} pass computed ${count} entries (last published `
-      + `${lastAcceptedCount ?? 'none'}), reason ${verdict.reason}; the published ${half} config is kept`;
-    // Before a half has published anything there is nothing to protect, and a
-    // shard can legitimately start with no G apps: log only.
-    if (lastAcceptedCount === null) {
+      + `${lastPublished ?? 'none'}), reason ${verdict.reason}; the published ${half} config is kept`;
+    // Before a half has ever published on this box there is nothing to protect:
+    // log only.
+    if (lastPublished === null) {
       log.info(message);
     } else {
       alerts.raise(key, message, { afterMs: configPass.alertAfterMs });
@@ -1089,15 +1094,24 @@ function admitConfiguredHalf(half, count, now = monotonicMs()) {
     return false;
   }
 
-  if (verdict.reason === 'confirmed-drop') {
-    log.warn(`${half} pass: a drop to ${count} entries has held for ${Math.round(configPass.confirmMs / 1000)}s; publishing it`);
+  if (verdict.reason === 'confirmed') {
+    log.warn(`${half} pass: ${count} entries (last published ${lastPublished ?? 'none'}) `
+      + `held for ${Math.round(configPass.confirmMs / 1000)}s; publishing it`);
   }
+  configuredHalfStore.recordAccepted(half, count);
   alerts.resolve(key);
   return true;
 }
 
-function resetConfiguredHalfGuards() {
-  configuredHalfGuards = { nonG: initialListState(), G: initialListState() };
+/**
+ * @param {ReturnType<import('../lib/guardStore').createGuardStore>} [store]
+ */
+function resetConfiguredHalfGuards(store = sharedGuardStore()) {
+  configuredHalfStore = store;
+  configuredHalfGuards = {
+    nonG: configuredHalfStore.initialState('nonG'),
+    G: configuredHalfStore.initialState('G'),
+  };
 }
 
 /**

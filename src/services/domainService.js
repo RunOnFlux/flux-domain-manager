@@ -1130,7 +1130,7 @@ async function appendRouteConfigs(routeConfigs, app, backends, isActiveStandby) 
   // meant to run and ALL meant to serve. An app that needs a single serving instance says
   // so with activeStandby.
   const syncFirst = runsSharedDb(deployments.get(null));
-  routeConfigs.push(...buildRouteConfigs(deployments, app.name, backends, isActiveStandby, syncFirst, ownsDomain, onConflict));
+  routeConfigs.push(...buildRouteConfigs(deployments, { name: app.name, identity: app.identity }, backends, isActiveStandby, syncFirst, ownsDomain, onConflict));
   if (disowned.length) {
     log.warn(`${app.name}: skipped ${disowned.length} custom domain(s) owned by another app: ${disowned.join(', ')}`);
   }

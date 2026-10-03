@@ -10,9 +10,12 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
-const { provisionBackendCas, requiredVerifyAppNames } = require('../../src/services/haproxy/provisionBackendCas');
+const { provisionBackendCas, requiredVerifyApps } = require('../../src/services/haproxy/provisionBackendCas');
 
-const routeFor = (name, verify) => ({ name, backendTls: verify ? { verify } : null });
+// Each app's identity is the one its registration minted; here derived from the name so
+// the fixtures read, and spelt as the real ones are (a `b` and 52 base32 characters).
+const identityOf = (name) => `b${name.toLowerCase().replace(/[^a-z2-7]/g, '').padEnd(52, 'c').slice(0, 52)}`;
+const routeFor = (name, verify, identity = identityOf(name)) => ({ name, identity, backendTls: verify ? { verify } : null });
 const PEM = (name) => `-----BEGIN CERTIFICATE-----\n${name}\n-----END CERTIFICATE-----\n`;
 
 let dir;
@@ -23,25 +26,25 @@ afterEach(async () => {
   await fsp.rm(dir, { recursive: true, force: true });
 });
 
-const caPath = (name) => path.join(dir, `flux-ca-${name}.pem`);
+const caPath = (name) => path.join(dir, `flux-ca-${identityOf(name)}.pem`);
 
-describe('requiredVerifyAppNames', () => {
-  it('collects only verify:required apps, de-duplicated by name', () => {
-    const names = requiredVerifyAppNames([
+describe('requiredVerifyApps', () => {
+  it('collects only verify:required apps, de-duplicated by identity, each with its name', () => {
+    const apps = requiredVerifyApps([
       routeFor('a', 'required'),
       routeFor('a', 'required'), // second route for the same app
       routeFor('b', 'none'),
       routeFor('c', null),
       routeFor('d', 'required'),
     ]);
-    expect([...names].sort()).to.deep.equal(['a', 'd']);
+    expect([...apps].sort()).to.deep.equal([[identityOf('a'), 'a'], [identityOf('d'), 'd']]);
   });
 });
 
 describe('provisionBackendCas', () => {
-  it('fetches each required app once and writes its CA, returning the ready set', async () => {
+  it('fetches each required app once, by name and identity, writes its CA under the identity, and returns the ready identities', async () => {
     const calls = [];
-    const fetcher = { fetchCaCertificate: async (name) => { calls.push(name); return PEM(name); } };
+    const fetcher = { fetchCaCertificate: async (name, identity) => { calls.push([name, identity]); return PEM(name); } };
 
     const ready = await provisionBackendCas(
       [routeFor('shop', 'required'), routeFor('shop', 'required'), routeFor('blog', 'required')],
@@ -49,10 +52,23 @@ describe('provisionBackendCas', () => {
       { dir },
     );
 
-    expect([...ready].sort()).to.deep.equal(['blog', 'shop']);
-    expect(calls.sort()).to.deep.equal(['blog', 'shop']); // shop fetched once despite two routes
+    expect([...ready].sort()).to.deep.equal([identityOf('blog'), identityOf('shop')].sort());
+    expect(calls.sort()).to.deep.equal([['blog', identityOf('blog')], ['shop', identityOf('shop')]]); // shop fetched once despite two routes
     expect(fs.readFileSync(caPath('shop'), 'utf8')).to.equal(PEM('shop'));
     expect(fs.readFileSync(caPath('blog'), 'utf8')).to.equal(PEM('blog'));
+  });
+
+  it('a name registered again is another identity: it gets its own CA and never the earlier app\'s', async () => {
+    const earlier = `b${'d'.repeat(52)}`;
+    const later = `b${'e'.repeat(52)}`;
+    const fetcher = { fetchCaCertificate: async (name, identity) => PEM(`${name}:${identity}`) };
+
+    await provisionBackendCas([routeFor('shop', 'required', earlier)], fetcher, { dir });
+    const ready = await provisionBackendCas([routeFor('shop', 'required', later)], fetcher, { dir });
+
+    expect([...ready]).to.deep.equal([later]);
+    expect(fs.readFileSync(path.join(dir, `flux-ca-${later}.pem`), 'utf8')).to.equal(PEM(`shop:${later}`));
+    expect(fs.readFileSync(path.join(dir, `flux-ca-${earlier}.pem`), 'utf8'), 'the earlier app\'s CA is untouched until it ages out').to.equal(PEM(`shop:${earlier}`));
   });
 
   it('does nothing and returns an empty set when no app asks for verification', async () => {
@@ -79,7 +95,7 @@ describe('provisionBackendCas', () => {
       { dir },
     );
 
-    expect([...ready].sort()).to.deep.equal(['ok1', 'ok2']);
+    expect([...ready].sort()).to.deep.equal([identityOf('ok1'), identityOf('ok2')].sort());
     expect(fs.existsSync(caPath('broken'))).to.equal(false);
     expect(fs.existsSync(caPath('ok1'))).to.equal(true);
   });
@@ -95,7 +111,7 @@ describe('provisionBackendCas', () => {
     const ready = await provisionBackendCas([routeFor('shop', 'required')], fetcher, { dir });
 
     expect(calls).to.equal(1); // not called again
-    expect([...ready]).to.deep.equal(['shop']);
+    expect([...ready]).to.deep.equal([identityOf('shop')]);
     expect(fs.readFileSync(caPath('shop'), 'utf8')).to.equal(PEM('shop'));
   });
 

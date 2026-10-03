@@ -138,7 +138,7 @@ async function main() {
   const { FluxAppSpecV9 } = await specLibs.load();
   const wire = FluxAppSpecV9.fromSubmission(submission).serialize();
   const dep = await specLibs.resolveDeployment(await specLibs.deserialize(wire), null);
-  const routeConfigs = buildRouteConfigs(looseDeployments(dep), 'drainapp', looseBackends(ACTIVE, DRAINING), false, false);
+  const routeConfigs = buildRouteConfigs(looseDeployments(dep), { name: 'drainapp', identity: `b${'c'.repeat(52)}` }, looseBackends(ACTIVE, DRAINING), false, false);
   const cfg = createAppsHaproxyConfig(routeConfigs);
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fdm-drain-'));

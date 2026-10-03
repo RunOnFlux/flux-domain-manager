@@ -26,6 +26,7 @@ const legacy = (extra) => ({
 
 const v9 = (extra) => ({
   name: 'app',
+  identity: 'bcccccccccccccccccccccccccccccccccccccccccccccccccccc',
   ips: ['1.2.3.4:16127', '5.6.7.8:16127'],
   servers: servers(['1.2.3.4:16127', '5.6.7.8:16127']),
   check: true,
@@ -123,9 +124,14 @@ describe('resolveBackendConfig', () => {
       expect(cfg.stickyV9).to.equal(null);
     });
 
-    it('names the app-specific CA for verify:required when the CA is in caReady', () => {
+    it('names the CA by the app\'s identity for verify:required when that identity is in caReady', () => {
+      const cfg = resolveBackendConfig(v9({ backendTls: { verify: 'required' } }), 'http', new Set(['bcccccccccccccccccccccccccccccccccccccccccccccccccccc']));
+      expect(cfg.serverSsl).to.equal('ssl verify required ca-file /etc/haproxy/ca/flux-ca-bcccccccccccccccccccccccccccccccccccccccccccccccccccc.pem');
+    });
+
+    it('emits no ssl for verify:required when only the app\'s name, not its identity, is ready', () => {
       const cfg = resolveBackendConfig(v9({ backendTls: { verify: 'required' } }), 'http', new Set(['app']));
-      expect(cfg.serverSsl).to.equal('ssl verify required ca-file /etc/haproxy/ca/flux-ca-app.pem');
+      expect(cfg.serverSsl).to.equal('');
     });
 
     it('emits no ssl for verify:required when the CA is not on disk (empty caReady)', () => {

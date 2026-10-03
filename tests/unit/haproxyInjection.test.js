@@ -99,7 +99,7 @@ async function renderOrReject(overrides) {
   try {
     const dep = await specLibs.resolveDeployment(await specLibs.deserialize(wire), null);
     const backends = looseBackends(['144.76.10.20:16127']);
-    const routeConfigs = buildRouteConfigs(looseDeployments(dep), 'shop', backends, false, false);
+    const routeConfigs = buildRouteConfigs(looseDeployments(dep), { name: 'shop', identity: `b${'c'.repeat(52)}` }, backends, false, false);
     const platform = routeConfigs.find((c) => c.domain.startsWith('shop_'));
     if (!platform) return null;
     return generateDomainBackend(platform, 'http').render();

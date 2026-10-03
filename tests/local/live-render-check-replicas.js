@@ -139,7 +139,7 @@ async function main() {
     // eslint-disable-next-line no-await-in-loop
     deployments.set(replica, await specLibs.resolveDeployment(instance, replica));
   }
-  const routeConfigs = buildRouteConfigs(deployments, 'coloapp', BACKENDS, false, false);
+  const routeConfigs = buildRouteConfigs(deployments, { name: 'coloapp', identity: `b${'c'.repeat(52)}` }, BACKENDS, false, false);
   const cfg = createAppsHaproxyConfig(routeConfigs);
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fdm-colo-'));

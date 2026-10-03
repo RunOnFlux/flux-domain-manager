@@ -76,7 +76,7 @@ const v9submission = {
 // backends, the way the routing loop assembles it.
 async function render(spec, appIps, drainingIps, syncFirst = false) {
   const dep = await specLibs.resolveDeployment(await specLibs.deserialize(spec), null);
-  const routeConfigs = buildRouteConfigs(looseDeployments(dep), 'drainapp', looseBackends(appIps, drainingIps), false, syncFirst);
+  const routeConfigs = buildRouteConfigs(looseDeployments(dep), { name: 'drainapp', identity: `b${'c'.repeat(52)}` }, looseBackends(appIps, drainingIps), false, syncFirst);
   const platform = routeConfigs.find((c) => c.domain.startsWith('drainapp_'));
   return generateDomainBackend(platform, 'http').render();
 }

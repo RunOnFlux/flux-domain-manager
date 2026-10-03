@@ -10,9 +10,10 @@ const { requestCaCertificate } = require('../../src/services/flux/caCertificate'
 
 const PEM = '-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n';
 const ENDPOINT = 'v2/caCertificate';
+const IDENTITY = `b${'c'.repeat(52)}`;
 
 describe('requestCaCertificate — CA fetch over a stub transport', () => {
-  it('GETs the configured endpoint with the appName query and returns the PEM', async () => {
+  it('GETs the configured endpoint with the appName and identity query and returns the PEM', async () => {
     let seen = null;
     const http = {
       get: async (url, opts) => {
@@ -21,11 +22,13 @@ describe('requestCaCertificate — CA fetch over a stub transport', () => {
       },
     };
 
-    const cert = await requestCaCertificate({ http, endpoint: ENDPOINT, appName: 'myapp' });
+    const cert = await requestCaCertificate({
+      http, endpoint: ENDPOINT, appName: 'myapp', identity: IDENTITY,
+    });
 
     expect(cert).to.equal(PEM);
     expect(seen.url).to.equal(ENDPOINT);
-    expect(seen.opts).to.deep.equal({ params: { appName: 'myapp' } });
+    expect(seen.opts).to.deep.equal({ params: { appName: 'myapp', identity: IDENTITY } });
   });
 
   it('throws when the crypto service reports a body-level error (fails closed)', async () => {
@@ -33,7 +36,9 @@ describe('requestCaCertificate — CA fetch over a stub transport', () => {
 
     let threw = false;
     try {
-      await requestCaCertificate({ http, endpoint: ENDPOINT, appName: 'myapp' });
+      await requestCaCertificate({
+        http, endpoint: ENDPOINT, appName: 'myapp', identity: IDENTITY,
+      });
     } catch (e) {
       threw = true;
     }
@@ -45,7 +50,9 @@ describe('requestCaCertificate — CA fetch over a stub transport', () => {
 
     let threw = false;
     try {
-      await requestCaCertificate({ http, endpoint: ENDPOINT, appName: 'myapp' });
+      await requestCaCertificate({
+        http, endpoint: ENDPOINT, appName: 'myapp', identity: IDENTITY,
+      });
     } catch (e) {
       threw = true;
     }
@@ -57,7 +64,9 @@ describe('requestCaCertificate — CA fetch over a stub transport', () => {
 
     let threw = false;
     try {
-      await requestCaCertificate({ http, endpoint: ENDPOINT, appName: 'myapp' });
+      await requestCaCertificate({
+        http, endpoint: ENDPOINT, appName: 'myapp', identity: IDENTITY,
+      });
     } catch (e) {
       threw = true;
     }

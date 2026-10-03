@@ -82,10 +82,13 @@ const legacySslSpec = () => ({
 // One path for every version: a legacy object or a v9 wire, both deserialized, resolved
 // and rendered identically. The app name comes off the spec, so the platform backend is
 // found the same way regardless of shape.
+// The identity the specs feed lists for the app; a submission carries none, so the fixture names it.
+const IDENTITY = 'bcccccccccccccccccccccccccccccccccccccccccccccccccccc';
+
 async function renderBackend(spec, caReady = new Set()) {
   const dep = await specLibs.resolveDeployment(await specLibs.deserialize(spec), null);
   const { name } = spec;
-  const routeConfigs = buildRouteConfigs(looseDeployments(dep), name, looseBackends(MULTI_NODE_IPS), false, false);
+  const routeConfigs = buildRouteConfigs(looseDeployments(dep), { name, identity: IDENTITY }, looseBackends(MULTI_NODE_IPS), false, false);
   const platform = routeConfigs.find((c) => c.domain.startsWith(`${name.toLowerCase()}_`));
   return generateDomainBackend(platform, 'http', caReady).render();
 }
@@ -148,14 +151,14 @@ describe('backend rendering (end-to-end, version-blind)', () => {
 
   // verify:'required' names the app's own Flux-derived CA — an absolute per-app path the
   // provisioning pass has written. It is only emitted when that CA is confirmed on disk
-  // (the app name is in caReady); a Flux-CA backend cert never validates against the public
+  // (the app's identity is in caReady); a Flux-CA backend cert never validates against the public
   // bundle, so pointing at that would just mark every such backend down.
   it('names the app CA when backend verification is asked for and the CA is provisioned', async () => {
     const backend = await renderBackend(
       await v9Wire({ balancing: 'roundrobin', backendTls: { verify: 'required' } }),
-      new Set(['shop']),
+      new Set([IDENTITY]),
     );
-    expect(backend).to.include('ssl verify required ca-file /etc/haproxy/ca/flux-ca-shop.pem');
+    expect(backend).to.include('ssl verify required ca-file /etc/haproxy/ca/flux-ca-bcccccccccccccccccccccccccccccccccccccccccccccccccccc.pem');
   });
 
   // The fleet-safety line: backendTls: {} materializes to verify:'required', so the shortest

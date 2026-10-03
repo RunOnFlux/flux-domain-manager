@@ -56,7 +56,8 @@ function conflictingFields(existing, candidate) {
  * @param {Map<string|null, Object>} deployments replica name → its resolved
  *   DeploymentSpec; the `null` key is the declared view used by loose (unnamed)
  *   instances, which is every legacy and every unpinned app.
- * @param {string} appName
+ * @param {{name: string, identity: string}} app the app's name and the identity its
+ *   registration minted, as the specs feed lists them; a backend-TLS CA is the identity's
  * @param {Array<{ip: string, replica: (string|null), draining: boolean}>} backends live
  *   backends in rotation order, draining ones last. One entry per running instance, so a
  *   node hosting two co-located replicas appears twice.
@@ -70,13 +71,16 @@ function conflictingFields(existing, candidate) {
  */
 function buildRouteConfigs(
   deployments,
-  appName,
+  app,
   backends,
   isActiveStandby,
   syncFirst,
   ownsDomain = () => true,
   onConflict = () => {},
 ) {
+  const { name: appName, identity } = app;
+  // A legacy app has no identity and never a backend-TLS CA; its routes carry no key for it.
+  const identityField = identity === undefined ? {} : { identity };
   const configs = [];
   const platformSuffix = `${config.appSubDomain}.${config.mainDomain}`;
   const lowerName = appName.toLowerCase();
@@ -166,6 +170,7 @@ function buildRouteConfigs(
     };
     const base = {
       name: appName,
+      ...identityField,
       appName: backendName,
       port: hostPort,
       ips: appIps,
@@ -220,6 +225,7 @@ function buildRouteConfigs(
   if (!has(mainDomain) && first) {
     configs.push({
       name: appName,
+      ...identityField,
       appName: first.appName,
       domain: mainDomain,
       port: first.port,

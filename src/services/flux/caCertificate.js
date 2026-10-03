@@ -1,10 +1,12 @@
 'use strict';
 
 // FDM fetches an app's backend-TLS CA over the same mTLS channel it uses to decrypt
-// sealed specs. The CA is derived per-app and is byte-deterministic across the fleet, so
-// the PEM returned here is stable for a given app name — a caller may cache it and treat
-// the on-disk write as idempotent. The transport is injected so the fetch can be exercised
-// without the mTLS client (which reads key material off disk).
+// sealed specs. The CA is derived from the identity the app's registration minted and is
+// byte-deterministic across the fleet, so the PEM returned here is stable for a given
+// identity — a caller may cache it and treat the on-disk write as idempotent. The name is
+// sent beside the identity: the crypto service writes it into the CA's subject. The
+// transport is injected so the fetch can be exercised without the mTLS client (which reads
+// key material off disk).
 
 /**
  * Request an app's backend-TLS CA certificate from the crypto service.
@@ -12,17 +14,20 @@
  *   http: import('axios').AxiosInstance,
  *   endpoint: string,
  *   appName: string,
+ *   identity: string,
  * }} deps
  * @returns {Promise<string>} the CA certificate in PEM
  */
-async function requestCaCertificate({ http, endpoint, appName }) {
-  const response = await http.get(endpoint, { params: { appName } });
+async function requestCaCertificate({
+  http, endpoint, appName, identity,
+}) {
+  const response = await http.get(endpoint, { params: { appName, identity } });
   if (response.status !== 200) {
-    throw new Error(`crypto service HTTP ${response.status} fetching CA for ${appName}`);
+    throw new Error(`crypto service HTTP ${response.status} fetching CA for ${appName} (${identity})`);
   }
   const { status, certificate } = response.data;
   if (status !== 'ok' || !certificate) {
-    throw new Error(`crypto service rejected CA request for ${appName}`);
+    throw new Error(`crypto service rejected CA request for ${appName} (${identity})`);
   }
   return certificate;
 }

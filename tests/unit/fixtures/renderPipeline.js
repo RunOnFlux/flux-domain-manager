@@ -51,7 +51,7 @@ async function routeConfigsForSpec(spec) {
   const singleInstance = routesToSingleInstance(spec);
   const ips = singleInstance ? SINGLE_NODE_IP : MULTI_NODE_IPS;
   const deployment = await specLibs.resolveDeployment(instance, null);
-  return buildRouteConfigs(looseDeployments(deployment), spec.name, looseBackends(ips), singleInstance, usesOrderedData(spec));
+  return buildRouteConfigs(looseDeployments(deployment), { name: spec.name, identity: spec.identity }, looseBackends(ips), singleInstance, usesOrderedData(spec));
 }
 
 // The full haproxy config for a set of specs, assembled the way production does:

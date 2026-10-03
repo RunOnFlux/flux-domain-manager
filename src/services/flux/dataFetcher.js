@@ -160,19 +160,21 @@ class FdmDataFetcher extends EventEmitter {
 
   /**
    * Fetch an app's backend-TLS CA certificate over the same mTLS channel used for spec
-   * decryption. The CA is derived per-app and is byte-deterministic across the fleet, so
+   * decryption. The CA is the identity's and is byte-deterministic across the fleet, so
    * the returned PEM is stable — a caller may cache it and treat writes as idempotent.
    * Only meaningful for apps whose backendTls is `verify: required`; the caller decides
    * when to ask.
    *
    * @param {string} appName
+   * @param {string} identity the identity the app's registration minted
    * @returns {Promise<string>} the CA certificate in PEM
    */
-  async fetchCaCertificate(appName) {
+  async fetchCaCertificate(appName, identity) {
     const certificate = await requestCaCertificate({
       http: this.#cryptoApi,
       endpoint: this.#cryptoEndpoints.caCertificate,
       appName,
+      identity,
     });
     return certificate;
   }

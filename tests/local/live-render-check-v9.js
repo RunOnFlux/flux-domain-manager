@@ -76,7 +76,7 @@ async function main() {
   const { FluxAppSpecV9 } = await specLibs.load();
   const wire = FluxAppSpecV9.fromSubmission(submission).serialize();
   const dep = await specLibs.resolveDeployment(await specLibs.deserialize(wire), null);
-  const routeConfigs = buildRouteConfigs(looseDeployments(dep), 'schemeapp', looseBackends(['172.30.0.11:16127', '172.30.0.12:16127']), false, false);
+  const routeConfigs = buildRouteConfigs(looseDeployments(dep), { name: 'schemeapp', identity: `b${'c'.repeat(52)}` }, looseBackends(['172.30.0.11:16127', '172.30.0.12:16127']), false, false);
   const cfg = createAppsHaproxyConfig(routeConfigs);
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fdm-v9-'));

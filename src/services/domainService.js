@@ -396,7 +396,7 @@ async function appendRouteConfigs(routeConfigs, app, backends, isActiveStandby) 
   // container data and a v9 sync declaration both resolve to the same answer, and
   // which modes count is the spec library's to know, not this file's.
   const syncFirst = deployments.get(null).requiresSyncBeforeStart();
-  routeConfigs.push(...buildRouteConfigs(deployments, app.name, backends, isActiveStandby, syncFirst, ownsDomain, onConflict));
+  routeConfigs.push(...buildRouteConfigs(deployments, { name: app.name, identity: app.identity }, backends, isActiveStandby, syncFirst, ownsDomain, onConflict));
   if (disowned.length) {
     log.warn(`${app.name}: skipped ${disowned.length} custom domain(s) owned by another app: ${disowned.join(', ')}`);
   }

@@ -47,7 +47,7 @@ const render = async (components) => {
   const { FluxAppSpecV9 } = await specLibs.load();
   const wire = FluxAppSpecV9.fromSubmission(spec(components)).serialize();
   const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(wire), null);
-  const routeConfigs = buildRouteConfigs(looseDeployments(deployment), 'app', looseBackends(IPS), false, false);
+  const routeConfigs = buildRouteConfigs(looseDeployments(deployment), { name: 'app', identity: `b${'c'.repeat(52)}` }, looseBackends(IPS), false, false);
   return { config: createAppsHaproxyConfig(routeConfigs), deployment };
 };
 

@@ -147,7 +147,7 @@ async function main() {
       // eslint-disable-next-line no-await-in-loop
       const dep = await specLibs.resolveDeployment(await specLibs.deserialize(wire), null);
       const backends = looseBackends(['144.76.10.20:16127']);
-      routeConfigs.push(...buildRouteConfigs(looseDeployments(dep), appName, backends, false, false));
+      routeConfigs.push(...buildRouteConfigs(looseDeployments(dep), { name: appName, identity: `b${appName.replace(/[^a-z2-7]/g, '').padEnd(52, 'c').slice(0, 52)}` }, backends, false, false));
       survived += 1;
     } catch (e) { rejected += 1; }
   }

@@ -4,24 +4,26 @@
 // such app's own Flux-derived CA has to be on disk — haproxy refuses to load a config that
 // names a missing ca-file, and that refusal takes down every app on the director, not just
 // the one. This pass runs after the route configs are built and before the render: it
-// ensures each required-verify app's per-app CA is present at the path the renderer will
-// name, returning the set of app names whose CA is confirmed on disk.
+// ensures each required-verify app's CA is present at the path the renderer will name,
+// returning the set of identities whose CA is confirmed on disk.
 //
-// The per-app CA is byte-deterministic and effectively permanent (a fixed ~100-year
-// window), so once written it never changes: an app whose CA file already exists is ready
-// without a fetch, and only a first appearance touches the crypto service. The write is
-// atomic (temp + rename) so a crash can never leave a partial CA that would itself make
-// haproxy refuse the config. A fetch or write that fails leaves that one app out of the
-// ready set (the renderer then emits no ssl directive for it, so it stays down until its CA
-// lands) rather than throwing — one unreachable CA must not stop routing updates for every
-// other app on the box.
+// The CA is the identity's: the crypto service derives it from the identity the app's
+// registration minted, and a name registered again is another identity with another CA. The
+// file is named by the identity, so a file that exists is that identity's CA and nothing
+// else's. The CA is byte-deterministic and effectively permanent (a fixed ~100-year window),
+// so once written it never changes: an identity whose CA file already exists is ready without
+// a fetch, and only a first appearance touches the crypto service. The write is atomic (temp +
+// rename) so a crash can never leave a partial CA that would itself make haproxy refuse the
+// config. A fetch or write that fails leaves that one app out of the ready set (the renderer
+// then emits no ssl directive for it, so it stays down until its CA lands) rather than
+// throwing — one unreachable CA must not stop routing updates for every other app on the box.
 //
 // (If the CA derivation ever gains rotation/revocation — it has none today — this "exists =>
 // trust" shortcut needs a versioned flush; noted, out of scope while the CA is immutable.)
 //
-// The same pass also removes the CAs of apps that are gone. Nothing else ever deletes them,
-// and "exists => trust" means they are never rewritten either, so without this the directory
-// only grows — one file per app that has ever used required-verify on this director.
+// The same pass also removes the CAs of identities that are gone. Nothing else ever deletes
+// them, and "exists => trust" means they are never rewritten either, so without this the
+// directory only grows — one file per identity that has ever used required-verify here.
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const config = require('config');
@@ -40,14 +42,15 @@ const UNUSED_GRACE_MS = config.haproxyRouting.backendCa.unusedGraceHours * 60 * 
 // Written and read by the prune below only. Matches what backendCaFileName produces.
 const CA_FILE_RE = /^flux-ca-(.+)\.pem$/;
 
-// The app names whose routes ask for `verify: required`, de-duplicated: one app owns one
-// CA no matter how many domains or ports route to it, so it is fetched once.
-function requiredVerifyAppNames(routeConfigs) {
-  const names = new Set();
+// The apps whose routes ask for `verify: required`, by identity: one identity owns one CA
+// no matter how many domains or ports route to it, so it is fetched once. The name rides
+// along because the crypto service asks for both and writes it into the CA's subject.
+function requiredVerifyApps(routeConfigs) {
+  const apps = new Map();
   routeConfigs.forEach((rc) => {
-    if (rc.backendTls && rc.backendTls.verify === 'required') names.add(rc.name);
+    if (rc.backendTls && rc.backendTls.verify === 'required') apps.set(rc.identity, rc.name);
   });
-  return names;
+  return apps;
 }
 
 async function fileExists(filePath) {
@@ -76,8 +79,8 @@ async function writeAtomic(filePath, contents) {
  * Deleting a CA that is still wanted is cheap and self-correcting: the per-app CA is
  * byte-deterministic, so the next cycle that needs it fetches back an identical file.
  *
- * @param {string} dir directory holding the per-app CA files
- * @param {Set<string>} inUse app names still routed with required-verify this cycle. This is
+ * @param {string} dir directory holding the CA files
+ * @param {Set<string>} inUse identities still routed with required-verify this cycle. This is
  *   the routing view, NOT the set whose fetch succeeded: an app whose CA is momentarily
  *   unfetchable is still live and must not age out while it is being retried.
  * @param {number} graceMs how long a CA may sit unreferenced before removal
@@ -94,8 +97,8 @@ async function pruneUnusedCas(dir, inUse, graceMs) {
 
   const now = Date.now();
   const stamp = new Date(now);
-  await Promise.all([...inUse].map((appName) => {
-    const filePath = path.join(dir, backendCaFileName(appName));
+  await Promise.all([...inUse].map((identity) => {
+    const filePath = path.join(dir, backendCaFileName(identity));
     return fsp.utimes(filePath, stamp, stamp).catch(() => {});
   }));
 
@@ -120,47 +123,48 @@ async function pruneUnusedCas(dir, inUse, graceMs) {
 }
 
 /**
- * Provision the per-app backend-TLS CAs referenced by the route configs, and prune the ones
- * whose apps are long gone.
+ * Provision the backend-TLS CAs referenced by the route configs, by identity, and prune the
+ * ones whose identities are long gone.
  * @param {Array<Object>} routeConfigs the resolved route configs about to be rendered
- * @param {{ fetchCaCertificate: (appName: string) => Promise<string> }} fetcher
+ * @param {{ fetchCaCertificate: (appName: string, identity: string) => Promise<string> }} fetcher
  * @param {{ dir?: string, graceMs?: number }} [options] dir - where CA files are written
  *   (defaults to the production BACKEND_CA_DIR the renderer names); graceMs - unused-CA
  *   removal delay. Both overridden only in tests.
- * @returns {Promise<Set<string>>} app names whose CA is confirmed on disk
+ * @returns {Promise<Set<string>>} identities whose CA is confirmed on disk
  */
 async function provisionBackendCas(routeConfigs, fetcher, options = {}) {
   const dir = options.dir || BACKEND_CA_DIR;
   const graceMs = options.graceMs ?? UNUSED_GRACE_MS;
-  const names = requiredVerifyAppNames(routeConfigs);
+  const apps = requiredVerifyApps(routeConfigs);
+  const identities = new Set(apps.keys());
 
   const ready = new Set();
-  if (names.size) {
+  if (apps.size) {
     await fsp.mkdir(dir, { recursive: true });
 
-    await Promise.all([...names].map(async (appName) => {
-      const filePath = path.join(dir, backendCaFileName(appName));
+    await Promise.all([...apps].map(async ([identity, appName]) => {
+      const filePath = path.join(dir, backendCaFileName(identity));
       try {
         // The CA is immutable, so an existing file is authoritative — no fetch needed.
         if (!await fileExists(filePath)) {
-          const pem = await fetcher.fetchCaCertificate(appName);
+          const pem = await fetcher.fetchCaCertificate(appName, identity);
           await writeAtomic(filePath, pem);
         }
-        ready.add(appName);
+        ready.add(identity);
       } catch (err) {
         // Left out of the ready set on purpose: the renderer will emit no verify directive
         // for this app, so it is unroutable until its CA lands — never routed unverified,
         // never a missing ca-file in the config.
-        log.error(`backend-TLS CA not provisioned for ${appName}, leaving it unverified-down this cycle: ${err.message}`);
+        log.error(`backend-TLS CA not provisioned for ${appName} (${identity}), leaving it unverified-down this cycle: ${err.message}`);
       }
     }));
   }
 
   // Outside the guard above on purpose: removing the last required-verify app leaves no
-  // names to provision, and that is exactly the cycle whose CA needs to start ageing out.
-  await pruneUnusedCas(dir, names, graceMs);
+  // identities to provision, and that is exactly the cycle whose CA needs to start ageing out.
+  await pruneUnusedCas(dir, identities, graceMs);
 
   return ready;
 }
 
-module.exports = { provisionBackendCas, requiredVerifyAppNames, pruneUnusedCas };
+module.exports = { provisionBackendCas, requiredVerifyApps, pruneUnusedCas };

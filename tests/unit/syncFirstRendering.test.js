@@ -57,7 +57,7 @@ async function render(submission) {
   const syncFirst = deployment.requiresSyncBeforeStart();
   const routeConfigs = buildRouteConfigs(
     looseDeployments(deployment),
-    'syncapp',
+    { name: 'syncapp', identity: `b${'c'.repeat(52)}` },
     looseBackends(IPS),
     false,
     syncFirst,

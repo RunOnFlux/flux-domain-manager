@@ -15,6 +15,9 @@ const chai = require('chai');
 const { load } = require('@runonflux/flux-spec-cjs');
 const specLibs = require('../../src/services/flux/specLibs');
 const { buildRouteConfigs } = require('../../src/services/haproxy/buildRouteConfigs');
+
+// The app as the specs feed lists it: its name and the identity its registration minted.
+const COLO = { name: 'coloapp', identity: `b${'c'.repeat(52)}` };
 const { generateDomainBackend } = require('../../src/services/haproxyTemplate');
 const { resolveBackends } = require('../../src/services/domainService');
 
@@ -88,7 +91,7 @@ async function deploymentsFor(replicas, sub = submission) {
 
 async function render(backends, { syncFirst = false, onConflict } = {}) {
   const deployments = await deploymentsFor([...new Set(backends.map((b) => b.replica))]);
-  const configs = buildRouteConfigs(deployments, 'coloapp', backends, false, syncFirst, () => true, onConflict);
+  const configs = buildRouteConfigs(deployments, COLO, backends, false, syncFirst, () => true, onConflict);
   return { configs, platform: configs.find((c) => c.domain.startsWith('coloapp_')) };
 }
 
@@ -121,7 +124,7 @@ describe('per-replica routing', () => {
       // servers would be named for the node and haproxy would refuse the config.
       const deployments = await deploymentsFor(['r1']);
       deployments.set('rX', deployments.get('r1'));
-      const configs = buildRouteConfigs(deployments, 'coloapp', [backend(NODE_A, 'r1'), backend(NODE_A, 'rX')], false, false);
+      const configs = buildRouteConfigs(deployments, COLO, [backend(NODE_A, 'r1'), backend(NODE_A, 'rX')], false, false);
       const platform = configs.find((c) => c.domain.startsWith('coloapp_'));
       const names = namesOf(serverLines(generateDomainBackend(platform, 'http').render()));
       expect(names).to.deep.equal(['10.0.0.1:16127_r1', '10.0.0.1:16127_rX']);
@@ -153,7 +156,7 @@ describe('per-replica routing', () => {
       // One node, two rotation targets. A cookie keyed on the node address alone could
       // not distinguish them, so affinity would be meaningless for co-located replicas.
       const deployments = await deploymentsFor(['r1', 'r2'], stickySubmission);
-      const configs = buildRouteConfigs(deployments, 'coloapp', [backend(NODE_A, 'r1'), backend(NODE_A, 'r2')], false, false);
+      const configs = buildRouteConfigs(deployments, COLO, [backend(NODE_A, 'r1'), backend(NODE_A, 'r2')], false, false);
       const platform = configs.find((c) => c.domain.startsWith('coloapp_'));
       const text = generateDomainBackend(platform, 'http').render();
       expect(text).to.contain('cookie COLOSESS insert');
@@ -214,7 +217,7 @@ describe('per-replica routing', () => {
       ]);
       const configs = buildRouteConfigs(
         deployments,
-        'coloapp',
+        COLO,
         [backend(NODE_A, 'r1'), backend(NODE_A, 'r2')],
         false,
         false,
@@ -235,7 +238,7 @@ describe('per-replica routing', () => {
         ['r1', stubDeployment(httpRoute({ balancing: 'roundrobin' }))],
         ['r2', stubDeployment(httpRoute({ balancing: 'leastconn' }))],
       ]);
-      const configs = buildRouteConfigs(deployments, 'coloapp', [backend(NODE_A, 'r1'), backend(NODE_A, 'r2')], false, false);
+      const configs = buildRouteConfigs(deployments, COLO, [backend(NODE_A, 'r1'), backend(NODE_A, 'r2')], false, false);
       const platform = configs.find((c) => c.domain.startsWith('coloapp_'));
       expect(platform.servers).to.have.lengthOf(2);
     });
@@ -249,7 +252,7 @@ describe('per-replica routing', () => {
       ]);
       const configs = buildRouteConfigs(
         deployments,
-        'coloapp',
+        COLO,
         [backend(NODE_A, 'r1'), backend(NODE_A, 'r2')],
         false,
         false,
@@ -267,14 +270,14 @@ describe('per-replica routing', () => {
         ['r1', stubDeployment(httpRoute({}))],
         ['r2', { routes: () => [] }],
       ]);
-      const configs = buildRouteConfigs(deployments, 'coloapp', [backend(NODE_A, 'r1'), backend(NODE_A, 'r2')], false, false);
+      const configs = buildRouteConfigs(deployments, COLO, [backend(NODE_A, 'r1'), backend(NODE_A, 'r2')], false, false);
       const platform = configs.find((c) => c.domain.startsWith('coloapp_'));
       expect(platform.servers.map((s) => s.replica)).to.deep.equal(['r1']);
     });
 
     it('a replica with no resolved deployment is skipped, never routed on a sibling\'s ports', async () => {
       const deployments = await deploymentsFor(['r1']);
-      const configs = buildRouteConfigs(deployments, 'coloapp', [backend(NODE_A, 'r1'), backend(NODE_A, 'ghost')], false, false);
+      const configs = buildRouteConfigs(deployments, COLO, [backend(NODE_A, 'r1'), backend(NODE_A, 'ghost')], false, false);
       const platform = configs.find((c) => c.domain.startsWith('coloapp_'));
       expect(platform.servers.map((s) => s.replica)).to.deep.equal(['r1']);
     });
@@ -283,7 +286,7 @@ describe('per-replica routing', () => {
   describe('loose instances are untouched', () => {
     it('an unnamed replica keeps the historical node-address server name', async () => {
       const deployments = await deploymentsFor([null]);
-      const configs = buildRouteConfigs(deployments, 'coloapp', [backend(NODE_A, null), backend(NODE_B, null)], false, false);
+      const configs = buildRouteConfigs(deployments, COLO, [backend(NODE_A, null), backend(NODE_B, null)], false, false);
       const platform = configs.find((c) => c.domain.startsWith('coloapp_'));
       const names = namesOf(serverLines(generateDomainBackend(platform, 'http').render()));
       expect(names).to.deep.equal(['10.0.0.1:16127', '10.0.0.2:16127']);

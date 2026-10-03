@@ -120,18 +120,20 @@ function resolveServerTiming(app, isV9) {
 // window. The provisioning pass logs the miss.
 const BACKEND_CA_DIR = '/etc/haproxy/ca';
 
-const backendCaFileName = (appName) => `flux-ca-${appName}.pem`;
-const backendCaFile = (appName) => `${BACKEND_CA_DIR}/${backendCaFileName(appName)}`;
+// The CA is the identity's: a name registered again is another identity with another CA,
+// so the file is named by the identity and a stale name can never verify a new app.
+const backendCaFileName = (identity) => `flux-ca-${identity}.pem`;
+const backendCaFile = (identity) => `${BACKEND_CA_DIR}/${backendCaFileName(identity)}`;
 
 function resolveServerSsl(app, isV9, caReady) {
   if (!isV9) return app.ssl ? 'ssl verify none' : '';
   if (!app.backendTls) return '';
   if (app.backendTls.verify !== 'required') return `ssl verify ${app.backendTls.verify}`;
-  if (!caReady.has(app.name)) return '';
-  return `ssl verify required ca-file ${backendCaFile(app.name)}`;
+  if (!caReady.has(app.identity)) return '';
+  return `ssl verify required ca-file ${backendCaFile(app.identity)}`;
 }
 
-// caReady: the set of app names whose backend-TLS CA is confirmed on disk. Only consulted
+// caReady: the set of app identities whose backend-TLS CA is confirmed on disk. Only consulted
 // for v9 `verify: required` backends; defaults to empty, which is the safe reading (emit no
 // ca-file we cannot back with a file). The provisioning pass builds it before rendering.
 function resolveBackendConfig(app, mode, caReady = new Set()) {

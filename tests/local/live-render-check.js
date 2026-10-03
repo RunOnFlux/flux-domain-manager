@@ -64,7 +64,7 @@ async function main() {
     if (!appIps.length) noLoc += 1;
     maxIps = Math.max(maxIps, appIps.length);
     const dep = await specLibs.resolveDeployment(inst, null);
-    const routeConfigs = buildRouteConfigs(looseDeployments(dep), spec.name, looseBackends(appIps), activeStandby, markerPresent(spec, 'r:'));
+    const routeConfigs = buildRouteConfigs(looseDeployments(dep), { name: spec.name, identity: spec.identity }, looseBackends(appIps), activeStandby, markerPresent(spec, 'r:'));
     (activeStandby ? single : general).push(...routeConfigs);
     rendered += 1;
   }

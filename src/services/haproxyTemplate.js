@@ -6,8 +6,11 @@ const log = require('../lib/log');
 const { cmdAsync, TEMP_HAPROXY_CONFIG, HAPROXY_CONFIG } = require('./constants');
 const { matchRule } = require('./serviceHelper');
 const { getPrimaryIP } = require('./rsync/config');
+const { reloadAndVerify, formatFailure } = require('./haproxyReload');
+const alerts = require('./alertService');
 
 let lastHaproxyConfig;
+let consecutivePublishFailures = 0;
 
 const haproxyPrefix = `
 global
@@ -50,6 +53,12 @@ defaults
   # paying a fresh TCP handshake to the origin. Explicit rather than relying on
   # the haproxy-version default (never before 2.5, safe from 2.5 on).
   http-reuse safe
+  # Bind every server-side connection before connecting. haproxy then sets
+  # SO_REUSEADDR on it, which is what lets a new frontend bind a port that one of
+  # these connections happens to hold; without it the whole reload fails. The
+  # port is still chosen at connect time (IP_BIND_ADDRESS_NO_PORT), so the
+  # per-destination ephemeral pool is unchanged.
+  source 0.0.0.0
 #  option  httplog
   option  dontlognull
   timeout connect 10000
@@ -137,41 +146,12 @@ const forbiddenBackend = `backend forbidden-backend
   mode http
   http-request deny deny_status 403
 `;
+// Every certificate is loaded from the one directory; `domains` is not needed.
 // eslint-disable-next-line no-unused-vars
 function createCertificatesPaths(domains) {
-  // let path = '';
-  // domains.forEach((url) => {
-  //   path += `crt /etc/ssl/${configGlobal.certFolder}/${url}.pem `;
-  // });
-  // return path;
-  // ise directory
   const path = `crt /etc/ssl/${configGlobal.certFolder}/ `;
   return path;
 }
-
-/*
-function generateMinecraftSettings(minecraftAppsMap) {
-  let configs = '';
-  for (const port of Object.keys(minecraftAppsMap)) {
-    const portConf = minecraftAppsMap[port];
-    const tempFrontend = `
-frontend minecraft_${port}
-  bind 0.0.0.0:${port}
-  mode tcp
-  tcp-request inspect-delay 5s
-  tcp-request content accept if { req_ssl_hello_type 1 }
-  option tcplog
-  option tcp-check
-${portConf.acls.join('\n')}
-${portConf.usebackends.join('')}
-${portConf.backends.join('\n')}`;
-
-    configs = `${configs}\n\n${tempFrontend}`;
-  }
-
-  return configs;
-}
-*/
 
 function generateAppsTCPSettings(tcpAppsMap) {
   let configs = '';
@@ -202,9 +182,7 @@ ${portConf.backends.join('\n')}`;
   return configs;
 }
 
-function generateHaproxyConfig(acls, usebackends, domains, backends, redirects, minecraftAppsMap = {}, tcpAppsMap = {}) {
-  // eslint-disable-next-line max-len
-  // const minecraftConfig = generateMinecraftSettings(minecraftAppsMap);
+function generateHaproxyConfig(acls, usebackends, domains, backends, redirects, tcpAppsMap = {}) {
   const tcpConfig = generateAppsTCPSettings(tcpAppsMap);
   const config = `
 ${haproxyPrefix}
@@ -483,7 +461,7 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
   const backends = `${uiBackend}\n\n${apiBackend}\n\n${apiRoundrobinBackend}`;
   const urls = [ui, api, 'dashboard.zel.network', uiPrimary, apiPrimary, cloudUi, cloudUiPrimary];
 
-  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {}, {});
+  return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {});
 }
 
 // appConfig is an array of object of domain, port, ips
@@ -491,11 +469,6 @@ function createAppsHaproxyConfig(appConfig) {
   let backends = '';
   let acls = '';
   let usebackends = '';
-  // acls += '  acl forbiddenacl hdr(host) kaddex.com\n';
-  // acls += '  acl forbiddenacl hdr(host) www.kaddex.com\n';
-  // acls += '  acl forbiddenacl hdr(host) ecko.finance\n';
-  // acls += '  acl forbiddenacl hdr(host) www.ecko.finance\n';
-  // acls += '  acl forbiddenacl hdr(host) dao.ecko.finance\n';
   acls += '  acl forbiddenacl hdr(host) racecoursejebelali.com\n';
   acls += '  acl forbiddenacl hdr(host) www.racecoursejebelali.com\n';
   acls += '  acl forbiddenacl hdr(host) sofiteldowntown.com\n';
@@ -512,7 +485,6 @@ function createAppsHaproxyConfig(appConfig) {
   usebackends += '  use_backend forbidden-backend if forbiddenacl\n';
   const domains = [];
   const seenApps = {};
-  const minecraftAppsMap = {};
   const tcpAppsMap = {};
   for (const app of appConfig) {
     if (domains.includes(app.domain)) {
@@ -522,24 +494,7 @@ function createAppsHaproxyConfig(appConfig) {
     if (app.appName in seenApps) {
       domains.push(app.domain);
       acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
-    } else if (matchRule(app.name.toLowerCase(), configGlobal.minecraftApps)) {
-      const domainUsed = app.domain.split('.').join('');
-      const { port } = app;
-      if (!(port in minecraftAppsMap)) {
-        minecraftAppsMap[port] = {
-          acls: [],
-          usebackends: [],
-          backends: [],
-        };
-      }
-      const tempMinecraftACLs = generateMinecraftACLs(app);
-      const domainBackend = generateDomainBackend(app, 'tcp');
-      minecraftAppsMap[port].acls = minecraftAppsMap[port].acls.concat(tempMinecraftACLs);
-      minecraftAppsMap[port].usebackends.push(`  use_backend ${domainUsed}_tcp_backend if ${domainUsed}\n`);
-      if (!minecraftAppsMap[port].backends.includes(domainBackend)) {
-        minecraftAppsMap[port].backends.push(domainBackend);
-      }
-    } else {
+    } else if (!matchRule(app.name.toLowerCase(), configGlobal.minecraftApps)) { // minecraftApps: TCP frontend only
       const domainUsed = app.domain.split('.').join('');
       if (usebackends.includes(`  use_backend ${domainUsed}backend if ${domainUsed}\n`)) {
         // eslint-disable-next-line no-continue
@@ -584,7 +539,7 @@ function createAppsHaproxyConfig(appConfig) {
   }
   const redirects = '';
 
-  return generateHaproxyConfig(acls, usebackends, domains, backends, redirects, minecraftAppsMap, tcpAppsMap);
+  return generateHaproxyConfig(acls, usebackends, domains, backends, redirects, tcpAppsMap);
 }
 
 async function writeConfig(configName, data) {
@@ -623,26 +578,53 @@ async function cleanupBrokenCerts() {
   }
 }
 
+function publishFailed(reason, detail) {
+  consecutivePublishFailures += 1;
+  log.error(`Haproxy not updated (${consecutivePublishFailures} in a row): ${detail}`);
+  alerts.raise('haproxy-reload', detail, { afterCount: configGlobal.guards.reload.alertAfterFailures });
+  return { ok: false, reason };
+}
+
+/**
+ * Validates, writes and reloads a config, and reports whether haproxy is now
+ * serving it. `lastHaproxyConfig` is the config a verified reload loaded, so a
+ * config whose reload failed is reloaded again on the next call rather than
+ * skipped as unchanged.
+ *
+ * @param {string} dataToWrite
+ * @returns {Promise<{ ok: boolean, reason?: string }>}
+ */
 async function restartProxy(dataToWrite) {
   await writeConfig(TEMP_HAPROXY_CONFIG, dataToWrite);
   await cleanupBrokenCerts();
   const isConfigOk = await checkConfig(TEMP_HAPROXY_CONFIG);
   if (!isConfigOk) {
-    log.info('Haproxy config is invalid. Not restarting');
-    return false;
+    return publishFailed('invalid-config', 'generated config failed `haproxy -c`; not reloading');
   }
   if (lastHaproxyConfig === dataToWrite) {
     log.info('Haproxy config is the same as last time. Not restarting.');
-    return true;
+    return { ok: true };
   }
-  lastHaproxyConfig = dataToWrite;
   await writeConfig(HAPROXY_CONFIG, dataToWrite);
   const execCreateStateFile = 'echo "show servers state" | sudo socat /run/haproxy/admin.sock - > /tmp/server-state';
   await cmdAsync(execCreateStateFile);
-  const execHAreload = 'sudo service haproxy reload';
-  await cmdAsync(execHAreload);
-  log.info('Haproxy reloaded');
-  return true;
+
+  const { reload } = configGlobal.guards;
+  const result = await reloadAndVerify({
+    run: cmdAsync,
+    sleep: (ms) => new Promise((r) => { setTimeout(r, ms); }),
+    now: Date.now,
+    timeoutMs: reload.verifyTimeoutMs,
+    pollMs: reload.pollMs,
+  });
+
+  if (!result.ok) return publishFailed('reload-failed', formatFailure(result));
+
+  lastHaproxyConfig = dataToWrite;
+  consecutivePublishFailures = 0;
+  alerts.resolve('haproxy-reload', `worker ${result.pid} serving the current config`);
+  log.info(`Haproxy reloaded, worker ${result.pid}`);
+  return { ok: true };
 }
 
 module.exports = {

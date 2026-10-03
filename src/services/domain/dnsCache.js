@@ -9,9 +9,9 @@ const MAX_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours
 // Backoff: 0, 30m, 1h, 2h (capped)
 // A new misconfigured domain gets 4 checks in ~2 hours, then every 2h after
 const COOLDOWNS_MS = [
-  0,                      // failure 1: recheck next cycle
-  30 * 60 * 1000,         // failure 2: 30m
-  60 * 60 * 1000,         // failure 3: 1h
+  0, // failure 1: recheck next cycle
+  30 * 60 * 1000, // failure 2: 30m
+  60 * 60 * 1000, // failure 3: 1h
 ];
 
 function getCooldownMs(failures) {

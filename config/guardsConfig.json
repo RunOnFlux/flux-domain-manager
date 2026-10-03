@@ -1,0 +1,20 @@
+{
+  "stateFile": "/var/lib/flux-domain-manager/list-guards.json",
+  "specList": {
+    "floor": 5,
+    "maxDropRatio": 0.3,
+    "confirmMs": 600000,
+    "alertAfterMs": 120000
+  },
+  "configPass": {
+    "floor": 5,
+    "maxDropRatio": 0.3,
+    "confirmMs": 600000,
+    "alertAfterMs": 120000
+  },
+  "reload": {
+    "verifyTimeoutMs": 15000,
+    "pollMs": 500,
+    "alertAfterFailures": 3
+  }
+}

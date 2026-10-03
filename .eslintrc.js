@@ -32,5 +32,21 @@ module.exports = {
         mocha: true,
       },
     },
+    {
+      // Outbound connections are created only by src/lib/outbound.js, which gives
+      // every socket the options that stop it blocking a haproxy listener bind.
+      files: ['src/**/*.js'],
+      excludedFiles: ['src/lib/outbound.js'],
+      rules: {
+        'no-restricted-modules': ['error', {
+          paths: ['axios', 'http', 'https', 'net', 'tls', 'node:http', 'node:https', 'node:net', 'node:tls']
+            .map((name) => ({ name, message: 'Create outbound connections with src/lib/outbound.js.' })),
+        }],
+        'no-restricted-globals': ['error', {
+          name: 'fetch',
+          message: 'Create outbound connections with src/lib/outbound.js.',
+        }],
+      },
+    },
   ],
 };

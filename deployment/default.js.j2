@@ -1,6 +1,7 @@
 const cloudflareConfig = require('./cloudflareConfig');
 const pDNSConfig = require('./PDNSConfig');
 const appsConfig = require('./appsConfig');
+const guardsConfig = require('./guardsConfig');
 
 module.exports = {
   server: {
@@ -50,6 +51,12 @@ module.exports = {
   whiteListedApps: appsConfig.whiteListedApps, // If there's app in the array, blacklisting will be ignore
   blackListedApps: appsConfig.blackListedApps,
   minecraftApps: appsConfig.minecraftApps,
+  guards: guardsConfig,
+  alerts: {
+    // Discord webhook for operator alerts; empty sends nothing. The deploy
+    // workflow supplies it from the DISCORD_WEBHOOK_URL repository secret.
+    discordWebhookUrl: '{{ discord_webhook_url | default(lookup('env', 'DISCORD_WEBHOOK_URL'), true) }}',
+  },
   appSubDomain: '{{ appSubDomain }}',
   fdmAppDomain: '{{ fdmAppDomain }}',
   uiName: '{{ uiName }}',

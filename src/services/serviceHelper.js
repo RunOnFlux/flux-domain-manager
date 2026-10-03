@@ -1,7 +1,7 @@
 const mongodb = require('mongodb');
 const config = require('config');
 const qs = require('qs');
-const axios = require('axios');
+const { MONGO_SOCKET_OPTIONS } = require('../lib/outbound');
 
 const { MongoClient } = mongodb;
 const mongoUrl = `mongodb://${config.database.url}:${config.database.port}/`;
@@ -96,50 +96,6 @@ function sortIPAddresses(addresses) {
   });
 }
 
-async function httpGetRequest(url, awaitTime = 30000, headers = {}, httpsAgent) {
-  const { CancelToken } = axios;
-  const source = CancelToken.source();
-  let isResolved = false;
-  setTimeout(() => {
-    if (!isResolved) {
-      source.cancel('Operation canceled');
-    }
-  }, awaitTime * 2);
-  const options = {
-    cancelToken: source.token,
-    timeout: awaitTime,
-    headers,
-  };
-  if (httpsAgent) {
-    options.httpsAgent = httpsAgent;
-  }
-  const response = await axios.get(url, options);
-  isResolved = true;
-  return response;
-}
-
-async function httpPostRequest(url, data, awaitTime = 30000, headers = {}, httpsAgent) {
-  const { CancelToken } = axios;
-  const source = CancelToken.source();
-  let isResolved = false;
-  setTimeout(() => {
-    if (!isResolved) {
-      source.cancel('Operation canceled');
-    }
-  }, awaitTime * 2);
-  const options = {
-    cancelToken: source.token,
-    timeout: awaitTime,
-    headers,
-  };
-  if (httpsAgent) {
-    options.httpsAgent = httpsAgent;
-  }
-  const response = await axios.post(url, data, options);
-  isResolved = true;
-  return response;
-}
-
 function timeout(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -173,6 +129,7 @@ function timeout(ms) {
 async function runWithConcurrency(tasks, limit) {
   const results = [];
   const executing = new Set();
+  // eslint-disable-next-line no-restricted-syntax
   for (const task of tasks) {
     // eslint-disable-next-line no-loop-func
     const p = Promise.resolve().then(task).finally(() => executing.delete(p));
@@ -277,6 +234,7 @@ async function connectMongoDb(url) {
   const connectUrl = url || mongoUrl;
   const mongoSettings = {
     maxPoolSize: 100,
+    ...MONGO_SOCKET_OPTIONS,
   };
   const db = await MongoClient.connect(connectUrl, mongoSettings).catch((error) => { throw error; });
   return db;
@@ -343,8 +301,6 @@ async function collectionStats(database, collection) {
 }
 
 module.exports = {
-  httpGetRequest,
-  httpPostRequest,
   timeout,
   ensureBoolean,
   ensureNumber,

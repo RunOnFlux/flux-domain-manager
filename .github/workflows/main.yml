@@ -38,14 +38,19 @@ jobs:
     - name: Run Ansible playbook APPS
       env:
         DEPLOY_ENV: ${{ github.event_name == 'release' && 'production' || 'staging' }}
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       run: |
         ansible-playbook -i deployment/hosts.ini -e "DEPLOY_ENV=$DEPLOY_ENV" deployment/fdm_setup.yml
     
     - name: Run Ansible playbook MAIN
       if: github.event_name == 'release'
+      env:
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       run: |
         ansible-playbook -i deployment/hosts.ini deployment/fdm_main_setup.yml
     
     - name: Run Ansible playbook MAIN DEV
+      env:
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       run: |
         ansible-playbook -i deployment/hosts.ini deployment/fdm_main_dev_setup.yml

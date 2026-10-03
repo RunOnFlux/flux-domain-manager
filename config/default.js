@@ -1,6 +1,7 @@
 const cloudflareConfig = require('./cloudflareConfig');
 const pDNSConfig = require('./PDNSConfig');
 const appsConfig = require('./appsConfig');
+const guardsConfig = require('./guardsConfig');
 
 module.exports = {
   server: {
@@ -50,6 +51,11 @@ module.exports = {
   whiteListedApps: appsConfig.whiteListedApps, // If there's app in the array, blacklisting will be ignore
   blackListedApps: appsConfig.blackListedApps,
   minecraftApps: appsConfig.minecraftApps,
+  guards: guardsConfig,
+  alerts: {
+    // Discord webhook for operator alerts; empty sends nothing.
+    discordWebhookUrl: '',
+  },
   appSubDomain: 'app2',
   fdmAppDomain: 'fdm-lb-2-1.runonflux.io',
   uiName: 'home',

@@ -44,16 +44,9 @@ describe('enterprise app detection', () => {
       { version: 4, name: 'oldapp', compose: [] },
     ];
 
-    const enterpriseApps = [];
-    const regularApps = [];
-    for (const spec of specs) {
-      if (!spec) continue;
-      if (isEnterprise(spec)) {
-        enterpriseApps.push(spec);
-      } else {
-        regularApps.push(spec);
-      }
-    }
+    const present = specs.filter(Boolean);
+    const enterpriseApps = present.filter(isEnterprise);
+    const regularApps = present.filter((spec) => !isEnterprise(spec));
 
     expect(enterpriseApps).to.have.lengthOf(2);
     expect(enterpriseApps.map((s) => s.name)).to.deep.equal(['enterprise1', 'enterprise2']);

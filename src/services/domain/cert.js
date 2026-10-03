@@ -10,6 +10,7 @@ const {
   listDNSRecords, deleteDNSRecordCloudflare, deleteDNSRecordPDNS, createDNSRecord,
 } = require('./dns');
 const dnsCache = require('./dnsCache');
+const { getGroupIPs } = require('../rsync/config');
 
 const CERT_DIR = `/etc/ssl/${config.certFolder}`;
 const LETSENCRYPT_LIVE_DIR = '/etc/letsencrypt/live';
@@ -45,49 +46,6 @@ async function obtainDomainCertificate(domain) {
   await cmdAsync(`sudo cat ${fullchainPath} ${privkeyPath} > ${CERT_DIR}/${domain}.pem`);
 }
 
-async function adjustAutoRenewalScriptForDomain(domain) { // let it throw
-  const path = '/opt/update-certs.sh';
-  const header = `#!/usr/bin/env bash
-# Renew the certificate
-certbot renew --force-renewal --http-01-port=8787 --preferred-challenges http
-# Concatenate new cert files, with less output (avoiding the use tee and its output to stdout)\n`;
-  try {
-    await fs.readFile(path);
-    const autoRenewScript = await fs.readFile(path, { encoding: 'utf-8' });
-    // split the contents by new line
-    const lines = autoRenewScript.split(/\r?\n/);
-    if (!autoRenewScript.startsWith(header)) {
-      lines.splice(0, 0, header);
-      await fs.writeFile(path, lines.join('\n'), {
-        mode: 0o755,
-        flag: 'w',
-        encoding: 'utf-8',
-      });
-    }
-
-    const cert = `bash -c "cat ${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem ${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem > ${CERT_DIR}/${domain}.pem"`;
-    if (autoRenewScript.includes(cert)) {
-      return;
-    }
-
-    lines.splice(6, 0, cert); // push cert to top behind #Concatenate...
-    const file = lines.join('\n');
-    await fs.writeFile(path, file, {
-      mode: 0o755,
-      flag: 'w',
-      encoding: 'utf-8',
-    });
-  } catch (error) {
-    const cert = `bash -c "cat ${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem ${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem > ${CERT_DIR}/${domain}.pem"\n`;
-    const file = header + cert;
-    await fs.writeFile(path, file, {
-      mode: 0o755,
-      flag: 'w',
-      encoding: 'utf-8',
-    });
-  }
-}
-
 async function getCertDaysRemaining(domain) {
   try {
     const pemPath = `${CERT_DIR}/${domain}.pem`;
@@ -102,26 +60,6 @@ async function getCertDaysRemaining(domain) {
     return (expiryDate - now) / (1000 * 60 * 60 * 24);
   } catch (error) {
     return null;
-  }
-}
-
-async function isCertificateExpiringSoon(domain, thresholdDays = 30) {
-  try {
-    const pemPath = `${CERT_DIR}/${domain}.pem`;
-    await fs.access(pemPath);
-    const result = await cmdAsync(
-      `openssl x509 -enddate -noout -in ${pemPath}`,
-    );
-    // result looks like: "notAfter=Mar 15 12:00:00 2026 GMT\n"
-    const match = result.match(/notAfter=(.+)/);
-    if (!match) return true; // can't parse, treat as expiring
-    const expiryDate = new Date(match[1].trim());
-    const now = new Date();
-    const daysRemaining = (expiryDate - now) / (1000 * 60 * 60 * 24);
-    return daysRemaining < thresholdDays;
-  } catch (error) {
-    log.warn(`Cannot check expiry for ${domain}: ${error.message}`);
-    return false; // if cert doesn't exist, obtainDomainCertificate handles it
   }
 }
 
@@ -142,7 +80,6 @@ async function isDomainPointedToThisGroup(hostname, FDMnameOrIP, myIP) {
     if (!FDMnameOrIP) {
       return false;
     }
-    const { getGroupIPs } = require('../rsync/config');
     const groupIPs = new Set(getGroupIPs());
     groupIPs.add(FDMnameOrIP);
     if (myIP) groupIPs.add(myIP);
@@ -305,13 +242,17 @@ async function executeCertificateOperations(domains, type, fdmOrIP, myIP) {
   }
 }
 
+function shouldRemoveStaleCert(daysRemaining) {
+  if (daysRemaining === null) return false;
+  return daysRemaining < -30;
+}
+
 async function cleanupStaleCerts() {
   try {
-    const files = await fs.readdir(CERT_DIR);
+    const files = (await fs.readdir(CERT_DIR)).filter((file) => file.endsWith('.pem'));
     let removed = 0;
 
     for (const file of files) {
-      if (!file.endsWith('.pem')) continue;
       const domain = file.slice(0, -4); // strip .pem
 
       // eslint-disable-next-line no-await-in-loop
@@ -332,11 +273,6 @@ async function cleanupStaleCerts() {
     log.warn(`Error cleaning orphaned certs: ${error.message}`);
     return false;
   }
-}
-
-function shouldRemoveStaleCert(daysRemaining) {
-  if (daysRemaining === null) return false;
-  return daysRemaining < -30;
 }
 
 module.exports = {

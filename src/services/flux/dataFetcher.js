@@ -1,12 +1,15 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
-const https = require('node:https');
 const { EventEmitter } = require('node:events');
 const TTLCache = require('@isaacs/ttlcache');
 const url = require('node:url');
 
-const axios = require('axios');
+const config = require('config');
 const { runWithConcurrency } = require('../serviceHelper');
+const { createHttpClient } = require('../../lib/outbound');
+const { evaluateListChange } = require('../../lib/listGuard');
+const { sharedGuardStore } = require('../../lib/guardStore');
+const alerts = require('../alertService');
 
 // const log = require('./log');
 const log = require('../../lib/log');
@@ -31,14 +34,18 @@ class FdmDataFetcher extends EventEmitter {
   // As of 17/07/25 the full spec list is 668191 bytes (0.67Mb)
 
   /**
-   * @type {axios.AxiosInstance}
+   * @type {import('axios').AxiosInstance}
    */
   #fluxApi;
 
   /**
-   * @type {axios.AxiosInstance}
+   * @type {import('axios').AxiosInstance}
    */
-  #sasApi;
+  #decryptApi;
+
+  #guardStore;
+
+  #specListGuard;
 
   #aborted = false;
 
@@ -103,23 +110,72 @@ class FdmDataFetcher extends EventEmitter {
     super();
 
     const {
-      keyPath, certPath, caPath, fluxApiBaseUrl, sasApiBaseUrl,
+      keyPath, certPath, caPath, fluxApiBaseUrl, sasApiBaseUrl, guardStore,
     } = options;
 
-    this.#fluxApi = axios.create({
+    this.#guardStore = guardStore ?? sharedGuardStore();
+    this.#specListGuard = this.#guardStore.initialState('specList');
+
+    this.#fluxApi = createHttpClient({
       baseURL: fluxApiBaseUrl,
-      timeout: 30_000,
+      timeoutMs: 30_000,
     });
 
-    this.#sasApi = axios.create({
+    this.#decryptApi = createHttpClient({
       baseURL: sasApiBaseUrl,
-      timeout: 10_000,
-      httpsAgent: new https.Agent({
+      timeoutMs: 10_000,
+      tls: {
         key: fs.readFileSync(keyPath),
         cert: fs.readFileSync(certPath),
         ca: fs.readFileSync(caPath),
-      }),
+      },
     });
+  }
+
+  /**
+   * Whether a fetched spec list may replace the current one.
+   *
+   * A backend rebuilding its app registry answers `success` with an empty or
+   * partial list. Accepted, it empties the app maps and every haproxy config
+   * built from them. A refused list changes nothing - not the maps, and not the
+   * stored etag, so the next poll fetches again. The rule is lib/listGuard's.
+   *
+   * @param {unknown} payload
+   * @param {string} backend the api.runonflux.io backend that answered
+   * @param {string} etag
+   * @returns {boolean}
+   */
+  #admitSpecList(payload, backend, etag) {
+    const { specList } = config.guards;
+    const lastAccepted = this.#specListGuard.lastAcceptedCount;
+
+    let verdict;
+    if (Array.isArray(payload)) {
+      const nowMs = Number(FdmDataFetcher.now / 1_000_000n);
+      verdict = evaluateListChange(payload.length, this.#specListGuard, specList, nowMs);
+      this.#specListGuard = verdict.state;
+    } else {
+      verdict = { accept: false, reason: 'malformed' };
+    }
+
+    if (!verdict.accept) {
+      const count = Array.isArray(payload) ? payload.length : 'no';
+      alerts.raise(
+        'spec-refused',
+        `refused spec list: ${count} specs (last accepted ${lastAccepted ?? 'none'}), `
+        + `reason ${verdict.reason}, backend ${backend}, etag ${etag}`,
+        { afterMs: specList.alertAfterMs },
+      );
+      return false;
+    }
+
+    if (verdict.reason === 'confirmed') {
+      log.warn(`spec list of ${payload.length} (last accepted ${lastAccepted ?? 'none'}) held `
+        + `for ${Math.round(specList.confirmMs / 1000)}s; accepting it`);
+    }
+    this.#guardStore.recordAccepted('specList', payload.length);
+    alerts.resolve('spec-refused');
+    return true;
   }
 
   static parseJson(data) {
@@ -239,7 +295,7 @@ class FdmDataFetcher extends EventEmitter {
 
   /**
    *
-   * @param {axios.AxiosResponse} response
+   * @param {import('axios').AxiosResponse} response
    * @param {{head?: boolean}} options head - If the request is a head request
    * @returns {ParsedResponse | null}
    */
@@ -328,7 +384,7 @@ class FdmDataFetcher extends EventEmitter {
 
     while (decryptKeyAttempts < 4) {
       // eslint-disable-next-line no-await-in-loop
-      const response = await this.#sasApi.post(sasDecrypt.url, payload).catch((err) => {
+      const response = await this.#decryptApi.post(sasDecrypt.url, payload).catch((err) => {
         log.warn(`Unable to contact sas to decrypt ${spec.name}. ${err.message}`
           + `${spec.name}. ${err.message}`);
 
@@ -571,30 +627,21 @@ class FdmDataFetcher extends EventEmitter {
     const getRes = await this.doAppSpecsHttpGet();
     if (!getRes) return [];
 
-    const { payload } = getRes;
-    const allSpecs = [];
-    const enterpriseApps = [];
-
-    for (const spec of payload) {
-      if (!spec) continue;
-      const isEnterprise = Boolean(spec.version >= 8 && spec.enterprise);
-      if (isEnterprise) {
-        enterpriseApps.push(spec);
-      } else {
-        allSpecs.push(spec);
-      }
-    }
+    const specs = getRes.payload.filter(Boolean);
+    const isEnterprise = (spec) => Boolean(spec.version >= 8 && spec.enterprise);
+    const allSpecs = specs.filter((spec) => !isEnterprise(spec));
+    const enterpriseApps = specs.filter(isEnterprise);
 
     if (enterpriseApps.length) {
       const decryptTasks = enterpriseApps.map(
         (spec) => () => this.#decryptAppSpec(spec),
       );
       const results = await runWithConcurrency(decryptTasks, 5);
-      for (const result of results) {
+      results.forEach((result) => {
         if (result.status === 'fulfilled' && result.value) {
           allSpecs.push(result.value);
         }
-      }
+      });
     }
 
     return allSpecs;
@@ -652,6 +699,8 @@ class FdmDataFetcher extends EventEmitter {
     const {
       payload, etag, maxAgeMs, backend,
     } = getRes;
+
+    if (!this.#admitSpecList(payload, backend, etag)) return globalAppSpecs.defaultFetchMs;
 
     globalAppSpecs.etag = etag;
     globalAppSpecs.maxAgeMs = maxAgeMs;

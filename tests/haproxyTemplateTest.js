@@ -2,6 +2,7 @@
 const chai = require('chai');
 const config = require('config');
 const haproxyTemplate = require('../src/services/haproxyTemplate');
+const { getPrimaryIP } = require('../src/services/rsync/config');
 
 const { expect } = chai;
 
@@ -15,7 +16,6 @@ describe('haproxyTemplate', () => {
 
     // We can't easily re-require with different config, but we can verify the
     // generated config string contains the expected primary IP
-    const { getPrimaryIP } = require('../src/services/rsync/config');
     const primaryIP = getPrimaryIP();
     expect(primaryIP).to.be.a('string');
 
@@ -26,7 +26,6 @@ describe('haproxyTemplate', () => {
   });
 
   it('getPrimaryIP returns the fn host IP for the default test config', () => {
-    const { getPrimaryIP } = require('../src/services/rsync/config');
     const primaryIP = getPrimaryIP();
     // Default rsync_config.json is fdm_fn1_app, group 1 fn host is itself: 5.39.57.42
     expect(primaryIP).to.equal('5.39.57.42');
@@ -124,5 +123,48 @@ describe('haproxyTemplate isRdata backends', () => {
     const servers = backend.split('\n').filter((l) => l.trim().startsWith('server '));
     expect(servers).to.have.lengthOf(3);
     servers.forEach((line) => expect(line).to.not.contain(' backup'));
+  });
+});
+
+describe('haproxyTemplate server-side sockets and minecraft apps', () => {
+  const mainConfig = haproxyTemplate.createMainHaproxyConfig(
+    'home.runonflux.io',
+    'api.runonflux.io',
+    ['1.2.3.4:16127', '5.6.7.8:16137'],
+    'home.zel.network',
+    'api.zel.network',
+    'cloud.runonflux.io',
+    'cloud.zel.network',
+  );
+
+  const app = (name, mode, port) => ({
+    domain: `${name}.app.runonflux.io`,
+    appName: name,
+    name,
+    port,
+    ips: ['1.2.3.4:16127'],
+    healthcheck: [],
+    serverConfig: '',
+    mode,
+  });
+
+  const appsConfig = haproxyTemplate.createAppsHaproxyConfig([
+    app('minecraftsrv', 'tcp', 25565),
+    app('webapp', 'http', 36127),
+  ]);
+
+  it('binds every server-side connection through source 0.0.0.0, once, in defaults', () => {
+    [mainConfig, appsConfig].forEach((cfg) => {
+      const defaults = cfg.slice(cfg.indexOf('\ndefaults\n'), cfg.indexOf('\nfrontend '));
+      expect(defaults).to.match(/^\s*source 0\.0\.0\.0$/m);
+      expect(cfg.match(/^\s*source /gm)).to.have.lengthOf(1);
+    });
+  });
+
+  it('serves a minecraft app from its TCP frontend only, with no HTTP backend', () => {
+    expect(appsConfig).to.include('frontend tcp_app_25565');
+    expect(appsConfig).to.include('backend minecraftsrvapprunonfluxio_tcp_backend');
+    expect(appsConfig).to.not.include('backend minecraftsrvapprunonfluxiobackend');
+    expect(appsConfig).to.include('backend webappapprunonfluxiobackend');
   });
 });

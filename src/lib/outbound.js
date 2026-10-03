@@ -80,7 +80,8 @@ function createHttpClient(options = {}) {
     ...createAgents(tls),
   });
 
-  // axios' own timeout does not cover a socket that stalls after the headers.
+  // axios' own timeout restarts on every byte received, so a response that keeps
+  // trickling data never trips it.
   // The hard stop is cleared when the request settles, so a burst of probes does
   // not leave one live timer each behind it.
   client.interceptors.request.use((requestConfig) => {

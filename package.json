@@ -28,7 +28,7 @@
   "dependencies": {
     "@isaacs/ttlcache": "^1.4.1",
     "apicache": "^1.6.3",
-    "axios": "^1.10.0",
+    "axios": "^1.20.0",
     "chai": "^4.3.6",
     "config": "^3.3.12",
     "cors": "^2.8.5",

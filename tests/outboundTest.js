@@ -1,6 +1,7 @@
 /* eslint-disable func-names */
 const chai = require('chai');
 const http = require('http');
+const axios = require('axios');
 const { SOCKET_POLICY, MONGO_SOCKET_OPTIONS, createHttpClient } = require('../src/lib/outbound');
 const httpClients = require('../src/services/httpClients');
 
@@ -88,10 +89,12 @@ describe('outbound connection policy', () => {
     }
   });
 
-  it('ends a request whose response stalls after the headers', async () => {
+  it('ends a request whose response keeps trickling', async () => {
     const server = await listen((req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.write('{"partial":');
+      res.write('[');
+      const trickle = setInterval(() => res.write('1,'), 50);
+      res.on('close', () => clearInterval(trickle));
     });
     try {
       const { port } = server.address();
@@ -99,8 +102,8 @@ describe('outbound connection policy', () => {
       const error = await createHttpClient()
         .get(`http://127.0.0.1:${port}/`, { timeout: 150 })
         .then(() => null, (e) => e);
-      expect(error).to.be.an('error');
-      expect(Date.now() - started).to.be.below(2_000);
+      expect(axios.isCancel(error)).to.equal(true);
+      expect(Date.now() - started).to.be.within(300, 1_000);
     } finally {
       server.closeAllConnections();
       server.close();

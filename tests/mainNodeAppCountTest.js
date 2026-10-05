@@ -57,10 +57,9 @@ describe('main balancer node app check', () => {
   const lowest = Math.ceil(1929 * (1 - maxDeviationRatio));
   const highest = Math.floor(1929 * (1 + maxDeviationRatio));
   const nodes = [];
-  // Each test runs in its own window, so counts from one test never reach another.
-  let base = 0;
+  let reference;
 
-  const check = (node, at) => hasManyApps('127.0.0.1', node.port, base + at);
+  const check = (node, now) => hasManyApps('127.0.0.1', node.port, { now, reference });
 
   // Brings the window up to minNodes with nodes listing `count` apps.
   async function warmUp(count) {
@@ -80,7 +79,7 @@ describe('main balancer node app check', () => {
 
   after(() => { nodes.forEach((node) => node.server.close()); });
 
-  beforeEach(() => { base += windowMs * 10; });
+  beforeEach(() => { reference = createAppCountReference(windowMs); });
 
   it('accepts any non-empty list until minNodes nodes have reported', async () => {
     for (let i = 0; i < minNodes - 2; i += 1) {

@@ -199,10 +199,15 @@ const appCountReference = createAppCountReference(config.guards.mainNode.windowM
  *
  * @param {string} ip
  * @param {string|number} port
- * @param {number} [now] monotonic ms
+ * @param {Object} [options]
+ * @param {number} [options.now] monotonic ms
+ * @param {Object} [options.reference] from createAppCountReference; defaults to the one all main node checks share
  * @returns {Promise<boolean>}
  */
-async function hasManyApps(ip, port, now = Number(process.hrtime.bigint() / 1_000_000n)) {
+async function hasManyApps(ip, port, {
+  now = Number(process.hrtime.bigint() / 1_000_000n),
+  reference = appCountReference,
+} = {}) {
   try {
     const url = `http://${ip}:${port}/apps/globalappsspecifications`;
     const response = await httpClients.nodeChecks.get(url, { timeout });
@@ -212,7 +217,7 @@ async function hasManyApps(ip, port, now = Number(process.hrtime.bigint() / 1_00
       return false;
     }
     const { minNodes, maxDeviationRatio } = config.guards.mainNode;
-    const { median, nodes } = appCountReference.observe(`${ip}:${port}`, apps.length, now);
+    const { median, nodes } = reference.observe(`${ip}:${port}`, apps.length, now);
     if (nodes < minNodes) {
       return true;
     }

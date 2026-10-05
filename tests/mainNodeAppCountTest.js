@@ -135,6 +135,18 @@ describe('main balancer node app check', () => {
     expect(await check(node, 1)).to.equal(false);
   });
 
+  it('gives no vote to a node with an empty or malformed list', async () => {
+    await warmUp(1929);
+    const failing = nodes.slice(minNodes);
+    for (let i = 0; i < failing.length; i += 1) {
+      if (i % 2) failing[i].serve(0);
+      else failing[i].serveRaw({ message: 'db not ready' });
+      // eslint-disable-next-line no-await-in-loop
+      expect(await check(failing[i], 1)).to.equal(false);
+    }
+    expect(await check(nodes[0], 2)).to.equal(true);
+  });
+
   it('follows the network as nodes report a new count', async () => {
     await warmUp(1929);
     for (let i = 0; i < minNodes / 2 + 1; i += 1) {

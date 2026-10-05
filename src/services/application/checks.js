@@ -5,7 +5,7 @@ const log = require('../../lib/log');
 const { createAppCountReference } = require('../../lib/appCountReference');
 
 const timeout = 5456;
-const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'web', 'eckodexswap', 'eckodexvault'];
+const generalWebsiteApps = ['website', 'AtlasCloudMainnet', 'HavenVaultMainnet', 'KDLaunch', 'paoverview', 'FluxInfo', 'eckodexswap', 'eckodexvault'];
 const ethersList = [
   {
     name: 'BitgertRPC', providerURL: null, cmd: 'eth_syncing', port: '32300',

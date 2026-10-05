@@ -52,7 +52,7 @@ async function startNode() {
 }
 
 describe('main balancer node app check', () => {
-  const { windowMs, minNodes, maxDeviationRatio } = config.guards.mainNode;
+  const { windowMs, minReported, maxDeviationRatio } = config.guards.mainNode;
   // The band around a median of 1929.
   const lowest = Math.ceil(1929 * (1 - maxDeviationRatio));
   const highest = Math.floor(1929 * (1 + maxDeviationRatio));
@@ -61,9 +61,9 @@ describe('main balancer node app check', () => {
 
   const check = (node, now) => hasManyApps('127.0.0.1', node.port, { now, reference });
 
-  // Brings the window up to minNodes with nodes listing `count` apps.
+  // Brings the window up to minReported with nodes listing `count` apps.
   async function warmUp(count) {
-    for (let i = 0; i < minNodes; i += 1) {
+    for (let i = 0; i < minReported; i += 1) {
       nodes[i].serve(count);
       // eslint-disable-next-line no-await-in-loop
       await check(nodes[i], 0);
@@ -71,7 +71,7 @@ describe('main balancer node app check', () => {
   }
 
   before(async () => {
-    for (let i = 0; i < minNodes * 2; i += 1) {
+    for (let i = 0; i < minReported * 2; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       nodes.push(await startNode());
     }
@@ -81,20 +81,20 @@ describe('main balancer node app check', () => {
 
   beforeEach(() => { reference = createAppCountReference(windowMs); });
 
-  it('refuses every node until minNodes nodes have reported, counting each one', async () => {
-    for (let i = 0; i < minNodes - 1; i += 1) {
+  it('refuses every node until minReported nodes have reported, counting each one', async () => {
+    for (let i = 0; i < minReported - 1; i += 1) {
       nodes[i].serve(1929);
       // eslint-disable-next-line no-await-in-loop
       expect(await check(nodes[i], 0)).to.equal(false);
     }
-    nodes[minNodes - 1].serve(1929);
-    expect(await check(nodes[minNodes - 1], 1)).to.equal(true);
+    nodes[minReported - 1].serve(1929);
+    expect(await check(nodes[minReported - 1], 1)).to.equal(true);
     expect(await check(nodes[0], 2)).to.equal(true);
   });
 
   it('refuses a node more than maxDeviationRatio below the median', async () => {
     await warmUp(1929);
-    const node = nodes[minNodes];
+    const node = nodes[minReported];
     node.serve(lowest);
     expect(await check(node, 1)).to.equal(true);
     node.serve(lowest - 1);
@@ -103,7 +103,7 @@ describe('main balancer node app check', () => {
 
   it('refuses a node more than maxDeviationRatio above the median', async () => {
     await warmUp(1929);
-    const node = nodes[minNodes];
+    const node = nodes[minReported];
     node.serve(highest);
     expect(await check(node, 1)).to.equal(true);
     node.serve(highest + 1);
@@ -112,13 +112,13 @@ describe('main balancer node app check', () => {
 
   it('keeps honest nodes and refuses an inflated node checked every pass', async () => {
     await warmUp(1929);
-    const inflated = nodes[minNodes];
+    const inflated = nodes[minReported];
     inflated.serve(5000);
     for (let pass = 1; pass <= 20; pass += 1) {
       // eslint-disable-next-line no-await-in-loop
       expect(await check(inflated, pass)).to.equal(false);
     }
-    for (let i = 0; i < minNodes; i += 1) {
+    for (let i = 0; i < minReported; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       expect(await check(nodes[i], 21)).to.equal(true);
     }
@@ -134,7 +134,7 @@ describe('main balancer node app check', () => {
 
   it('gives no vote to a node with an empty or malformed list', async () => {
     await warmUp(1929);
-    const failing = nodes.slice(minNodes);
+    const failing = nodes.slice(minReported);
     for (let i = 0; i < failing.length; i += 1) {
       if (i % 2) failing[i].serve(0);
       else failing[i].serveRaw({ message: 'db not ready' });
@@ -146,21 +146,21 @@ describe('main balancer node app check', () => {
 
   it('follows the network as nodes report a new count', async () => {
     await warmUp(1929);
-    for (let i = 0; i < minNodes / 2 + 1; i += 1) {
+    for (let i = 0; i < minReported / 2 + 1; i += 1) {
       nodes[i].serve(1000);
       // eslint-disable-next-line no-await-in-loop
       await check(nodes[i], 1);
     }
-    nodes[minNodes].serve(1000);
-    expect(await check(nodes[minNodes], 2)).to.equal(true);
+    nodes[minReported].serve(1000);
+    expect(await check(nodes[minReported], 2)).to.equal(true);
   });
 
   it('drops nodes that have not reported within the window', async () => {
     await warmUp(1929);
-    const fresh = nodes.slice(minNodes);
+    const fresh = nodes.slice(minReported);
     fresh.forEach((node) => node.serve(1000));
     expect(await check(fresh[0], windowMs - 1)).to.equal(false);
-    for (let i = 1; i < minNodes; i += 1) {
+    for (let i = 1; i < minReported; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       await check(fresh[i], windowMs);
     }

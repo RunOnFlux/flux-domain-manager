@@ -18,7 +18,8 @@
     "alertAfterFailures": 3
   },
   "mainNode": {
-    "minNodes": 10,
+    "minReported": 10,
+    "minBackends": 10,
     "maxDeviationRatio": 0.1,
     "windowMs": 600000
   }

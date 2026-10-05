@@ -192,10 +192,10 @@ const appCountReference = createAppCountReference(config.guards.mainNode.windowM
  * its count is within `maxDeviationRatio` of the median count across the nodes
  * checked in the last `windowMs`.
  *
- * Warm-up: until `minNodes` distinct nodes have reported within the window there
+ * Warm-up: until `minReported` distinct nodes have reported within the window there
  * is no median to judge by, so every node is refused. Its count is still recorded,
  * so the median builds up as nodes are checked. This happens after an FDM restart
- * and whenever fewer than `minNodes` nodes reach this check within the window.
+ * and whenever fewer than `minReported` nodes reach this check within the window.
  *
  * @param {string} ip
  * @param {string|number} port
@@ -216,9 +216,9 @@ async function hasManyApps(ip, port, {
       log.info(`Function hasManyApps false for ip ${ip}: no app list`);
       return false;
     }
-    const { minNodes, maxDeviationRatio } = config.guards.mainNode;
+    const { minReported, maxDeviationRatio } = config.guards.mainNode;
     const { median, nodes } = reference.observe(`${ip}:${port}`, apps.length, now);
-    if (nodes < minNodes) {
+    if (nodes < minReported) {
       log.info(`Function hasManyApps false for ip ${ip}: ${apps.length} apps, only ${nodes} nodes reported`);
       return false;
     }

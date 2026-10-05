@@ -300,7 +300,7 @@ async function generateAndReplaceMainHaproxyConfig() {
       }
     }
 
-    if (fluxIPsForBalancing.length < 10) {
+    if (fluxIPsForBalancing.length < config.guards.mainNode.minBackends) {
       throw new Error('Not enough ok nodes, probably error');
     }
     const hc = await haproxyTemplate.createMainHaproxyConfig(

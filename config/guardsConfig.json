@@ -16,5 +16,11 @@
     "verifyTimeoutMs": 15000,
     "pollMs": 500,
     "alertAfterFailures": 3
+  },
+  "mainNode": {
+    "minReported": 10,
+    "minBackends": 10,
+    "maxDeviationRatio": 0.1,
+    "windowMs": 600000
   }
 }

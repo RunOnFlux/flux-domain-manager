@@ -66,7 +66,7 @@ describe('main balancer node app check', () => {
     for (let i = 0; i < minNodes; i += 1) {
       nodes[i].serve(count);
       // eslint-disable-next-line no-await-in-loop
-      expect(await check(nodes[i], 0)).to.equal(true);
+      await check(nodes[i], 0);
     }
   }
 
@@ -81,18 +81,15 @@ describe('main balancer node app check', () => {
 
   beforeEach(() => { reference = createAppCountReference(windowMs); });
 
-  it('accepts any non-empty list until minNodes nodes have reported', async () => {
-    for (let i = 0; i < minNodes - 2; i += 1) {
+  it('refuses every node until minNodes nodes have reported, counting each one', async () => {
+    for (let i = 0; i < minNodes - 1; i += 1) {
       nodes[i].serve(1929);
       // eslint-disable-next-line no-await-in-loop
-      await check(nodes[i], 0);
+      expect(await check(nodes[i], 0)).to.equal(false);
     }
-    const short = nodes[minNodes - 2];
-    short.serve(1);
-    expect(await check(short, 1)).to.equal(true);
     nodes[minNodes - 1].serve(1929);
-    await check(nodes[minNodes - 1], 2);
-    expect(await check(short, 3)).to.equal(false);
+    expect(await check(nodes[minNodes - 1], 1)).to.equal(true);
+    expect(await check(nodes[0], 2)).to.equal(true);
   });
 
   it('refuses a node more than maxDeviationRatio below the median', async () => {

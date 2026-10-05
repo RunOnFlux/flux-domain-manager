@@ -18,7 +18,8 @@
     "alertAfterFailures": 3
   },
   "mainNode": {
-    "maxShortfallRatio": 0.3,
+    "minNodes": 10,
+    "maxDeviationRatio": 0.3,
     "windowMs": 600000
   }
 }

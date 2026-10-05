@@ -19,7 +19,7 @@
   },
   "mainNode": {
     "minNodes": 10,
-    "maxDeviationRatio": 0.3,
+    "maxDeviationRatio": 0.1,
     "windowMs": 600000
   }
 }

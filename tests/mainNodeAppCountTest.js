@@ -52,7 +52,10 @@ async function startNode() {
 }
 
 describe('main balancer node app check', () => {
-  const { windowMs, minNodes } = config.guards.mainNode;
+  const { windowMs, minNodes, maxDeviationRatio } = config.guards.mainNode;
+  // The band around a median of 1929.
+  const lowest = Math.ceil(1929 * (1 - maxDeviationRatio));
+  const highest = Math.floor(1929 * (1 + maxDeviationRatio));
   const nodes = [];
   // Each test runs in its own window, so counts from one test never reach another.
   let base = 0;
@@ -93,21 +96,21 @@ describe('main balancer node app check', () => {
     expect(await check(short, 3)).to.equal(false);
   });
 
-  it('refuses a node more than 30% below the median', async () => {
+  it('refuses a node more than maxDeviationRatio below the median', async () => {
     await warmUp(1929);
     const node = nodes[minNodes];
-    node.serve(1351);
+    node.serve(lowest);
     expect(await check(node, 1)).to.equal(true);
-    node.serve(1350);
+    node.serve(lowest - 1);
     expect(await check(node, 2)).to.equal(false);
   });
 
-  it('refuses a node more than 30% above the median', async () => {
+  it('refuses a node more than maxDeviationRatio above the median', async () => {
     await warmUp(1929);
     const node = nodes[minNodes];
-    node.serve(2507);
+    node.serve(highest);
     expect(await check(node, 1)).to.equal(true);
-    node.serve(2508);
+    node.serve(highest + 1);
     expect(await check(node, 2)).to.equal(false);
   });
 

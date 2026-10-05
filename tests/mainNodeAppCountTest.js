@@ -80,14 +80,17 @@ describe('main balancer node app check', () => {
   beforeEach(() => { base += windowMs * 10; });
 
   it('accepts any non-empty list until minNodes nodes have reported', async () => {
-    nodes[0].serve(1);
-    expect(await check(nodes[0], 0)).to.equal(true);
-    for (let i = 1; i < minNodes; i += 1) {
+    for (let i = 0; i < minNodes - 2; i += 1) {
       nodes[i].serve(1929);
       // eslint-disable-next-line no-await-in-loop
       await check(nodes[i], 0);
     }
-    expect(await check(nodes[0], 1)).to.equal(false);
+    const short = nodes[minNodes - 2];
+    short.serve(1);
+    expect(await check(short, 1)).to.equal(true);
+    nodes[minNodes - 1].serve(1929);
+    await check(nodes[minNodes - 1], 2);
+    expect(await check(short, 3)).to.equal(false);
   });
 
   it('refuses a node more than 30% below the median', async () => {

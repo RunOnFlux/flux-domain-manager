@@ -8,6 +8,7 @@ const { matchRule } = require('./serviceHelper');
 const { getPrimaryIP } = require('./rsync/config');
 const { reloadAndVerify, formatFailure } = require('./haproxyReload');
 const alerts = require('./alertService');
+const { getWildcardAppRoutes, isWildcardAppDomain } = require('./application/wildcard');
 
 let lastHaproxyConfig;
 let consecutivePublishFailures = 0;
@@ -278,7 +279,8 @@ backend ${domainUsed}backend
     if (ip.includes('[') && ip.includes(']')) { // ipv6 hardcoded
       const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
       cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split('[')[1].split(']')[0]}${ip.split(']')[1]}`;
-      domainBackend += `\n  server ${ip.split('[')[1].split(']')[0]} ${ip.split(']')[0]}]${ip.split(']')[1]} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
+      const tls = app.ssl ? `ssl verify none ${h2Config}` : '';
+      domainBackend += `\n  server ${ip.split('[')[1].split(']')[0]} ${ip.split(']')[0]}]:${app.port} ${isCheck}${app.serverConfig} ${tls}${cookieConfig} source [::]:0`;
     } else if (app.ssl) {
       const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
@@ -465,7 +467,8 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
 }
 
 // appConfig is an array of object of domain, port, ips
-function createAppsHaproxyConfig(appConfig) {
+function createAppsHaproxyConfig(appConfig, wildcardAppRoutes) {
+  const routes = getWildcardAppRoutes(wildcardAppRoutes);
   let backends = '';
   let acls = '';
   let usebackends = '';
@@ -487,6 +490,8 @@ function createAppsHaproxyConfig(appConfig) {
   const seenApps = {};
   const tcpAppsMap = {};
   for (const app of appConfig) {
+    // eslint-disable-next-line no-continue
+    if (isWildcardAppDomain(app.domain, routes)) continue;
     if (domains.includes(app.domain)) {
       // eslint-disable-next-line no-continue
       continue;
@@ -536,6 +541,35 @@ function createAppsHaproxyConfig(appConfig) {
         tcpAppsMap[port].backends.push(domainBackend);
       }
     }
+  }
+  // Resolve the binding from the same discovered, healthy app snapshot used
+  // above. Match BOTH app identity and domain: another app cannot claim the
+  // configured target and acquire its wildcard traffic. Reuse its backend so
+  // instance membership, health checks and balancing never drift apart.
+  let wildcardUses = '';
+  routes.forEach((route, index) => {
+    const escapedDomain = route.domain.replace(/\./g, '[.]');
+    const host = `wildcard_host_${index}`;
+    const namespace = `wildcard_namespace_${index}`;
+    acls += `  acl ${host} hdr(host),lower,field(1,:) -m reg ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?[.]${escapedDomain}[.]?$\n`;
+    acls += `  acl ${namespace} hdr(host),lower,field(1,:) -m reg (^|[.])${escapedDomain}[.]?$\n`;
+    const targets = appConfig.filter((app) => app.name.toLowerCase() === route.appName && app.domain.toLowerCase() === route.targetDomain);
+    if (targets.length > 1) throw new Error(`Ambiguous wildcard target: ${route.targetDomain}`);
+    const target = targets[0];
+    if (target && (target.ssl || target.mode === 'tcp' || matchRule(target.name.toLowerCase(), configGlobal.minecraftApps))) {
+      throw new Error(`Wildcard target must use HTTP: ${route.targetDomain}`);
+    }
+    const backend = target && target.ips.length && seenApps[target.appName];
+    wildcardUses += `  use_backend ${backend ? `${backend}backend` : 'wildcard_unavailable'} if ${host}\n`;
+    wildcardUses += `  use_backend wildcard_not_found if ${namespace}\n`;
+  });
+  if (routes.length) {
+    // Unavailable targets never fall through to a custom-domain app. Invalid
+    // labels, nested subdomains and the namespace apex are not tenant sites.
+    const forbiddenUse = '  use_backend forbidden-backend if forbiddenacl\n';
+    usebackends = usebackends.replace(forbiddenUse, forbiddenUse + wildcardUses);
+    backends += '\nbackend wildcard_unavailable\n  mode http\n  http-request return status 503 content-type text/plain string "Wildcard application unavailable"\n';
+    backends += '\nbackend wildcard_not_found\n  mode http\n  http-request return status 404\n';
   }
   const redirects = '';
 

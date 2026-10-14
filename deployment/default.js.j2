@@ -25,6 +25,9 @@ module.exports = {
   domainAppType: 'CNAME',
   emailDomain: 'tadeas@runonflux.io',
   certFolder: 'fluxapps',
+  // Production application FDMs route this namespace to Drop's existing HTTP backend.
+  // Override wildcardAppRoutes with [] to disable, or supply explicit bindings.
+  wildcardAppRoutes: {{ wildcardAppRoutes | default([{'domain': 'drop.runonflux.io', 'appName': 'drop', 'targetDomain': 'drop.app.runonflux.io'}] if (manageApps | bool and appSubDomain == 'app') else []) | to_json }},
   manageCertificateOnly: {{ manageCertificateOnly }},
   certRenewalPrimary: {{ certRenewalPrimary | default('false') | lower }},
   automateCertificates: false,

@@ -4,6 +4,7 @@ const log = require('../../lib/log');
 const serviceHelper = require('../serviceHelper');
 const { executeCertificateOperations } = require('./cert');
 const { DOMAIN_TYPE } = require('../constants');
+const { isWildcardAppDomain } = require('../application/wildcard');
 
 // generates domain names for a given app specificatoin
 function getUnifiedDomains(specifications) {
@@ -73,7 +74,7 @@ function getCustomDomains(app) {
       }
     }
   }
-  return domains;
+  return domains.filter((domain) => !isWildcardAppDomain(domain));
 }
 
 async function processApplications(specifications, myFDMnameORip, myIP) {

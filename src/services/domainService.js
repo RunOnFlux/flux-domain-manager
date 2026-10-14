@@ -13,6 +13,7 @@ const {
 const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/cert');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
+const { isWildcardAppDomain } = require('./application/wildcard');
 const { getApplicationsToProcess } = require('./application/subset');
 const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
@@ -1176,6 +1177,8 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
             .replace('https://', '')
             .replace('http://', '')
             .replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
+          // eslint-disable-next-line no-continue
+          if (isWildcardAppDomain(portDomain)) continue;
           const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
           if (isDomainAllowed === false) {
             // eslint-disable-next-line no-continue
@@ -1293,6 +1296,8 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
               .replace('https://', '')
               .replace('http://', '')
               .replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
+            // eslint-disable-next-line no-continue
+            if (isWildcardAppDomain(portDomain)) continue;
             const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
             if (isDomainAllowed === false) {
               // eslint-disable-next-line no-continue

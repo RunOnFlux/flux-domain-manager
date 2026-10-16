@@ -5,6 +5,7 @@
 // synchronous. FDM's specs arrive already-registered from the FluxOS API / DB, so we
 // `deserialize` rather than `fromSubmission` (which additionally rejects fields no
 // longer accepted on new user submissions — wrong for data that was already valid).
+const config = require('config');
 const { load } = require('@runonflux/flux-spec-cjs');
 
 // FDM routes; it never runs containers, so it reads only loadBalancing + host ports
@@ -14,7 +15,8 @@ const APPS_FOLDER = '/var/lib/fdm/placeholder';
 
 /**
  * Deserialize a wire-form spec document (any version v1-v9, cleartext or encrypted)
- * into its flux-spec instance. Callers branch on `instanceof EncryptedSpecBase`.
+ * into its flux-spec instance, on the chain `config.chain` names. Callers branch on
+ * `instanceof EncryptedSpecBase`.
  *
  * An already-readable spec is returned unchanged. Decrypted specs travel this pipeline
  * as objects rather than documents — a decrypted spec has no wire form, flux-spec seals
@@ -25,9 +27,11 @@ const APPS_FOLDER = '/var/lib/fdm/placeholder';
  * @returns {Promise<Object>}
  */
 async function deserialize(doc) {
-  const { deserializeSpec, FluxAppSpecBase, DecryptedCanonicalSpec } = await load();
+  const {
+    deserializeSpec, FluxAppSpecBase, DecryptedCanonicalSpec, Chain,
+  } = await load();
   if (doc instanceof FluxAppSpecBase || doc instanceof DecryptedCanonicalSpec) return doc;
-  return deserializeSpec(doc);
+  return deserializeSpec(doc, { chain: Chain.named(config.chain) });
 }
 
 /**

@@ -16,6 +16,8 @@ module.exports = {
   },
   explorer: 'https://explorer.runonflux.io',
   fallbackexplorer: 'https://explorer.flux.zelcore.io',
+  // fluxd's name for the chain the app specs are registered on: 'main' or 'labnet'
+  chain: 'main',
   mainDomain: 'runonflux.io',
   primaryDomain: 'runonflux.com',
   emailDomain: 'tadeas@runonflux.io',

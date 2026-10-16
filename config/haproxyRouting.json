@@ -34,5 +34,8 @@
     "/apps/location",
     "/apps/testappinstall"
   ],
-  "terminateLoopbackPort": 8443
+  "terminateLoopbackPort": 8443,
+  "backendCa": {
+    "unusedGraceHours": 24
+  }
 }

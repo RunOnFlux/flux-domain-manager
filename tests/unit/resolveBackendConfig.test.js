@@ -23,6 +23,7 @@ const legacy = (extra) => ({
 });
 
 const v9 = (extra) => ({
+  name: 'app',
   ips: ['1.2.3.4:16127', '5.6.7.8:16127'],
   servers: servers(['1.2.3.4:16127', '5.6.7.8:16127']),
   check: true,
@@ -118,6 +119,21 @@ describe('resolveBackendConfig', () => {
       expect(cfg.serverTiming).to.equal('');
       expect(cfg.serverSsl).to.equal('');
       expect(cfg.stickyV9).to.equal(null);
+    });
+
+    it('names the app-specific CA for verify:required when the CA is in caReady', () => {
+      const cfg = resolveBackendConfig(v9({ backendTls: { verify: 'required' } }), 'http', new Set(['app']));
+      expect(cfg.serverSsl).to.equal('ssl verify required ca-file /etc/haproxy/ca/flux-ca-app.pem');
+    });
+
+    it('emits no ssl for verify:required when the CA is not on disk (empty caReady)', () => {
+      const cfg = resolveBackendConfig(v9({ backendTls: { verify: 'required' } }), 'http', new Set());
+      expect(cfg.serverSsl).to.equal('');
+    });
+
+    it('treats a missing caReady argument as not-ready (never a dangling ca-file)', () => {
+      const cfg = resolveBackendConfig(v9({ backendTls: { verify: 'required' } }), 'http');
+      expect(cfg.serverSsl).to.equal('');
     });
 
     it('omits retry-on and redispatch when retries are disabled', () => {

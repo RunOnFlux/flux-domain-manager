@@ -80,12 +80,12 @@ const legacySslSpec = () => ({
 // One path for every version: a legacy object or a v9 wire, both deserialized, resolved
 // and rendered identically. The app name comes off the spec, so the platform backend is
 // found the same way regardless of shape.
-async function renderBackend(spec) {
+async function renderBackend(spec, caReady = new Set()) {
   const dep = await specLibs.resolveDeployment(await specLibs.deserialize(spec), null);
   const { name } = spec;
   const routeConfigs = buildRouteConfigs(looseDeployments(dep), name, looseBackends(MULTI_NODE_IPS), false, false);
   const platform = routeConfigs.find((c) => c.domain.startsWith(`${name.toLowerCase()}_`));
-  return generateDomainBackend(platform, 'http').render();
+  return generateDomainBackend(platform, 'http', caReady).render();
 }
 
 describe('backend rendering (end-to-end, version-blind)', () => {
@@ -142,6 +142,38 @@ describe('backend rendering (end-to-end, version-blind)', () => {
     }));
     expect(backend).to.include('\n  http-check expect status 200-399');
     expect(backend).to.not.include('http-check expect string');
+  });
+
+  // verify:'required' names the app's own Flux-derived CA — an absolute per-app path the
+  // provisioning pass has written. It is only emitted when that CA is confirmed on disk
+  // (the app name is in caReady); a Flux-CA backend cert never validates against the public
+  // bundle, so pointing at that would just mark every such backend down.
+  it('names the app CA when backend verification is asked for and the CA is provisioned', async () => {
+    const backend = await renderBackend(
+      await v9Wire({ balancing: 'roundrobin', backendTls: { verify: 'required' } }),
+      new Set(['shop']),
+    );
+    expect(backend).to.include('ssl verify required ca-file /etc/haproxy/ca/flux-ca-shop.pem');
+  });
+
+  // The fleet-safety line: backendTls: {} materializes to verify:'required', so the shortest
+  // valid spec for the feature must never reach haproxy as a ca-file that is not on disk —
+  // that refusal takes down every app on the director. With the CA not yet provisioned the
+  // backend renders no ssl directive: unroutable until the CA lands, never a broken config.
+  // Covered end to end by tests/local/live-render-check-hostile.js.
+  it('emits no verify directive when the required CA is not yet on disk', async () => {
+    const backend = await renderBackend(
+      await v9Wire({ balancing: 'roundrobin', backendTls: { verify: 'required' } }),
+      new Set(),
+    );
+    expect(backend).to.not.include('ssl verify');
+    expect(backend).to.not.include('ca-file');
+  });
+
+  it('names no CA bundle when verification is off', async () => {
+    const backend = await renderBackend(await v9Wire({ balancing: 'roundrobin', backendTls: { verify: 'none' } }));
+    expect(backend).to.include('ssl verify none');
+    expect(backend).to.not.include('ca-file');
   });
 
   it('omits the cookie, probe and TLS when the v9 toggles are off', async () => {

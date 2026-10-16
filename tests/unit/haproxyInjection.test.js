@@ -1,3 +1,5 @@
+'use strict';
+
 // Owner-controlled spec values are written into a shared haproxy configuration file. That
 // file carries every app on a director, and haproxy accepts whatever parses — so a value
 // that closes its own directive and starts another is arbitrary config, and a value that

@@ -1,3 +1,5 @@
+'use strict';
+
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const { EventEmitter } = require('node:events');

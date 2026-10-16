@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Every outbound connection FDM makes is created here, and nowhere else (lint
  * enforces it for src/).

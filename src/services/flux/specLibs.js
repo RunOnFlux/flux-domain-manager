@@ -1,3 +1,5 @@
+'use strict';
+
 // FDM's single touch-point for flux-spec. flux-spec is ESM; @runonflux/flux-spec-cjs
 // bridges it for CommonJS so only these helpers are async and the rest of FDM stays
 // synchronous. FDM's specs arrive already-registered from the FluxOS API / DB, so we

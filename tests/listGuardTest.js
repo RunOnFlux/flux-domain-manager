@@ -1,3 +1,5 @@
+'use strict';
+
 const chai = require('chai');
 const { evaluateListChange } = require('../src/lib/listGuard');
 

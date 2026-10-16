@@ -1,3 +1,5 @@
+'use strict';
+
 /* eslint-disable no-restricted-syntax */
 const config = require('config');
 const { resolveRouteExposure } = require('../haproxy/resolveRouteExposure');

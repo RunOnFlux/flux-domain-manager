@@ -1,5 +1,10 @@
+'use strict';
+
 // The line/section/config classes form one cohesive AST — kept in a single module.
-/* eslint-disable max-classes-per-file */
+// The max-classes-per-file exemption for that is in .eslintrc.js rather than here:
+// the rule reports at 1:1, and an inline disable only covers a whole file while
+// nothing precedes it — the 'use strict' directive above is code, so an inline
+// one would silently apply from its own line down and miss the report.
 // A generic, hierarchical model of an HAProxy configuration and its serializer.
 //
 // Structure: HaproxyConfig -> Section -> (Directive | Comment | Blank) lines. A

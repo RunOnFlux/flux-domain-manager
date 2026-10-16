@@ -1,3 +1,5 @@
+'use strict';
+
 // Validate rendered v9 HTTP backends against real haproxy (`haproxy -c`). Local/dev
 // only: needs docker + the haproxy:2.9 image. The committed unit test asserts the
 // directive strings; this proves haproxy actually accepts them, across the toggle

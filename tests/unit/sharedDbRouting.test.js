@@ -1,3 +1,5 @@
+'use strict';
+
 // The shared-db operator listens on several ports, of which only the last is its API.
 // A legacy spec routes every port it declares, so the internal ones arrive as routes and
 // must be dropped before they become public backends.

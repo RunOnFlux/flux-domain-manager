@@ -1,3 +1,5 @@
+'use strict';
+
 /* eslint-disable no-restricted-syntax, no-continue */ // sequential walk over specs
 /* eslint-disable func-names */
 const chai = require('chai');

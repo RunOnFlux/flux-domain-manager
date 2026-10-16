@@ -1,3 +1,5 @@
+'use strict';
+
 // The per-app coded health probes need a port to probe. They used to read it straight off
 // raw compose, in a version-shaped expression that could not work for v9 — and, on the
 // generalWebsite branch, could not work for a v1-3 app either:

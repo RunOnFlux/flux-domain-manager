@@ -1,3 +1,5 @@
+'use strict';
+
 /* eslint-disable func-names */
 const chai = require('chai');
 const { createAlerter } = require('../src/services/alertService');

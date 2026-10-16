@@ -1,3 +1,5 @@
+'use strict';
+
 // Per-app HAProxy tuning. buildDefaultConfig carries the name-driven overrides
 // (protocol, TLS, health checks); the per-route rules — keyed
 // {hostPort}.{component}.{app} — live in config (config/customConfigs.json).

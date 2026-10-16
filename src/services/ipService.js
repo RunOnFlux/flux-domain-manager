@@ -1,3 +1,5 @@
+'use strict';
+
 const httpClients = require('./httpClients');
 
 let myIP = null;

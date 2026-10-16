@@ -1,3 +1,5 @@
+'use strict';
+
 // Before a haproxy config that carries `verify: required` backends can be rendered, each
 // such app's own Flux-derived CA has to be on disk — haproxy refuses to load a config that
 // names a missing ca-file, and that refusal takes down every app on the director, not just

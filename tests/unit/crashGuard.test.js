@@ -1,3 +1,5 @@
+'use strict';
+
 // Ingestion deserializes every spec through flux-spec and classifies it by its
 // resolved shape, for every version alike — so a v9 app flows into the same maps
 // as legacy apps, not a special bucket. A spec this node can't read (a malformed

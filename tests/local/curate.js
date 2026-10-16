@@ -1,3 +1,5 @@
+'use strict';
+
 /* eslint-disable no-restricted-syntax, no-continue, no-param-reassign, no-plusplus */
 // Local corpus-curation tool: it walks specs sequentially and rewrites them in place
 // to anonymise the fixture, which is exactly what those rules discourage elsewhere.

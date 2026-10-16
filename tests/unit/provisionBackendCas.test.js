@@ -1,3 +1,5 @@
+'use strict';
+
 // The provisioning pass runs before the render and guarantees the invariant the renderer
 // relies on: a `verify: required` app's CA is on disk before its ca-file is named. It must
 // fetch each app's CA once (not once per route), write idempotently, and — critically —

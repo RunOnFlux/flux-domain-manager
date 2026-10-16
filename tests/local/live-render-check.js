@@ -1,3 +1,5 @@
+'use strict';
+
 // Render the full haproxy config over the live app population using each app's REAL
 // location IPs (not the fixed IPs of sweep.js), then validate it against real
 // haproxy 2.9. This exercises the multi-IP cookie/backup/sort branches at production

@@ -1,3 +1,5 @@
+'use strict';
+
 // hasManyApps decides whether a Flux node's view of the app population is complete enough
 // for that node to serve the main domain. A node that knows about almost nothing is out of
 // step with the network and must not be balanced onto, however healthy it looks otherwise.

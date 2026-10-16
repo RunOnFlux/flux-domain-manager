@@ -1,3 +1,5 @@
+'use strict';
+
 const appsConfig = require('./appsConfig');
 const guardsConfig = require('./guardsConfig');
 const customConfigs = require('./customConfigs');

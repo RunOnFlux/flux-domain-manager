@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Reloads haproxy and establishes whether the new worker actually took over.
  *

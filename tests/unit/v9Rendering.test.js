@@ -1,3 +1,5 @@
+'use strict';
+
 // End-to-end backend rendering, version-blind. A spec flows through the same pipeline
 // regardless of version (deserialize -> resolveDeployment -> buildRouteConfigs ->
 // generateDomainBackend); resolveBackendConfig collapses the legacy-vs-v9 trichotomy at

@@ -1,3 +1,5 @@
+'use strict';
+
 // A shared-db app serves from one instance: only the first backend takes traffic, the
 // rest render as haproxy `backup` servers and take over only if it fails. Its members
 // acknowledge a write before the others have applied it, so a read through another

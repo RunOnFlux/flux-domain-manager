@@ -1,3 +1,5 @@
+'use strict';
+
 // resolveBackends is the one place config assembly consults runtime backend state. Its
 // behaviour over the extracted-verbatim ordering is the drain filter: a
 // draining/stopping replica is pulled from rotation. It leaves the app it is handed

@@ -1,3 +1,5 @@
+'use strict';
+
 // resolveBackendConfig collapses the legacy-vs-v9 trichotomy into concrete backend
 // directives so the renderer stays version-blind. Legacy routes (no v9 tunables) must
 // resolve to the haproxy-historical defaults; v9 routes to the owner's values.

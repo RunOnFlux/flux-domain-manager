@@ -1,3 +1,5 @@
+'use strict';
+
 // The CA fetch rides the same mTLS transport as spec decryption. Here the transport is a
 // stub so the request shape (endpoint + appName query) and the fail-closed response
 // handling are exercised without the mTLS client. A backend that answers 200 does not mean

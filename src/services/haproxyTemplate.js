@@ -1,3 +1,5 @@
+'use strict';
+
 /* eslint-disable no-useless-escape */
 /* eslint-disable no-restricted-syntax */
 const configGlobal = require('config');

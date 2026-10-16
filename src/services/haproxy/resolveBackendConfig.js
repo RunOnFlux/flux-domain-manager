@@ -1,3 +1,5 @@
+'use strict';
+
 // Normalize one route config into the concrete haproxy backend directives to render,
 // collapsing the legacy-vs-v9 trichotomy in a single place so the renderer stays
 // version-blind:

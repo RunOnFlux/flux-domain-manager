@@ -1,3 +1,5 @@
+'use strict';
+
 module.exports = {
   // Canaries for the app balancers' config pass. Each must be a long-lived app;
   // one that is not registered on the network is skipped with an error log.

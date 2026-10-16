@@ -1,3 +1,5 @@
+'use strict';
+
 // Which named apps get a coded health check, and which probe answers for them, is data in
 // config/appChecks.json. One lookup serves both "does this app have a check" and "run it",
 // so the two cannot disagree — they used to be separate if/else chains listing the same

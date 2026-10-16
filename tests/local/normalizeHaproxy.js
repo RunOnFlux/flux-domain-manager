@@ -1,3 +1,5 @@
+'use strict';
+
 // Semantic normalization of an haproxy config, for proving a refactor is
 // behavior-preserving without requiring byte-identical output. haproxy tokenizes each
 // directive on whitespace and ignores comments (# to end of line), blank lines and

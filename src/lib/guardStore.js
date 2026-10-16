@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * The last accepted size of each guarded list, kept on disk so that the first
  * list after a restart is judged against what was accepted before it.

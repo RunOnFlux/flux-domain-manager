@@ -1,3 +1,5 @@
+'use strict';
+
 /* eslint-disable no-unused-vars */
 const config = require('config');
 const httpClients = require('../httpClients');

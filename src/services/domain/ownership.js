@@ -1,3 +1,5 @@
+'use strict';
+
 // First-registrant-wins protection for custom domains.
 //
 // When two or more currently-live apps claim the same custom domain, the app whose

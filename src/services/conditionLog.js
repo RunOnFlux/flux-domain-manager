@@ -1,3 +1,5 @@
+'use strict';
+
 // Log a condition that persists across cycles, without repeating it every cycle.
 //
 // The routing loops run on every locations update, which the fetcher emits unconditionally

@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * The outbound HTTP clients shared across modules, one per purpose. Clients that
  * carry their own credentials (Cloudflare, PowerDNS, the decrypt service) are

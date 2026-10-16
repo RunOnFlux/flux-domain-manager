@@ -1,3 +1,5 @@
+'use strict';
+
 const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
 const domainService = require('../domainService');

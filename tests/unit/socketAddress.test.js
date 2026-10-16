@@ -1,3 +1,5 @@
+'use strict';
+
 // A node address is a socket address, not an IP: IPv4 is bare and IPv6 is bracketed, so
 // the port is not whatever follows the first colon. Everything that reads one goes
 // through parseSocketAddress, because the alternative silently produces `[2001`.

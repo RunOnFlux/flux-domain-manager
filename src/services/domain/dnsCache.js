@@ -1,3 +1,5 @@
+'use strict';
+
 const log = require('../../lib/log');
 
 // In-memory DNS failure cache. Resets on process restart.

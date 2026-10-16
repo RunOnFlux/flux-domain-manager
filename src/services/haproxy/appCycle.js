@@ -1,3 +1,5 @@
+'use strict';
+
 // The per-app mechanics both routing loops share: working out where an app is running,
 // and running the per-app work in a way that cannot take the cycle down.
 //

@@ -1,3 +1,5 @@
+'use strict';
+
 // Deterministic driver for the config-generation characterization: feed a spec
 // (or a list) through the version-blind backend-config builder and haproxy renderer
 // with fixed inputs, so the exact output can be pinned as a golden. The rewrite must

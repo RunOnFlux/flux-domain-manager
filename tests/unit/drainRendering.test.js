@@ -1,3 +1,5 @@
+'use strict';
+
 // A backend the platform reports draining is rendered in maintenance rather than
 // dropped from the config: haproxy keeps the server slot (so it stays visible on the
 // stats page) but sends it nothing. Version-blind — drain state rides the location row

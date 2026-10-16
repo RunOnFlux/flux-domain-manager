@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Whether a newly computed list may replace the last accepted one.
  *

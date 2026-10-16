@@ -1,3 +1,5 @@
+'use strict';
+
 const chai = require('chai');
 const config = require('config');
 const fs = require('fs');

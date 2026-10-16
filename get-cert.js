@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+
+'use strict';
+
 /* eslint-disable no-restricted-syntax */ // sequential await per domain
 
 /* eslint-disable no-console */

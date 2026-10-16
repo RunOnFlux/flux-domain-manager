@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * The median of the latest app count each node reported within `windowMs`.
  *

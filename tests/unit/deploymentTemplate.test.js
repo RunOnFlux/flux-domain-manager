@@ -1,3 +1,5 @@
+'use strict';
+
 const { expect } = require('chai');
 const fs = require('fs');
 const os = require('os');

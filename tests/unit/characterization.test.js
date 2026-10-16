@@ -1,3 +1,5 @@
+'use strict';
+
 /* eslint-disable func-names */
 // Golden characterization of FDM's pure spec-shape functions across a
 // representative, anonymized slice of real production specs (every version +

@@ -78,6 +78,12 @@ describe('ConditionLog', () => {
     expect(lines).to.have.lengthOf(3);
   });
 
+  it('logs a start at the level it was given', () => {
+    const c = new ConditionLog({ level: 'info', now: at().now });
+    c.report('zizy', true, () => 'zizy is held');
+    expect(lines).to.deep.equal(['info: zizy is held']);
+  });
+
   it('tracks each key independently', () => {
     const { now } = at();
     const c = new ConditionLog({ now });

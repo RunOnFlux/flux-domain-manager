@@ -15,12 +15,16 @@ class ConditionLog {
 
   #now;
 
+  #level;
+
   /**
    * @param {Object} [opts]
    * @param {Function} [opts.now] clock, injectable for tests
+   * @param {'warn'|'info'} [opts.level] the level a condition's start is logged at
    */
-  constructor({ now = Date.now } = {}) {
+  constructor({ now = Date.now, level = 'warn' } = {}) {
     this.#now = now;
+    this.#level = level;
   }
 
   /**
@@ -46,7 +50,7 @@ class ConditionLog {
 
     if (!this.#since.has(key)) {
       this.#since.set(key, now);
-      log.warn(describe(0));
+      log[this.#level](describe(0));
     }
   }
 

@@ -72,10 +72,9 @@ function createAlerter(options) {
     if (!condition) {
       condition = { firstAt: at, count: 0, sent: false };
       conditions.set(key, condition);
+      log.warn(`[alert ${key}] ${message}`);
     }
     condition.count += 1;
-
-    log.warn(`[alert ${key}] ${message}`);
 
     if (condition.sent || condition.count < afterCount || at - condition.firstAt < afterMs) {
       return Promise.resolve(false);

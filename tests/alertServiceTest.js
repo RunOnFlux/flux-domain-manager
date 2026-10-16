@@ -3,6 +3,7 @@
 /* eslint-disable func-names */
 const chai = require('chai');
 const { createAlerter } = require('../src/services/alertService');
+const log = require('../src/lib/log');
 
 const { expect } = chai;
 
@@ -47,6 +48,26 @@ describe('alertService', () => {
     expect(await alerter.resolve('haproxy-reload')).to.equal(false);
     await alerter.raise('haproxy-reload', 'again');
     expect(posts).to.have.lengthOf(3);
+  });
+
+  it('logs when a condition starts and when it resolves, not while it continues', async () => {
+    const { alerter } = harness({ webhookUrl: null });
+    const lines = [];
+    const real = { warn: log.warn, info: log.info };
+    log.warn = (m) => lines.push(`warn: ${m}`);
+    log.info = (m) => lines.push(`info: ${m}`);
+    try {
+      await alerter.raise('spec-refused', 'refused 0 specs');
+      await alerter.raise('spec-refused', 'refused 0 specs');
+      await alerter.raise('spec-refused', 'refused 0 specs');
+      await alerter.resolve('spec-refused');
+    } finally {
+      log.warn = real.warn;
+      log.info = real.info;
+    }
+    expect(lines).to.have.lengthOf(2);
+    expect(lines[0]).to.equal('warn: [alert spec-refused] refused 0 specs');
+    expect(lines[1]).to.match(/^info: \[alert spec-refused\] resolved after .*, 3 occurrence\(s\)$/);
   });
 
   it('waits for afterCount occurrences', async () => {

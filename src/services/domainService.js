@@ -594,7 +594,7 @@ function probeState(snapshot, key, app) {
  * copies of them.
  * @returns {string|null} the chosen ip, or null if nobody is running it
  */
-function decideStickyPrimary(app, ips, snapshot) {
+function decideStickyPrimary(app, ips, snapshot, notes = new Map()) {
   const stickyIp = mapOfNamesIps[app.name];
   if (!stickyIp || !ips.includes(stickyIp)) return null;
 
@@ -623,9 +623,7 @@ function decideStickyPrimary(app, ips, snapshot) {
   const tooFewChecks = established && failures < ACTIVE_STANDBY_MIN_CONFIRMATIONS;
 
   if (withinGrace || tooFewChecks) {
-    log.warn(
-      `Active-Standby App ${app.name} sticky IP ${stickyIp} failed health check ${failures}/${ACTIVE_STANDBY_MIN_CONFIRMATIONS} but was healthy ${Math.round(timeSinceHealthy / 1000)}s ago (threshold: ${ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS / 1000}s), keeping it`,
-    );
+    notes.set(`${app.name}:grace`, `Active-Standby App ${app.name} sticky IP ${stickyIp} is failing its health check but was healthy recently; keeping it`);
     return stickyIp;
   }
   // Silent. This phase releases the sticky; it does not decide what replaces it,
@@ -682,7 +680,7 @@ function decideCandidatePrimary(app, ips, snapshot) {
  *
  * @returns {string|null} the chosen ip, or null if nobody holds it
  */
-function decideHeldPrimary(app, ips, snapshot) {
+function decideHeldPrimary(app, ips, snapshot, notes = new Map()) {
   const stickyIp = mapOfNamesIps[app.name];
   const { ProbeState } = applicationChecks;
 
@@ -690,9 +688,7 @@ function decideHeldPrimary(app, ips, snapshot) {
     const state = probeState(snapshot, stickyIp, app);
     if (state === ProbeState.RUNNING) {
       mapOfNamesIpsLastHeld[app.name] = monotonicMs();
-      log.info(
-        `Active-Standby App ${app.name} is not running anywhere, but ${stickyIp} reports holding it (operator-stopped) - keeping it as primary`,
-      );
+      notes.set(`${app.name}:held`, `Active-Standby App ${app.name} is not running anywhere, but its primary reports holding it (operator-stopped) - keeping it as primary`);
       return stickyIp;
     }
     if (state === ProbeState.NOT_RUNNING) {
@@ -706,9 +702,7 @@ function decideHeldPrimary(app, ips, snapshot) {
       const lastHeld = mapOfNamesIpsLastHeld[app.name] || 0;
       const sinceHeld = monotonicMs() - lastHeld;
       if (lastHeld > 0 && sinceHeld < ACTIVE_STANDBY_UNHEALTHY_THRESHOLD_MS) {
-        log.warn(
-          `Active-Standby App ${app.name} holder ${stickyIp} could not say what it holds, but confirmed holding ${Math.round(sinceHeld / 1000)}s ago - keeping it as primary`,
-        );
+        notes.set(`${app.name}:holderUnknown`, `Active-Standby App ${app.name} holder ${stickyIp} could not say what it holds, but confirmed holding recently - keeping it as primary`);
         return stickyIp;
       }
     }
@@ -731,9 +725,7 @@ function decideHeldPrimary(app, ips, snapshot) {
       // one look established before it has ever answered.
       delete mapOfNamesIpsFailures[app.name];
       delete mapOfNamesIpsLastHealthy[app.name];
-      log.info(
-        `Active-Standby App ${app.name} is not running anywhere, but ${candidate} reports holding it (operator-stopped) - keeping it as primary`,
-      );
+      notes.set(`${app.name}:held`, `Active-Standby App ${app.name} is not running anywhere, but its primary reports holding it (operator-stopped) - keeping it as primary`);
       return candidate;
     }
   }
@@ -792,6 +784,23 @@ function reportPrimaryChanges(chosen) {
   });
 }
 
+// A primary kept through a failed check, or while its node only holds the app, is a
+// condition that lasts several passes: logged when it starts and when it ends.
+// A hold is an owner's choice, so it stays out of warn.log; the other two are faults.
+const keptPrimaries = {
+  grace: new ConditionLog(),
+  held: new ConditionLog({ level: 'info' }),
+  holderUnknown: new ConditionLog(),
+};
+
+function reportKeptPrimaries(apps, notes) {
+  apps.forEach(({ name }) => Object.entries(keptPrimaries).forEach(([kind, conditions]) => {
+    const key = `${name}:${kind}`;
+    const said = notes.get(key) || `Active-Standby App ${name} primary kept (${kind})`;
+    conditions.report(key, notes.has(key), () => said);
+  }));
+}
+
 /**
  * Pick the primary for every active-standby app in one pass.
  *
@@ -817,6 +826,8 @@ async function selectActiveStandbyPrimaries(apps, locations, options = {}) {
   const withIps = apps.map((app) => ({ app, ips: ipsFor(app) })).filter((e) => e.ips.length);
 
   const chosen = new Map();
+  // Why a primary was kept without serving, by `{app}:{kind}`; reported once per pass.
+  const notes = new Map();
 
   // Phase 1: the remembered primaries, and nothing else.
   //
@@ -841,7 +852,7 @@ async function selectActiveStandbyPrimaries(apps, locations, options = {}) {
 
   const needCandidates = [];
   for (const { app, ips } of withIps) {
-    const ip = decideStickyPrimary(app, ips, stickySnapshot);
+    const ip = decideStickyPrimary(app, ips, stickySnapshot, notes);
     if (ip) chosen.set(app.name, ip);
     else needCandidates.push({ app, ips });
   }
@@ -884,12 +895,13 @@ async function selectActiveStandbyPrimaries(apps, locations, options = {}) {
       seed,
     );
     for (const { app, ips } of unresolved) {
-      chosen.set(app.name, decideHeldPrimary(app, ips, heldSnapshot));
+      chosen.set(app.name, decideHeldPrimary(app, ips, heldSnapshot, notes));
     }
   }
 
   for (const app of apps) if (!chosen.has(app.name)) chosen.set(app.name, null);
   reportPrimaryChanges(chosen);
+  reportKeptPrimaries(apps, notes);
   return chosen;
 }
 
@@ -1047,6 +1059,7 @@ function admitConfiguredHalf(half, count, now = monotonicMs()) {
     confirmMs: configPass.confirmMs,
   };
   const lastPublished = configuredHalfGuards[half].lastAcceptedCount;
+  const wasPending = configuredHalfGuards[half].pendingSince !== null;
   const verdict = evaluateListChange(count, configuredHalfGuards[half], limits, now);
   configuredHalfGuards[half] = verdict.state;
 
@@ -1058,7 +1071,7 @@ function admitConfiguredHalf(half, count, now = monotonicMs()) {
     // Before a half has ever published on this box there is nothing to protect:
     // log only.
     if (lastPublished === null) {
-      log.info(message);
+      if (!wasPending) log.info(message);
     } else {
       alerts.raise(key, message, { afterMs: configPass.alertAfterMs });
     }
@@ -1096,6 +1109,9 @@ function runsSharedDb(deployment) {
   return Object.values(deployment.components).some((component) => isSharedDbImage(component.image));
 }
 
+const replicaConflicts = new ConditionLog();
+const disownedDomains = new ConditionLog();
+
 // Resolve an app to its version-normalized DeploymentSpec and append its backend
 // routes to the config. Version-blind: legacy and v9 apps take the same path. The
 // Domain overrides are carried into the resolved routes via deserialize. Custom domains
@@ -1120,8 +1136,9 @@ async function appendRouteConfigs(routeConfigs, app, backends, isActiveStandby) 
     if (!owned) disowned.push(domain);
     return owned;
   };
+  const conflicts = [];
   const onConflict = (domain, fields, replica) => {
-    log.warn(`${app.name}: replica ${replica} disagrees with an earlier replica on ${domain} (${fields.join(', ')}); keeping the first`);
+    conflicts.push(`replica ${replica} on ${domain} (${fields.join(', ')})`);
   };
   // syncFirst makes haproxy mark every server after the first as `backup`, so position
   // zero is the only one taking traffic - the write target of a shared-db database, whose
@@ -1131,9 +1148,8 @@ async function appendRouteConfigs(routeConfigs, app, backends, isActiveStandby) 
   // so with activeStandby.
   const syncFirst = runsSharedDb(deployments.get(null));
   routeConfigs.push(...buildRouteConfigs(deployments, { name: app.name, identity: app.identity }, backends, isActiveStandby, syncFirst, ownsDomain, onConflict));
-  if (disowned.length) {
-    log.warn(`${app.name}: skipped ${disowned.length} custom domain(s) owned by another app: ${disowned.join(', ')}`);
-  }
+  replicaConflicts.report(app.name, conflicts.length > 0, () => `${app.name}: replicas disagree with an earlier replica, keeping the first: ${conflicts.join('; ')}`);
+  disownedDomains.report(app.name, disowned.length > 0, () => `${app.name}: skipped custom domain(s) owned by another app: ${disowned.join(', ')}`);
 }
 
 // The location states that mean "this replica is going away" — flux-shutdownd moves an
@@ -1151,6 +1167,8 @@ const drainingBackends = new ConditionLog();
 const unhealthyApps = new ConditionLog();
 const missingMandatory = new ConditionLog();
 const cycleOverrun = new ConditionLog();
+const foundOnlyBySearch = new ConditionLog();
+const unresolvableForCerts = new ConditionLog();
 
 // Without this a shutting-down node just silently disappears from the config, with nothing
 // to confirm the flux-shutdownd -> fluxos -> FDM chain actually delivered the state.
@@ -1217,6 +1235,8 @@ function sharedDbApiPort(deployment) {
   return operatorRoutes.length ? operatorRoutes[operatorRoutes.length - 1].hostPort : null;
 }
 
+const unreachableOperators = new ConditionLog();
+
 // Resolve the ordered, in-rotation backend IPs for an app from its live locations —
 // the one place config assembly consults runtime state. Two concerns that used to be
 // smeared through the routing loop live here now:
@@ -1272,19 +1292,19 @@ async function resolveBackends(app, appLocations) {
     // order rather than from whatever the locations API happened to return. Which ports
     // reach the load balancer is decided in effectiveRoutes, not here - this only orders.
     appIps = orderBySeniority(live.map((location) => location.ip), live);
-    log.info(`sharedDBApps: Found app ${app.name} using sharedDB`);
     const apiPort = sharedDbApiPort(deployment);
     if (apiPort) {
       let operatorClusterStatus = null;
+      let operatorError = null;
       const httpTimeout = 5000;
       // eslint-disable-next-line no-restricted-syntax
       for (const ip of appIps) {
         const url = `http://${parseSocketAddress(ip).host}:${apiPort}/status`;
-        log.info(`sharedDBApps: ${app.name} going to check operator status on url ${url}`);
         // eslint-disable-next-line no-await-in-loop
         const operatorStatus = await httpClients.nodeChecks
           .get(url, { timeout: httpTimeout })
-          .catch((error) => log.error(`sharedDBApps: ${app.name} operatorStatus error: ${error}`));
+          .catch((error) => ({ error }));
+        if (operatorStatus && operatorStatus.error) operatorError = operatorStatus.error;
         if (operatorStatus && operatorStatus.data && operatorStatus.data.status === 'OK') {
           operatorClusterStatus = operatorStatus.data.clusterStatus.map((cluster) => cluster.ip);
           break;
@@ -1292,7 +1312,6 @@ async function resolveBackends(app, appLocations) {
       }
       if (operatorClusterStatus) {
         appIps = orderByCluster(appIps, operatorClusterStatus, live);
-        log.info(`Application ${app.name} was setup as a sharedDBApps`);
       } else {
         // No operator could be reached, so the cluster cannot say who its master is
         // and this has to choose one. Oldest instance first: for a replicated app it
@@ -1300,6 +1319,7 @@ async function resolveBackends(app, appLocations) {
         // FluxOS's own active-standby election uses (runningSince ascending).
         appIps = orderBySeniority(appIps, live);
       }
+      unreachableOperators.report(app.name, !operatorClusterStatus, () => `sharedDBApps: no operator of ${app.name} answered; ordering by seniority${operatorError ? `: ${operatorError.message}` : ''}`);
     }
   } else {
     // The branch most apps take. Order carries no meaning here - haproxy spreads
@@ -1335,7 +1355,6 @@ async function generateActiveActiveHaproxyConfig() {
     // The directory haproxy loads its certificates from. The certificate process fills
     // it and rsyncs it across the group; this loop only needs it to exist.
     await createSSLDirectory();
-    log.info('SSL directory checked');
     reportMissingMandatoryApps(applicationSpecifications, 'Active-Active');
     const routeConfigs = [];
     await runPerApp(applicationSpecifications, 'Active-Active', async (app) => {
@@ -1426,7 +1445,6 @@ async function generateActiveStandbyHaproxyConfig() {
     // The directory haproxy loads its certificates from. The certificate process fills
     // it and rsyncs it across the group; this loop only needs it to exist.
     await createSSLDirectory();
-    log.info('SSL directory checked');
     // Locations for the apps the bulk feed did not carry - a handful per pass.
     //
     // The attempts are for an API that could not be REACHED. It replies `success`
@@ -1447,6 +1465,7 @@ async function generateActiveStandbyHaproxyConfig() {
       const cached = appsLocations.get(app.name);
       if (cached && cached.length) locationsForPass.set(app.name, cached);
       else needSearch.push(app);
+      foundOnlyBySearch.report(app.name, false, () => `Application: ${app.name} was missing from the bulk feed`);
     }
     if (needSearch.length) {
       const searched = await serviceHelper.runWithConcurrency(
@@ -1458,7 +1477,7 @@ async function generateActiveStandbyHaproxyConfig() {
             const { answered, locations: found } = await fluxService
               .getApplicationLocation(app.name);
             if (found.length) {
-              log.info(`Application: ${app.name} was missing from the bulk feed, found on ${found.length} node(s) by search`);
+              foundOnlyBySearch.report(app.name, true, () => `Application: ${app.name} was missing from the bulk feed, found by search`);
               return [app.name, found, requests];
             }
             if (answered) return [app.name, [], requests];
@@ -1570,10 +1589,11 @@ async function obtainCertificatesMode() {
         // eslint-disable-next-line no-await-in-loop
         deployment = await specLibs.resolveDeployment(instance, null);
       } catch (error) {
-        log.error(`skipping ${appSpecs.name}: ${error.message}`);
+        unresolvableForCerts.report(appSpecs.name, true, () => `skipping ${appSpecs.name}: ${error.message}`);
         // eslint-disable-next-line no-continue
         continue;
       }
+      unresolvableForCerts.report(appSpecs.name, false, () => `skipping ${appSpecs.name}`);
       getCustomDomains(deployment).forEach((d) => domainSet.add(d));
     }
     const allCustomDomains = [...domainSet];

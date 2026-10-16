@@ -154,14 +154,19 @@ describe('g: app primary selection', () => {
     const log = require('../src/lib/log');
     const ACTIVE_STANDBY_MIN_CONFIRMATIONS = 3;
     let warns = [];
+    let infos = [];
     let realWarn;
+    let realInfo;
 
     beforeEach(() => {
       warns = [];
+      infos = [];
       realWarn = log.warn;
+      realInfo = log.info;
       log.warn = (m) => { warns.push(String(m)); };
+      log.info = (m) => { infos.push(String(m)); };
     });
-    afterEach(() => { log.warn = realWarn; });
+    afterEach(() => { log.warn = realWarn; log.info = realInfo; });
 
     it('says nothing every pass about an operator-stopped app whose primary is unchanged', async () => {
       const holder = await node({ running: [], held: ['fluxapp_zizy'] });
@@ -173,11 +178,13 @@ describe('g: app primary selection', () => {
       await select([holder, idle]);
       await select([holder, idle]);
       warns = [];
-      for (let pass = 0; pass < 4; pass += 1) {
+      for (let pass = 0; pass < 6; pass += 1) {
         // eslint-disable-next-line no-await-in-loop
         expect(await select([holder, idle])).to.equal(holder);
       }
       expect(warns).to.deep.equal([]);
+      // The hold is a condition: said when it starts, never again while it lasts.
+      expect(infos.filter((m) => m.includes('reports holding it'))).to.have.lengthOf(1);
     });
 
     it('reports the move, once, when the primary actually changes', async () => {

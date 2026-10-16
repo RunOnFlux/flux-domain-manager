@@ -10,8 +10,12 @@
 // times. The loop here catches (bab6fac), so it would survive — but it would still throw,
 // log an error and lose the poll on every such response, and would still have advanced
 // the stored SHA to the hash of `null` before throwing.
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { expect } = require('chai');
 const { FdmDataFetcher } = require('../../src/services/flux/dataFetcher');
+const { createGuardStore } = require('../../src/lib/guardStore');
 
 // The constructor reads mTLS material off disk, which a test host does not have. Only the
 // fetch-and-dispatch methods are under test and they touch `endpoints` and their own HTTP
@@ -20,6 +24,20 @@ function fetcherWith(endpoints) {
   const fetcher = Object.create(FdmDataFetcher.prototype);
   fetcher.endpoints = endpoints;
   return fetcher;
+}
+
+// A full instance, for the path that reaches the spec-list guard. Its TLS files are read at
+// construction and parsed only on connect, which this never does.
+function constructedFetcher(dir) {
+  ['key', 'cert', 'ca'].forEach((name) => fs.writeFileSync(path.join(dir, name), 'placeholder'));
+  return new FdmDataFetcher({
+    guardStore: createGuardStore(path.join(dir, 'list-guards.json')),
+    keyPath: path.join(dir, 'key'),
+    certPath: path.join(dir, 'cert'),
+    caPath: path.join(dir, 'ca'),
+    fluxApiBaseUrl: 'http://127.0.0.1:1/',
+    cryptoService: { baseUrl: 'https://127.0.0.1:1/', rsaDecryptPath: '/rsa', gcmDecryptPath: '/gcm' },
+  });
 }
 
 const emptyResponse = {
@@ -91,15 +109,23 @@ describe('a 200 carrying no payload is nothing to process', () => {
 
   // The guard must not swallow a real payload.
   it('still processes a payload that is present', async () => {
-    const endpoints = { globalAppSpecs: { name: 'globalAppSpecs', defaultFetchMs: 30_000, sha: 'previous-sha' } };
-    const fetcher = fetcherWith(endpoints);
-    let seen = null;
-    fetcher.doAppSpecsHttpGet = async () => ({ ...emptyResponse, payload: [{ name: 'anapp' }] });
-    fetcher.processAppSpecs = async (specs) => { seen = specs; };
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fdm-payload-'));
+    try {
+      const fetcher = constructedFetcher(dir);
+      const { globalAppSpecs } = fetcher.endpoints;
+      globalAppSpecs.sha = 'previous-sha';
+      // As many as the spec-list guard's floor, so a first list is accepted.
+      const payload = Array.from({ length: 5 }, (_, i) => ({ name: `app${i}` }));
+      let seen = null;
+      fetcher.doAppSpecsHttpGet = async () => ({ ...emptyResponse, payload });
+      fetcher.processAppSpecs = async (specs) => { seen = specs; };
 
-    await fetcher.getAndProcessAppSpecs();
+      await fetcher.getAndProcessAppSpecs();
 
-    expect(seen).to.deep.equal([{ name: 'anapp' }]);
-    expect(endpoints.globalAppSpecs.sha).to.not.equal('previous-sha');
+      expect(seen).to.deep.equal(payload);
+      expect(globalAppSpecs.sha).to.not.equal('previous-sha');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -79,17 +79,18 @@ describe('resolveAppLocations', () => {
   // address's provenance from whether it contains brackets.
   it('marks a fixed address with the service port it declares', async () => {
     const [appName] = Object.keys(config.staticLocations);
-    const found = await resolveAppLocations({
-      appName, known: new Map(), fetchLocations: async () => [], attempts: 1,
+    const { locations } = await resolveAppLocations({
+      appName, known: new Map(), fetchLocations: answering([]),
     });
-    found.forEach((location) => {
+    expect(locations).to.have.lengthOf(config.staticLocations[appName].length);
+    locations.forEach((location) => {
       expect(location.servicePort).to.equal(location.ip.split(']:')[1]);
     });
   });
 
   it('leaves a feed location without a service port', async () => {
     const known = new Map([['plainapp', [{ ip: '1.2.3.4:16127' }]]]);
-    const [location] = await resolveAppLocations({ appName: 'plainapp', known, fetchLocations: neverCalled });
+    const { locations: [location] } = await resolveAppLocations({ appName: 'plainapp', known, fetchLocations: neverCalled });
     expect(location.servicePort).to.equal(undefined);
   });
 });

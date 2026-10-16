@@ -1,11 +1,14 @@
 'use strict';
 
 const config = require('config');
-const log = require('../../lib/log');
+const { ConditionLog } = require('../conditionLog');
 const httpClients = require('../httpClients');
 const { parseSocketAddress, unbracket, isBareIPv6 } = require('../socketAddress');
 
 const timeout = 13456;
+
+const listFailures = new ConditionLog({ level: 'error' });
+const locationFailures = new ConditionLog({ level: 'error' });
 
 async function getFluxList(fallback) {
   try {
@@ -14,12 +17,13 @@ async function getFluxList(fallback) {
       url = `${config.fallbackexplorer}/api/fluxnode/listfluxnodes`;
     }
     const fluxnodeList = await httpClients.explorer.get(url, { timeout });
+    listFailures.report('explorers', false, () => 'Unable to get the node list from either explorer');
     return fluxnodeList.data.result || [];
   } catch (e) {
     if (!fallback) {
       return getFluxList(true);
     }
-    log.error(e);
+    listFailures.report('explorers', true, () => `Unable to get the node list from either explorer: ${e.message}`);
     return [];
   }
 }
@@ -52,9 +56,11 @@ async function getNodeSocketAddresses(tier) {
     if (tier === 'STRATUS' || tier === 'NIMBUS' || tier === 'CUMULUS') {
       fluxnodes = fluxnodes.filter((fluxnode) => fluxnode.tier === tier);
     }
-    return fluxnodes.map((fluxnode) => fluxnode.ip).filter(isUsableNodeAddress);
+    const addresses = fluxnodes.map((fluxnode) => fluxnode.ip).filter(isUsableNodeAddress);
+    listFailures.report('addresses', false, () => 'Unable to read the node list');
+    return addresses;
   } catch (e) {
-    log.error(e);
+    listFailures.report('addresses', true, () => `Unable to read the node list: ${e.message}`);
     return [];
   }
 }
@@ -78,16 +84,13 @@ async function getApplicationLocation(appName) {
       `https://api.runonflux.io/apps/location/${appName}`,
       { timeout: 3_000 },
     );
-    if (fluxnodeList.data.status === 'success') {
-      return { answered: true, locations: fluxnodeList.data.data || [] };
-    }
-    console.log(
-      `${fluxnodeList.data.status} received from getApplicationLocation`,
-    );
+    const answered = fluxnodeList.data.status === 'success';
+    locationFailures.report(appName, !answered, () => `${fluxnodeList.data.status} received from getApplicationLocation for ${appName}`);
+    if (answered) return { answered: true, locations: fluxnodeList.data.data || [] };
     // A 200 carrying an in-band error: it replied, but not with an answer.
     return { answered: false, locations: [] };
   } catch (e) {
-    log.error(`Failed to get app location for ${appName}. ${e.message}`);
+    locationFailures.report(appName, true, () => `Failed to get app location for ${appName}. ${e.message}`);
     return { answered: false, locations: [] };
   }
 }

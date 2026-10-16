@@ -14,6 +14,7 @@ const alerts = require('../alertService');
 
 // const log = require('./log');
 const log = require('../../lib/log');
+const { ConditionLog } = require('../conditionLog');
 const specLibs = require('./specLibs');
 const { registerSpecDecryptProviders } = require('./specDecrypt');
 const { requestCaCertificate } = require('./caCertificate');
@@ -33,6 +34,13 @@ const { requestCaCertificate } = require('./caCertificate');
  *   specs: AppSpecList | null
  * }} ParsedResponse
  */
+
+// Conditions a fetch or a spec can be in for many polls in a row: logged when they
+// start and when they clear.
+const fetchFailures = new ConditionLog({ level: 'info' });
+const undecryptable = new ConditionLog();
+const unresolvableSpecs = new ConditionLog({ level: 'error' });
+const failingLoops = new ConditionLog({ level: 'error' });
 
 class FdmDataFetcher extends EventEmitter {
   // As of 17/07/25 the full spec list is 668191 bytes (0.67Mb)
@@ -281,10 +289,9 @@ class FdmDataFetcher extends EventEmitter {
 
     const { status, headers, data } = response;
 
-    if (status !== 200) {
-      log.info(`2XX status code recieved: ${status}, but not 200, skipping`);
-      return null;
-    }
+    const endpoint = options.endpoint || 'flux api';
+    fetchFailures.report(`${endpoint}:status`, status !== 200, () => `${endpoint}: 2XX status code received: ${status}, but not 200, skipping`);
+    if (status !== 200) return null;
 
     const { etag, 'cache-control': cacheControl, fluxnode: backend } = headers;
     const { maxAge } = /^max-age=(?<maxAge>\d+)$/.exec(cacheControl).groups;
@@ -304,14 +311,8 @@ class FdmDataFetcher extends EventEmitter {
 
     const { status: payloadStatus, data: payloadData } = data;
 
-    if (payloadStatus !== 'success') {
-      log.info(
-        'HTTP response was fine, but payload status was not '
-        + `success: ${payloadStatus}. Skipping`,
-      );
-
-      return parsed;
-    }
+    fetchFailures.report(`${endpoint}:payload`, payloadStatus !== 'success', () => `${endpoint}: HTTP response was fine, but payload status was not success: ${payloadStatus}. Skipping`);
+    if (payloadStatus !== 'success') return parsed;
 
     if (payloadData) parsed.payload = payloadData;
 
@@ -363,9 +364,10 @@ class FdmDataFetcher extends EventEmitter {
         const ttl = 86_400_000 + Math.floor(Math.random() * 86_400_000);
         this.#cache.set(hash, decrypted, { ttl });
       }
+      undecryptable.report(appSpec.name, false, () => `Unable to decrypt ${appSpec.name}`);
       return decrypted;
     } catch (error) {
-      log.warn(`Unable to decrypt ${appSpec.name}: ${error.message}`);
+      undecryptable.report(appSpec.name, true, () => `Unable to decrypt ${appSpec.name}: ${error.message}`);
       return null;
     }
   }
@@ -373,14 +375,16 @@ class FdmDataFetcher extends EventEmitter {
   async loop(runner, dataStore) {
     const store = dataStore;
 
+    const { name } = store;
     let ms;
     try {
       ms = await runner();
+      failingLoops.report(name, false, () => `${name} loop error`);
     } catch (error) {
       // A failed poll must reschedule, not kill the loop — and must never surface
       // as an unhandled rejection that exits the process.
       ms = store.defaultFetchMs || 30_000;
-      log.error(`app spec loop error, retrying in ${ms}ms: ${error.message}`);
+      failingLoops.report(name, true, () => `${name} loop error, retrying every ${ms}ms: ${error.message}`);
     }
 
     if (this.#aborted) return;
@@ -516,8 +520,9 @@ class FdmDataFetcher extends EventEmitter {
         // Custom-domain FQDNs feed the cross-app ownership check, sourced from the
         // resolved loadBalancing so v9 is covered like every other version.
         appFqdns.push(FdmDataFetcher.#buildFqdnMap(deployment, spec.name));
+        unresolvableSpecs.report(spec.name, false, () => `skipping spec ${spec.name}`);
       } catch (error) {
-        log.error(`skipping spec ${spec && spec.name}: ${error.message}`);
+        unresolvableSpecs.report(spec && spec.name, true, () => `skipping spec ${spec && spec.name}: ${error.message}`);
       }
     };
 
@@ -726,12 +731,14 @@ class FdmDataFetcher extends EventEmitter {
     const response = await this.#fluxApi
       .head(this.endpoints.permMessages.url)
       .catch((err) => {
-        log.info(`Unable to do HTTP HEAD for app specs: ${err.message}`);
+        fetchFailures.report('HEAD perm messages:request', true, () => `HEAD perm messages: unable to do HTTP HEAD: ${err.message}`);
         return null;
       });
+    if (response) fetchFailures.report('HEAD perm messages:request', false, () => 'HEAD perm messages: unable to do HTTP HEAD');
 
     const parsed = FdmDataFetcher.#parseAxiosResponse(response, {
       head: true,
+      endpoint: 'HEAD perm messages',
     });
 
     return parsed;
@@ -745,13 +752,14 @@ class FdmDataFetcher extends EventEmitter {
     const response = await this.#fluxApi
       .head(this.endpoints.globalAppSpecs.url)
       .catch((err) => {
-        log.info(`Unable to do HTTP HEAD for app specs: ${err.message}`);
-
+        fetchFailures.report('HEAD app specs:request', true, () => `HEAD app specs: unable to do HTTP HEAD: ${err.message}`);
         return null;
       });
+    if (response) fetchFailures.report('HEAD app specs:request', false, () => 'HEAD app specs: unable to do HTTP HEAD');
 
     const parsed = FdmDataFetcher.#parseAxiosResponse(response, {
       head: true,
+      endpoint: 'HEAD app specs',
     });
 
     return parsed;
@@ -765,13 +773,14 @@ class FdmDataFetcher extends EventEmitter {
     const response = await this.#fluxApi
       .head(this.endpoints.appsLocations.url)
       .catch((err) => {
-        log.info(`Unable to do HTTP HEAD for app specs: ${err.message}`);
-
+        fetchFailures.report('HEAD app locations:request', true, () => `HEAD app locations: unable to do HTTP HEAD: ${err.message}`);
         return null;
       });
+    if (response) fetchFailures.report('HEAD app locations:request', false, () => 'HEAD app locations: unable to do HTTP HEAD');
 
     const parsed = FdmDataFetcher.#parseAxiosResponse(response, {
       head: true,
+      endpoint: 'HEAD app locations',
     });
 
     return parsed;
@@ -781,11 +790,14 @@ class FdmDataFetcher extends EventEmitter {
     const response = await this.#fluxApi
       .get(this.endpoints.globalAppSpecs.url)
       .catch((err) => {
-        log.info(`Unable to do HTTP GET for app specs: ${err.message}`);
+        fetchFailures.report('GET app specs:request', true, () => `GET app specs: unable to do HTTP GET: ${err.message}`);
         return null;
       });
+    if (response) fetchFailures.report('GET app specs:request', false, () => 'GET app specs: unable to do HTTP GET');
 
-    const parsed = FdmDataFetcher.#parseAxiosResponse(response);
+    const parsed = FdmDataFetcher.#parseAxiosResponse(response, {
+      endpoint: 'GET app specs',
+    });
 
     return parsed;
   }
@@ -794,11 +806,14 @@ class FdmDataFetcher extends EventEmitter {
     const response = await this.#fluxApi
       .get(this.endpoints.appsLocations.url)
       .catch((err) => {
-        log.info(`Unable to do HTTP GET for apps locations: ${err.message}`);
+        fetchFailures.report('GET app locations:request', true, () => `GET app locations: unable to do HTTP GET: ${err.message}`);
         return null;
       });
+    if (response) fetchFailures.report('GET app locations:request', false, () => 'GET app locations: unable to do HTTP GET');
 
-    const parsed = FdmDataFetcher.#parseAxiosResponse(response);
+    const parsed = FdmDataFetcher.#parseAxiosResponse(response, {
+      endpoint: 'GET app locations',
+    });
 
     return parsed;
   }
@@ -812,11 +827,14 @@ class FdmDataFetcher extends EventEmitter {
     const response = await this.#fluxApi
       .get(this.endpoints.permMessages.url, options)
       .catch((err) => {
-        log.info(`Unable to do HTTP GET for app specs: ${err.message}`);
+        fetchFailures.report('GET perm messages:request', true, () => `GET perm messages: unable to do HTTP GET: ${err.message}`);
         return null;
       });
+    if (response) fetchFailures.report('GET perm messages:request', false, () => 'GET perm messages: unable to do HTTP GET');
 
-    const parsed = FdmDataFetcher.#parseAxiosResponse(response);
+    const parsed = FdmDataFetcher.#parseAxiosResponse(response, {
+      endpoint: 'GET perm messages',
+    });
 
     return parsed;
   }

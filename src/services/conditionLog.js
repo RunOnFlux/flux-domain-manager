@@ -20,7 +20,7 @@ class ConditionLog {
   /**
    * @param {Object} [opts]
    * @param {Function} [opts.now] clock, injectable for tests
-   * @param {'warn'|'info'} [opts.level] the level a condition's start is logged at
+   * @param {'error'|'warn'|'info'} [opts.level] the level a condition's start is logged at
    */
   constructor({ now = Date.now, level = 'warn' } = {}) {
     this.#now = now;

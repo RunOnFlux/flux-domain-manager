@@ -7,6 +7,7 @@ const fs = require('fs').promises;
 const fsSync = require('fs');
 const { cmdAsync } = require('../constants');
 const log = require('../../lib/log');
+const { ConditionLog } = require('../conditionLog');
 const serviceHelper = require('../serviceHelper');
 const dnsCache = require('./dnsCache');
 const { getGroupIPs } = require('../rsync/config');
@@ -77,6 +78,9 @@ async function dnsLookup(hostname) {
 // The addresses this FDM group answers on: its peers, from deployment/hosts.ini, plus
 // this node's own. A domain qualifies for a certificate only if it resolves to one of
 // them. `resolve` is injectable so tests need no network.
+const domainCheckErrors = new ConditionLog();
+const certFailures = new ConditionLog();
+
 async function isDomainPointedToThisGroup(hostname, myIP, resolve = dnsLookup) {
   try {
     const groupIPs = new Set(getGroupIPs());
@@ -86,7 +90,6 @@ async function isDomainPointedToThisGroup(hostname, myIP, resolve = dnsLookup) {
     const pointedToGroup = dnsLookupdRecords.find((record) => groupIPs.has(record.address));
     return !!pointedToGroup;
   } catch (error) {
-    log.warn(error);
     return false;
   }
 }
@@ -123,9 +126,10 @@ async function checkDomainAction(appDomain, myIP, resolve = dnsLookup) {
     if (daysRemaining !== null && daysRemaining < 30) {
       return { domain: appDomain, action: 'renew', daysRemaining: Math.round(daysRemaining) };
     }
+    domainCheckErrors.report(appDomain, false, () => `Error checking ${appDomain}`);
     return { domain: appDomain, action: 'skip' };
   } catch (error) {
-    log.warn(`Error checking ${appDomain}: ${error.message}`);
+    domainCheckErrors.report(appDomain, true, () => `Error checking ${appDomain}: ${error.message}`);
     return { domain: appDomain, action: 'skip' };
   }
 }
@@ -154,8 +158,9 @@ async function executeCertificateOperations(domains, myIP) {
           // eslint-disable-next-line no-await-in-loop
           await obtainDomainCertificate(result.domain);
         }
+        certFailures.report(result.domain, false, () => `Cert operation failed for ${result.domain}`);
       } catch (error) {
-        log.warn(`Cert operation failed for ${result.domain}: ${error.message}`);
+        certFailures.report(result.domain, true, () => `Cert operation failed for ${result.domain}: ${error.message}`);
       }
     }
 
@@ -172,9 +177,10 @@ async function executeCertificateOperations(domains, myIP) {
       log.info(`Cert ops: ${obtained} obtained, ${renewed} renewed, ${skippedDns} skipped (dns backoff), ${notPointed} skipped (not pointed here), ${dnsCache.getCacheSize()} cached failures`);
     }
 
+    certFailures.report('cert ops', false, () => 'Cert operations failed');
     return { success: true, certsChanged };
   } catch (error) {
-    log.error(error);
+    certFailures.report('cert ops', true, () => `Cert operations failed: ${error.message}`);
     return { success: false, certsChanged: false };
   }
 }
@@ -205,9 +211,10 @@ async function cleanupStaleCerts() {
     if (removed) {
       log.info(`Cert cleanup: removed ${removed} expired certs`);
     }
+    certFailures.report('stale cert cleanup', false, () => 'Error cleaning orphaned certs');
     return removed > 0;
   } catch (error) {
-    log.warn(`Error cleaning orphaned certs: ${error.message}`);
+    certFailures.report('stale cert cleanup', true, () => `Error cleaning orphaned certs: ${error.message}`);
     return false;
   }
 }

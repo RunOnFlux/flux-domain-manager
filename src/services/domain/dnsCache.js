@@ -1,6 +1,6 @@
 'use strict';
 
-const log = require('../../lib/log');
+const { ConditionLog } = require('../conditionLog');
 
 // In-memory DNS failure cache. Resets on process restart.
 // Maps domain -> { failures: number, lastChecked: number (epoch ms) }
@@ -31,20 +31,20 @@ function shouldCheckDomain(domain) {
   return (Date.now() - entry.lastChecked) >= cooldown;
 }
 
+const unpointed = new ConditionLog({ level: 'info' });
+
 function recordFailure(domain) {
   const entry = cache.get(domain) || { failures: 0, lastChecked: 0 };
   entry.failures += 1;
   entry.lastChecked = Date.now();
   cache.set(domain, entry);
 
-  const cooldownMin = Math.round(getCooldownMs(entry.failures) / 60000);
-  if (entry.failures <= 5 || entry.failures % 10 === 0) {
-    log.info(`DNS for ${domain} failed ${entry.failures} times, next check in ${cooldownMin}m`);
-  }
+  unpointed.report(domain, true, () => `DNS for ${domain} does not point here; rechecking with backoff`);
 }
 
 function recordSuccess(domain) {
   cache.delete(domain);
+  unpointed.report(domain, false, () => `DNS for ${domain} does not point here`);
 }
 
 function getCacheSize() {

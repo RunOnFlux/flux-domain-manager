@@ -5,6 +5,7 @@
 const configGlobal = require('config');
 const fs = require('fs').promises;
 const log = require('../lib/log');
+const { ConditionLog } = require('./conditionLog');
 const { cmdAsync, TEMP_HAPROXY_CONFIG, HAPROXY_CONFIG } = require('./constants');
 const { matchRule } = require('./serviceHelper');
 const { getPrimaryIP } = require('./rsync/config');
@@ -20,7 +21,6 @@ const { parseSocketAddress, unbracket } = require('./socketAddress');
 const TERMINATE_PORT = configGlobal.haproxyRouting.terminateLoopbackPort;
 
 let lastHaproxyConfig;
-let consecutivePublishFailures = 0;
 
 // Shared TLS selection — the same curves/ciphers for client binds and backend servers.
 const SSL_CURVES = 'X25519:prime256v1:secp384r1';
@@ -176,18 +176,18 @@ function serverName(server) {
 // in-rotation set. An ip already in rotation is never re-emitted — haproxy rejects a
 // duplicate server name fatally, which would cost the whole fleet's config, not just
 // this app's.
+const unusableBackends = new ConditionLog({ level: 'error' });
+const droppedRoutes = new ConditionLog({ level: 'error' });
+const certDirErrors = new ConditionLog();
+
 function serversToRender(app) {
   const servers = [];
   const seen = new Set();
+  const unusable = [];
   for (const server of app.servers || []) {
     const { ip } = server;
-    if (!ip) {
-      log.error(`${app.appName}: MISSING IP`);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-    if (!parseSocketAddress(ip).host) {
-      log.error(`${app.appName}: unusable backend ip ${ip}`);
+    if (!ip || !parseSocketAddress(ip).host) {
+      unusable.push(ip || 'MISSING IP');
       // eslint-disable-next-line no-continue
       continue;
     }
@@ -202,6 +202,7 @@ function serversToRender(app) {
     seen.add(name);
     servers.push(server);
   }
+  unusableBackends.report(app.appName, unusable.length > 0, () => `${app.appName}: unusable backend address(es) left out: ${unusable.join(', ')}`);
   // In rotation first, draining last: the first-server directives and the syncFirst
   // backup selection are decided purely by the in-rotation set.
   return servers.filter((s) => !s.draining).concat(servers.filter((s) => s.draining));
@@ -509,13 +510,11 @@ const UNRENDERABLE = /\bundefined\b|\bNaN\b|\[object Object\]/;
 // other app.
 function renderableRoutes(appConfig, caReady) {
   return appConfig.filter((app) => {
-    if (app.declaredTcp) {
-      log.error(`haproxy: route ${app.domain} declares tcp load balancing, which is not offered; not routed`);
-      return false;
-    }
+    droppedRoutes.report(`${app.domain}:tcp`, !!app.declaredTcp, () => `haproxy: route ${app.domain} declares tcp load balancing, which is not offered; not routed`);
+    if (app.declaredTcp) return false;
     const modes = ['http', ...(app.mode === 'tcp' ? ['tcp'] : [])];
     const bad = modes.find((mode) => UNRENDERABLE.test(generateDomainBackend(app, mode, caReady).render()));
-    if (bad) log.error(`haproxy: route ${app.domain} renders an unset value in its ${bad} backend; dropped from this config`);
+    droppedRoutes.report(`${app.domain}:unset`, !!bad, () => `haproxy: route ${app.domain} renders an unset value in its ${bad} backend; dropped from the config`);
     return !bad;
   });
 }
@@ -618,7 +617,6 @@ function createAppsHaproxyConfig(appConfig, caReady = new Set()) {
       seenApps[app.appName] = domainUsed;
     }
     if (app.mode === 'tcp') {
-      log.debug(`TCP APP: ${app.name}`);
       const { port } = app;
       if (!(port in tcpAppsMap)) {
         tcpAppsMap[port] = {
@@ -716,14 +714,13 @@ async function cleanupBrokenCerts() {
         await fs.unlink(filePath);
       }
     }
+    certDirErrors.report(certDir, false, () => `Error cleaning cert directory ${certDir}`);
   } catch (error) {
-    log.warn(`Error cleaning cert directory: ${error.message}`);
+    certDirErrors.report(certDir, true, () => `Error cleaning cert directory ${certDir}: ${error.message}`);
   }
 }
 
 function publishFailed(reason, detail) {
-  consecutivePublishFailures += 1;
-  log.error(`Haproxy not updated (${consecutivePublishFailures} in a row): ${detail}`);
   alerts.raise('haproxy-reload', detail, { afterCount: configGlobal.guards.reload.alertAfterFailures });
   return { ok: false, reason };
 }
@@ -764,7 +761,6 @@ async function restartProxy(dataToWrite) {
   if (!result.ok) return publishFailed('reload-failed', formatFailure(result));
 
   lastHaproxyConfig = dataToWrite;
-  consecutivePublishFailures = 0;
   alerts.resolve('haproxy-reload', `worker ${result.pid} serving the current config`);
   log.info(`Haproxy reloaded, worker ${result.pid}`);
   return { ok: true };

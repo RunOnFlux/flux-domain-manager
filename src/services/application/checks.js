@@ -787,7 +787,7 @@ async function checkApplication(app, location, deployment, probes = PROBES) {
   return isOK;
 }
 
-const fluxHeightUnknown = new ConditionLog();
+const fluxHeightUnknown = new ConditionLog({ level: 'error' });
 
 async function refreshFluxBlockheight() {
   try {

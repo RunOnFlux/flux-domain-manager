@@ -8,7 +8,6 @@
 // so decrypt() dispatches by version with no branching at the call site.
 const crypto = require('node:crypto');
 
-const log = require('../../lib/log');
 const { load } = require('./specLibs');
 
 // v8 sealed blob layout: an RSA-wrapped AES key, then AES-256-GCM (nonce, ciphertext,
@@ -40,13 +39,12 @@ async function unwrapV8Key(http, endpoint, appName, owner, wrappedKey) {
     message: wrappedKey.toString('base64'),
     blockHeight: UNWRAP_BLOCK_HEIGHT,
   };
+  let unreachable = null;
   for (let attempt = 0; attempt < UNWRAP_ATTEMPTS; attempt += 1) {
     // eslint-disable-next-line no-await-in-loop
-    const response = await http.post(endpoint, payload).catch((err) => {
-      log.warn(`Unable to reach decrypt service for ${appName}: ${err.message}`);
-      return null;
-    });
-    if (response && response.status === 200) {
+    const response = await http.post(endpoint, payload).catch((error) => ({ error }));
+    if (response.error) unreachable = response.error;
+    if (response.status === 200) {
       const { status, message } = response.data;
       if (status !== 'ok') {
         throw new Error(`decrypt service rejected key unwrap for ${appName}`);
@@ -58,7 +56,8 @@ async function unwrapV8Key(http, endpoint, appName, owner, wrappedKey) {
       await sleep(UNWRAP_RETRY_MS);
     }
   }
-  throw new Error(`could not unwrap key for ${appName} after ${UNWRAP_ATTEMPTS} attempts`);
+  const cause = unreachable ? `: decrypt service unreachable (${unreachable.message})` : '';
+  throw new Error(`could not unwrap key for ${appName} after ${UNWRAP_ATTEMPTS} attempts${cause}`);
 }
 
 /**

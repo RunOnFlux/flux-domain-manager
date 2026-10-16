@@ -171,6 +171,8 @@ const runQueue = {
 // The nodes currently balanced onto for the main node domain, carried between cycles so a
 // node that is still healthy keeps its place rather than being re-elected every 30s.
 let nodesForBalancing = [];
+// A loop or boot that throws: logged when it starts failing and when a pass completes.
+const failingPasses = new ConditionLog({ level: 'error' });
 async function generateAndReplaceMainHaproxyConfig() {
   try {
     const ui = `${config.uiName}.${config.mainDomain}`;
@@ -276,11 +278,12 @@ async function generateAndReplaceMainHaproxyConfig() {
     if (!result.ok) {
       throw new Error(`Haproxy not updated: ${result.reason}`);
     }
+    failingPasses.report('main node', false, () => 'main node pass failed');
     setTimeout(() => {
       generateAndReplaceMainHaproxyConfig();
     }, 30 * 1000);
   } catch (error) {
-    log.error(error);
+    failingPasses.report('main node', true, () => `main node pass failed: ${error.stack || error}`);
     setTimeout(() => {
       generateAndReplaceMainHaproxyConfig();
     }, 30 * 1000);
@@ -1167,8 +1170,8 @@ const drainingBackends = new ConditionLog();
 const unhealthyApps = new ConditionLog();
 const missingMandatory = new ConditionLog();
 const cycleOverrun = new ConditionLog();
-const foundOnlyBySearch = new ConditionLog();
-const unresolvableForCerts = new ConditionLog();
+const foundOnlyBySearch = new ConditionLog({ level: 'info' });
+const unresolvableForCerts = new ConditionLog({ level: 'error' });
 
 // Without this a shutting-down node just silently disappears from the config, with nothing
 // to confirm the flux-shutdownd -> fluxos -> FDM chain actually delivered the state.
@@ -1235,7 +1238,7 @@ function sharedDbApiPort(deployment) {
   return operatorRoutes.length ? operatorRoutes[operatorRoutes.length - 1].hostPort : null;
 }
 
-const unreachableOperators = new ConditionLog();
+const unreachableOperators = new ConditionLog({ level: 'error' });
 
 // Resolve the ordered, in-rotation backend IPs for an app from its live locations —
 // the one place config assembly consults runtime state. Two concerns that used to be
@@ -1343,6 +1346,7 @@ async function generateActiveActiveHaproxyConfig() {
   // What the pass cost api.runonflux.io - see the active-standby pass for the reasoning.
   let searchRequests = 0;
 
+  let passError = null;
   try {
     log.info('Active-Active Mode STARTED');
 
@@ -1412,8 +1416,9 @@ async function generateActiveActiveHaproxyConfig() {
     if (outcome.action === 'withheld' || outcome.action === 'unchanged') return;
     recentlyConfiguredActiveActiveRouteConfigs = outcome.remember;
   } catch (error) {
-    log.error(error);
+    passError = error;
   } finally {
+    failingPasses.report('Active-Active', passError !== null, () => `Active-Active pass failed: ${passError && (passError.stack || passError)}`);
     const elapsedNs = Number(process.hrtime.bigint() - startTime);
     const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
     log.info(`Active-Active Mode ENDED. Elapsed: ${elapsedS}s`);
@@ -1434,6 +1439,7 @@ async function generateActiveStandbyHaproxyConfig() {
   // the only outbound request the pass makes per application.
   let searchRequests = 0;
 
+  let passError = null;
   try {
     log.info('Active-Standby Mode STARTED');
 
@@ -1560,8 +1566,9 @@ async function generateActiveStandbyHaproxyConfig() {
     if (outcome.action === 'withheld' || outcome.action === 'unchanged') return;
     recentlyConfiguredActiveStandbyRouteConfigs = outcome.remember;
   } catch (error) {
-    log.error(error);
+    passError = error;
   } finally {
+    failingPasses.report('Active-Standby', passError !== null, () => `Active-Standby pass failed: ${passError && (passError.stack || passError)}`);
     const elapsedNs = Number(process.hrtime.bigint() - startTime);
     const elapsedS = Math.round((elapsedNs / 1_000_000_000) * 100) / 100;
     log.info(`Active-Standby Mode ENDED. Elapsed: ${elapsedS}s, location searches: ${searchRequests}`);
@@ -1609,11 +1616,12 @@ async function obtainCertificatesMode() {
     if (certsChanged) {
       startCertRsync();
     }
+    failingPasses.report('certificates', false, () => 'certificates pass failed');
     setTimeout(() => {
       obtainCertificatesMode();
     }, 15 * 60 * 1000);
   } catch (error) {
-    log.error(error);
+    failingPasses.report('certificates', true, () => `certificates pass failed: ${error.stack || error}`);
     setTimeout(() => {
       obtainCertificatesMode();
     }, 15 * 60 * 1000);
@@ -1745,14 +1753,16 @@ const BOOT_RETRY_MS = 30 * 1000;
 // max_restarts and leaves it errored. So a failed boot is logged and retried here, and
 // the retry is short — the failures it sees are "the network is not up yet" or "a human
 // has to put a file on this box", and neither is helped by waiting a quarter of an hour.
-function retryOnFailure(boot) {
+function retryOnFailure(name, boot) {
   const retry = (error) => {
-    log.error(error);
-    setTimeout(() => retryOnFailure(boot), BOOT_RETRY_MS);
+    failingPasses.report(name, true, () => `${name} failed to start, retrying every ${BOOT_RETRY_MS / 1000}s: ${error.stack || error}`);
+    setTimeout(() => retryOnFailure(name, boot), BOOT_RETRY_MS);
   };
+  const started = () => failingPasses.report(name, false, () => `${name} failed to start`);
   try {
     const booting = boot();
-    if (booting && typeof booting.catch === 'function') booting.catch(retry);
+    if (booting && typeof booting.then === 'function') booting.then(started, retry);
+    else started();
   } catch (error) {
     retry(error);
   }
@@ -1762,8 +1772,8 @@ function retryOnFailure(boot) {
  * for the main node domain, per config.manageApps. One process per director.
  */
 function startRouting() {
-  retryOnFailure(async () => {
-    log.info('Initiating FDM routing services...');
+  log.info('Initiating FDM routing services...');
+  retryOnFailure('FDM routing', async () => {
     ipService.start();
     applicationChecks.startBlockheightRefresh();
     if (config.manageApps) {
@@ -1782,8 +1792,8 @@ function startRouting() {
  * haproxy state, so it never writes a config.
  */
 function startCertificates() {
-  retryOnFailure(() => {
-    log.info('Initiating CDM certificate services...');
+  log.info('Initiating CDM certificate services...');
+  retryOnFailure('CDM certificates', () => {
     ipService.start();
     dataFetcher = createDataFetcher();
     whenPublicIPKnown(() => {

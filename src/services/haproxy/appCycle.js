@@ -57,7 +57,7 @@ async function resolveAppLocations({
   return { locations, requests };
 }
 
-const appFailures = new ConditionLog();
+const appFailures = new ConditionLog({ level: 'error' });
 
 /**
  * Run per-app work across a cycle, excluding any app that fails.

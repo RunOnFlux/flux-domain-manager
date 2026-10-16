@@ -29,7 +29,11 @@ const path = require('node:path');
 const config = require('config');
 
 const log = require('../../lib/log');
+const { ConditionLog } = require('../conditionLog');
 const { backendCaFileName, BACKEND_CA_DIR } = require('./resolveBackendConfig');
+
+const unprunable = new ConditionLog();
+const unprovisioned = new ConditionLog({ level: 'error' });
 
 // How long a CA must go unreferenced before it is deleted. The grace period is what makes
 // this safe against a bad cycle: a truncated app list, a failed fetch, or an app that
@@ -113,10 +117,11 @@ async function pruneUnusedCas(dir, inUse, graceMs) {
       await fsp.unlink(filePath);
       removed += 1;
       log.info(`Removed the backend-TLS CA for ${match[1]}: unreferenced for over ${Math.round(graceMs / 3600000)}h`);
+      unprunable.report(entry, false, () => `Could not prune the backend-TLS CA ${entry}`);
     } catch (err) {
       // A CA we cannot remove is a bounded amount of dead disk, never a routing fault —
       // the renderer only ever names the CAs of apps it is actually routing.
-      log.warn(`Could not prune the backend-TLS CA ${entry}: ${err.message}`);
+      unprunable.report(entry, true, () => `Could not prune the backend-TLS CA ${entry}: ${err.message}`);
     }
   }));
   return removed;
@@ -151,11 +156,12 @@ async function provisionBackendCas(routeConfigs, fetcher, options = {}) {
           await writeAtomic(filePath, pem);
         }
         ready.add(identity);
+        unprovisioned.report(identity, false, () => `backend-TLS CA not provisioned for ${appName} (${identity})`);
       } catch (err) {
         // Left out of the ready set on purpose: the renderer will emit no verify directive
         // for this app, so it is unroutable until its CA lands — never routed unverified,
         // never a missing ca-file in the config.
-        log.error(`backend-TLS CA not provisioned for ${appName} (${identity}), leaving it unverified-down this cycle: ${err.message}`);
+        unprovisioned.report(identity, true, () => `backend-TLS CA not provisioned for ${appName} (${identity}), leaving it unverified-down until it is: ${err.message}`);
       }
     }));
   }

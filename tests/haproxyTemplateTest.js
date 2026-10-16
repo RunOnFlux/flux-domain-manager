@@ -4,9 +4,46 @@
 const chai = require('chai');
 const config = require('config');
 const haproxyTemplate = require('../src/services/haproxyTemplate');
+const { appendRouteConfigs } = require('../src/services/domainService');
 const { getPrimaryIP } = require('../src/services/rsync/config');
+const { looseBackends } = require('./unit/fixtures/renderPipeline');
 
 const { expect } = chai;
+
+// A registered v3 app on one port.
+const v3spec = (name, port, { repotag = 'nginx:latest', containerData = '/data' } = {}) => ({
+  version: 3,
+  name,
+  description: 'haproxy template fixture',
+  owner: '1AnonOwner0001FixtureXXXXXXXXXXXX',
+  repotag,
+  ports: [String(port)],
+  domains: [''],
+  enviromentParameters: [],
+  commands: [],
+  containerPorts: ['80'],
+  containerData,
+  cpu: 0.1,
+  ram: 100,
+  hdd: 1,
+  tiered: false,
+  instances: 3,
+  hash: `hash${name}`,
+  height: 2764314,
+});
+
+// The apps config for these apps, built by the routing loops' own path.
+async function appsConfigFor(apps) {
+  const routeConfigs = [];
+  // eslint-disable-next-line no-restricted-syntax
+  for (const { spec, ips, activeStandby = false } of apps) {
+    // eslint-disable-next-line no-await-in-loop
+    await appendRouteConfigs(routeConfigs, spec, looseBackends(ips), activeStandby);
+  }
+  return haproxyTemplate.createAppsHaproxyConfig(routeConfigs);
+}
+
+const serverLines = (backend) => backend.split('\n').filter((l) => l.trim().startsWith('server '));
 
 describe('haproxyTemplate', () => {
   // The letsEncryptBackend is computed at module load time based on config.certRenewalPrimary
@@ -45,16 +82,10 @@ describe('haproxyTemplate connection handling', () => {
     'cloud.zel.network',
   );
 
-  const appsConfig = haproxyTemplate.createAppsHaproxyConfig([{
-    domain: 'myapp.app.runonflux.io',
-    appName: 'myapp',
-    name: 'myapp',
-    port: 36127,
-    ips: ['1.2.3.4:16127'],
-    healthcheck: [],
-    serverConfig: '',
-    mode: 'http',
-  }]);
+  let appsConfig;
+  before(async () => {
+    appsConfig = await appsConfigFor([{ spec: v3spec('myapp', 36127), ips: ['1.2.3.4:16127'] }]);
+  });
 
   it('origin connections are pooled, never forced closed per request', () => {
     [mainConfig, appsConfig].forEach((cfg) => {
@@ -86,43 +117,23 @@ describe('haproxyTemplate connection handling', () => {
 // `r:` syncthing-replicated volume, whose instances are all meant to run and all
 // meant to serve - keeps every server active.
 describe('haproxyTemplate primaryOnly backends', () => {
-  // The shape addConfigurations builds, with application/custom.js defaults.
-  const app = (primaryOnly) => ({
-    name: 'someapp',
-    appName: 'someapp_31512',
-    domain: 'someapp.app.runonflux.io',
-    port: 31512,
-    ips: ['1.2.3.4:16127', '5.6.7.8:16127', '9.10.11.12:16127'],
-    primaryOnly,
-    ssl: false,
-    timeout: false,
-    headers: false,
-    loadBalance: false,
-    healthcheck: [],
-    serverConfig: '',
-    enableH2: false,
-    mode: 'http',
-    check: true,
-  });
-
-  const backendFor = (primaryOnly) => {
-    const generated = haproxyTemplate.createAppsHaproxyConfig([app(primaryOnly)]);
+  const ips = ['1.2.3.4:16127', '5.6.7.8:16127', '9.10.11.12:16127'];
+  const backendFor = async (spec) => {
+    const generated = await appsConfigFor([{ spec, ips }]);
     // Leading newline: `use_backend <name>` appears in the frontend first.
-    return generated.split('\nbackend someappapprunonfluxiobackend')[1].split('\nbackend ')[0];
+    return generated.split('\nbackend someapp_31512app2runonfluxiobackend')[1].split('\nbackend ')[0];
   };
 
-  it('marks every server after the first as backup for a replicated database', () => {
-    const backend = backendFor(true);
-    const servers = backend.split('\n').filter((l) => l.trim().startsWith('server '));
+  it('marks every server after the first as backup for a replicated database', async () => {
+    const servers = serverLines(await backendFor(v3spec('someapp', 31512, { repotag: 'runonflux/shared-db:latest' })));
     expect(servers).to.have.lengthOf(3);
     expect(servers[0]).to.not.contain(' backup');
     expect(servers[1]).to.contain(' backup');
     expect(servers[2]).to.contain(' backup');
   });
 
-  it('leaves every server active for an application that is not one', () => {
-    const backend = backendFor(false);
-    const servers = backend.split('\n').filter((l) => l.trim().startsWith('server '));
+  it('leaves every server active for an application that is not one', async () => {
+    const servers = serverLines(await backendFor(v3spec('someapp', 31512, { containerData: 'r:/data' })));
     expect(servers).to.have.lengthOf(3);
     servers.forEach((line) => expect(line).to.not.contain(' backup'));
   });
@@ -139,21 +150,14 @@ describe('haproxyTemplate server-side sockets and minecraft apps', () => {
     'cloud.zel.network',
   );
 
-  const app = (name, mode, port) => ({
-    domain: `${name}.app.runonflux.io`,
-    appName: name,
-    name,
-    port,
-    ips: ['1.2.3.4:16127'],
-    healthcheck: [],
-    serverConfig: '',
-    mode,
+  let appsConfig;
+  before(async () => {
+    appsConfig = await appsConfigFor([
+      // A minecraft server elects one primary, which is what gives its route tcp mode.
+      { spec: v3spec('minecraftsrv', 25565, { containerData: 'g:/data' }), ips: ['1.2.3.4:16127'], activeStandby: true },
+      { spec: v3spec('webapp', 36127), ips: ['1.2.3.4:16127'] },
+    ]);
   });
-
-  const appsConfig = haproxyTemplate.createAppsHaproxyConfig([
-    app('minecraftsrv', 'tcp', 25565),
-    app('webapp', 'http', 36127),
-  ]);
 
   it('binds every server-side connection through source 0.0.0.0, once, in defaults', () => {
     [mainConfig, appsConfig].forEach((cfg) => {
@@ -165,8 +169,8 @@ describe('haproxyTemplate server-side sockets and minecraft apps', () => {
 
   it('serves a minecraft app from its TCP frontend only, with no HTTP backend', () => {
     expect(appsConfig).to.include('frontend tcp_app_25565');
-    expect(appsConfig).to.include('backend minecraftsrvapprunonfluxio_tcp_backend');
-    expect(appsConfig).to.not.include('backend minecraftsrvapprunonfluxiobackend');
-    expect(appsConfig).to.include('backend webappapprunonfluxiobackend');
+    expect(appsConfig).to.match(/^backend minecraftsrv\S*_tcp_backend$/m);
+    expect(appsConfig).to.not.match(/^backend minecraftsrv\S*runonfluxiobackend$/m);
+    expect(appsConfig).to.match(/^backend webapp\S*runonfluxiobackend$/m);
   });
 });

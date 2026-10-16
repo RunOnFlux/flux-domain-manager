@@ -5,8 +5,12 @@
 // {hostPort}.{component}.{app} — live in config (config/customConfigs.json).
 // resolveCustomConfig is version-blind: it keys off resolved names and host ports,
 // so legacy and v9 routes look up the same rules (legacy specs simply match none
-// and fall to the default).
+// and fall to the default). A rule matches whatever the case of the names: some were
+// written for legacy names with capitals, and a v9 name is lowercase only.
 const config = require('config');
+
+const rules = new Map(Object.entries(config.customConfigs).map(([key, rule]) => [key.toLowerCase(), rule]));
+const ruleFor = (key) => rules.get(String(key).toLowerCase());
 
 function buildDefaultConfig(name, isActiveStandby) {
   const defaultConfig = {
@@ -54,7 +58,7 @@ function buildDefaultConfig(name, isActiveStandby) {
 // default with any matching per-route rule merged on top.
 function resolveCustomConfig(name, componentName, port, isActiveStandby) {
   const defaultConfig = buildDefaultConfig(name, isActiveStandby);
-  const rule = config.customConfigs[`${port}.${componentName}.${name}`];
+  const rule = ruleFor(`${port}.${componentName}.${name}`);
   return rule ? { ...defaultConfig, ...rule } : defaultConfig;
 }
 
@@ -65,7 +69,7 @@ function getCustomConfigs(specifications, isActiveStandby) {
   const configs = [];
   let mainPort = '';
   const merge = (key) => {
-    const rule = config.customConfigs[key];
+    const rule = ruleFor(key);
     const defaultConfig = buildDefaultConfig(specifications.name, isActiveStandby);
     return rule ? { ...defaultConfig, ...rule } : defaultConfig;
   };

@@ -12,7 +12,7 @@ const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/ce
 const applicationChecks = require('./application/checks');
 const { getApplicationsToProcess } = require('./application/subset');
 const { buildRouteConfigs } = require('./haproxy/buildRouteConfigs');
-const { publishRouteConfigs } = require('./haproxy/publication');
+const { runPublishCycle } = require('./haproxy/publication');
 const { resolveAppLocations, runPerApp } = require('./haproxy/appCycle');
 const { parseSocketAddress, unbracket } = require('./socketAddress');
 const { ConditionLog } = require('./conditionLog');
@@ -1354,13 +1354,12 @@ async function generateActiveActiveHaproxyConfig() {
     const slowestS = Math.round((slowestApp.ns / 1_000_000_000) * 100) / 100;
     log.info(`Total Active-Active apps processing time. Elapsed: ${elapsedAppsS}, slowest ${slowestApp.name} at ${slowestS}, location searches: ${searchRequests}`);
 
-    if (!admitConfiguredHalf('nonG', routeConfigs.length)) return;
-
     // Active-active configs always lead the combined config, so this loop's own configs
     // go first. The assignment is deliberately after the await: if haproxy rejects the
-    // config, publishRouteConfigs throws and the memo keeps its previous value, so the
-    // next cycle rebuilds and retries instead of matching the memo and skipping.
-    const outcome = await publishRouteConfigs({
+    // config, publishing throws and the memo keeps its previous value, so the next cycle
+    // rebuilds and retries instead of matching the memo and skipping.
+    const outcome = await runPublishCycle({
+      guard: { allows: (count) => admitConfiguredHalf('nonG', count) },
       next: routeConfigs,
       remembered: recentlyConfiguredActiveActiveRouteConfigs,
       counterpart: recentlyConfiguredActiveStandbyRouteConfigs,
@@ -1378,7 +1377,7 @@ async function generateActiveActiveHaproxyConfig() {
       },
     });
 
-    if (outcome.action === 'unchanged') return;
+    if (outcome.action === 'withheld' || outcome.action === 'unchanged') return;
     recentlyConfiguredActiveActiveRouteConfigs = outcome.remember;
   } catch (error) {
     log.error(error);
@@ -1504,12 +1503,11 @@ async function generateActiveStandbyHaproxyConfig() {
       }
     });
 
-    if (!admitConfiguredHalf('G', routeConfigs.length)) return;
-
     // Mirror of the active-active loop; active-active leads the combined config, so this
     // loop's counterpart goes first. Same memo ordering — advanced on the deferred path,
     // but only after a successful publish.
-    const outcome = await publishRouteConfigs({
+    const outcome = await runPublishCycle({
+      guard: { allows: (count) => admitConfiguredHalf('G', count) },
       next: routeConfigs,
       remembered: recentlyConfiguredActiveStandbyRouteConfigs,
       counterpart: recentlyConfiguredActiveActiveRouteConfigs,
@@ -1527,7 +1525,7 @@ async function generateActiveStandbyHaproxyConfig() {
       },
     });
 
-    if (outcome.action === 'unchanged') return;
+    if (outcome.action === 'withheld' || outcome.action === 'unchanged') return;
     recentlyConfiguredActiveStandbyRouteConfigs = outcome.remember;
   } catch (error) {
     log.error(error);

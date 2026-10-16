@@ -10,6 +10,7 @@
 const chai = require('chai');
 const config = require('config');
 const { applicationWithChecks, checkApplication } = require('../../src/services/application/checks');
+const log = require('../../src/lib/log');
 
 const { expect } = chai;
 
@@ -144,5 +145,41 @@ describe('app check dispatch', () => {
     for (const name of ['HavenNodeMainnet', 'AlgorandRPCMainnet', 'ergo', 'CeloRPC', 'subnetbittensor', 'KDLaunch']) {
       expect(applicationWithChecks({ name })).to.equal(false, name);
     }
+  });
+});
+
+describe('app check logging', () => {
+  let lines;
+  let real;
+  beforeEach(() => {
+    lines = [];
+    real = { info: log.info, warn: log.warn };
+    log.info = (m) => lines.push(m);
+    log.warn = (m) => lines.push(m);
+  });
+  afterEach(() => { log.info = real.info; log.warn = real.warn; });
+
+  const answering = (ok) => Object.fromEntries(
+    ['generalWebsite', 'fluxExplorer', 'bitcoinNode', 'alphExplorer', 'ethers', 'blockBook']
+      .map((name) => [name, async () => ok]),
+  );
+  const location = { ip: '5.6.7.8:16127' };
+
+  it('logs a failing instance once, however many passes it keeps failing', async () => {
+    for (let pass = 0; pass < 3; pass += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      expect(await checkApplication({ name: 'paoverview' }, location, null, answering(false))).to.equal(false);
+    }
+    expect(lines).to.have.lengthOf(1);
+    expect(lines[0]).to.contain('paoverview').and.contain('5.6.7.8:16127').and.contain('generalWebsite');
+  });
+
+  it('logs once when it passes again', async () => {
+    await checkApplication({ name: 'paoverview' }, location, null, answering(false));
+    lines = [];
+    await checkApplication({ name: 'paoverview' }, location, null, answering(true));
+    await checkApplication({ name: 'paoverview' }, location, null, answering(true));
+    expect(lines).to.have.lengthOf(1);
+    expect(lines[0]).to.contain('cleared');
   });
 });

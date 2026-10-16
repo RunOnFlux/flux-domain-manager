@@ -3,7 +3,7 @@
 /* eslint-disable no-unused-vars */
 const config = require('config');
 const httpClients = require('../httpClients');
-const log = require('../../lib/log');
+const { ConditionLog } = require('../conditionLog');
 const { createAppCountReference } = require('../../lib/appCountReference');
 const { parseSocketAddress } = require('../socketAddress');
 
@@ -17,10 +17,8 @@ async function checkLoginPhrase(ip, port) {
     if (response.data.status === 'success') {
       return true;
     }
-    log.info(`Function checkLoginPhrase false for ip ${ip}`);
     return false;
   } catch (error) {
-    log.info(`Function checkLoginPhrase failed for ip ${ip}`);
     return false;
   }
 }
@@ -36,10 +34,8 @@ async function isCommunicationOK(ip, port) {
         return true;
       }
     }
-    log.info(`Function isCommunicationOK false for ip ${ip}`);
     return false;
   } catch (error) {
-    log.info(`Function isCommunicationOK failed for ip ${ip}`);
     return false;
   }
 }
@@ -51,10 +47,8 @@ async function isHomeOK(ip, port) {
     if (/^<!doctype html>\s*<html/i.test(response.data)) {
       return true;
     }
-    log.info(`Function isHomeOK false for ip ${ip}`);
     return false;
   } catch (error) {
-    log.info(`Function isHomeOK failed for ip ${ip}`);
     return false;
   }
 }
@@ -100,10 +94,8 @@ async function isUptimeOK(ip, port) {
     if (response.data.data > 60) {
       return true;
     }
-    log.info(`Function isUptimeOK false for ip ${ip}`);
     return false;
   } catch (error) {
-    log.info(`Function isUptimeOK failed for ip ${ip}`);
     return false;
   }
 }
@@ -118,10 +110,8 @@ async function isVersionOK(ip, port) {
         return true;
       }
     }
-    log.info(`Function isVersionOK false for ip ${ip}`);
     return false;
   } catch (error) {
-    log.info(`Function isVersionOK failed for ip ${ip}`);
     return false;
   }
 }
@@ -147,10 +137,8 @@ async function isSyncedOK(ip, port) {
     if (height + 3 >= currentFluxBlockheight) {
       return true;
     }
-    log.info(`Function isSyncedOK false for ip ${ip}`);
     return false;
   } catch (error) {
-    log.info(`Function isSyncedOK failed for ip ${ip}`);
     return false;
   }
 }
@@ -162,10 +150,8 @@ async function isDaemonSyncedOK(ip, port) {
     if (response.data.data.blocks + 10 >= response.data.data.headers) {
       return true;
     }
-    log.info(`Function isDaemonSyncedOK false for ip ${ip}`);
     return false;
   } catch (error) {
-    log.info(`Function isDaemonSyncedOK failed for ip ${ip}`);
     return false;
   }
 }
@@ -198,22 +184,18 @@ async function hasManyApps(ip, port, {
     const response = await httpClients.nodeChecks.get(url, { timeout });
     const apps = response.data.data;
     if (!Array.isArray(apps) || apps.length === 0) {
-      log.info(`Function hasManyApps false for ip ${ip}: no app list`);
       return false;
     }
     const { minReported, maxDeviationRatio } = config.guards.mainNode;
     const { median, nodes } = reference.observe(`${ip}:${port}`, apps.length, now);
     if (nodes < minReported) {
-      log.info(`Function hasManyApps false for ip ${ip}: ${apps.length} apps, only ${nodes} nodes reported`);
       return false;
     }
     if (apps.length < median * (1 - maxDeviationRatio) || apps.length > median * (1 + maxDeviationRatio)) {
-      log.info(`Function hasManyApps false for ip ${ip}: ${apps.length} apps, median ${median} across ${nodes} nodes`);
       return false;
     }
     return true;
   } catch (error) {
-    log.info(`Function hasManyApps failed for ip ${ip}`);
     return false;
   }
 }
@@ -229,86 +211,59 @@ async function hasManyMessages(ip, port) {
         return true;
       }
     }
-    log.info(`Function hasManyMessages false for ip ${ip}`);
     return false;
   } catch (error) {
-    log.info(`Function hasManyMessages failed for ip ${ip}`);
     return false;
   }
 }
 
+// The checks a node must pass, in order, to serve the main node domains. A node is
+// reported by the first one it fails.
+const MAIN_FLUX_CHECKS = [
+  ['ArcaneOS', isArcaneOS],
+  ['uptime', isUptimeOK],
+  ['version', isVersionOK],
+  ['login phrase', checkLoginPhrase],
+  ['communication', isCommunicationOK],
+  ['explorer sync', isSyncedOK],
+  ['daemon sync', isDaemonSyncedOK],
+  ['app registry', (ip, port) => hasManyApps(ip, port)],
+  ['app messages', hasManyMessages],
+  ['UI', (ip, port) => isHomeOK(ip, +port - 1)],
+];
+const mainFluxFailures = new ConditionLog({ level: 'info' });
+
 async function checkMainFlux(ip, port = 16127) {
+  const node = `${ip}:${port}`;
+  let failed = null;
   try {
-    console.log(`Checking ${ip}:${port}`);
-    const isArcane = await isArcaneOS(ip, port);
-    console.log(`isArcane: ${isArcane}`);
-    if (isArcane) {
-      const uptimeOK = await isUptimeOK(ip, port);
-      console.log(`uptimeOK: ${uptimeOK}`);
-      if (uptimeOK) {
-        // eslint-disable-next-line no-await-in-loop
-        const versionOK = await isVersionOK(ip, port);
-        console.log(`versionOK: ${versionOK}`);
-        if (versionOK) {
-          // eslint-disable-next-line no-await-in-loop
-          const loginPhraseOK = await checkLoginPhrase(ip, port);
-          console.log(`loginPhraseOK: ${loginPhraseOK}`);
-          if (loginPhraseOK) {
-            // eslint-disable-next-line no-await-in-loop
-            const communicationOK = await isCommunicationOK(ip, port);
-            console.log(`communicationOK: ${communicationOK}`);
-            if (communicationOK) {
-              const isSynced = await isSyncedOK(ip, port);
-              console.log(`isSynced: ${isSynced}`);
-              if (isSynced) {
-                const isDaemonSynced = await isDaemonSyncedOK(ip, port);
-                console.log(`isDaemonSynced: ${isDaemonSynced}`);
-                if (isDaemonSynced) {
-                  const hasApps = await hasManyApps(ip, port);
-                  console.log(`hasApps: ${hasApps}`);
-                  if (hasApps) {
-                    const hasMessages = await hasManyMessages(ip, port);
-                    console.log(`hasMessages: ${hasMessages}`);
-                    if (hasMessages) {
-                      // eslint-disable-next-line no-await-in-loop
-                      const uiOK = await isHomeOK(ip, +port - 1);
-                      console.log(`uiOK: ${uiOK}`);
-                      if (uiOK) {
-                        console.log(`${ip}:${port} is OK`);
-                        return true;
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+    // eslint-disable-next-line no-restricted-syntax
+    for (const [name, check] of MAIN_FLUX_CHECKS) {
+      // eslint-disable-next-line no-await-in-loop
+      if (!(await check(ip, port))) {
+        failed = name;
+        break;
       }
     }
-    return false;
   } catch (error) {
-    console.log(error);
-    return false;
+    failed = `checks (${error.message})`;
   }
+  const said = failed;
+  mainFluxFailures.report(node, said !== null, () => `main node ${node} fails its ${said || 'main node'} check`);
+  return failed === null;
 }
 
 // POLKADOT
 
 async function checkALPHexplorer(ip, port) {
   try {
-    log.info(`Checking ALPH explorer on: http://${ip}:${port}/blocks`);
     const websiteResponse = await httpClients.nodeChecks.get(`http://${ip}:${port}/blocks`, { timeout: 14888 });
-    log.info('Response');
-    log.info(websiteResponse.data);
-    log.info(websiteResponse.data.blocks[0]);
     const minTime = new Date().getTime() - 2 * 60 * 60 * 1000;
     if (websiteResponse.data.blocks[0].timestamp > minTime) {
       return true;
     }
     return false;
   } catch (error) {
-    log.info(`Failed to check ALPH explorer: ${error.message}`);
     return false;
   }
 }
@@ -349,19 +304,8 @@ async function checkFluxExplorer(ip, port) {
 async function generalWebsiteCheck(ip, port, timeOut = 2500, appname) {
   try {
     const websiteResponse = await httpClients.nodeChecks.get(`http://${ip}:${port}`, { timeout: timeOut });
-    if (appname.startsWith('themok')) {
-      log.error(websiteResponse);
-    }
-    if (websiteResponse.data.includes('<html')) {
-      return true;
-    }
-    log.error(websiteResponse.data);
-    return false;
+    return websiteResponse.data.includes('<html');
   } catch (error) {
-    log.error(error);
-    if (appname.startsWith('themok')) {
-      log.error(error);
-    }
     return false;
   }
 }
@@ -412,6 +356,8 @@ function hasConsistentAddressIndex(addr) {
 // used to yield index -1, so the address became `undefined` and every height comparison
 // was `> undefined`, and the app could never pass however healthy it was — silently, since
 // nothing distinguished it from a genuinely stale node.
+const unknownCoins = new ConditionLog();
+
 async function checkBlockBook(ip, port, appsname, coins = blockBookCoins()) {
   try {
     const coin = blockBookCoin(appsname);
@@ -431,15 +377,13 @@ async function checkBlockBook(ip, port, appsname, coins = blockBookCoins()) {
       return false;
     }
     if (!isBlockBookFresh(info)) {
-      log.error(`Bad IP ${ip}:${port} blockbook ${appsname}`);
       return false;
     }
     if (!reference) {
-      log.warn(`blockbook ${appsname}: no reference data for coin "${coin}", checked for freshness only`);
+      unknownCoins.report(coin, true, () => `blockbook ${appsname}: no reference data for coin "${coin}", checked for freshness only`);
       return true;
     }
     if (info.blockbook.bestHeight <= reference.minHeight || info.backend.blocks <= reference.minHeight) {
-      log.error(`Bad IP ${ip}:${port} blockbook ${appsname}`);
       return false;
     }
 
@@ -447,10 +391,8 @@ async function checkBlockBook(ip, port, appsname, coins = blockBookCoins()) {
     if (hasConsistentAddressIndex(addr)) {
       return true;
     }
-    log.error(`Bad IP ${ip}:${port} blockbook ${appsname}`);
     return false;
   } catch (error) {
-    log.error(`Error checking blockbook endpoint: ${ip}:${port} ${error.message}`);
     return false;
   }
 }
@@ -542,7 +484,6 @@ async function checkBitcoinNode(ip, port, expectedChain) {
     return false;
   }
   if (expectedChain && result.chain !== expectedChain) {
-    log.info(`Bitcoin node ${ip}:${port} is on chain ${result.chain}, expected ${expectedChain}`);
     return false;
   }
   const tipAge = Date.now() - (result.time * 1000);
@@ -723,11 +664,13 @@ function stateFromNames(fetched, appSpec, replica = null) {
  * @param {Object} appSpec full application specification
  * @returns {Promise<boolean>} true if any g: component is running there
  */
+const noMasterComponent = new ConditionLog();
+
 async function checkAppRunningState(socketAddress, appSpec) {
   if (!getGComponentDockerNames(appSpec).length) {
     // Only reachable if a non-g: app got routed down the g: path. Passing here
     // would green-light every node, so refuse instead of guessing.
-    log.warn(`checkAppRunning: app ${appSpec.name} has no g: component, cannot identify a master`);
+    noMasterComponent.report(appSpec.name, true, () => `checkAppRunning: app ${appSpec.name} has no g: component, cannot identify a master`);
     return ProbeState.NOT_RUNNING;
   }
   return stateFromNames(await fetchRunningNames(socketAddress), appSpec);
@@ -831,6 +774,8 @@ function applicationWithChecks(app) {
 // address FDM routes to, and `servicePort` is set only when the location declared the
 // app's own port. `probes` is injectable so the dispatch can be tested without standing up
 // the network calls it selects. Production always uses PROBES.
+const failingAppChecks = new ConditionLog({ level: 'info' });
+
 async function checkApplication(app, location, deployment, probes = PROBES) {
   const rule = checkRuleFor(app.name);
   if (!rule) return true;
@@ -838,8 +783,11 @@ async function checkApplication(app, location, deployment, probes = PROBES) {
   const isOK = await probes[rule.probe](rule, {
     ip: location.ip, host, servicePort: location.servicePort || null, app, deployment,
   });
+  failingAppChecks.report(`${app.name} ${location.ip}`, !isOK, () => `Application ${app.name} on ${location.ip} fails its ${rule.probe} check`);
   return isOK;
 }
+
+const fluxHeightUnknown = new ConditionLog();
 
 async function refreshFluxBlockheight() {
   try {
@@ -848,8 +796,9 @@ async function refreshFluxBlockheight() {
     if (height > currentFluxBlockheight) {
       currentFluxBlockheight = height;
     }
+    fluxHeightUnknown.report('explorer', false, () => 'Error obtaining flux height');
   } catch (error) {
-    log.error(`Error obtaining flux height: ${error.message}`);
+    fluxHeightUnknown.report('explorer', true, () => `Error obtaining flux height: ${error.message}`);
   }
 }
 

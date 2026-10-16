@@ -890,5 +890,4 @@ module.exports = {
   checkALPHexplorer,
   hasManyApps,
   isArcaneOS,
-  hasManyApps,
 };

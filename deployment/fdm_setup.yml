@@ -8,19 +8,6 @@
       set_fact:
         certRenewalPrimary: "{{ 'true' if 'fn' in inventory_hostname else 'false' }}"
 
-    - name: Import MongoDB public GPG key
-      ansible.builtin.get_url:
-        url: "https://www.mongodb.org/static/pgp/server-6.0.asc"
-        dest: /etc/apt/keyrings/mongo.asc
-        mode: '0644'
-        force: true
-
-    - name: Add MongoDB repository
-      ansible.builtin.apt_repository:
-        repo: "deb [signed-by=/etc/apt/keyrings/mongo.asc] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse"
-        state: present
-        filename: mongodb-org-6.0
-
     - name: Update apt package list
       ansible.builtin.apt:
         update_cache: yes
@@ -35,7 +22,6 @@
           - gnupg
           - apt-transport-https
           - ca-certificates
-          - mongodb-org
           - build-essential
           - libssl-dev
           - curl
@@ -60,12 +46,6 @@
 
     - name: Install PM2 globally using NPM
       command: npm install -g pm2
-
-    - name: Enable and start MongoDB service
-      ansible.builtin.systemd:
-        name: mongod
-        state: started
-        enabled: yes
 
     - name: Ensure directory exists
       ansible.builtin.file:

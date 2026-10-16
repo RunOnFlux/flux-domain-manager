@@ -1598,7 +1598,7 @@ function createDataFetcher() {
     certPath: '/etc/ssl/certs/fdm-arcane.pem',
     caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
     fluxApiBaseUrl: 'https://api.runonflux.io/',
-    specDecrypt: config.specDecrypt,
+    cryptoService: config.cryptoService,
   });
 }
 

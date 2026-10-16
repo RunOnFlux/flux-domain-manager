@@ -47,7 +47,7 @@ class FdmDataFetcher extends EventEmitter {
   /**
    * @type {{ rsaDecrypt: string, gcmDecrypt: string }}
    */
-  #specDecryptEndpoints;
+  #cryptoEndpoints;
 
   /**
    * Memoized promise for the one-time decrypt-provider registration.
@@ -113,13 +113,13 @@ class FdmDataFetcher extends EventEmitter {
    *   certPath: string,
    *   caPath: string,
    *   fluxApiBaseUrl: string,
-   *   specDecrypt: { baseUrl: string, rsaDecryptPath: string, gcmDecryptPath: string }}} options
+   *   cryptoService: { baseUrl: string, rsaDecryptPath: string, gcmDecryptPath: string }}} options
    */
   constructor(options) {
     super();
 
     const {
-      keyPath, certPath, caPath, fluxApiBaseUrl, specDecrypt, guardStore,
+      keyPath, certPath, caPath, fluxApiBaseUrl, cryptoService, guardStore,
     } = options;
 
     this.#guardStore = guardStore ?? sharedGuardStore();
@@ -131,7 +131,7 @@ class FdmDataFetcher extends EventEmitter {
     });
 
     this.#cryptoApi = createHttpClient({
-      baseURL: specDecrypt.baseUrl,
+      baseURL: cryptoService.baseUrl,
       timeoutMs: 10_000,
       tls: {
         key: fs.readFileSync(keyPath),
@@ -140,9 +140,9 @@ class FdmDataFetcher extends EventEmitter {
       },
     });
 
-    this.#specDecryptEndpoints = {
-      rsaDecrypt: specDecrypt.rsaDecryptPath,
-      gcmDecrypt: specDecrypt.gcmDecryptPath,
+    this.#cryptoEndpoints = {
+      rsaDecrypt: cryptoService.rsaDecryptPath,
+      gcmDecrypt: cryptoService.gcmDecryptPath,
     };
   }
 
@@ -210,7 +210,7 @@ class FdmDataFetcher extends EventEmitter {
     if (!this.#providersReady) {
       this.#providersReady = registerSpecDecryptProviders({
         http: this.#cryptoApi,
-        endpoints: this.#specDecryptEndpoints,
+        endpoints: this.#cryptoEndpoints,
       });
     }
     return this.#providersReady;
@@ -830,7 +830,7 @@ async function main() {
     certPath: '/etc/ssl/certs/fdm-arcane.pem',
     caPath: '/etc/ssl/certs/fdm-arcane-ca.pem',
     fluxApiBaseUrl: 'https://api.runonflux.io/',
-    specDecrypt: config.specDecrypt,
+    cryptoService: config.cryptoService,
   });
 
   dataFetcher.startAppSpecLoop();

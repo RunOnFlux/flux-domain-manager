@@ -49,7 +49,7 @@ function newFetcher(port, guardStateFile) {
     certPath: path.join(tlsDir, 'cert'),
     caPath: path.join(tlsDir, 'ca'),
     fluxApiBaseUrl: `http://127.0.0.1:${port}/`,
-    specDecrypt: { baseUrl: 'https://127.0.0.1:1/', rsaDecryptPath: '/rsa', gcmDecryptPath: '/gcm' },
+    cryptoService: { baseUrl: 'https://127.0.0.1:1/', rsaDecryptPath: '/rsa', gcmDecryptPath: '/gcm' },
   });
 }
 

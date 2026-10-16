@@ -58,7 +58,7 @@ describe('ingestion — version-blind classification + crash guard', () => {
     const fetcher = new FdmDataFetcher({
       ...stubCerts(),
       fluxApiBaseUrl: 'http://localhost',
-      specDecrypt: { baseUrl: 'http://localhost', rsaDecryptPath: 'decryptMessageRSA', gcmDecryptPath: 'v2/decrypt' },
+      cryptoService: { baseUrl: 'http://localhost', rsaDecryptPath: 'decryptMessageRSA', gcmDecryptPath: 'v2/decrypt' },
     });
 
     // Missing required fields — deserialize rejects it.

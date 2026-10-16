@@ -2,7 +2,7 @@ const appsConfig = require('./appsConfig');
 const guardsConfig = require('./guardsConfig');
 const customConfigs = require('./customConfigs');
 const haproxyRouting = require('./haproxyRouting');
-const specDecrypt = require('./specDecrypt');
+const cryptoService = require('./cryptoService');
 const domainOverrides = require('./domainOverrides');
 const sharedDbRouting = require('./sharedDbRouting');
 const appChecks = require('./appChecks');
@@ -34,7 +34,7 @@ module.exports = {
   },
   customConfigs,
   haproxyRouting,
-  specDecrypt,
+  cryptoService,
   domainOverrides,
   sharedDbRouting,
   appChecks,

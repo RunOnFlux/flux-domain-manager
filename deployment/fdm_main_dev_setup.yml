@@ -131,7 +131,7 @@
         - appsConfig.js
         - customConfigs.json
         - haproxyRouting.json
-        - specDecrypt.json
+        - cryptoService.json
         - domainOverrides.json
         - sharedDbRouting.json
         - appChecks.json

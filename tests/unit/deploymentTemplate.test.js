@@ -6,7 +6,7 @@ const path = require('path');
 // Ansible renders deployment/default.js.j2 over config/default.js on every director, so
 // the template IS the production config — a key present here but missing there is
 // undefined on the whole fleet at once, on the next deploy. That has now happened twice
-// (customConfigs/haproxyRouting/specDecrypt/domainOverrides, then
+// (customConfigs/haproxyRouting/cryptoService/domainOverrides, then
 // sharedDbRouting/appChecks/staticLocations), so it is pinned rather than remembered.
 const CONFIG_DIR = path.join(__dirname, '..', '..', 'config');
 const TEMPLATE = path.join(__dirname, '..', '..', 'deployment', 'default.js.j2');

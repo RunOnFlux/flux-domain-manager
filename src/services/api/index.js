@@ -1,6 +1,7 @@
 const serviceHelper = require('../serviceHelper');
 const log = require('../../lib/log');
 const domainService = require('../domainService');
+const { parseSocketAddress, unbracket } = require('../socketAddress');
 
 async function pkiValidation(req, res) {
   try {
@@ -46,12 +47,16 @@ function getAppIpsAPI(req, res) {
       return res.status(404).json(errMessage);
     }
 
-    const uniqueIps = [...new Set(matchingApps.flatMap((app) => app.ips.map((ip) => ip.split(':')[0])))];
+    // The route configs hold socket addresses; this endpoint reports the hosts. The
+    // response field stays `ips` — FluxOS reads it to elect the active-standby master.
+    const uniqueHosts = [...new Set(matchingApps.flatMap(
+      (app) => app.ips.map((socketAddress) => unbracket(parseSocketAddress(socketAddress).host)),
+    ))];
 
     const resMessage = serviceHelper.createDataMessage({
       appName: matchingApps[0].name,
-      ips: uniqueIps,
-      count: uniqueIps.length,
+      ips: uniqueHosts,
+      count: uniqueHosts.length,
     });
     return res.json(resMessage);
   } catch (error) {

@@ -14,7 +14,7 @@ const { getApplicationsToProcess } = require('./application/subset');
 const { buildRouteConfigs } = require('./haproxy/buildRouteConfigs');
 const { publishRouteConfigs } = require('./haproxy/publication');
 const { resolveAppLocations, runPerApp } = require('./haproxy/appCycle');
-const { parseSocketAddress } = require('./socketAddress');
+const { parseSocketAddress, unbracket } = require('./socketAddress');
 const { ConditionLog } = require('./conditionLog');
 const specLibs = require('./flux/specLibs');
 const { startCertRsync } = require('./rsync');
@@ -552,9 +552,8 @@ async function buildNodeSnapshot(ips, fetcher, options = {}, into = null) {
  * sum itself, with the address as the tiebreak, keeps the documented intent and
  * makes the answer the same everywhere.
  */
-function ipDigitSum(ip) {
-  return ip
-    .split(':')[0]
+function ipDigitSum(socketAddress) {
+  return unbracket(parseSocketAddress(socketAddress).host)
     .split('.')
     .reduce((a, b) => parseInt(a, 10) + parseInt(b, 10), 0);
 }
@@ -1259,7 +1258,7 @@ async function resolveBackends(app, appLocations) {
       const httpTimeout = 5000;
       // eslint-disable-next-line no-restricted-syntax
       for (const ip of appIps) {
-        const url = `http://${ip.split(':')[0]}:${apiPort}/status`;
+        const url = `http://${parseSocketAddress(ip).host}:${apiPort}/status`;
         log.info(`sharedDBApps: ${app.name} going to check operator status on url ${url}`);
         // eslint-disable-next-line no-await-in-loop
         const operatorStatus = await httpClients.nodeChecks

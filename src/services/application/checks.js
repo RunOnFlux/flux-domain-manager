@@ -3,7 +3,7 @@ const config = require('config');
 const httpClients = require('../httpClients');
 const log = require('../../lib/log');
 const { createAppCountReference } = require('../../lib/appCountReference');
-const { splitAddress } = require('../haproxy/appCycle');
+const { parseSocketAddress } = require('../socketAddress');
 
 const timeout = 5456;
 let currentFluxBlockheight = 1968478;
@@ -630,17 +630,16 @@ const PROBE_TIMEOUT_MS = 6000;
  * Either way it is `ok: false`: a node that cannot say what it holds has not
  * said it holds nothing.
  *
- * @param {string} url node ip, optionally with api port
+ * @param {string} socketAddress the node's address, with its API port when not the default
  * @param {string} route endpoint path
  * @param {number} [timeoutMs] probe timeout; a node already believed down is
  *   given a shorter one, since that wait is paid on every pass
  * @returns {Promise<{ok: boolean, answered: boolean, names: Set<string>}>}
  */
-async function fetchNodeNames(url, route, timeoutMs = PROBE_TIMEOUT_MS) {
+async function fetchNodeNames(socketAddress, route, timeoutMs = PROBE_TIMEOUT_MS) {
   try {
-    const ip = url.split(':')[0];
-    const port = url.split(':')[1] || 16127;
-    const response = await httpClients.nodeChecks.get(`http://${ip}:${port}${route}`, { timeout: timeoutMs });
+    const { host, port } = parseSocketAddress(socketAddress);
+    const response = await httpClients.nodeChecks.get(`http://${host}:${port || 16127}${route}`, { timeout: timeoutMs });
     const payload = response.data && response.data.data;
     // A 200 carrying an in-band error object: answered, but unreadable.
     if (!Array.isArray(payload)) return { ok: false, answered: true, names: new Set() };
@@ -667,23 +666,23 @@ async function fetchNodeNames(url, route, timeoutMs = PROBE_TIMEOUT_MS) {
 
 /**
  * Everything one node is running, as bare container names.
- * @param {string} url node ip, optionally with api port
+ * @param {string} socketAddress the node's address, with its API port when not the default
  * @param {number} [timeoutMs] probe timeout
  * @returns {Promise<{ok: boolean, names: Set<string>}>}
  */
-function fetchRunningNames(url, timeoutMs) {
-  return fetchNodeNames(url, '/apps/listrunningapps', timeoutMs);
+function fetchRunningNames(socketAddress, timeoutMs) {
+  return fetchNodeNames(socketAddress, '/apps/listrunningapps', timeoutMs);
 }
 
 /**
  * Everything one node reports HOLDING, as bare container names.
  * A node too old for the route answers 404, which is `ok: false` - it cannot say.
- * @param {string} url node ip, optionally with api port
+ * @param {string} socketAddress the node's address, with its API port when not the default
  * @param {number} [timeoutMs] probe timeout
  * @returns {Promise<{ok: boolean, names: Set<string>}>}
  */
-function fetchHeldNames(url, timeoutMs) {
-  return fetchNodeNames(url, '/apps/heldcomponents', timeoutMs);
+function fetchHeldNames(socketAddress, timeoutMs) {
+  return fetchNodeNames(socketAddress, '/apps/heldcomponents', timeoutMs);
 }
 
 /**
@@ -707,22 +706,22 @@ function stateFromNames(fetched, appSpec, replica = null) {
  * A master whose other components have stopped is still the master, and still
  * serves the ports of the components it does have up, so this deliberately does
  * not require all of them.
- * @param {string} url node ip, optionally with api port
+ * @param {string} socketAddress the node's address, with its API port when not the default
  * @param {Object} appSpec full application specification
  * @returns {Promise<boolean>} true if any g: component is running there
  */
-async function checkAppRunningState(url, appSpec) {
+async function checkAppRunningState(socketAddress, appSpec) {
   if (!getGComponentDockerNames(appSpec).length) {
     // Only reachable if a non-g: app got routed down the g: path. Passing here
     // would green-light every node, so refuse instead of guessing.
     log.warn(`checkAppRunning: app ${appSpec.name} has no g: component, cannot identify a master`);
     return ProbeState.NOT_RUNNING;
   }
-  return stateFromNames(await fetchRunningNames(url), appSpec);
+  return stateFromNames(await fetchRunningNames(socketAddress), appSpec);
 }
 
-async function checkAppRunning(url, appSpec) {
-  return (await checkAppRunningState(url, appSpec)) === ProbeState.RUNNING;
+async function checkAppRunning(socketAddress, appSpec) {
+  return (await checkAppRunningState(socketAddress, appSpec)) === ProbeState.RUNNING;
 }
 
 /**
@@ -745,13 +744,13 @@ async function checkAppRunning(url, appSpec) {
  * unreachable one throws, and both mean "cannot say", which reads as false and
  * leaves today's behaviour exactly as it was. Only an explicit yes counts.
  *
- * @param {string} url node ip, optionally with api port
+ * @param {string} socketAddress the node's address, with its API port when not the default
  * @param {Object} appSpec full application specification
  * @returns {Promise<boolean>} true only if the node states it holds a g: component
  */
-async function checkAppHeldState(url, appSpec) {
+async function checkAppHeldState(socketAddress, appSpec) {
   if (!getGComponentDockerNames(appSpec).length) return ProbeState.NOT_RUNNING;
-  return stateFromNames(await fetchHeldNames(url), appSpec);
+  return stateFromNames(await fetchHeldNames(socketAddress), appSpec);
 }
 
 async function checkAppHeld(url, appSpec) {
@@ -818,7 +817,7 @@ function applicationWithChecks(app) {
 async function checkApplication(app, location, deployment, probes = PROBES) {
   const rule = checkRuleFor(app.name);
   if (!rule) return true;
-  const { host } = splitAddress(location.ip);
+  const { host } = parseSocketAddress(location.ip);
   const isOK = await probes[rule.probe](rule, {
     ip: location.ip, host, servicePort: location.servicePort || null, app, deployment,
   });

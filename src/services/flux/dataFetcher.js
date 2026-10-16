@@ -556,10 +556,15 @@ class FdmDataFetcher extends EventEmitter {
     await classifyAll(decryptedSpecs);
     log.info(`app specs classified (post-decrypt): ${counts()}`);
 
+    // Each app's identity is a field of its entry in the list, beside the spec; a
+    // decrypted spec does not carry it, so it is passed on by name.
+    const identities = new Map(specs.filter((spec) => spec && spec.identity).map((spec) => [spec.name, spec.identity]));
+
     this.emit('appSpecsUpdated', {
       activeStandbyApps: activeStandbyAppsMap,
       activeActiveApps: activeActiveAppsMap,
       appFqdns,
+      identities,
     });
   }
 

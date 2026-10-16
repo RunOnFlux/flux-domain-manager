@@ -161,6 +161,15 @@ let dataFetcher = null;
 let activeActiveApps = new Map();
 let activeStandbyApps = new Map();
 let appsLocations = new Map();
+// Each app's identity, by name, from the downloaded app list. Kept apart from the app
+// objects because a decrypted spec carries no record fields.
+let appIdentities = new Map();
+const identityOf = (app) => appIdentities.get(app.name);
+
+/** Replace the identities the pass reads, as the app-list update does. */
+function setAppIdentities(identities) {
+  appIdentities = identities;
+}
 
 const runQueue = {
   activeStandbyApps: { running: false, queued: false },
@@ -410,6 +419,11 @@ function resetNodeReachability() {
   unreachableNodes.clear();
 }
 
+// What a node that gave no answer says about every instance on it: UNKNOWN.
+const UNREADABLE_NODE = Object.freeze({
+  ok: false, answered: false, kind: null, identity: null, names: null,
+});
+
 /**
  * Ask every node once what it is running, retrying only the ones that could not
  * answer.
@@ -446,13 +460,13 @@ function resetNodeReachability() {
  * so a node that recovers costs itself one pass, never more.
  *
  * @param {string[]} ips node addresses, duplicates tolerated
- * @param {Function} fetcher applicationChecks.fetchRunningNames or fetchHeldNames
+ * @param {Function} fetcher (node, timeoutMs) => what the node says, from nodeStateFetcher
  * @param {Object} [options]
  * @param {number} [options.timeoutMs] first-contact probe timeout
  * @param {number} [options.knownBadTimeoutMs] probe timeout for a node already down
  * @param {number} [options.deadlineAt] monotonic ms the whole pass must stop by
  * @param {Map} [into] snapshot to extend; entries already present are not re-asked
- * @returns {Promise<Map<string, {ok: boolean, names: Set<string>}>>}
+ * @returns {Promise<Map<string, Object>>} node -> applicationChecks.fetchNodeState's answer
  */
 async function buildNodeSnapshot(ips, fetcher, options = {}, into = null) {
   const {
@@ -536,7 +550,7 @@ async function buildNodeSnapshot(ips, fetcher, options = {}, into = null) {
   // Everything still unanswered is unreadable, and must say so rather than pass
   // for a node that is simply running nothing.
   for (const ip of [...pending, ...writtenOff]) {
-    snapshot.set(ip, { ok: false, names: new Set() });
+    snapshot.set(ip, UNREADABLE_NODE);
     // UNKNOWN either way - but only a node that got its full ladder has actually
     // told us anything, and only that one is remembered.
     if (!deadlineCut) noteUnreachable(ip, gaveFullBudget.has(ip));
@@ -581,14 +595,29 @@ function orderedCandidates(ips, stickyIp) {
   });
 }
 
-// One probe per node answers for every instance on it: the instance's own container
-// names are matched in that node's answer.
+// One probe per node answers for every instance on it: the instance is matched in that
+// node's answer by its app's identity, or by its container names where that is unknown.
 function probeState(snapshot, key, app) {
-  return applicationChecks.stateFromNames(
-    snapshot.get(nodeOf(key)) || { ok: false, names: new Set() },
+  return applicationChecks.stateOf(
+    snapshot.get(nodeOf(key)) || UNREADABLE_NODE,
     app,
+    identityOf(app),
     replicaOf(key),
   );
+}
+
+// What each node must be asked for the apps a phase decides: by identity for an app
+// whose identity is known, by container name for one whose is not.
+function nodeStateFetcher(entries, kind) {
+  const needs = new Map();
+  entries.forEach(({ app, ips }) => ips.forEach((key) => {
+    const node = nodeOf(key);
+    const need = needs.get(node) || { byIdentity: false, byName: false };
+    if (identityOf(app) !== undefined) need.byIdentity = true;
+    else need.byName = true;
+    needs.set(node, need);
+  }));
+  return (node, timeoutMs) => applicationChecks.fetchNodeState(node, timeoutMs, { ...needs.get(node), kind });
 }
 
 /**
@@ -849,7 +878,7 @@ async function selectActiveStandbyPrimaries(apps, locations, options = {}) {
 
   const stickySnapshot = await buildNodeSnapshot(
     stickyIps.map(nodeOf),
-    applicationChecks.fetchRunningNames,
+    nodeStateFetcher(withIps, 'running'),
     passOptions,
   );
 
@@ -869,7 +898,7 @@ async function selectActiveStandbyPrimaries(apps, locations, options = {}) {
     // the ones that failed - so this asks only about nodes nobody has asked yet.
     const candidateSnapshot = await buildNodeSnapshot(
       needCandidates.flatMap((e) => e.ips).map(nodeOf),
-      applicationChecks.fetchRunningNames,
+      nodeStateFetcher(needCandidates, 'running'),
       passOptions,
       stickySnapshot,
     );
@@ -893,7 +922,7 @@ async function selectActiveStandbyPrimaries(apps, locations, options = {}) {
     }
     const heldSnapshot = await buildNodeSnapshot(
       unresolved.flatMap((e) => e.ips).map(nodeOf),
-      applicationChecks.fetchHeldNames,
+      nodeStateFetcher(unresolved, 'held'),
       passOptions,
       seed,
     );
@@ -1150,7 +1179,7 @@ async function appendRouteConfigs(routeConfigs, app, backends, isActiveStandby) 
   // meant to run and ALL meant to serve. An app that needs a single serving instance says
   // so with activeStandby.
   const primaryOnly = runsSharedDb(deployments.get(null));
-  routeConfigs.push(...buildRouteConfigs(deployments, { name: app.name, identity: app.identity }, backends, isActiveStandby, primaryOnly, ownsDomain, onConflict));
+  routeConfigs.push(...buildRouteConfigs(deployments, { name: app.name, identity: identityOf(app) }, backends, isActiveStandby, primaryOnly, ownsDomain, onConflict));
   replicaConflicts.report(app.name, conflicts.length > 0, () => `${app.name}: replicas disagree with an earlier replica, keeping the first: ${conflicts.join('; ')}`);
   disownedDomains.report(app.name, disowned.length > 0, () => `${app.name}: skipped custom domain(s) owned by another app: ${disowned.join(', ')}`);
 }
@@ -1700,6 +1729,7 @@ async function startApplicationProcessing() {
       ownership.setAppDomains(specs.appFqdns);
       activeActiveApps = specs.activeActiveApps;
       activeStandbyApps = specs.activeStandbyApps;
+      appIdentities = specs.identities;
     },
   );
 
@@ -1857,4 +1887,5 @@ module.exports = {
   resolveBackends,
   runsSharedDb,
   appendRouteConfigs,
+  setAppIdentities,
 };

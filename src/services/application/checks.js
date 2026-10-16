@@ -526,6 +526,9 @@ function getGComponentDockerNames(appSpec, replica = null) {
       ? [getDockerNameIdentifier(`${appSpec.name}${suffix}`)]
       : [];
   }
+  // A v9 component's container is named by its key, which only its node holds, so a
+  // v9 app is matched by identity (stateOf) and has no names here.
+  if (!appSpec.compose) return [];
   return appSpec.compose
     .filter((comp) => comp.containerData.includes('g:'))
     .map((comp) => getDockerNameIdentifier(`${comp.name}_${appSpec.name}${suffix}`));
@@ -652,6 +655,100 @@ function stateFromNames(fetched, appSpec, replica = null) {
   if (!expectedNames.length) return ProbeState.NOT_RUNNING;
   const hit = expectedNames.some((name) => fetched.names.has(name.replace(/^\//, '')));
   return hit ? ProbeState.RUNNING : ProbeState.NOT_RUNNING;
+}
+
+const instanceOf = (identity, replica) => `${identity}#${replica ?? ''}`;
+
+/**
+ * One node's activeStandby components by app identity, from GET /v2/apps/activestandby.
+ * `served: false` is a node that answers 404/501: it runs a FluxOS without the route,
+ * and is asked by container name instead. Every other failure is retried, as in
+ * fetchNodeNames.
+ *
+ * @param {string} socketAddress the node's address, with its API port when not the default
+ * @param {number} [timeoutMs] probe timeout
+ * @returns {Promise<{ok: boolean, answered: boolean, served: boolean, running: Set<string>,
+ *   held: Set<string>, unreadable: Set<string>}>} `running` and `held` hold
+ *   `identity#replica` keys; `held` includes `running`, as /apps/heldcomponents does
+ */
+async function fetchActiveStandby(socketAddress, timeoutMs = PROBE_TIMEOUT_MS) {
+  const empty = { running: new Set(), held: new Set(), unreadable: new Set() };
+  try {
+    const { host, port } = parseSocketAddress(socketAddress);
+    const response = await httpClients.nodeChecks.get(`http://${host}:${port || 16127}/v2/apps/activestandby`, { timeout: timeoutMs });
+    const data = response.data && response.data.data;
+    if (!data || !Array.isArray(data.components) || !Array.isArray(data.unreadable)) {
+      return {
+        ok: false, answered: true, served: true, ...empty,
+      };
+    }
+    const running = new Set();
+    const held = new Set();
+    data.components.forEach(({ identity, replica, state }) => {
+      const key = instanceOf(identity, replica);
+      held.add(key);
+      if (state === 'running') running.add(key);
+    });
+    return {
+      ok: true, answered: true, served: true, running, held, unreadable: new Set(data.unreadable),
+    };
+  } catch (error) {
+    const status = error.response ? error.response.status : 0;
+    const routeWillNeverExist = status === 404 || status === 501;
+    return {
+      ok: false, answered: routeWillNeverExist, served: !routeWillNeverExist, ...empty,
+    };
+  }
+}
+
+/**
+ * What one node says about the activeStandby apps a pass is deciding there, asked
+ * only what those apps need: by identity for an app whose identity is known, by
+ * container name for one whose is not, and by name too where the node does not serve
+ * the identity route.
+ *
+ * @param {string} socketAddress
+ * @param {number} timeoutMs
+ * @param {{byIdentity?: boolean, byName?: boolean, kind: ('running'|'held')}} needs
+ * @returns {Promise<{ok: boolean, answered: boolean, kind: string,
+ *   identity: (Object|null), names: (Object|null)}>}
+ */
+async function fetchNodeState(socketAddress, timeoutMs, { byIdentity = false, byName = false, kind }) {
+  const asked = byIdentity ? await fetchActiveStandby(socketAddress, timeoutMs) : null;
+  const identity = asked && asked.served ? asked : null;
+  const needNames = byName || (asked !== null && !asked.served);
+  const route = kind === 'held' ? '/apps/heldcomponents' : '/apps/listrunningapps';
+  const names = needNames ? await fetchNodeNames(socketAddress, route, timeoutMs) : null;
+  const parts = [identity, names].filter(Boolean);
+  return {
+    ok: parts.every((part) => part.ok),
+    answered: parts.every((part) => part.ok || part.answered),
+    kind,
+    identity,
+    names,
+  };
+}
+
+/**
+ * Read a node's answer as a verdict about one instance of an activeStandby app: by its
+ * identity when known and the node answered the identity route, by container name
+ * otherwise. An app the node cannot read is UNKNOWN, never NOT_RUNNING.
+ *
+ * @param {{kind: string, identity: (Object|null), names: (Object|null)}} fetched
+ * @param {Object} appSpec
+ * @param {string|undefined} identity the app's identity, undefined when not known
+ * @param {string|null} [replica]
+ * @returns {string} a ProbeState
+ */
+function stateOf(fetched, appSpec, identity, replica = null) {
+  if (identity !== undefined && fetched.identity) {
+    const answer = fetched.identity;
+    if (!answer.ok || answer.unreadable.has(identity)) return ProbeState.UNKNOWN;
+    const present = fetched.kind === 'held' ? answer.held : answer.running;
+    return present.has(instanceOf(identity, replica)) ? ProbeState.RUNNING : ProbeState.NOT_RUNNING;
+  }
+  if (fetched.names) return stateFromNames(fetched.names, appSpec, replica);
+  return ProbeState.UNKNOWN;
 }
 
 /**
@@ -833,6 +930,9 @@ module.exports = {
   fetchRunningNames,
   fetchHeldNames,
   stateFromNames,
+  fetchActiveStandby,
+  fetchNodeState,
+  stateOf,
   ProbeState,
   PROBE_TIMEOUT_MS,
   getGComponentDockerNames,

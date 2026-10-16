@@ -129,3 +129,44 @@ describe('a 200 carrying no payload is nothing to process', () => {
     }
   });
 });
+
+describe('the app list update', () => {
+  // A v3 app as the list carries it: the spec, and the record's fields beside it.
+  const record = (name, identity) => ({
+    version: 3,
+    name,
+    description: 'identity fixture',
+    owner: '1AnonOwner0001FixtureXXXXXXXXXXXX',
+    repotag: 'nginx:latest',
+    ports: ['31000'],
+    domains: [''],
+    enviromentParameters: [],
+    commands: [],
+    containerPorts: ['80'],
+    containerData: '/data',
+    cpu: 0.1,
+    ram: 100,
+    hdd: 1,
+    tiered: false,
+    instances: 3,
+    hash: `hash${name}`,
+    height: 2764314,
+    ...(identity ? { identity } : {}),
+  });
+
+  it('passes on each app\'s identity from its entry in the list, by name', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fdm-identities-'));
+    try {
+      const fetcher = constructedFetcher(dir);
+      let update = null;
+      fetcher.on('appSpecsUpdated', (u) => { update = u; });
+      const identity = `b${'c'.repeat(52)}`;
+
+      await fetcher.processAppSpecs([record('withid', identity), record('withoutid')]);
+
+      expect([...update.identities]).to.deep.equal([['withid', identity]]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

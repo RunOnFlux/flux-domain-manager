@@ -7,35 +7,25 @@
 // emitted ~8,600 times a day, per affected app — which buries the event it was meant to
 // surface.
 //
-// So: log when the condition starts, log again periodically while it lasts (with how long
-// it has been going, which is what an operator actually wants to know), and log when it
-// clears. A lost start still surfaces at the next re-assertion rather than staying silent.
+// So: log when the condition starts, and when it clears, with how long it lasted.
 const log = require('../lib/log');
-
-const DEFAULT_REASSERT_MS = 15 * 60 * 1000;
 
 class ConditionLog {
   #since = new Map();
-
-  #lastSaid = new Map();
-
-  #reassertMs;
 
   #now;
 
   /**
    * @param {Object} [opts]
-   * @param {number} [opts.reassertMs] how often to restate a condition that persists
    * @param {Function} [opts.now] clock, injectable for tests
    */
-  constructor({ reassertMs = DEFAULT_REASSERT_MS, now = Date.now } = {}) {
-    this.#reassertMs = reassertMs;
+  constructor({ now = Date.now } = {}) {
     this.#now = now;
   }
 
   /**
-   * Report whether a condition currently holds. Logs only on the edges and on the
-   * re-assertion interval.
+   * Report whether a condition currently holds. Logs only when it starts and when it
+   * clears.
    *
    * @param {string} key what the condition is about (an app name, a node address)
    * @param {boolean} active whether it holds right now
@@ -49,7 +39,6 @@ class ConditionLog {
       if (this.#since.has(key)) {
         const heldMs = now - this.#since.get(key);
         this.#since.delete(key);
-        this.#lastSaid.delete(key);
         log.info(`${describe(heldMs)} — cleared after ${ConditionLog.humanize(heldMs)}`);
       }
       return;
@@ -57,15 +46,7 @@ class ConditionLog {
 
     if (!this.#since.has(key)) {
       this.#since.set(key, now);
-      this.#lastSaid.set(key, now);
       log.warn(describe(0));
-      return;
-    }
-
-    if (now - this.#lastSaid.get(key) >= this.#reassertMs) {
-      this.#lastSaid.set(key, now);
-      const heldMs = now - this.#since.get(key);
-      log.warn(`${describe(heldMs)} — ongoing for ${ConditionLog.humanize(heldMs)}`);
     }
   }
 

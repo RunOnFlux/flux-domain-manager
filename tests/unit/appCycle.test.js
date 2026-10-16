@@ -6,8 +6,10 @@
 const { expect } = require('chai');
 const config = require('config');
 const { resolveAppLocations, runPerApp } = require('../../src/services/haproxy/appCycle');
+const { ConditionLog } = require('../../src/services/conditionLog');
+const log = require('../../src/lib/log');
 
-const silent = { error: () => {} };
+const silent = { report: () => {} };
 
 describe('resolveAppLocations', () => {
   const neverCalled = async () => {
@@ -137,15 +139,50 @@ describe('runPerApp — one app never takes the cycle down', () => {
     expect(excluded).to.deep.equal(['b', 'd']);
   });
 
-  it('names the app and the loop in the log, so an exclusion is traceable', async () => {
-    const lines = [];
-    await runPerApp([{ name: 'boom' }], 'Active-Standby', async () => {
-      throw new Error('spec will not resolve');
-    }, { error: (m) => lines.push(m) });
-    expect(lines).to.have.lengthOf(1);
-    expect(lines[0]).to.contain('Active-Standby');
-    expect(lines[0]).to.contain('boom');
-    expect(lines[0]).to.contain('spec will not resolve');
+  describe('its log', () => {
+    let lines;
+    let originals;
+    beforeEach(() => {
+      lines = [];
+      originals = { info: log.info, warn: log.warn };
+      log.info = (m) => lines.push(m);
+      log.warn = (m) => lines.push(m);
+    });
+    afterEach(() => { log.info = originals.info; log.warn = originals.warn; });
+
+    const boom = async () => { throw new Error('spec will not resolve'); };
+    const fine = async () => {};
+
+    it('names the app, the loop and the error when an app starts failing', async () => {
+      await runPerApp([{ name: 'boom' }], 'Active-Standby', boom, new ConditionLog());
+      expect(lines).to.have.lengthOf(1);
+      expect(lines[0]).to.contain('Active-Standby');
+      expect(lines[0]).to.contain('boom');
+      expect(lines[0]).to.contain('spec will not resolve');
+    });
+
+    it('says nothing more while the app keeps failing', async () => {
+      const failures = new ConditionLog();
+      await runPerApp([{ name: 'boom' }], 'Active-Standby', boom, failures);
+      await runPerApp([{ name: 'boom' }], 'Active-Standby', boom, failures);
+      await runPerApp([{ name: 'boom' }], 'Active-Standby', boom, failures);
+      expect(lines).to.have.lengthOf(1);
+    });
+
+    it('says once that the app routes again', async () => {
+      const failures = new ConditionLog();
+      await runPerApp([{ name: 'boom' }], 'Active-Standby', boom, failures);
+      await runPerApp([{ name: 'boom' }], 'Active-Standby', fine, failures);
+      await runPerApp([{ name: 'boom' }], 'Active-Standby', fine, failures);
+      expect(lines).to.have.lengthOf(2);
+      expect(lines[1]).to.contain('boom');
+      expect(lines[1]).to.contain('cleared');
+    });
+
+    it('says nothing for an app that never failed', async () => {
+      await runPerApp([{ name: 'ok' }], 'Active-Active', fine, new ConditionLog());
+      expect(lines).to.deep.equal([]);
+    });
   });
 
   it('survives an app that fails synchronously', async () => {

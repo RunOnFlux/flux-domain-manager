@@ -7,7 +7,7 @@
 // module-level state and every step inside them reaches the network, so there was nothing
 // a test could stand up. Extracted here, both are exercised directly.
 const config = require('config');
-const log = require('../../lib/log');
+const { ConditionLog } = require('../conditionLog');
 const { parseSocketAddress } = require('../socketAddress');
 
 const LOCATION_SEARCH_ATTEMPTS = 5;
@@ -57,6 +57,8 @@ async function resolveAppLocations({
   return { locations, requests };
 }
 
+const appFailures = new ConditionLog();
+
 /**
  * Run per-app work across a cycle, excluding any app that fails.
  *
@@ -68,19 +70,22 @@ async function resolveAppLocations({
  * @param {Array<Object>} apps
  * @param {string} label which loop, for the log line
  * @param {Function} work called with each app
- * @param {Object} [logger]
+ * @param {{report: Function}} [failures] where each app's failing or not is reported; an
+ *   app is logged when it starts failing and when it routes again, not every cycle
  * @returns {Promise<Array<string>>} the names of apps excluded by a failure
  */
-async function runPerApp(apps, label, work, logger = log) {
+async function runPerApp(apps, label, work, failures = appFailures) {
   const excluded = [];
   // eslint-disable-next-line no-restricted-syntax
   for (const app of apps) {
+    const key = `${label}:${app.name}`;
     try {
       // eslint-disable-next-line no-await-in-loop
       await work(app);
+      failures.report(key, false, () => `${label} Application ${app.name} excluded from routing`);
     } catch (error) {
       excluded.push(app.name);
-      logger.error(`${label} Application ${app.name} failed and is excluded from this cycle: ${error.message}`);
+      failures.report(key, true, () => `${label} Application ${app.name} failed and is excluded from routing: ${error.message}`);
     }
   }
   return excluded;

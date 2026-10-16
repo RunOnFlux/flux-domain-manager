@@ -3,7 +3,7 @@
 // The routing loops run every time the fetcher emits locations — every 10 seconds,
 // unconditionally. Anything logged straight from a loop body while a condition holds is
 // emitted thousands of times a day per app, which buries the event it was meant to
-// surface. ConditionLog logs the edges and a periodic re-assertion instead.
+// surface. ConditionLog logs only the edges instead.
 const { expect } = require('chai');
 const log = require('../../src/lib/log');
 const { ConditionLog } = require('../../src/services/conditionLog');
@@ -36,7 +36,7 @@ describe('ConditionLog', () => {
 
   it('logs once when the condition starts, then stays quiet', () => {
     const { clock, now } = at();
-    const c = new ConditionLog({ reassertMs: 15 * 60 * 1000, now });
+    const c = new ConditionLog({ now });
     // 60 cycles at 10s apart — ten minutes of a persistent condition
     for (let i = 0; i < 60; i += 1) {
       c.report('explorer', true, () => 'explorer has no healthy instances');
@@ -46,18 +46,15 @@ describe('ConditionLog', () => {
     expect(lines[0]).to.equal('warn: explorer has no healthy instances');
   });
 
-  it('restates a persistent condition on the interval, with how long it has held', () => {
+  it('says nothing more while the condition holds', () => {
     const { clock, now } = at();
-    const c = new ConditionLog({ reassertMs: 15 * 60 * 1000, now });
-    // a full hour at 10s intervals, inclusive of the report at exactly 60 minutes
+    const c = new ConditionLog({ now });
+    // a full hour at 10s intervals
     for (let i = 0; i <= 360; i += 1) {
       c.report('explorer', true, () => 'explorer has no healthy instances');
       clock.t += 10_000;
     }
-    // one start, then a re-assertion at 15, 30, 45 and 60 minutes
-    expect(lines).to.have.lengthOf(5);
-    expect(lines[1]).to.contain('ongoing for 15 minutes');
-    expect(lines[4]).to.contain('ongoing for 1 hour');
+    expect(lines).to.deep.equal(['warn: explorer has no healthy instances']);
   });
 
   it('logs the recovery, with how long it lasted', () => {

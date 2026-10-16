@@ -1083,6 +1083,17 @@ function resetConfiguredHalfGuards(store = sharedGuardStore()) {
   };
 }
 
+// Whether an image is one of the shared-db components config.sharedDbRouting names.
+function isSharedDbImage(image) {
+  const lowered = (image || '').toLowerCase();
+  return config.sharedDbRouting.components.some((rule) => lowered.includes(rule.image));
+}
+
+// Whether an app runs a shared-db component, whatever its spec version.
+function runsSharedDb(deployment) {
+  return Object.values(deployment.components).some((component) => isSharedDbImage(component.image));
+}
+
 // Resolve an app to its version-normalized DeploymentSpec and append its backend
 // routes to the config. Version-blind: legacy and v9 apps take the same path. The
 // Domain overrides are carried into the resolved routes via deserialize. Custom domains
@@ -1110,7 +1121,14 @@ async function appendRouteConfigs(routeConfigs, app, backends, isActiveStandby) 
   const onConflict = (domain, fields, replica) => {
     log.warn(`${app.name}: replica ${replica} disagrees with an earlier replica on ${domain} (${fields.join(', ')}); keeping the first`);
   };
-  routeConfigs.push(...buildRouteConfigs(deployments, app.name, backends, isActiveStandby, app.syncFirst, ownsDomain, onConflict));
+  // syncFirst makes haproxy mark every server after the first as `backup`, so position
+  // zero is the only one taking traffic - the write target of a shared-db database, whose
+  // members acknowledge a write before the others have applied it. It is set for shared-db
+  // apps and nothing else: a synced volume is replicated across instances that are ALL
+  // meant to run and ALL meant to serve. An app that needs a single serving instance says
+  // so with activeStandby.
+  const syncFirst = runsSharedDb(deployments.get(null));
+  routeConfigs.push(...buildRouteConfigs(deployments, app.name, backends, isActiveStandby, syncFirst, ownsDomain, onConflict));
   if (disowned.length) {
     log.warn(`${app.name}: skipped ${disowned.length} custom domain(s) owned by another app: ${disowned.join(', ')}`);
   }
@@ -1191,17 +1209,6 @@ function toBackends(appIps, drainingIps, appLocations) {
 // reports which node currently holds the cluster primary, which decides backend order.
 // Version-blind: read off the resolved deployment's routes, which are already reduced to
 // the ports FDM publishes, so the API port is the last one the operator still routes.
-// Whether an image is one of the shared-db components config.sharedDbRouting names.
-function isSharedDbImage(image) {
-  const lowered = (image || '').toLowerCase();
-  return config.sharedDbRouting.components.some((rule) => lowered.includes(rule.image));
-}
-
-// Whether an app runs a shared-db component, whatever its spec version.
-function runsSharedDb(deployment) {
-  return Object.values(deployment.components).some((component) => isSharedDbImage(component.image));
-}
-
 function sharedDbApiPort(deployment) {
   const isOperator = (name) => isSharedDbImage(deployment.components[name]?.image);
   const operatorRoutes = effectiveRoutes(deployment).filter((route) => isOperator(route.componentName));
@@ -1209,20 +1216,23 @@ function sharedDbApiPort(deployment) {
 }
 
 // Resolve the ordered, in-rotation backend IPs for an app from its live locations —
-// the one place config assembly consults runtime state. Three concerns that used to be
+// the one place config assembly consults runtime state. Two concerns that used to be
 // smeared through the routing loop live here now:
 //   drain      - a replica the platform reports draining/stopping is pulled from rotation
 //                (state rides the location row from flux-shutdownd -> fluxos)
 //   ordering   - app-specific health checks, or the shared-db operator's live cluster
 //                status (primary first); the renderer stays pure over the result
-//   syncFirst  - version-blind, from the typed sync mode (legacy r: and v9 both map to
-//                requiresSyncBeforeStart), set on the app for the backup-server rendering
 // Returns `{ appIps, drainingIps, backends }`. `backends` is what config assembly
 // consumes — one entry per running instance, carrying its replica name and drain state,
 // so co-located replicas stay distinguishable. `appIps`/`drainingIps` remain the node
 // address lists, which is what the mandatory-app emptiness check wants (a node hosting
 // two replicas is still one node) and what /appips reports.
-// Sets app.syncFirst as a side effect (the renderer reads it).
+//
+// It used to also set `app.syncFirst` for the renderer to read back. That wrote a
+// property onto whatever the app map held — and for an enterprise app that object IS
+// the decrypted spec the fetcher caches for 24-48h, so the write outlived this call and
+// was shared by every later reader. The renderer resolves the same deployment itself,
+// so it asks for the answer directly.
 async function resolveBackends(app, appLocations) {
   // Drain: keep only backends the platform still considers active.
   const live = appLocations.filter((l) => !isDraining(l));
@@ -1230,8 +1240,8 @@ async function resolveBackends(app, appLocations) {
   logDraining(app.name, drainingIps);
   let appIps = [];
 
-  // One resolved view for every branch below: the probe ports, the shared-db operator's
-  // API port, and syncFirst all read it.
+  // One resolved view for every branch below: the probe ports and the shared-db
+  // operator's API port both read it.
   const deployment = await specLibs.resolveDeployment(await specLibs.deserialize(app), null);
   const sharedDb = runsSharedDb(deployment);
 
@@ -1297,14 +1307,6 @@ async function resolveBackends(app, appLocations) {
     appIps = serviceHelper.sortIPAddresses(live.map((location) => location.ip));
   }
 
-  // syncFirst makes haproxy mark every server after the first as `backup`, so
-  // position zero is the only one taking traffic - the write target of a shared-db
-  // database, whose members acknowledge a write before the others have applied it.
-  // It is set for shared-db apps and nothing else: an `r:` volume is
-  // syncthing-replicated across instances that are ALL meant to run and ALL meant
-  // to serve. An app that needs a single serving instance says so with activeStandby.
-  // eslint-disable-next-line no-param-reassign
-  app.syncFirst = sharedDb;
   return { appIps, drainingIps, backends: toBackends(appIps, drainingIps, appLocations) };
 }
 
@@ -1824,4 +1826,6 @@ module.exports = {
   admitConfiguredHalf,
   resetConfiguredHalfGuards,
   resolveBackends,
+  runsSharedDb,
+  appendRouteConfigs,
 };

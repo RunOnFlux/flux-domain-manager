@@ -1,7 +1,9 @@
-// resolveBackends is the one place config assembly consults runtime backend state: the
-// drain filter (a draining/stopping replica is pulled from rotation) and syncFirst, which
-// makes a shared-db app serve from one instance and leaves every other app serving from
-// all of them. v8 specs keep this stable and independent of the v9 submission schema.
+// resolveBackends is the one place config assembly consults runtime backend state. Its
+// behaviour over the extracted-verbatim ordering is the drain filter: a
+// draining/stopping replica is pulled from rotation. It leaves the app it is handed
+// untouched; whether an app serves from one instance is decided when its route configs
+// are built (syncFirstRendering.test.js). v8 specs keep this stable and independent of
+// the v9 submission schema.
 const chai = require('chai');
 const { resolveBackends } = require('../../src/services/domainService');
 
@@ -40,7 +42,7 @@ const v8spec = (containerData, extraComponents = []) => ({
 
 const loc = (ip, state) => ({ ip, name: 'zzsyncbackendtest', state });
 
-describe('resolveBackends — drain + version-blind syncFirst', () => {
+describe('resolveBackends — drain, and nothing written to the app', () => {
   it('drain: draining/stopping backends are pulled from rotation (absent state kept)', async () => {
     const { appIps } = await resolveBackends(v8spec('/data'), [
       loc('1.1.1.1:16127', 'active'),
@@ -69,36 +71,30 @@ describe('resolveBackends — drain + version-blind syncFirst', () => {
     expect(drainingIps).to.deep.equal([]);
   });
 
-  it('syncFirst: false for an r: app, whose replicated instances all serve', async () => {
+  it('does not write to the app it is given', async () => {
+    // The app map holds whichever form the app arrived in, and for an enterprise app
+    // that is the decrypted spec the fetcher caches for 24-48h — a frozen flux-spec
+    // domain object shared by every reader of that cache entry for as long as it
+    // lives. Nothing here may leave a mark on it.
+    //
+    // Deliberately NOT frozen for this check. domainService is not in strict mode, so
+    // a write to a frozen object is discarded in silence — freezing the fixture would
+    // make this pass whether or not the write happened, which is the same blindness
+    // that made the original side effect dangerous. An ordinary object records it.
     const app = v8spec('r:/data');
+    const before = new Set(Object.keys(app));
+
     await resolveBackends(app, [loc('1.1.1.1:16127', 'active')]);
-    expect(app.syncFirst).to.equal(false);
+
+    const added = Object.keys(app).filter((k) => !before.has(k));
+    expect(added, `resolveBackends added ${added.join(', ')} to the app`).to.deep.equal([]);
   });
 
-  it('syncFirst: true for a shared-db app, whose database takes writes on one instance', async () => {
-    // No operator port, so no operator is asked for the cluster order.
-    const app = v8spec('r:/data', [{
-      name: 'operator',
-      description: 'operator',
-      repotag: 'runonflux/shared-db:latest',
-      ports: [],
-      domains: [],
-      environmentParameters: [],
-      commands: [],
-      containerPorts: [],
-      containerData: 's:/app/dumps',
-      cpu: 0.1,
-      ram: 100,
-      hdd: 1,
-      repoauth: '',
-    }]);
-    await resolveBackends(app, [loc('1.1.1.1:16127', 'active')]);
-    expect(app.syncFirst).to.equal(true);
-  });
+  it('survives an app that refuses writes, which is what an enterprise app is', async () => {
+    const app = Object.freeze(v8spec('r:/data'));
 
-  it('syncFirst: false for a plain app', async () => {
-    const app = v8spec('/data');
-    await resolveBackends(app, [loc('1.1.1.1:16127', 'active')]);
-    expect(app.syncFirst).to.equal(false);
+    const { appIps } = await resolveBackends(app, [loc('1.1.1.1:16127', 'active')]);
+
+    expect(appIps).to.deep.equal(['1.1.1.1:16127']);
   });
 });

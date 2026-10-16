@@ -10,6 +10,7 @@ const specLibs = require('../../../src/services/flux/specLibs');
 const { buildRouteConfigs } = require('../../../src/services/haproxy/buildRouteConfigs');
 const { createAppsHaproxyConfig } = require('../../../src/services/haproxyTemplate');
 const { getCustomDomains } = require('../../../src/services/domain');
+const { runsSharedDb } = require('../../../src/services/domainService');
 
 // Two nodes for the general case (exercises the multi-server cookie path), one
 // node for single-live-instance apps (which route to a single backend). Real
@@ -17,10 +18,8 @@ const { getCustomDomains } = require('../../../src/services/domain');
 const MULTI_NODE_IPS = ['144.76.10.20:16127', '167.86.90.30:16127'];
 const SINGLE_NODE_IP = ['135.148.60.40:16127'];
 
-// The per-component markers that today drive routing shape. `g:` pins traffic to
-// a single live instance (active-standby); `r:` marks ordered/replica data so
-// standbys render as backups. Mirrored here purely to feed the builder the same
-// flags it gets in production.
+// `g:` pins traffic to a single live instance (active-standby). Whether the other
+// instances render as backups is production's own rule, runsSharedDb.
 function markerPresent(spec, marker) {
   const datas = spec.version <= 3
     ? [spec.containerData]
@@ -29,7 +28,6 @@ function markerPresent(spec, marker) {
 }
 
 const routesToSingleInstance = (spec) => markerPresent(spec, 'g:');
-const usesOrderedData = (spec) => markerPresent(spec, 'r:');
 
 // Loose (unnamed) instances, which is every spec in the corpus and every app in the wild:
 // one backend per node, all resolved off the declared view. Named replicas are the
@@ -49,7 +47,7 @@ async function routeConfigsForSpec(spec) {
   const singleInstance = routesToSingleInstance(spec);
   const ips = singleInstance ? SINGLE_NODE_IP : MULTI_NODE_IPS;
   const deployment = await specLibs.resolveDeployment(instance, null);
-  return buildRouteConfigs(looseDeployments(deployment), spec.name, looseBackends(ips), singleInstance, usesOrderedData(spec));
+  return buildRouteConfigs(looseDeployments(deployment), spec.name, looseBackends(ips), singleInstance, runsSharedDb(deployment));
 }
 
 // The full haproxy config for a set of specs, assembled the way production does:

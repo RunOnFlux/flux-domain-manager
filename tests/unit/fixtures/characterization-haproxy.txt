@@ -27,6 +27,17 @@ defaults
   load-server-state-from-file global
   log global
   mode http
+  # Keep server-side connections alive and pool them between requests; a request
+  # after the first in a session may ride an idle pooled connection instead of
+  # paying a fresh TCP handshake to the origin. Explicit rather than relying on
+  # the haproxy-version default (never before 2.5, safe from 2.5 on).
+  http-reuse safe
+  # Bind every server-side connection before connecting. haproxy then sets
+  # SO_REUSEADDR on it, which is what lets a new frontend bind a port that one of
+  # these connections happens to hold; without it the whole reload fails. The
+  # port is still chosen at connect time (IP_BIND_ADDRESS_NO_PORT), so the
+  # per-destination ephemeral pool is unchanged.
+  source 0.0.0.0
   option dontlognull
   timeout connect 10000
   timeout client 120000
@@ -57,6 +68,12 @@ frontend wwwhttp
   acl forbiddenacl hdr(host) www.sofiteldowntown.com
   acl forbiddenacl hdr(host) livelo.digitaisx.mov
   acl forbiddenacl hdr(host) www.livelo.digitaisx.mov
+  acl forbiddenacl hdr(host) acessobonus.com
+  acl forbiddenacl hdr(host) seuaplicativoweb.top
+  acl forbiddenacl hdr(host) resgatevantagem.com
+  acl forbiddenacl hdr_end(host) .acessobonus.com
+  acl forbiddenacl hdr_end(host) .seuaplicativoweb.top
+  acl forbiddenacl hdr_end(host) .resgatevantagem.com
   acl forbiddenacl path_beg -i /product/litty-cat-thc-bars-1000mg
   acl wordpress1677413615318_38286app2runonfluxio hdr(host) wordpress1677413615318_38286.app2.runonflux.io
   acl wordpress1677413615318_38286app2runonfluxio hdr(host) anon0.com
@@ -647,7 +664,6 @@ backend anonapp4_27015app2runonfluxio_tcp_backend
   server 135.148.60.40:16127 135.148.60.40:27015 inter 3s fall 2 rise 2 fastinter 500
 
 frontend wwwhttps
-  option http-server-close
   option forwardfor except 127.0.0.0/8
   http-response add-header Access-Control-Expose-Headers '*' unless { res.hdr(Access-Control-Expose-Headers) -m found }
   http-after-response add-header Access-Control-Allow-Origin "*" unless { res.hdr(Access-Control-Allow-Origin) -m found }
@@ -665,6 +681,12 @@ frontend wwwhttps
   acl forbiddenacl hdr(host) www.sofiteldowntown.com
   acl forbiddenacl hdr(host) livelo.digitaisx.mov
   acl forbiddenacl hdr(host) www.livelo.digitaisx.mov
+  acl forbiddenacl hdr(host) acessobonus.com
+  acl forbiddenacl hdr(host) seuaplicativoweb.top
+  acl forbiddenacl hdr(host) resgatevantagem.com
+  acl forbiddenacl hdr_end(host) .acessobonus.com
+  acl forbiddenacl hdr_end(host) .seuaplicativoweb.top
+  acl forbiddenacl hdr_end(host) .resgatevantagem.com
   acl forbiddenacl path_beg -i /product/litty-cat-thc-bars-1000mg
   acl wordpress1677413615318_38286app2runonfluxio hdr(host) wordpress1677413615318_38286.app2.runonflux.io
   acl wordpress1677413615318_38286app2runonfluxio hdr(host) anon0.com
@@ -1269,12 +1291,12 @@ backend anonapp20_8081app2runonfluxiobackend
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:8081 check cookie 144.76.10.20:8081 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:8081 check cookie 167.86.90.30:8081 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:8081 check cookie 167.86.90.30:8081 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp21_33333app2runonfluxiobackend
   mode http
@@ -1293,60 +1315,60 @@ backend anonapp23_21115app2runonfluxiobackend
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:21115 check cookie 144.76.10.20:21115 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:21115 check cookie 167.86.90.30:21115 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:21115 check cookie 167.86.90.30:21115 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp23_21116app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:21116 check cookie 144.76.10.20:21116 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:21116 check cookie 167.86.90.30:21116 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:21116 check cookie 167.86.90.30:21116 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp23_21118app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:21118 check cookie 144.76.10.20:21118 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:21118 check cookie 167.86.90.30:21118 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:21118 check cookie 167.86.90.30:21118 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp23_21117app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:21117 check cookie 144.76.10.20:21117 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:21117 check cookie 167.86.90.30:21117 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:21117 check cookie 167.86.90.30:21117 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp23_21119app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:21119 check cookie 144.76.10.20:21119 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:21119 check cookie 167.86.90.30:21119 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:21119 check cookie 167.86.90.30:21119 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp24_35855app2runonfluxiobackend
   mode http
@@ -1389,12 +1411,12 @@ backend anonapp25_34517app2runonfluxiobackend
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:34517 check cookie 144.76.10.20:34517 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:34517 check cookie 167.86.90.30:34517 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:34517 check cookie 167.86.90.30:34517 inter 3s fall 2 rise 2 fastinter 500
 
 backend budibasemysql_34419app2runonfluxiobackend
   mode http
@@ -1449,252 +1471,252 @@ backend anonapp27_32442app2runonfluxiobackend
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:32442 check cookie 144.76.10.20:32442 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:32442 check cookie 167.86.90.30:32442 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:32442 check cookie 167.86.90.30:32442 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp27_32409app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:32409 check cookie 144.76.10.20:32409 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:32409 check cookie 167.86.90.30:32409 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:32409 check cookie 167.86.90.30:32409 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp27_37734app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:37734 check cookie 144.76.10.20:37734 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:37734 check cookie 167.86.90.30:37734 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:37734 check cookie 167.86.90.30:37734 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp27_35382app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:35382 check cookie 144.76.10.20:35382 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:35382 check cookie 167.86.90.30:35382 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:35382 check cookie 167.86.90.30:35382 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp27_37483app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:37483 check cookie 144.76.10.20:37483 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:37483 check cookie 167.86.90.30:37483 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:37483 check cookie 167.86.90.30:37483 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp27_34083app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:34083 check cookie 144.76.10.20:34083 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:34083 check cookie 167.86.90.30:34083 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:34083 check cookie 167.86.90.30:34083 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp27_33035app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:33035 check cookie 144.76.10.20:33035 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:33035 check cookie 167.86.90.30:33035 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:33035 check cookie 167.86.90.30:33035 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp27_31889app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:31889 check cookie 144.76.10.20:31889 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:31889 check cookie 167.86.90.30:31889 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:31889 check cookie 167.86.90.30:31889 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp27_38979app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:38979 check cookie 144.76.10.20:38979 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:38979 check cookie 167.86.90.30:38979 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:38979 check cookie 167.86.90.30:38979 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp27_38527app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:38527 check cookie 144.76.10.20:38527 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:38527 check cookie 167.86.90.30:38527 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:38527 check cookie 167.86.90.30:38527 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp27_30752app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:30752 check cookie 144.76.10.20:30752 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:30752 check cookie 167.86.90.30:30752 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:30752 check cookie 167.86.90.30:30752 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp27_31868app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:31868 check cookie 144.76.10.20:31868 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:31868 check cookie 167.86.90.30:31868 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:31868 check cookie 167.86.90.30:31868 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp27_36220app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:36220 check cookie 144.76.10.20:36220 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:36220 check cookie 167.86.90.30:36220 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:36220 check cookie 167.86.90.30:36220 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp28_8080app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:8080 check cookie 144.76.10.20:8080 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:8080 check cookie 167.86.90.30:8080 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:8080 check cookie 167.86.90.30:8080 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp29_18080app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:18080 check cookie 144.76.10.20:18080 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:18080 check cookie 167.86.90.30:18080 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:18080 check cookie 167.86.90.30:18080 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp29_16379app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:16379 check cookie 144.76.10.20:16379 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:16379 check cookie 167.86.90.30:16379 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:16379 check cookie 167.86.90.30:16379 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp29_18081app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:18081 check cookie 144.76.10.20:18081 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:18081 check cookie 167.86.90.30:18081 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:18081 check cookie 167.86.90.30:18081 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp29_18082app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:18082 check cookie 144.76.10.20:18082 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:18082 check cookie 167.86.90.30:18082 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:18082 check cookie 167.86.90.30:18082 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp29_18083app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:18083 check cookie 144.76.10.20:18083 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:18083 check cookie 167.86.90.30:18083 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:18083 check cookie 167.86.90.30:18083 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp29_18084app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:18084 check cookie 144.76.10.20:18084 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:18084 check cookie 167.86.90.30:18084 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:18084 check cookie 167.86.90.30:18084 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp29_3306app2runonfluxiobackend
   mode http
   balance roundrobin
   cookie FDMSERVERID insert preserve indirect nocache maxlife 8h
   timeout http-request 15s
-  timeout server 20s
+  timeout server 25s
   retries 3
   retry-on conn-failure response-timeout empty-response 500
   option redispatch 1
   server 144.76.10.20:16127 144.76.10.20:3306 check cookie 144.76.10.20:3306 inter 3s fall 2 rise 2 fastinter 500
-  server 167.86.90.30:16127 167.86.90.30:3306 check cookie 167.86.90.30:3306 inter 3s fall 2 rise 2 fastinter 500 backup
+  server 167.86.90.30:16127 167.86.90.30:3306 check cookie 167.86.90.30:3306 inter 3s fall 2 rise 2 fastinter 500
 
 backend anonapp4_7777app2runonfluxiobackend
   mode http

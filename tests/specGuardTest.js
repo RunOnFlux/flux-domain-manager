@@ -11,13 +11,27 @@ const { createGuardStore } = require('../src/lib/guardStore');
 
 const { expect } = chai;
 
+// Minimal v3 specs, each one a deployable app the fetcher accepts.
 function specs(count) {
   return Array.from({ length: count }, (_, i) => ({
-    name: `app${i}`,
     version: 3,
+    name: `app${i}`,
+    description: 'spec guard fixture',
+    owner: '1AnonOwner0001FixtureXXXXXXXXXXXX',
+    repotag: 'nginx:latest',
+    ports: [String(31000 + i)],
+    domains: [''],
+    enviromentParameters: [],
+    commands: [],
+    containerPorts: ['80'],
     containerData: '/data',
-    ports: [],
-    domains: [],
+    cpu: 0.1,
+    ram: 100,
+    hdd: 1,
+    tiered: false,
+    instances: 3,
+    hash: `specguard${i}`,
+    height: 2764314,
   }));
 }
 

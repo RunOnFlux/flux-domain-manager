@@ -172,7 +172,7 @@ function serverName(server) {
 
 // The backends an app renders, in emit order: in-rotation first, then any draining ones
 // in maintenance. Draining backends go last so the first-server directives and the
-// syncFirst backup selection (both keyed on `ips[0]`) are decided purely by the
+// primaryOnly backup selection (both keyed on `ips[0]`) are decided purely by the
 // in-rotation set. An ip already in rotation is never re-emitted — haproxy rejects a
 // duplicate server name fatally, which would cost the whole fleet's config, not just
 // this app's.
@@ -203,7 +203,7 @@ function serversToRender(app) {
     servers.push(server);
   }
   unusableBackends.report(app.appName, unusable.length > 0, () => `${app.appName}: unusable backend address(es) left out: ${unusable.join(', ')}`);
-  // In rotation first, draining last: the first-server directives and the syncFirst
+  // In rotation first, draining last: the first-server directives and the primaryOnly
   // backup selection are decided purely by the in-rotation set.
   return servers.filter((s) => !s.draining).concat(servers.filter((s) => s.draining));
 }
@@ -291,7 +291,7 @@ function addServerLine(section, cfg, app, mode, server, isFirstInRotation) {
   // different host port from its siblings, so it comes off the server, not the route.
   const { hostPort } = server;
   const disabled = draining ? 'disabled' : '';
-  const backup = (!draining && app.syncFirst && !isFirstInRotation) ? 'backup' : '';
+  const backup = (!draining && app.primaryOnly && !isFirstInRotation) ? 'backup' : '';
   const name = serverName(server);
 
   if (cfg.isV9) {

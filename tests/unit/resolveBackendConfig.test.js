@@ -19,7 +19,7 @@ const legacy = (extra) => ({
   ips: ['1.2.3.4:16127', '5.6.7.8:16127'],
   servers: servers(['1.2.3.4:16127', '5.6.7.8:16127']),
   check: true,
-  syncFirst: false,
+  primaryOnly: false,
   healthcheck: [],
   ...extra,
 });
@@ -30,7 +30,7 @@ const v9 = (extra) => ({
   ips: ['1.2.3.4:16127', '5.6.7.8:16127'],
   servers: servers(['1.2.3.4:16127', '5.6.7.8:16127']),
   check: true,
-  syncFirst: false,
+  primaryOnly: false,
   balancing: 'leastconn',
   maxConnectionsPerServer: 500,
   timeouts: {
@@ -83,8 +83,8 @@ describe('resolveBackendConfig', () => {
       expect(cfg.serverMaxconn).to.equal('');
     });
 
-    it('shortens the server timeout for ordered (syncFirst) backups', () => {
-      const cfg = resolveBackendConfig(legacy({ syncFirst: true }), 'http');
+    it('shortens the server timeout for ordered (primaryOnly) backups', () => {
+      const cfg = resolveBackendConfig(legacy({ primaryOnly: true }), 'http');
       expect(cfg.onceLines).to.include('timeout server 20s');
     });
   });

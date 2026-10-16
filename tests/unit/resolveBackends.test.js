@@ -4,7 +4,7 @@
 // behaviour over the extracted-verbatim ordering is the drain filter: a
 // draining/stopping replica is pulled from rotation. It leaves the app it is handed
 // untouched; whether an app serves from one instance is decided when its route configs
-// are built (syncFirstRendering.test.js). v8 specs keep this stable and independent of
+// are built (primaryOnlyRendering.test.js). v8 specs keep this stable and independent of
 // the v9 submission schema.
 const chai = require('chai');
 const { resolveBackends } = require('../../src/services/domainService');

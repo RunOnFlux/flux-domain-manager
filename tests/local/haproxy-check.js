@@ -18,7 +18,7 @@ const baseRoute = {
   domain: 'shop.example.com',
   port: 31000,
   ips: ['172.30.0.11:16127', '172.30.0.12:16127'],
-  syncFirst: false,
+  primaryOnly: false,
   check: true,
   balancing: 'leastconn',
   maxConnectionsPerServer: 500,

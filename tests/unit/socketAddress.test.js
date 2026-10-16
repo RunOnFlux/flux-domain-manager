@@ -40,7 +40,7 @@ describe('IPv6 backends render as distinct servers', () => {
       domain: 'blockbookbitcoin_9130.app2.runonflux.io',
       port: 9130,
       ips: socketAddresses,
-      syncFirst: false,
+      primaryOnly: false,
       timeout: null,
       servers: socketAddresses.map((ip) => ({
         ip, hostPort: 9130, replica: null, draining: false,

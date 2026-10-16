@@ -70,7 +70,7 @@ function resolveOnceLines(app) {
     const lines = [];
     lines.push(line(`timeout http-request ${app.timeout || '15s'}`));
     if (app.timeout) lines.push(line(`timeout server ${app.timeout}`));
-    else lines.push(line(`timeout server ${app.syncFirst ? '20s' : '25s'}`));
+    else lines.push(line(`timeout server ${app.primaryOnly ? '20s' : '25s'}`));
     lines.push(line('retries 3'));
     lines.push(line('retry-on conn-failure response-timeout empty-response 500'));
     lines.push(line('option redispatch 1'));

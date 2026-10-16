@@ -79,21 +79,21 @@ describe('haproxyTemplate connection handling', () => {
   });
 });
 
-// syncFirst is what makes a backend single-target: haproxy takes the first server
+// primaryOnly is what makes a backend single-target: haproxy takes the first server
 // and marks every other one `backup`, so only position zero receives traffic
 // until it fails. It is set for sharedDB applications, whose cluster members must
 // not be written to concurrently. Every other application - including one with an
 // `r:` syncthing-replicated volume, whose instances are all meant to run and all
 // meant to serve - keeps every server active.
-describe('haproxyTemplate syncFirst backends', () => {
+describe('haproxyTemplate primaryOnly backends', () => {
   // The shape addConfigurations builds, with application/custom.js defaults.
-  const app = (syncFirst) => ({
+  const app = (primaryOnly) => ({
     name: 'someapp',
     appName: 'someapp_31512',
     domain: 'someapp.app.runonflux.io',
     port: 31512,
     ips: ['1.2.3.4:16127', '5.6.7.8:16127', '9.10.11.12:16127'],
-    syncFirst,
+    primaryOnly,
     ssl: false,
     timeout: false,
     headers: false,
@@ -105,8 +105,8 @@ describe('haproxyTemplate syncFirst backends', () => {
     check: true,
   });
 
-  const backendFor = (syncFirst) => {
-    const generated = haproxyTemplate.createAppsHaproxyConfig([app(syncFirst)]);
+  const backendFor = (primaryOnly) => {
+    const generated = haproxyTemplate.createAppsHaproxyConfig([app(primaryOnly)]);
     // Leading newline: `use_backend <name>` appears in the frontend first.
     return generated.split('\nbackend someappapprunonfluxiobackend')[1].split('\nbackend ')[0];
   };

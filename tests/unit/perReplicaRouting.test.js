@@ -89,9 +89,9 @@ async function deploymentsFor(replicas, sub = submission) {
   return map;
 }
 
-async function render(backends, { syncFirst = false, onConflict } = {}) {
+async function render(backends, { primaryOnly = false, onConflict } = {}) {
   const deployments = await deploymentsFor([...new Set(backends.map((b) => b.replica))]);
-  const configs = buildRouteConfigs(deployments, COLO, backends, false, syncFirst, () => true, onConflict);
+  const configs = buildRouteConfigs(deployments, COLO, backends, false, primaryOnly, () => true, onConflict);
   return { configs, platform: configs.find((c) => c.domain.startsWith('coloapp_')) };
 }
 
@@ -173,10 +173,10 @@ describe('per-replica routing', () => {
       expect(lines[1]).to.contain('disabled');
     });
 
-    it('syncFirst marks every replica after the first as backup, across nodes', async () => {
+    it('primaryOnly marks every replica after the first as backup, across nodes', async () => {
       const { platform } = await render([
         backend(NODE_A, 'r1'), backend(NODE_A, 'r2'), backend(NODE_B, 'r3'),
-      ], { syncFirst: true });
+      ], { primaryOnly: true });
       const lines = serverLines(generateDomainBackend(platform, 'http').render());
       expect(lines[0]).to.not.contain('backup');
       expect(lines[1]).to.contain('backup');

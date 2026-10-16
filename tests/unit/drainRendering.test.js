@@ -74,9 +74,9 @@ const v9submission = {
 
 // Render the platform-FQDN backend for a spec with the given in-rotation and draining
 // backends, the way the routing loop assembles it.
-async function render(spec, appIps, drainingIps, syncFirst = false) {
+async function render(spec, appIps, drainingIps, primaryOnly = false) {
   const dep = await specLibs.resolveDeployment(await specLibs.deserialize(spec), null);
-  const routeConfigs = buildRouteConfigs(looseDeployments(dep), { name: 'drainapp', identity: `b${'c'.repeat(52)}` }, looseBackends(appIps, drainingIps), false, syncFirst);
+  const routeConfigs = buildRouteConfigs(looseDeployments(dep), { name: 'drainapp', identity: `b${'c'.repeat(52)}` }, looseBackends(appIps, drainingIps), false, primaryOnly);
   const platform = routeConfigs.find((c) => c.domain.startsWith('drainapp_'));
   return generateDomainBackend(platform, 'http').render();
 }
@@ -115,8 +115,8 @@ describe('draining backends render in maintenance', () => {
     expect(withNone).to.not.contain('disabled');
   });
 
-  it('a draining backend is never also marked backup under syncFirst', async () => {
-    // syncFirst renders every non-first in-rotation backend as `backup`; a draining one
+  it('a draining backend is never also marked backup under primaryOnly', async () => {
+    // primaryOnly renders every non-first in-rotation backend as `backup`; a draining one
     // is in maintenance instead, and the two states must not both appear on a line.
     const lines = serverLines(await render(v8spec('r:/data'), ACTIVE, DRAINING, true));
     expect(lines[1]).to.contain('backup');

@@ -62,7 +62,7 @@ function conflictingFields(existing, candidate) {
  *   backends in rotation order, draining ones last. One entry per running instance, so a
  *   node hosting two co-located replicas appears twice.
  * @param {boolean} isActiveStandby
- * @param {boolean} syncFirst
+ * @param {boolean} primaryOnly
  * @param {Function} [ownsDomain] decides whether this app may serve a custom domain
  *   (another live app may own it — first-registrant-wins). Defaults to allow-all so
  *   callers that don't arbitrate ownership (e.g. the characterization harness) get
@@ -74,7 +74,7 @@ function buildRouteConfigs(
   app,
   backends,
   isActiveStandby,
-  syncFirst,
+  primaryOnly,
   ownsDomain = () => true,
   onConflict = () => {},
 ) {
@@ -174,7 +174,7 @@ function buildRouteConfigs(
       appName: backendName,
       port: hostPort,
       ips: appIps,
-      syncFirst,
+      primaryOnly,
       ...customConfig,
       ...v9Tuning,
       timeout: null,
@@ -231,7 +231,7 @@ function buildRouteConfigs(
       port: first.port,
       ips: appIps,
       servers: [...first.servers],
-      syncFirst,
+      primaryOnly,
       ...resolveCustomConfig(appName, '', '', isActiveStandby),
     });
   }

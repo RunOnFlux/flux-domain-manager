@@ -920,7 +920,7 @@ async function selectActiveStandbyPrimaries(apps, locations, options = {}) {
  * and not one reporting none, with consecutive configs differing by 998 and 842
  * lines that were the same servers in a new order.
  *
- * For a syncFirst app it is NOT cosmetic. haproxy marks every server after the
+ * For a primaryOnly app it is NOT cosmetic. haproxy marks every server after the
  * first as `backup` (haproxyTemplate.js), so position zero is the only live one -
  * the write target of a replicated app.
  *
@@ -1143,14 +1143,14 @@ async function appendRouteConfigs(routeConfigs, app, backends, isActiveStandby) 
   const onConflict = (domain, fields, replica) => {
     conflicts.push(`replica ${replica} on ${domain} (${fields.join(', ')})`);
   };
-  // syncFirst makes haproxy mark every server after the first as `backup`, so position
+  // primaryOnly makes haproxy mark every server after the first as `backup`, so position
   // zero is the only one taking traffic - the write target of a shared-db database, whose
   // members acknowledge a write before the others have applied it. It is set for shared-db
   // apps and nothing else: a synced volume is replicated across instances that are ALL
   // meant to run and ALL meant to serve. An app that needs a single serving instance says
   // so with activeStandby.
-  const syncFirst = runsSharedDb(deployments.get(null));
-  routeConfigs.push(...buildRouteConfigs(deployments, { name: app.name, identity: app.identity }, backends, isActiveStandby, syncFirst, ownsDomain, onConflict));
+  const primaryOnly = runsSharedDb(deployments.get(null));
+  routeConfigs.push(...buildRouteConfigs(deployments, { name: app.name, identity: app.identity }, backends, isActiveStandby, primaryOnly, ownsDomain, onConflict));
   replicaConflicts.report(app.name, conflicts.length > 0, () => `${app.name}: replicas disagree with an earlier replica, keeping the first: ${conflicts.join('; ')}`);
   disownedDomains.report(app.name, disowned.length > 0, () => `${app.name}: skipped custom domain(s) owned by another app: ${disowned.join(', ')}`);
 }
@@ -1253,11 +1253,8 @@ const unreachableOperators = new ConditionLog({ level: 'error' });
 // address lists, which is what the mandatory-app emptiness check wants (a node hosting
 // two replicas is still one node) and what /appips reports.
 //
-// It used to also set `app.syncFirst` for the renderer to read back. That wrote a
-// property onto whatever the app map held — and for an enterprise app that object IS
-// the decrypted spec the fetcher caches for 24-48h, so the write outlived this call and
-// was shared by every later reader. The renderer resolves the same deployment itself,
-// so it asks for the answer directly.
+// It writes nothing onto `app`: for an enterprise app that object is the decrypted spec
+// the fetcher caches for 24-48h, shared by every later reader of that cache entry.
 async function resolveBackends(app, appLocations) {
   // Drain: keep only backends the platform still considers active.
   const live = appLocations.filter((l) => !isDraining(l));

@@ -172,6 +172,7 @@
         state: file
       loop:
         - appsConfig.js
+        - guardsConfig.json
         - customConfigs.json
         - haproxyRouting.json
         - cryptoService.json
@@ -187,6 +188,7 @@
       when: certRenewalPrimary | bool
       loop:
         - appsConfig.js
+        - guardsConfig.json
         - customConfigs.json
         - haproxyRouting.json
         - cryptoService.json

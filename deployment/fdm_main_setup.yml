@@ -90,6 +90,7 @@
         state: file
       loop:
         - appsConfig.js
+        - guardsConfig.json
         - customConfigs.json
         - haproxyRouting.json
         - cryptoService.json

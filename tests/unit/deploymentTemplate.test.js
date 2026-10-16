@@ -47,3 +47,24 @@ describe('deployment/default.js.j2', () => {
     expect(shape(requireRenderedTemplate())).to.deep.equal(shape(committed));
   });
 });
+
+// Each playbook checks, per FDM checkout it sets up, that every config file the config
+// requires is present. A file missing from that list is never checked.
+describe('deployment playbooks', () => {
+  const required = fs.readFileSync(path.join(CONFIG_DIR, 'default.js'), 'utf8')
+    .match(/require\('\.\/[^']+'\)/g)
+    .map((r) => r.slice("require('./".length, -"')".length))
+    .map((name) => fs.readdirSync(CONFIG_DIR).find((f) => f.replace(/\.(js|json)$/, '') === name));
+
+  ['fdm_setup.yml', 'fdm_main_setup.yml', 'fdm_main_dev_setup.yml'].forEach((playbook) => {
+    it(`${playbook} checks every config file config/default.js requires`, () => {
+      const text = fs.readFileSync(path.join(__dirname, '..', '..', 'deployment', playbook), 'utf8');
+      const checks = text.split('- name: Ensure config files exist').slice(1)
+        .map((task) => task.split('\n    - name:')[0]);
+      expect(checks.length).to.be.above(0);
+      checks.forEach((task) => {
+        required.forEach((file) => expect(task, `${playbook} does not check ${file}`).to.contain(`- ${file}\n`));
+      });
+    });
+  });
+});

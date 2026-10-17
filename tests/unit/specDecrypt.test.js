@@ -1,7 +1,7 @@
 'use strict';
 
 // The decrypt providers plug FDM's HTTP transport into flux-spec's decrypt lifecycle
-// (EncryptedSpec.decrypt(provider) -> DecryptedCanonicalSpec). v8 does a real local
+// (SealedSpec.decrypt(provider) -> OpenedSpec). v8 does a real local
 // AES-256-GCM open after the backend unwraps the key; v9 forwards the GCM envelope to
 // the backend. Here the transport is a stub responder, so the v8 crypto is exercised
 // for real (only the key unwrap is stubbed) and what comes back is checked end to end:
@@ -130,7 +130,7 @@ describe('specDecrypt providers — decrypt lifecycle over a stub transport', ()
   });
 
   it('v9: forwards the GCM envelope + AAD and yields a readable v9 spec', async () => {
-    const { FluxAppSpecV9, EncryptedSpecV9, CryptoProvider } = await specLibs.load();
+    const { FluxAppSpecV9, SealedSpecV9, CryptoProvider } = await specLibs.load();
 
     const cleartext = FluxAppSpecV9.fromSubmission({
       version: 9,
@@ -166,7 +166,7 @@ describe('specDecrypt providers — decrypt lifecycle over a stub transport', ()
       }
     }
     const encryptStub = new StubEncrypt();
-    const encryptedSpec = await EncryptedSpecV9.fromSpec(cleartext, encryptStub);
+    const encryptedSpec = await SealedSpecV9.fromSpec(cleartext, encryptStub);
 
     let seenPayload = null;
     responder = async (url, payload) => {

@@ -1,10 +1,10 @@
 'use strict';
 
 // FDM reads sealed (encrypted) app specs through flux-spec's decrypt lifecycle:
-// EncryptedSpec.decrypt(provider) -> DecryptedCanonicalSpec. flux-spec is transport-
+// SealedSpec.decrypt(provider) -> OpenedSpec. flux-spec is transport-
 // agnostic — it never knows how the bytes are decrypted — so FDM supplies that here.
 // A single provider adapter carries the app identity and delegates to a version-
-// specific open function; the two are registered on the flux-spec EncryptedSpec classes
+// specific open function; the two are registered on the flux-spec SealedSpec classes
 // so decrypt() dispatches by version with no branching at the call site.
 const crypto = require('node:crypto');
 
@@ -62,7 +62,7 @@ async function unwrapV8Key(http, endpoint, appName, owner, wrappedKey) {
 
 /**
  * Build the version-specific decrypt providers over `http` (an mTLS axios instance) and
- * the configured endpoint paths, and register them on the flux-spec EncryptedSpec
+ * the configured endpoint paths, and register them on the flux-spec SealedSpec
  * classes. The CryptoProvider base is async-loaded, so the provider is defined here
  * rather than at module top level.
  *
@@ -73,7 +73,7 @@ async function unwrapV8Key(http, endpoint, appName, owner, wrappedKey) {
  * @returns {Promise<void>}
  */
 async function registerSpecDecryptProviders({ http, endpoints }) {
-  const { CryptoProvider, EncryptedSpecV8, EncryptedSpecV9 } = await load();
+  const { CryptoProvider, SealedSpecV8, SealedSpecV9 } = await load();
 
   // v8: unwrap the AES key via the backend, then open AES-256-GCM locally.
   const openV8 = async (encrypted, _aad, appName, owner) => {
@@ -134,8 +134,8 @@ async function registerSpecDecryptProviders({ http, endpoints }) {
     }
   }
 
-  EncryptedSpecV8.registerProvider((name, owner) => new SpecDecryptProvider(openV8, name, owner));
-  EncryptedSpecV9.registerProvider((name, owner) => new SpecDecryptProvider(openV9, name, owner));
+  SealedSpecV8.registerProvider((name, owner) => new SpecDecryptProvider(openV8, name, owner));
+  SealedSpecV9.registerProvider((name, owner) => new SpecDecryptProvider(openV9, name, owner));
 }
 
 module.exports = { registerSpecDecryptProviders };

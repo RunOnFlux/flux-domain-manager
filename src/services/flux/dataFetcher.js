@@ -214,8 +214,8 @@ class FdmDataFetcher extends EventEmitter {
   }
 
   /**
-   * Register the version-specific decrypt providers on the flux-spec EncryptedSpec
-   * classes, once. `EncryptedSpec.decrypt()` then dispatches to the right one by
+   * Register the version-specific decrypt providers on the flux-spec SealedSpec
+   * classes, once. `SealedSpec.decrypt()` then dispatches to the right one by
    * version. Memoized — the registration is a one-time global side effect.
    * @returns {Promise<void>}
    */
@@ -351,7 +351,7 @@ class FdmDataFetcher extends EventEmitter {
     try {
       await this.#ensureProviders();
 
-      // deserialize -> EncryptedSpec -> decrypt(provider) -> DecryptedCanonicalSpec:
+      // deserialize -> SealedSpec -> decrypt(provider) -> OpenedSpec:
       // the version-blind decrypt lifecycle.
       const sealed = await specLibs.deserialize(appSpec);
       const provider = await sealed.createProvider();

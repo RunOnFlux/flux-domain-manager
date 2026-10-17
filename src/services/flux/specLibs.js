@@ -16,7 +16,7 @@ const APPS_FOLDER = '/var/lib/fdm/placeholder';
 /**
  * Deserialize a wire-form spec document (any version v1-v9, cleartext or encrypted)
  * into its flux-spec instance, on the chain `config.chain` names. Callers branch on
- * `instanceof EncryptedSpecBase`.
+ * `instanceof SealedSpecBase`.
  *
  * An already-readable spec is returned unchanged. Decrypted specs travel this pipeline
  * as objects rather than documents — a decrypted spec has no wire form, flux-spec seals
@@ -28,9 +28,9 @@ const APPS_FOLDER = '/var/lib/fdm/placeholder';
  */
 async function deserialize(doc) {
   const {
-    deserializeSpec, FluxAppSpecBase, DecryptedCanonicalSpec, Chain,
+    deserializeSpec, FluxAppSpecBase, OpenedSpec, Chain,
   } = await load();
-  if (doc instanceof FluxAppSpecBase || doc instanceof DecryptedCanonicalSpec) return doc;
+  if (doc instanceof FluxAppSpecBase || doc instanceof OpenedSpec) return doc;
   return deserializeSpec(doc, { chain: Chain.named(config.chain) });
 }
 
@@ -43,8 +43,8 @@ async function deserialize(doc) {
  * @returns {Promise<boolean>}
  */
 async function isSealed(doc) {
-  const { EncryptedSpecV8, EncryptedSpecV9 } = await load();
-  return Boolean(EncryptedSpecV8.matchesWire(doc) || EncryptedSpecV9.matchesWire(doc));
+  const { SealedSpecV8, SealedSpecV9 } = await load();
+  return Boolean(SealedSpecV8.matchesWire(doc) || SealedSpecV9.matchesWire(doc));
 }
 
 /**
@@ -52,7 +52,7 @@ async function isSealed(doc) {
  * version-normalized to one shape, with ports x loadBalancing merged. `replica` is
  * null for the declared/loose view or a named replica for a co-located one
  * (effectiveForReplica is applied internally).
- * @param {Object} spec a readable FluxAppSpec (or DecryptedCanonicalSpec)
+ * @param {Object} spec a readable FluxAppSpec (or OpenedSpec)
  * @param {string|null} [replica]
  * @returns {Promise<Object>} DeploymentSpec
  */

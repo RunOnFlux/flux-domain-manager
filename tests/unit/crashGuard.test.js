@@ -96,7 +96,7 @@ describe('ingestion — version-blind classification + crash guard', () => {
   });
 
   it('classifies an encrypted app, and routes it from the decrypted spec', async () => {
-    const { EncryptedSpecV9, CryptoProvider, FluxAppSpecV9 } = await specLibs.load();
+    const { SealedSpecV9, CryptoProvider, FluxAppSpecV9 } = await specLibs.load();
 
     // Seal the same v9 app the first test uses. The stub keeps the plaintext the real
     // backend would hand back on decrypt.
@@ -109,7 +109,7 @@ describe('ingestion — version-blind classification + crash guard', () => {
       }
     }
     const encryptStub = new StubEncrypt();
-    const sealedDoc = (await EncryptedSpecV9.fromSpec(FluxAppSpecV9.deserialize(v9Doc), encryptStub)).serialize();
+    const sealedDoc = (await SealedSpecV9.fromSpec(FluxAppSpecV9.deserialize(v9Doc), encryptStub)).serialize();
     expect(await specLibs.isSealed(sealedDoc), 'the doc really is sealed').to.equal(true);
 
     // A stub decrypt service on loopback, so the fetcher's own HTTP client is the one

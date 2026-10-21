@@ -1907,6 +1907,9 @@ async function startApplicationProcessing() {
       domainOwnership.setLiveApps([...specs.gApps.values(), ...specs.nonGApps.values()]);
       nonGApps = specs.nonGApps;
       gApps = specs.gApps;
+      // DNS of contested custom domains decides their owner (see customDomainOwnership)
+      await domainOwnership.refreshDnsOwners({ mainDomain: config.mainDomain })
+        .catch((error) => log.error(`Custom domain DNS ownership refresh failed: ${error.message}`));
     },
   );
 

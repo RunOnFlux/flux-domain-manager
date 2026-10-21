@@ -23,11 +23,13 @@ const { evaluateListChange } = require('../lib/listGuard');
 const { sharedGuardStore } = require('../lib/guardStore');
 
 const { FdmDataFetcher } = require('./flux/dataFetcher');
+const { createDomainOwnership } = require('./domain/customDomainOwnership');
 
 let myIP = null;
 let myFDMnameORip = null;
 
-let unifiedAppsDomains = [];
+// Which live app owns each contested custom domain; fed by the data fetcher.
+const domainOwnership = createDomainOwnership();
 const mapOfNamesIps = {};
 const mapOfNamesIpsLastHealthy = {}; // timestamp of last successful health check per app
 const mapOfNamesIpsLastHeld = {}; // timestamp of the last confirmed HELD answer per app
@@ -158,7 +160,6 @@ let haproxyRetryPending = false;
 
 let dataFetcher = null;
 
-let permanentMessages = [];
 let nonGApps = new Map();
 let gApps = new Map();
 let appsLocations = new Map();
@@ -167,51 +168,6 @@ const runQueue = {
   gApps: { running: false, queued: false },
   nonGApps: { running: false, queued: false },
 };
-
-async function checkDomainOwnership(domain, appName) {
-  try {
-    if (!domain) {
-      return true;
-    }
-    const filteredDomains = unifiedAppsDomains.filter((entry) => entry.domains.includes(domain.toLowerCase()));
-    const ourAppExists = filteredDomains.find(
-      (existing) => existing.name === appName,
-    );
-    if (filteredDomains.length >= 2 && ourAppExists) {
-      // we have multiple apps that has the same domain assigned;
-      // check permanent messages for these apps
-      const appNames = [];
-      filteredDomains.forEach((x) => {
-        appNames.push(x.name);
-      });
-      // now we have only the messages that touch the apps that have the domain
-      const filteredPermanentMessages = permanentMessages.filter((mes) => appNames.includes(mes.appSpecifications.name));
-      const adjustedFilteredPermMessages = [];
-      filteredPermanentMessages.forEach((message) => {
-        const stringedMessage = JSON.stringify(message).toLowerCase();
-        if (stringedMessage.includes(domain.toLowerCase())) {
-          adjustedFilteredPermMessages.push(message);
-        }
-      });
-      const sortedPermanentFilteredMessages = adjustedFilteredPermMessages.sort(
-        (a, b) => {
-          if (a.height < b.height) return -1;
-          if (a.height > b.height) return 1;
-          return 0;
-        },
-      );
-      const oldestMessage = sortedPermanentFilteredMessages[0];
-      if (oldestMessage.appSpecifications.name === appName) {
-        return true;
-      }
-      log.warn(`Custom domain ${domain} not owned by ${appName}`);
-      return false;
-    }
-    return true;
-  } catch (error) {
-    return true;
-  }
-}
 
 // Generates config file for HAProxy
 let fluxIPsForBalancing = []; // current nodes l
@@ -1176,12 +1132,6 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
             .replace('https://', '')
             .replace('http://', '')
             .replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
-          const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
-          if (isDomainAllowed === false) {
-            // eslint-disable-next-line no-continue
-            continue;
-          }
-          // TODO here check on permanent apps if this app name is true owner of the portDomain
           if (portDomain.includes('www.')) {
             // eslint-disable-next-line prefer-destructuring, no-param-reassign
             portDomain = portDomain.split('www.')[1];
@@ -1199,9 +1149,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
               )
             && !domainAssigned
           ) {
-            // prevent double backend
+            // prevent double backend, and skip a name another app registered first
             const domainExists = configuredApps.hasDomain(portDomain.toLowerCase());
-            if (!domainExists) {
+            if (!domainExists && domainOwnership.ownsDomain(portDomain, app.name)) {
               const configuredAppCustom = {
                 name: app.name,
                 appName: `${app.name}_${app.ports[i]}`,
@@ -1217,7 +1167,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
             const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
             if (wwwAdjustedDomain) {
               const domainExistsB = configuredApps.hasDomain(wwwAdjustedDomain);
-              if (!domainExistsB) {
+              if (!domainExistsB && domainOwnership.ownsDomain(wwwAdjustedDomain, app.name)) {
                 const configuredAppCustom = {
                   name: app.name,
                   appName: `${app.name}_${app.ports[i]}`,
@@ -1235,7 +1185,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
             const testAdjustedDomain = `test.${portDomain.toLowerCase()}`;
             if (testAdjustedDomain) {
               const domainExistsB = configuredApps.hasDomain(testAdjustedDomain);
-              if (!domainExistsB) {
+              if (!domainExistsB && domainOwnership.ownsDomain(testAdjustedDomain, app.name)) {
                 const configuredAppCustom = {
                   name: app.name,
                   appName: `${app.name}_${app.ports[i]}`,
@@ -1293,11 +1243,6 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
               .replace('https://', '')
               .replace('http://', '')
               .replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
-            const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
-            if (isDomainAllowed === false) {
-              // eslint-disable-next-line no-continue
-              continue;
-            }
             if (portDomain.includes('www.')) {
               // eslint-disable-next-line prefer-destructuring, no-param-reassign
               portDomain = portDomain.split('www.')[1];
@@ -1320,9 +1265,9 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                   `${config.appSubDomain}${config.mainDomain.split('.')[0]}`,
                 )
               ) {
-                // prevent double backend
+                // prevent double backend, and skip a name another app registered first
                 const domainExists = configuredApps.hasDomain(portDomain.toLowerCase());
-                if (!domainExists) {
+                if (!domainExists && domainOwnership.ownsDomain(portDomain, app.name)) {
                   const configuredAppCustom = {
                     name: app.name,
                     appName: `${app.name}_${component.name}_${component.ports[i]}`,
@@ -1339,7 +1284,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                 const wwwAdjustedDomain = `www.${portDomain.toLowerCase()}`;
                 if (wwwAdjustedDomain) {
                   const domainExistsB = configuredApps.hasDomain(wwwAdjustedDomain);
-                  if (!domainExistsB) {
+                  if (!domainExistsB && domainOwnership.ownsDomain(wwwAdjustedDomain, app.name)) {
                     const configuredAppCustom = {
                       name: app.name,
                       appName: `${app.name}_${component.name}_${component.ports[i]}`,
@@ -1357,7 +1302,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
                 const testAdjustedDomain = `test.${portDomain.toLowerCase()}`;
                 if (testAdjustedDomain) {
                   const domainExistsB = configuredApps.hasDomain(testAdjustedDomain);
-                  if (!domainExistsB) {
+                  if (!domainExistsB && domainOwnership.ownsDomain(testAdjustedDomain, app.name)) {
                     const configuredAppCustom = {
                       name: app.name,
                       appName: `${app.name}_${component.name}_${component.ports[i]}`,
@@ -1959,14 +1904,14 @@ async function startApplicationProcessing() {
   dataFetcher.on(
     'appSpecsUpdated',
     async (specs) => {
-      unifiedAppsDomains = specs.appFqdns;
+      domainOwnership.setLiveApps([...specs.gApps.values(), ...specs.nonGApps.values()]);
       nonGApps = specs.nonGApps;
       gApps = specs.gApps;
     },
   );
 
   dataFetcher.on('permMessagesUpdated', (permMessages) => {
-    permanentMessages = permMessages;
+    domainOwnership.setPermanentMessages(permMessages);
   });
 
   dataFetcher.on('appsLocationsUpdated', locationsHandler);
@@ -2112,4 +2057,8 @@ module.exports = {
   reportExclusion,
   admitConfiguredHalf,
   resetConfiguredHalfGuards,
+  // exported for tests
+  addConfigurations,
+  createConfiguredApps,
+  domainOwnership,
 };

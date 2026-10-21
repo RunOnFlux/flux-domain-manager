@@ -13,7 +13,7 @@ const {
 const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/cert');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
-const { isWildcardAppDomain } = require('./application/wildcard');
+const wildcard = require('./application/wildcard');
 const { getApplicationsToProcess } = require('./application/subset');
 const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
@@ -1032,6 +1032,11 @@ function delay(ms) {
   });
 }
 
+let publishedWildcardRoutes = '[]';
+async function wildcardRoutesChanged() {
+  return JSON.stringify(await wildcard.getServableWildcardRoutes()) !== publishedWildcardRoutes;
+}
+
 let updateHaproxyRunning = false;
 async function updateHaproxy(haproxyAppsConfig) {
   try {
@@ -1041,7 +1046,8 @@ async function updateHaproxy(haproxyAppsConfig) {
       return;
     }
     updateHaproxyRunning = true;
-    const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
+    const routes = await wildcard.getServableWildcardRoutes();
+    const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig, routes);
     // stop logging entire ha proxy config to console
     // console.log(hc);
     const dataToWrite = hc;
@@ -1051,6 +1057,7 @@ async function updateHaproxy(haproxyAppsConfig) {
     if (!result.ok) {
       throw new Error(`Haproxy not updated: ${result.reason}`);
     }
+    publishedWildcardRoutes = JSON.stringify(routes);
   } finally {
     updateHaproxyRunning = false;
   }
@@ -1177,8 +1184,6 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
             .replace('https://', '')
             .replace('http://', '')
             .replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
-          // eslint-disable-next-line no-continue
-          if (isWildcardAppDomain(portDomain)) continue;
           const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
           if (isDomainAllowed === false) {
             // eslint-disable-next-line no-continue
@@ -1296,8 +1301,6 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
               .replace('https://', '')
               .replace('http://', '')
               .replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
-            // eslint-disable-next-line no-continue
-            if (isWildcardAppDomain(portDomain)) continue;
             const isDomainAllowed = checkDomainOwnership(portDomain, app.name);
             if (isDomainAllowed === false) {
               // eslint-disable-next-line no-continue
@@ -1671,7 +1674,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     const serializedApps = JSON.stringify(configuredAppsList);
     const lastSerializedApps = JSON.stringify(recentlyConfiguredApps);
 
-    if (serializedApps === lastSerializedApps && !haproxyRetryPending) {
+    if (serializedApps === lastSerializedApps && !haproxyRetryPending && !(await wildcardRoutesChanged())) {
       log.info('No changes in Non G Mode configuration detected');
       return;
     }
@@ -1825,7 +1828,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     const serializedApps = JSON.stringify(configuredAppsList);
     const lastSerializedApps = JSON.stringify(recentlyConfiguredGApps);
 
-    if (serializedApps === lastSerializedApps && !haproxyRetryPending) {
+    if (serializedApps === lastSerializedApps && !haproxyRetryPending && !(await wildcardRoutesChanged())) {
       log.info('No changes in G Mode configuration detected');
       return;
     }
@@ -2117,4 +2120,6 @@ module.exports = {
   reportExclusion,
   admitConfiguredHalf,
   resetConfiguredHalfGuards,
+  updateHaproxy,
+  wildcardRoutesChanged,
 };

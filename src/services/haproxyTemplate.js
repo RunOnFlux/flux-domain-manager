@@ -278,9 +278,11 @@ backend ${domainUsed}backend
     const isCheck = app.check ? 'check ' : '';
     if (ip.includes('[') && ip.includes(']')) { // ipv6 hardcoded
       const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
-      cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split('[')[1].split(']')[0]}${ip.split(']')[1]}`;
+      const address = ip.slice(1, ip.indexOf(']'));
+      const nodePort = ip.slice(ip.indexOf(']') + 2) || 16127;
+      cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${address}:${app.port}`;
       const tls = app.ssl ? `ssl verify none ${h2Config}` : '';
-      domainBackend += `\n  server ${ip.split('[')[1].split(']')[0]} ${ip.split(']')[0]}]:${app.port} ${isCheck}${app.serverConfig} ${tls}${cookieConfig} source [::]:0`;
+      domainBackend += `\n  server ${address}:${nodePort} [${address}]:${app.port} ${isCheck}${app.serverConfig} ${tls}${cookieConfig} source [::]:0`;
     } else if (app.ssl) {
       const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
@@ -468,7 +470,8 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
 
 // appConfig is an array of object of domain, port, ips
 function createAppsHaproxyConfig(appConfig, wildcardAppRoutes) {
-  const routes = getWildcardAppRoutes(wildcardAppRoutes);
+  const routes = wildcardAppRoutes || [];
+  const reservedRoutes = [...getWildcardAppRoutes(), ...routes];
   let backends = '';
   let acls = '';
   let usebackends = '';
@@ -489,9 +492,10 @@ function createAppsHaproxyConfig(appConfig, wildcardAppRoutes) {
   const domains = [];
   const seenApps = {};
   const tcpAppsMap = {};
+  const httpBackends = new Map();
   for (const app of appConfig) {
     // eslint-disable-next-line no-continue
-    if (isWildcardAppDomain(app.domain, routes)) continue;
+    if (isWildcardAppDomain(app.domain, reservedRoutes)) continue;
     if (domains.includes(app.domain)) {
       // eslint-disable-next-line no-continue
       continue;
@@ -499,6 +503,7 @@ function createAppsHaproxyConfig(appConfig, wildcardAppRoutes) {
     if (app.appName in seenApps) {
       domains.push(app.domain);
       acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
+      httpBackends.set(app.domain.toLowerCase(), seenApps[app.appName]);
     } else if (!matchRule(app.name.toLowerCase(), configGlobal.minecraftApps)) { // minecraftApps: TCP frontend only
       const domainUsed = app.domain.split('.').join('');
       if (usebackends.includes(`  use_backend ${domainUsed}backend if ${domainUsed}\n`)) {
@@ -511,6 +516,7 @@ function createAppsHaproxyConfig(appConfig, wildcardAppRoutes) {
       acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
       usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
       seenApps[app.appName] = domainUsed;
+      httpBackends.set(app.domain.toLowerCase(), domainUsed);
     }
     if (app.mode === 'tcp') {
       log.debug(`TCP APP: ${app.name}`);
@@ -542,35 +548,22 @@ function createAppsHaproxyConfig(appConfig, wildcardAppRoutes) {
       }
     }
   }
-  // Resolve the binding from the same discovered, healthy app snapshot used
-  // above. Match BOTH app identity and domain: another app cannot claim the
-  // configured target and acquire its wildcard traffic. Reuse its backend so
-  // instance membership, health checks and balancing never drift apart.
-  let wildcardUses = '';
+  // Resolve exactly the backend the ordinary HTTP loop selected. G/non-G
+  // snapshots may temporarily contain duplicate entries; they must never stop
+  // unrelated apps from updating. Missing/TCP-only targets remain dormant.
   routes.forEach((route, index) => {
-    const escapedDomain = route.domain.replace(/\./g, '[.]');
-    const host = `wildcard_host_${index}`;
-    const namespace = `wildcard_namespace_${index}`;
-    acls += `  acl ${host} hdr(host),lower,field(1,:) -m reg ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?[.]${escapedDomain}[.]?$\n`;
-    acls += `  acl ${namespace} hdr(host),lower,field(1,:) -m reg (^|[.])${escapedDomain}[.]?$\n`;
-    const targets = appConfig.filter((app) => app.name.toLowerCase() === route.appName && app.domain.toLowerCase() === route.targetDomain);
-    if (targets.length > 1) throw new Error(`Ambiguous wildcard target: ${route.targetDomain}`);
-    const target = targets[0];
-    if (target && (target.ssl || target.mode === 'tcp' || matchRule(target.name.toLowerCase(), configGlobal.minecraftApps))) {
-      throw new Error(`Wildcard target must use HTTP: ${route.targetDomain}`);
+    const backend = httpBackends.get(route.targetDomain);
+    if (!backend) {
+      log.warn(`Wildcard namespace ${route.domain}: no HTTP backend for ${route.targetDomain}`);
+      return;
     }
-    const backend = target && target.ips.length && seenApps[target.appName];
-    wildcardUses += `  use_backend ${backend ? `${backend}backend` : 'wildcard_unavailable'} if ${host}\n`;
-    wildcardUses += `  use_backend wildcard_not_found if ${namespace}\n`;
+    const host = `wildcard_${index}`;
+    // Include the certificate fingerprint so renewal reloads HAProxy even if
+    // its routes and app list are unchanged. Only a successful publish commits it.
+    if (route.certificateFingerprint) acls += `  # wildcard certificate ${route.certificateFingerprint}\n`;
+    acls += `  acl ${host} req.hdr(host),host_only -m end .${route.domain}\n`;
+    usebackends += `  use_backend ${backend}backend if ${host}\n`;
   });
-  if (routes.length) {
-    // Unavailable targets never fall through to a custom-domain app. Invalid
-    // labels, nested subdomains and the namespace apex are not tenant sites.
-    const forbiddenUse = '  use_backend forbidden-backend if forbiddenacl\n';
-    usebackends = usebackends.replace(forbiddenUse, forbiddenUse + wildcardUses);
-    backends += '\nbackend wildcard_unavailable\n  mode http\n  http-request return status 503 content-type text/plain string "Wildcard application unavailable"\n';
-    backends += '\nbackend wildcard_not_found\n  mode http\n  http-request return status 404\n';
-  }
   const redirects = '';
 
   return generateHaproxyConfig(acls, usebackends, domains, backends, redirects, tcpAppsMap);

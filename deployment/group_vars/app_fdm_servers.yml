@@ -1,0 +1,5 @@
+# Reserve the namespace on production app FDMs and their certificate managers.
+# Only the pool discovering Drop, with a ready local certificate, serves it.
+wildcardAppRoutes:
+  - domain: drop.runonflux.io
+    targetDomain: drop.app.runonflux.io

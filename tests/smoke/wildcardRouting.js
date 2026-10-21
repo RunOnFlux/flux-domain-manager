@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax, no-await-in-loop */
 // Disposable, local-only integration test of the generated HAProxy rules.
-// Requires Docker and OpenSSL; no Flux, DNS, Cloudflare or production certs.
+// Requires Linux host networking, Docker and OpenSSL; no Flux, DNS, Cloudflare or production certs.
 const assert = require('assert/strict');
 const fs = require('fs');
 const os = require('os');
@@ -8,9 +8,10 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 const { execFileSync, spawn } = require('child_process');
+const { certificateFingerprint, getServableWildcardRoutes } = require('../../src/services/application/wildcard');
 const { createAppsHaproxyConfig } = require('../../src/services/haproxyTemplate');
 
-const routes = [{ domain: 'drop.runonflux.io', appName: 'drop', targetDomain: 'drop.app.runonflux.io' }];
+const routes = [{ domain: 'drop.runonflux.io', targetDomain: 'drop.app.runonflux.io' }];
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'fdm-wildcard-'));
 const name = `fdm-wildcard-${process.pid}`;
 const image = process.env.FDM_TEST_HAPROXY_IMAGE || 'haproxy:3.2-alpine';
@@ -92,7 +93,7 @@ async function main() {
   execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
     '-keyout', path.join(directory, 'key.pem'), '-out', path.join(directory, 'certificate.pem'),
     '-subj', '/CN=*.drop.runonflux.io', '-addext', 'subjectAltName=DNS:*.drop.runonflux.io,DNS:drop.app.runonflux.io,DNS:ipv6.example.com'], { stdio: 'pipe' });
-  fs.writeFileSync(path.join(directory, 'certs', 'drop.pem'), Buffer.concat([
+  fs.writeFileSync(path.join(directory, 'certs', 'drop.runonflux.io.pem'), Buffer.concat([
     fs.readFileSync(path.join(directory, 'certificate.pem')), fs.readFileSync(path.join(directory, 'key.pem')),
   ]));
 
@@ -100,9 +101,11 @@ async function main() {
   const ipv6 = app(ipv6Port, {
     name: 'ipv6', appName: 'ipv6', domain: 'ipv6.example.com', ips: ['[::1]:16127'],
   });
-  // A second namespace exercises absent-target behavior in the same process.
-  const bindings = [...routes, { domain: 'offline.example.com', appName: 'missing', targetDomain: 'missing.app.runonflux.io' }];
-  const generated = createAppsHaproxyConfig([attacker, app(backendPort), ipv6], bindings);
+  // A second namespace without a local certificate must remain dormant.
+  const bindings = [...routes, { domain: 'offline.example.com', targetDomain: 'missing.app.runonflux.io' }];
+  const servable = await getServableWildcardRoutes(bindings, (domain) => certificateFingerprint(domain, Date.now(), path.join(directory, 'certs')));
+  assert.equal(servable.length, 1, 'only the namespace with a matching wildcard PEM should be active');
+  const generated = createAppsHaproxyConfig([attacker, app(backendPort), ipv6], servable);
   // Keep the actual frontends, ACLs, backends, health checks and balancing. Only
   // remove host-specific OS paths/users and bind disposable loopback ports.
   const config = generated.split('\n').filter((line) => !/^\s*(lua-load|chroot|user |group |daemon$|log |stats socket|ssl-dh-param-file|server-state-file|load-server-state-from-file|errorfile)/.test(line))
@@ -138,7 +141,7 @@ async function main() {
     instances.add(JSON.parse(response.body).instance);
   }
   assert.deepEqual([...instances].sort(), ['127.0.0.1', '127.0.0.2']);
-  for (const host of ['HELLO.DROP.RUNONFLUX.IO:443', 'hello.drop.runonflux.io.']) {
+  for (const host of ['HELLO.DROP.RUNONFLUX.IO:443']) {
     const response = await request(httpsPort, host, '/', true);
     assert.equal(response.status, 200);
     assert.equal(JSON.parse(response.body).host, host);
@@ -148,7 +151,7 @@ async function main() {
   assert.equal(redirect.headers.location, 'https://hello.drop.runonflux.io/assets/app.js?q=1');
   assert.equal((await request(httpsPort, 'hello.drop.runonflux.io', '/product/litty-cat-thc-bars-1000mg', true)).status, 403);
   assert.equal((await request(httpsPort, 'drop.app.runonflux.io', '/', true)).status, 200);
-  for (const host of ['drop.runonflux.io', 'nested.hello.drop.runonflux.io', '-bad.drop.runonflux.io', `${'a'.repeat(64)}.drop.runonflux.io`]) {
+  for (const host of ['hello.drop.runonflux.io.attacker.net', 'xdrop.runonflux.io', 'drop.runonflux.io', 'nested.hello.drop.runonflux.io', '-bad.drop.runonflux.io', `${'a'.repeat(64)}.drop.runonflux.io`]) {
     // Check routing independently of whether the one-label TLS cert covers it.
     const response = await new Promise((resolve, reject) => {
       const req = https.get({
@@ -158,7 +161,7 @@ async function main() {
       });
       req.on('error', reject);
     });
-    assert.equal(response, 404, host);
+    assert.equal(response, host.endsWith('.drop.runonflux.io') ? 200 : 503, host);
   }
   const ipv6Response = await request(httpsPort, 'ipv6.example.com', '/ipv6', true);
   assert.equal(ipv6Response.status, 200);
@@ -172,7 +175,7 @@ async function main() {
     req.on('error', reject);
   });
   assert.equal(unavailable, 503);
-  console.log('PASS: generated HAProxy validates; wildcard TLS, HTTP IPv4/IPv6 upstreams, original Host/path/query/body, balancing, namespace reservation, 404/503 handling, and existing exact-host routing');
+  console.log('PASS: generated HAProxy validates; wildcard TLS, HTTP IPv4/IPv6 upstreams, original Host/path/query/body, balancing, namespace reservation, suffix isolation and missing-target 503, and existing exact-host routing');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(async () => {

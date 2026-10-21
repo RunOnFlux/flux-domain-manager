@@ -1,24 +1,27 @@
 const config = require('config');
+const fs = require('fs').promises;
+const { X509Certificate, createPrivateKey } = require('crypto');
+const log = require('../../lib/log');
 
 const label = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
 const domainPattern = new RegExp(`^(?:${label}\\.)+${label}$`);
-// Generated per-port FDM hostnames can contain underscores.
-const targetPattern = /^[a-z0-9_-]+(?:\.[a-z0-9_-]+)+$/;
 
-function getWildcardAppRoutes(input = config.wildcardAppRoutes || []) {
+function parseWildcardRoutes(input) {
   if (!Array.isArray(input)) throw new Error('wildcardAppRoutes must be an array');
+  const appZone = `.${config.appSubDomain}.${config.mainDomain}`.toLowerCase();
   const routes = input.map((route) => {
-    if (!route || typeof route.domain !== 'string' || typeof route.appName !== 'string' || typeof route.targetDomain !== 'string') {
-      throw new Error('Each wildcardAppRoutes entry requires domain, appName and targetDomain');
+    if (!route || typeof route.domain !== 'string' || typeof route.targetDomain !== 'string') {
+      throw new Error('Each wildcardAppRoutes entry requires domain and targetDomain');
     }
     const domain = route.domain.toLowerCase();
-    const appName = route.appName.toLowerCase();
     const targetDomain = route.targetDomain.toLowerCase();
-    if (domain.length > 189 || !domainPattern.test(domain) || !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(appName)
-      || targetDomain.length > 253 || !targetPattern.test(targetDomain)) {
-      throw new Error('Invalid wildcardAppRoutes domain, appName or targetDomain');
+    // Only generated app endpoints can be targets: custom domain claims are
+    // excluded from this zone before the HTTP backend list is constructed.
+    if (domain.length > 189 || !domainPattern.test(domain) || targetDomain.length > 253
+      || !targetDomain.endsWith(appZone) || !/^[a-z0-9][a-z0-9_-]*$/.test(targetDomain.slice(0, -appZone.length))) {
+      throw new Error('Invalid wildcardAppRoutes domain or generated targetDomain');
     }
-    return { domain, appName, targetDomain };
+    return { domain, targetDomain };
   });
   routes.forEach((route, index) => {
     if (routes.some((other, otherIndex) => otherIndex < index
@@ -32,12 +35,43 @@ function getWildcardAppRoutes(input = config.wildcardAppRoutes || []) {
   return routes;
 }
 
-// The entire namespace is operator-owned, including the apex and deeper names
-// that a one-label TLS wildcard does not cover. Never provision DNS/certs or
-// exact-host routes there from an application's custom-domain claims.
-function isWildcardAppDomain(domain, routes = getWildcardAppRoutes()) {
+// Static operator mistakes fail at startup, never during an app update pass.
+const wildcardRoutes = parseWildcardRoutes(config.wildcardAppRoutes || []);
+function getWildcardAppRoutes() { return wildcardRoutes; }
+
+// Reservation is independent of certificate availability, including the apex.
+function isWildcardAppDomain(domain, routes = wildcardRoutes) {
   const host = domain.toLowerCase().replace(/\.$/, '');
   return routes.some((route) => host === route.domain || host.endsWith(`.${route.domain}`));
 }
 
-module.exports = { getWildcardAppRoutes, isWildcardAppDomain };
+async function certificateFingerprint(domain, now = Date.now(), directory = `/etc/ssl/${config.certFolder}`) {
+  try {
+    const pem = await fs.readFile(`${directory}/${domain}.pem`);
+    const cert = new X509Certificate(pem);
+    // Checking a concrete hostname alone would also accept a single-site cert.
+    // checkHost with the wildcard itself requires coverage of the namespace.
+    if (Date.parse(cert.validFrom) > now || Date.parse(cert.validTo) <= now
+      || !cert.checkHost(`*.${domain}`) || !cert.checkPrivateKey(createPrivateKey(pem))) return null;
+    return cert.fingerprint256;
+  } catch (error) {
+    return null;
+  }
+}
+
+const lastServable = new Map();
+async function getServableWildcardRoutes(routes = wildcardRoutes, check = certificateFingerprint) {
+  const checked = await Promise.all(routes.map(async (route) => {
+    const fingerprint = await check(route.domain);
+    if (lastServable.get(route.domain) !== Boolean(fingerprint)) {
+      log.warn(`Wildcard namespace ${route.domain}: ${fingerprint ? 'certificate ready' : 'dormant; valid wildcard certificate and matching key required'}`);
+      lastServable.set(route.domain, Boolean(fingerprint));
+    }
+    return fingerprint ? { ...route, certificateFingerprint: fingerprint } : null;
+  }));
+  return checked.filter(Boolean);
+}
+
+module.exports = {
+  parseWildcardRoutes, getWildcardAppRoutes, isWildcardAppDomain, certificateFingerprint, getServableWildcardRoutes,
+};

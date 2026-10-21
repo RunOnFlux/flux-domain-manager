@@ -30,83 +30,32 @@ domainAppType: 'CNEME' or 'A'
 
 ## Wildcard application routing
 
-An operator can bind a site namespace to one application's existing HTTP backend:
+Bind an operator-owned namespace to an existing generated app HTTP endpoint:
 
 ```js
-wildcardAppRoutes: [
-  {
-    domain: 'drop.runonflux.io',
-    appName: 'drop',
-    targetDomain: 'drop.app.runonflux.io',
-  },
-],
+wildcardAppRoutes: [{ domain: 'drop.runonflux.io', targetDomain: 'drop.app.runonflux.io' }],
 ```
 
-`domain` is the namespace without `*.`. `appName` is the Flux application name,
-and `targetDomain` selects the exact HTTP endpoint from FDM's discovered app
-configuration. A generated per-port domain such as `drop_31512.app.runonflux.io`
-can select a specific component/port. FDM resolves the public port and healthy
-instances dynamically; no IPs or container ports belong in this setting.
+Defaults to `[]`; production inventory sets the Drop binding in
+`deployment/group_vars/app_fdm_servers.yml`. Targets must be generated endpoints
+(`<appname>[_<port>].<appSubDomain>.<mainDomain>`). Original Host, path, query and
+body are preserved. The application validates tenant hostnames. Global forbidden
+rules still take priority. HAProxy 2.7 or newer is required for `host_only`.
 
-Standalone config defaults to `[]`. The Ansible template enables the binding
-above for production application FDMs (`manageApps=true`, `appSubDomain=app`),
-including their certificate manager. Staging and main-network FDMs default to
-`[]`. Set the Ansible variable `wildcardAppRoutes` to override the bindings;
-explicit `[]` disables them. An invalid, overlapping or recursive binding is
-rejected. TLS/TCP targets and ambiguous target endpoints are also rejected.
+Install the wildcard certificate, chain and matching private key together at
+`/etc/ssl/<certFolder>/<domain>.pem` (default `certFolder`: `fluxapps`). Each FDM
+checks its own file: routes remain dormant until a matching, currently valid
+wildcard certificate and key exist. Certificate arrival, expiry and renewal
+trigger configuration updates; failed publishes retry. Distribute certificates
+through the authoritative certificate-sync source, since rsync uses `--delete`.
+The complete namespace remains reserved against custom-domain claims even while
+dormant. Missing HTTP targets are skipped without blocking other app updates.
 
-Only one valid DNS label is routed: `hello.drop.runonflux.io` works, while the
-namespace apex, nested names, invalid labels and labels over 63 characters
-return 404. Host matching accepts uppercase, an explicit port and a trailing
-DNS dot. The **original** Host header, path, query, method and body reach the
-application unchanged. HTTP requests retain FDM's existing HTTPS redirect and
-ACME handling. Global forbidden-host/path rules still take priority.
-
-The complete namespace is reserved against applications' custom-domain claims,
-including DNS/certificate provisioning. If the target is missing, has no healthy
-instances, or is outside this FDM's app subset, valid site hostnames return 503;
-they never fall through to another application's custom-domain backend.
-
-For Flux Drop, point a wildcard CNAME `*.drop.runonflux.io` to the **same FDM
-pool** serving `drop.app.runonflux.io`. Do not point it to a different subset or
-to Drop's individual nodes. FDM terminates TLS and uses plain HTTP to the
-application's published Flux port, including IPv6 instances. No certificate is
-needed inside the application container.
-
-Install the certificate, intermediate chain and matching private key as one PEM
-at `/etc/ssl/fluxapps/drop.runonflux.io.pem` (or the configured `certFolder`).
-Protect the private key with permissions compatible with HAProxy and your
-certificate-sync account. HAProxy loads this directory and selects by SNI.
-Install at the authoritative certificate-sync source, then distribute to **all**
-FDMs in the serving pool: the existing rsync uses `--delete`, so files installed
-only on a receiving peer can disappear. After installation and each renewal,
-validate and reload HAProxy on every recipient:
-
-```sh
-sudo haproxy -c -f /etc/haproxy/haproxy.cfg
-sudo systemctl reload haproxy
-```
-
-Wildcard ACME certificates require DNS validation; this binding does not issue
-certificates or create wildcard DNS records. `*.drop.runonflux.io` does not cover
-`drop.runonflux.io` itself. Cloudflare-proxied records also need an edge
-certificate covering the deeper wildcard and Full (strict) to FDM. A Cloudflare
-Origin CA certificate works on FDM only when browsers connect through Cloudflare;
-DNS-only records need a publicly trusted FDM certificate. Preserve the original
-Host in Cloudflare rules.
-
-Drop itself must implement hostname-based project delivery before these URLs
-serve projects. This FDM change does not rewrite `/` into `/hello/`, enable
-custom project domains, or change Drop's browser sandbox.
-
-Run `npm test` and `npm run lint` for unit checks. With Docker and OpenSSL,
-`npm run test:wildcard` validates and runs the generated HAProxy configuration
-with temporary loopback listeners, a test wildcard certificate and local HTTP
-backends. It checks TLS/SNI, IPv4/IPv6 HTTP upstreams, forwarding, balancing,
-namespace protection, unavailable targets and existing exact-host routing.
-`FDM_TEST_HAPROXY_IMAGE` can select another HAProxy version. Test containers and
-certificate files are removed afterward; no live Flux or Cloudflare access is
-used.
+Run `npm test` and `npm run lint`. `npm run test:wildcard` requires **Linux**,
+Docker and OpenSSL, and uses host networking with temporary loopback backends;
+Docker Desktop host networking does not provide the same loopback access. Set
+`FDM_TEST_HAPROXY_IMAGE` to test another HAProxy version. Tests use no live Flux
+or Cloudflare services and remove their containers and temporary certificates.
 
 ## Operator alerts
 
@@ -123,7 +72,7 @@ Each condition sends one message when it starts and one when it clears. Set `ale
 ## Application Overview
 
 Prerequisites: 
-- Nodejs 14+
+- Nodejs 16.20.1+
 - haproxy
 - mongodb 4+
 - certbot

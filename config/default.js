@@ -25,6 +25,8 @@ module.exports = {
   domainAppType: 'CNAME',
   emailDomain: 'tadeas@runonflux.io',
   certFolder: 'fluxapps',
+  // Operator-owned site namespaces; production Ansible enables Flux Drop.
+  wildcardAppRoutes: [],
   manageCertificateOnly: true,
   certRenewalPrimary: false,
   automateCertificates: false,

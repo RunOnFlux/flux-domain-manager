@@ -8,9 +8,21 @@ const { matchRule } = require('./serviceHelper');
 const { getPrimaryIP } = require('./rsync/config');
 const { reloadAndVerify, formatFailure } = require('./haproxyReload');
 const alerts = require('./alertService');
+const { getWildcardAppRoutes, isWildcardAppDomain } = require('./application/wildcard');
 
 let lastHaproxyConfig;
 let consecutivePublishFailures = 0;
+const wildcardBackendAvailability = new Map();
+
+function reportWildcardBackendAvailability(route, available) {
+  const key = `${route.domain}:${route.targetDomain}`;
+  if (wildcardBackendAvailability.get(key) === available) return;
+  const status = available
+    ? `HTTP backend ${route.targetDomain} ready`
+    : `no HTTP backend for ${route.targetDomain}`;
+  log.warn(`Wildcard namespace ${route.domain}: ${status}`);
+  wildcardBackendAvailability.set(key, available);
+}
 
 const haproxyPrefix = `
 global
@@ -277,8 +289,11 @@ backend ${domainUsed}backend
     const isCheck = app.check ? 'check ' : '';
     if (ip.includes('[') && ip.includes(']')) { // ipv6 hardcoded
       const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
-      cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split('[')[1].split(']')[0]}${ip.split(']')[1]}`;
-      domainBackend += `\n  server ${ip.split('[')[1].split(']')[0]} ${ip.split(']')[0]}]${ip.split(']')[1]} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
+      const address = ip.slice(1, ip.indexOf(']'));
+      const nodePort = ip.slice(ip.indexOf(']') + 2) || 16127;
+      cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${address}:${app.port}`;
+      const tls = app.ssl ? `ssl verify none ${h2Config}` : '';
+      domainBackend += `\n  server ${address}:${nodePort} [${address}]:${app.port} ${isCheck}${app.serverConfig} ${tls}${cookieConfig} source [::]:0`;
     } else if (app.ssl) {
       const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
       domainBackend += `\n  server ${ip.split(':')[0]}:${apiPort} ${ip.split(':')[0]}:${app.port} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
@@ -465,7 +480,9 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
 }
 
 // appConfig is an array of object of domain, port, ips
-function createAppsHaproxyConfig(appConfig) {
+function createAppsHaproxyConfig(appConfig, wildcardAppRoutes) {
+  const routes = wildcardAppRoutes || [];
+  const reservedRoutes = [...getWildcardAppRoutes(), ...routes];
   let backends = '';
   let acls = '';
   let usebackends = '';
@@ -486,7 +503,10 @@ function createAppsHaproxyConfig(appConfig) {
   const domains = [];
   const seenApps = {};
   const tcpAppsMap = {};
+  const httpBackends = new Map();
   for (const app of appConfig) {
+    // eslint-disable-next-line no-continue
+    if (isWildcardAppDomain(app.domain, reservedRoutes)) continue;
     if (domains.includes(app.domain)) {
       // eslint-disable-next-line no-continue
       continue;
@@ -494,6 +514,7 @@ function createAppsHaproxyConfig(appConfig) {
     if (app.appName in seenApps) {
       domains.push(app.domain);
       acls += `  acl ${seenApps[app.appName]} hdr(host) ${app.domain}\n`;
+      httpBackends.set(app.domain.toLowerCase(), seenApps[app.appName]);
     } else if (!matchRule(app.name.toLowerCase(), configGlobal.minecraftApps)) { // minecraftApps: TCP frontend only
       const domainUsed = app.domain.split('.').join('');
       if (usebackends.includes(`  use_backend ${domainUsed}backend if ${domainUsed}\n`)) {
@@ -506,6 +527,7 @@ function createAppsHaproxyConfig(appConfig) {
       acls += `  acl ${domainUsed} hdr(host) ${app.domain}\n`;
       usebackends += `  use_backend ${domainUsed}backend if ${domainUsed}\n`;
       seenApps[app.appName] = domainUsed;
+      httpBackends.set(app.domain.toLowerCase(), domainUsed);
     }
     if (app.mode === 'tcp') {
       log.debug(`TCP APP: ${app.name}`);
@@ -537,6 +559,22 @@ function createAppsHaproxyConfig(appConfig) {
       }
     }
   }
+  // Resolve exactly the backend the ordinary HTTP loop selected. G/non-G
+  // snapshots may temporarily contain duplicate entries; they must never stop
+  // unrelated apps from updating. Missing/TCP-only targets remain dormant.
+  routes.forEach((route, index) => {
+    const backend = httpBackends.get(route.targetDomain);
+    reportWildcardBackendAvailability(route, Boolean(backend));
+    if (!backend) {
+      return;
+    }
+    const host = `wildcard_${index}`;
+    // Include the certificate fingerprint so renewal reloads HAProxy even if
+    // its routes and app list are unchanged. Only a successful publish commits it.
+    if (route.certificateFingerprint) acls += `  # wildcard certificate ${route.certificateFingerprint}\n`;
+    acls += `  acl ${host} req.hdr(host),host_only -m end .${route.domain}\n`;
+    usebackends += `  use_backend ${backend}backend if ${host}\n`;
+  });
   const redirects = '';
 
   return generateHaproxyConfig(acls, usebackends, domains, backends, redirects, tcpAppsMap);

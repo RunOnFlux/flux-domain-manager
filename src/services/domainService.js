@@ -13,6 +13,7 @@ const {
 const { executeCertificateOperations, cleanupStaleCerts } = require('./domain/cert');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
+const wildcard = require('./application/wildcard');
 const { getApplicationsToProcess } = require('./application/subset');
 const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
@@ -155,6 +156,7 @@ let configuredHalfGuards = {
 // even when its own list is unchanged, so the failed config is retried rather
 // than skipped as "no changes".
 let haproxyRetryPending = false;
+const wildcardRoutePublication = wildcard.createRoutePublication();
 
 let dataFetcher = null;
 
@@ -1040,16 +1042,18 @@ async function updateHaproxy(haproxyAppsConfig) {
       return;
     }
     updateHaproxyRunning = true;
-    const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig);
-    // stop logging entire ha proxy config to console
-    // console.log(hc);
-    const dataToWrite = hc;
-    // test haproxy config
-    const result = await haproxyTemplate.restartProxy(dataToWrite);
-    haproxyRetryPending = !result.ok;
-    if (!result.ok) {
-      throw new Error(`Haproxy not updated: ${result.reason}`);
-    }
+    await wildcardRoutePublication.publish(async (routes) => {
+      const hc = await haproxyTemplate.createAppsHaproxyConfig(haproxyAppsConfig, routes);
+      // stop logging entire ha proxy config to console
+      // console.log(hc);
+      const dataToWrite = hc;
+      // test haproxy config
+      const result = await haproxyTemplate.restartProxy(dataToWrite);
+      haproxyRetryPending = !result.ok;
+      if (!result.ok) {
+        throw new Error(`Haproxy not updated: ${result.reason}`);
+      }
+    });
   } finally {
     updateHaproxyRunning = false;
   }
@@ -1666,7 +1670,7 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
     const serializedApps = JSON.stringify(configuredAppsList);
     const lastSerializedApps = JSON.stringify(recentlyConfiguredApps);
 
-    if (serializedApps === lastSerializedApps && !haproxyRetryPending) {
+    if (serializedApps === lastSerializedApps && !haproxyRetryPending && !(await wildcardRoutePublication.changed())) {
       log.info('No changes in Non G Mode configuration detected');
       return;
     }
@@ -1820,7 +1824,7 @@ async function generateAndReplaceMainApplicationHaproxyGAppsConfig() {
     const serializedApps = JSON.stringify(configuredAppsList);
     const lastSerializedApps = JSON.stringify(recentlyConfiguredGApps);
 
-    if (serializedApps === lastSerializedApps && !haproxyRetryPending) {
+    if (serializedApps === lastSerializedApps && !haproxyRetryPending && !(await wildcardRoutePublication.changed())) {
       log.info('No changes in G Mode configuration detected');
       return;
     }

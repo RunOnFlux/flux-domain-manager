@@ -6,14 +6,18 @@ const os = require('os');
 const path = require('path');
 const { X509Certificate } = require('crypto');
 const wildcard = require('../src/services/application/wildcard');
+const log = require('../src/lib/log');
 
 const {
-  parseWildcardRoutes, isWildcardAppDomain, certificateFingerprint, getServableWildcardRoutes,
+  parseWildcardRoutes,
+  isWildcardAppDomain,
+  certificateFingerprint,
+  getServableWildcardRoutes,
+  createRoutePublication,
 } = wildcard;
 const haproxy = require('../src/services/haproxyTemplate');
 
 const { createAppsHaproxyConfig } = haproxy;
-const domainService = require('../src/services/domainService');
 
 const routes = [{ domain: 'drop.runonflux.io', targetDomain: 'drop.app2.runonflux.io' }];
 const app = (extra = {}) => ({
@@ -85,6 +89,31 @@ describe('operator wildcard app routing', () => {
     const generated = createAppsHaproxyConfig([app()], []);
     expect(generated).to.not.include('wildcard_');
     expect(generated).to.include('use_backend dropapp2runonfluxiobackend if dropapp2runonfluxio');
+  });
+
+  it('logs missing and ready wildcard backends only when availability changes', () => {
+    const binding = [{ domain: 'quiet.runonflux.io', targetDomain: 'quiet.app2.runonflux.io' }];
+    const target = app({
+      name: 'quiet', appName: 'quiet_web_31512', domain: binding[0].targetDomain,
+    });
+    const originalWarn = log.warn;
+    const warnings = [];
+    log.warn = (message) => warnings.push(message);
+    try {
+      createAppsHaproxyConfig([], binding);
+      createAppsHaproxyConfig([], binding);
+      createAppsHaproxyConfig([target], binding);
+      createAppsHaproxyConfig([target], binding);
+      createAppsHaproxyConfig([], binding);
+      createAppsHaproxyConfig([], binding);
+    } finally {
+      log.warn = originalWarn;
+    }
+    expect(warnings).to.deep.equal([
+      'Wildcard namespace quiet.runonflux.io: no HTTP backend for quiet.app2.runonflux.io',
+      'Wildcard namespace quiet.runonflux.io: HTTP backend quiet.app2.runonflux.io ready',
+      'Wildcard namespace quiet.runonflux.io: no HTTP backend for quiet.app2.runonflux.io',
+    ]);
   });
 
   it('uses distinct IPv6 node names, app-port cookies, and explicit TLS/H2 settings', () => {
@@ -191,36 +220,33 @@ describe('wildcard certificate availability', () => {
   });
 
   it('commits route availability only after successful publication, and retries failures', async () => {
-    const originalCheck = wildcard.getServableWildcardRoutes;
-    const originalPublish = haproxy.restartProxy;
     let current = [];
-    let fail = false;
     const configs = [];
-    wildcard.getServableWildcardRoutes = async () => current;
-    haproxy.restartProxy = async (config) => { configs.push(config); return { ok: !fail, reason: 'test' }; };
+    const publication = createRoutePublication(async () => current);
+    const publish = () => publication.publish(async (servable) => {
+      configs.push(createAppsHaproxyConfig([app()], servable));
+    });
+
+    expect(await publication.changed()).to.equal(false);
+    current = [{ ...routes[0], certificateFingerprint: 'first' }];
+    expect(await publication.changed()).to.equal(true);
+    let failure;
     try {
-      expect(await domainService.wildcardRoutesChanged()).to.equal(false);
-      current = [{ ...routes[0], certificateFingerprint: 'first' }];
-      expect(await domainService.wildcardRoutesChanged()).to.equal(true);
-      fail = true;
-      let failure;
-      try { await domainService.updateHaproxy([app()]); } catch (error) { failure = error; }
-      expect(failure.message).to.include('Haproxy not updated');
-      expect(await domainService.wildcardRoutesChanged()).to.equal(true);
-      fail = false;
-      await domainService.updateHaproxy([app()]);
-      expect(await domainService.wildcardRoutesChanged()).to.equal(false);
-      current = [{ ...routes[0], certificateFingerprint: 'renewed' }];
-      expect(await domainService.wildcardRoutesChanged()).to.equal(true);
-      await domainService.updateHaproxy([app()]);
-      expect(configs[2]).to.not.equal(configs[1]);
-      current = [];
-      expect(await domainService.wildcardRoutesChanged()).to.equal(true);
-      await domainService.updateHaproxy([app()]);
-      expect(await domainService.wildcardRoutesChanged()).to.equal(false);
-    } finally {
-      wildcard.getServableWildcardRoutes = originalCheck;
-      haproxy.restartProxy = originalPublish;
+      await publication.publish(async () => { throw new Error('test publication failed'); });
+    } catch (error) {
+      failure = error;
     }
+    expect(failure.message).to.equal('test publication failed');
+    expect(await publication.changed()).to.equal(true);
+    await publish();
+    expect(await publication.changed()).to.equal(false);
+    current = [{ ...routes[0], certificateFingerprint: 'renewed' }];
+    expect(await publication.changed()).to.equal(true);
+    await publish();
+    expect(configs[1]).to.not.equal(configs[0]);
+    current = [];
+    expect(await publication.changed()).to.equal(true);
+    await publish();
+    expect(await publication.changed()).to.equal(false);
   });
 });

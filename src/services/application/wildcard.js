@@ -72,6 +72,26 @@ async function getServableWildcardRoutes(routes = wildcardRoutes, check = certif
   return checked.filter(Boolean);
 }
 
+function createRoutePublication(getRoutes = getServableWildcardRoutes) {
+  let published = '[]';
+  return {
+    async changed() {
+      return JSON.stringify(await getRoutes()) !== published;
+    },
+    async publish(callback) {
+      const routes = await getRoutes();
+      const result = await callback(routes);
+      published = JSON.stringify(routes);
+      return result;
+    },
+  };
+}
+
 module.exports = {
-  parseWildcardRoutes, getWildcardAppRoutes, isWildcardAppDomain, certificateFingerprint, getServableWildcardRoutes,
+  parseWildcardRoutes,
+  getWildcardAppRoutes,
+  isWildcardAppDomain,
+  certificateFingerprint,
+  getServableWildcardRoutes,
+  createRoutePublication,
 };

@@ -12,6 +12,17 @@ const { getWildcardAppRoutes, isWildcardAppDomain } = require('./application/wil
 
 let lastHaproxyConfig;
 let consecutivePublishFailures = 0;
+const wildcardBackendAvailability = new Map();
+
+function reportWildcardBackendAvailability(route, available) {
+  const key = `${route.domain}:${route.targetDomain}`;
+  if (wildcardBackendAvailability.get(key) === available) return;
+  const status = available
+    ? `HTTP backend ${route.targetDomain} ready`
+    : `no HTTP backend for ${route.targetDomain}`;
+  log.warn(`Wildcard namespace ${route.domain}: ${status}`);
+  wildcardBackendAvailability.set(key, available);
+}
 
 const haproxyPrefix = `
 global
@@ -553,8 +564,8 @@ function createAppsHaproxyConfig(appConfig, wildcardAppRoutes) {
   // unrelated apps from updating. Missing/TCP-only targets remain dormant.
   routes.forEach((route, index) => {
     const backend = httpBackends.get(route.targetDomain);
+    reportWildcardBackendAvailability(route, Boolean(backend));
     if (!backend) {
-      log.warn(`Wildcard namespace ${route.domain}: no HTTP backend for ${route.targetDomain}`);
       return;
     }
     const host = `wildcard_${index}`;

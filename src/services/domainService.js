@@ -1169,7 +1169,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
 
       configuredApps.push(configuredApp);
       if (typeof app.domains[i] === 'string') {
-        const portDomains = app.domains[i].split(',');
+        const portDomains = app.domains[i].split(',').map((d) => d.trim());
         for (let portDomain of portDomains) {
           // eslint-disable-next-line no-param-reassign
           portDomain = portDomain
@@ -1285,7 +1285,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
         };
         configuredApps.push(configuredApp);
         if (typeof component.domains[i] === 'string') {
-          const portDomains = component.domains[i].split(',');
+          const portDomains = component.domains[i].split(',').map((d) => d.trim());
           // eslint-disable-next-line no-loop-func
           for (let portDomain of portDomains) {
             // eslint-disable-next-line no-param-reassign

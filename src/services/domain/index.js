@@ -37,7 +37,7 @@ function getCustomDomains(app) {
   if (app.version <= 3) {
     for (let i = 0; i < app.ports.length; i += 1) {
       if (typeof app.domains[i] === 'string') {
-        const portDomains = app.domains[i].split(',');
+        const portDomains = app.domains[i].split(',').map((d) => d.trim());
         portDomains.forEach((portDomain) => {
           if (portDomain && portDomain.includes('.') && portDomain.length >= 3 && !portDomain.toLowerCase().endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
             let domain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
@@ -56,7 +56,7 @@ function getCustomDomains(app) {
     for (const component of app.compose) {
       for (let i = 0; i < component.ports.length; i += 1) {
         if (typeof component.domains[i] === 'string') {
-          const portDomains = component.domains[i].split(',');
+          const portDomains = component.domains[i].split(',').map((d) => d.trim());
           portDomains.forEach((portDomain) => {
             if (portDomain && portDomain.includes('.') && portDomain.length >= 3 && !portDomain.toLowerCase().endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
               let domain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed

@@ -170,7 +170,7 @@ const runQueue = {
   nonGApps: { running: false, queued: false },
 };
 
-async function checkDomainOwnership(domain, appName) {
+function checkDomainOwnership(domain, appName) {
   try {
     if (!domain) {
       return true;

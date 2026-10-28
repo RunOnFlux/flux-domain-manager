@@ -2,12 +2,15 @@
 /* eslint-disable no-restricted-syntax */
 const configGlobal = require('config');
 const fs = require('fs').promises;
+// eslint-disable-next-line no-restricted-modules -- address parsing only, no connections
+const net = require('net');
 const log = require('../lib/log');
 const { cmdAsync, TEMP_HAPROXY_CONFIG, HAPROXY_CONFIG } = require('./constants');
 const { matchRule } = require('./serviceHelper');
 const { getPrimaryIP } = require('./rsync/config');
 const { reloadAndVerify, formatFailure } = require('./haproxyReload');
 const alerts = require('./alertService');
+const { isHaproxyTimeout } = require('./application/timeout');
 
 let lastHaproxyConfig;
 let consecutivePublishFailures = 0;
@@ -464,6 +467,67 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
   return generateHaproxyConfig(acls, usebackends, urls, backends, redirects, {});
 }
 
+const RENDERABLE_DOMAIN = /^[a-z0-9][a-z0-9._-]*$/;
+const PORT = /^\d{1,5}$/;
+const BRACKETED_IPV6 = /^\[([^\]]+)\]:(\d{1,5})$/;
+
+function isPort(value) {
+  return PORT.test(String(value)) && +value >= 1 && +value <= 65535;
+}
+
+/**
+ * Whether `ip` is an address generateDomainBackend renders as given:
+ * `a.b.c.d`, `a.b.c.d:port` or `[ipv6]:port`.
+ */
+function isRenderableIp(ip) {
+  if (typeof ip !== 'string') return false;
+  const v6 = BRACKETED_IPV6.exec(ip);
+  if (v6) return net.isIPv6(v6[1]) && isPort(v6[2]);
+  const [host, port, ...rest] = ip.split(':');
+  return rest.length === 0 && net.isIPv4(host) && (port === undefined || isPort(port));
+}
+
+/**
+ * Why an entry cannot be written into the config, or null when it can. Every
+ * spec-derived value the template interpolates is checked here, so one bad
+ * entry is left out on its own instead of making `haproxy -c` refuse the whole
+ * config.
+ *
+ * @param {Object} app one configured-app entry
+ * @returns {string|null}
+ */
+function entryProblem(app) {
+  if (typeof app.domain !== 'string' || !RENDERABLE_DOMAIN.test(app.domain)) return 'domain';
+  if (!isPort(app.port)) return 'port';
+  if (app.timeout && !isHaproxyTimeout(app.timeout)) return 'timeout';
+  if (!Array.isArray(app.ips)) return 'ips';
+  return null;
+}
+
+/**
+ * The entries that can be written into the config, each with only the ips
+ * that can be. Everything left out is logged.
+ *
+ * @param {Object[]} appConfig
+ * @returns {Object[]}
+ */
+function renderableEntries(appConfig) {
+  const renderable = [];
+  for (const app of appConfig) {
+    const problem = entryProblem(app);
+    if (problem) {
+      log.error(`Leaving ${app.name} out of the haproxy config: invalid ${problem} ${JSON.stringify(String(app[problem]).slice(0, 300))}`);
+    } else {
+      const ips = app.ips.filter((ip) => ip && isRenderableIp(ip));
+      app.ips.filter((ip) => ip && !isRenderableIp(ip)).forEach((ip) => {
+        log.error(`Leaving ${JSON.stringify(String(ip).slice(0, 300))} out of the haproxy backend of ${app.name}: invalid ip`);
+      });
+      renderable.push(ips.length === app.ips.length ? app : { ...app, ips });
+    }
+  }
+  return renderable;
+}
+
 // appConfig is an array of object of domain, port, ips
 function createAppsHaproxyConfig(appConfig) {
   let backends = '';
@@ -486,7 +550,7 @@ function createAppsHaproxyConfig(appConfig) {
   const domains = [];
   const seenApps = {};
   const tcpAppsMap = {};
-  for (const app of appConfig) {
+  for (const app of renderableEntries(appConfig)) {
     if (domains.includes(app.domain)) {
       // eslint-disable-next-line no-continue
       continue;
@@ -630,5 +694,6 @@ async function restartProxy(dataToWrite) {
 module.exports = {
   createMainHaproxyConfig,
   createAppsHaproxyConfig,
+  renderableEntries,
   restartProxy,
 };

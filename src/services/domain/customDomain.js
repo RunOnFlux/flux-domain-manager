@@ -53,8 +53,8 @@ const reportedRejections = new Set();
 
 /**
  * The hostnames a spec's per-port `domains` value names, in order and without
- * duplicates. Every entry that names no hostname is dropped and logged once
- * per app and value, so the rest of the app is still served.
+ * duplicates. Every entry that names no hostname is dropped, so the rest of the
+ * app is still served; one that contains a dot is logged once per app and value.
  *
  * @param {unknown} value the spec's `domains[i]` for one port
  * @param {string} appName for the log line
@@ -64,7 +64,7 @@ function parseCustomDomains(value, appName) {
   if (typeof value !== 'string') return [];
   const hostnames = [];
   value.split(',').forEach((entry) => {
-    if (entry.trim() === '') return;
+    if (!entry.includes('.')) return;
     const hostname = parseCustomDomain(entry);
     if (hostname === null) {
       const key = `${appName}\u0000${entry}`;

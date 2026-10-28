@@ -1,5 +1,6 @@
 const chai = require('chai');
 const config = require('config');
+const log = require('../src/lib/log');
 const { getCustomDomains } = require('../src/services/domain/index');
 const { isHostname, parseCustomDomain, parseCustomDomains } = require('../src/services/domain/customDomain');
 
@@ -116,6 +117,19 @@ describe('parseCustomDomain', () => {
 describe('parseCustomDomains', () => {
   it('keeps the valid entries of a list and drops the rest', () => {
     expect(parseCustomDomains('good.com, bad\n.com ,www.good.com,,other.org', 'app')).to.deep.equal(['good.com', 'other.org']);
+  });
+
+  it('logs a rejected entry only when it contains a dot', () => {
+    const { warn } = log;
+    const warnings = [];
+    log.warn = (message) => warnings.push(message);
+    try {
+      expect(parseCustomDomains('"",[""],null,localhost,,bad\n.com', 'quietapp')).to.deep.equal([]);
+    } finally {
+      log.warn = warn;
+    }
+    expect(warnings).to.have.lengthOf(1);
+    expect(warnings[0]).to.include('bad\\n.com').and.include('quietapp');
   });
 
   it('gives nothing for a value that is not a string', () => {

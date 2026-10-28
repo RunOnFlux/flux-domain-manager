@@ -4,6 +4,7 @@ const log = require('../../lib/log');
 const serviceHelper = require('../serviceHelper');
 const { executeCertificateOperations } = require('./cert');
 const { DOMAIN_TYPE } = require('../constants');
+const { parseCustomDomains } = require('./customDomain');
 
 // generates domain names for a given app specificatoin
 function getUnifiedDomains(specifications) {
@@ -33,44 +34,13 @@ function getUnifiedDomains(specifications) {
 
 // gets custom domains set by user for their applications
 function getCustomDomains(app) {
+  const fields = app.version <= 3
+    ? app.ports.map((port, i) => app.domains[i])
+    : app.compose.flatMap((component) => component.ports.map((port, i) => component.domains[i]));
   const domains = [];
-  if (app.version <= 3) {
-    for (let i = 0; i < app.ports.length; i += 1) {
-      if (typeof app.domains[i] === 'string') {
-        const portDomains = app.domains[i].split(',').map((d) => d.trim());
-        portDomains.forEach((portDomain) => {
-          if (portDomain && portDomain.includes('.') && portDomain.length >= 3 && !portDomain.toLowerCase().endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
-            let domain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
-            if (domain.includes('www.')) {
-              // eslint-disable-next-line prefer-destructuring
-              domain = domain.split('www.')[1];
-            }
-            domains.push(domain.toLowerCase());
-            domains.push(`www.${domain.toLowerCase()}`);
-            domains.push(`test.${domain.toLowerCase()}`);
-          }
-        });
-      }
-    }
-  } else {
-    for (const component of app.compose) {
-      for (let i = 0; i < component.ports.length; i += 1) {
-        if (typeof component.domains[i] === 'string') {
-          const portDomains = component.domains[i].split(',').map((d) => d.trim());
-          portDomains.forEach((portDomain) => {
-            if (portDomain && portDomain.includes('.') && portDomain.length >= 3 && !portDomain.toLowerCase().endsWith(`${config.appSubDomain}.${config.mainDomain}`)) {
-              let domain = portDomain.replace('https://', '').replace('http://', '').replace(/[&/\\#,+()$~%'":*?<>{}]/g, ''); // . is allowed
-              if (domain.includes('www.')) {
-                // eslint-disable-next-line prefer-destructuring
-                domain = domain.split('www.')[1];
-              }
-              domains.push(domain.toLowerCase());
-              domains.push(`www.${domain.toLowerCase()}`);
-              domains.push(`test.${domain.toLowerCase()}`);
-            }
-          });
-        }
-      }
+  for (const field of fields) {
+    for (const domain of parseCustomDomains(field, app.name)) {
+      domains.push(domain, `www.${domain}`, `test.${domain}`);
     }
   }
   return domains;

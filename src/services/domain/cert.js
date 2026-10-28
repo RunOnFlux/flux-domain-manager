@@ -3,7 +3,9 @@ const config = require('config');
 const dns = require('dns').promises;
 const fs = require('fs').promises;
 const fsSync = require('fs');
-const { DOMAIN_TYPE, cmdAsync } = require('../constants');
+const util = require('util');
+const execFile = util.promisify(require('child_process').execFile);
+const { DOMAIN_TYPE } = require('../constants');
 const log = require('../../lib/log');
 const serviceHelper = require('../serviceHelper');
 const {
@@ -36,24 +38,24 @@ async function checkCertificatePresetForDomain(domain) {
   }
 }
 
+// Run without a shell: the domain is one argument however it is spelled.
 async function obtainDomainCertificate(domain) {
-  // cmdAsync rejects on non-zero exit code
-  await cmdAsync(`sudo certbot certonly --standalone -d ${domain} --non-interactive --agree-tos --email ${config.emailDomain} --http-01-port=8787`);
+  // execFile rejects on non-zero exit code
+  await execFile('sudo', ['certbot', 'certonly', '--standalone', '-d', domain, '--non-interactive', '--agree-tos', '--email', config.emailDomain, '--http-01-port=8787']);
   const fullchainPath = `${LETSENCRYPT_LIVE_DIR}/${domain}/fullchain.pem`;
   const privkeyPath = `${LETSENCRYPT_LIVE_DIR}/${domain}/privkey.pem`;
   await fs.access(fullchainPath);
   await fs.access(privkeyPath);
-  await cmdAsync(`sudo cat ${fullchainPath} ${privkeyPath} > ${CERT_DIR}/${domain}.pem`);
+  const { stdout: pem } = await execFile('sudo', ['cat', fullchainPath, privkeyPath]);
+  await fs.writeFile(`${CERT_DIR}/${domain}.pem`, pem);
 }
 
 async function getCertDaysRemaining(domain) {
   try {
     const pemPath = `${CERT_DIR}/${domain}.pem`;
     await fs.access(pemPath);
-    const result = await cmdAsync(
-      `openssl x509 -enddate -noout -in ${pemPath}`,
-    );
-    const match = result.match(/notAfter=(.+)/);
+    const { stdout } = await execFile('openssl', ['x509', '-enddate', '-noout', '-in', pemPath]);
+    const match = stdout.match(/notAfter=(.+)/);
     if (!match) return null;
     const expiryDate = new Date(match[1].trim());
     const now = new Date();

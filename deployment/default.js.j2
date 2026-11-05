@@ -25,6 +25,8 @@ module.exports = {
   domainAppType: 'CNAME',
   emailDomain: 'tadeas@runonflux.io',
   certFolder: 'fluxapps',
+  // Operator bindings are set explicitly in inventory variables.
+  wildcardAppRoutes: {{ wildcardAppRoutes | default([]) | to_json }},
   manageCertificateOnly: {{ manageCertificateOnly }},
   certRenewalPrimary: {{ certRenewalPrimary | default('false') | lower }},
   automateCertificates: false,

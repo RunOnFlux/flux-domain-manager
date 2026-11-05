@@ -4,6 +4,7 @@ const log = require('../../lib/log');
 const serviceHelper = require('../serviceHelper');
 const { executeCertificateOperations } = require('./cert');
 const { DOMAIN_TYPE } = require('../constants');
+const { isWildcardAppDomain } = require('../application/wildcard');
 const { parseCustomDomains } = require('./customDomain');
 
 // generates domain names for a given app specificatoin
@@ -43,7 +44,7 @@ function getCustomDomains(app) {
       domains.push(domain, `www.${domain}`, `test.${domain}`);
     }
   }
-  return domains;
+  return domains.filter((domain) => !isWildcardAppDomain(domain));
 }
 
 async function processApplications(specifications, myFDMnameORip, myIP) {

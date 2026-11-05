@@ -21,6 +21,7 @@
   "scripts": {
     "start": "nodemon index.js",
     "test": "mocha tests --timeout 10000 --exit",
+    "test:wildcard": "node tests/smoke/wildcardRouting.js",
     "test:integration": "mocha tests/integration --timeout 20000",
     "lint": "eslint ./",
     "lint:fix": "eslint ./ --fix"

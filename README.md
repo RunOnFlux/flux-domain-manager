@@ -28,6 +28,35 @@ domainAppType: 'CNEME' or 'A'
 -   pDNS/Cloudflare
 -   letsencrypt, certbot, auto cert renewal
 
+## Wildcard application routing
+
+Bind an operator-owned namespace to an existing generated app HTTP endpoint:
+
+```js
+wildcardAppRoutes: [{ domain: 'drop.runonflux.io', targetDomain: 'drop.app.runonflux.io' }],
+```
+
+Defaults to `[]`; production inventory sets the Drop binding in
+`deployment/group_vars/app_fdm_servers.yml`. Targets must be generated endpoints
+(`<appname>[_<port>].<appSubDomain>.<mainDomain>`). Original Host, path, query and
+body are preserved. The application validates tenant hostnames. Global forbidden
+rules still take priority. HAProxy 2.7 or newer is required for `host_only`.
+
+Install the wildcard certificate, chain and matching private key together at
+`/etc/ssl/<certFolder>/<domain>.pem` (default `certFolder`: `fluxapps`). Each FDM
+checks its own file: routes remain dormant until a matching, currently valid
+wildcard certificate and key exist. Certificate arrival, expiry and renewal
+trigger configuration updates; failed publishes retry. Distribute certificates
+through the authoritative certificate-sync source, since rsync uses `--delete`.
+The complete namespace remains reserved against custom-domain claims even while
+dormant. Missing HTTP targets are skipped without blocking other app updates.
+
+Run `npm test` and `npm run lint`. `npm run test:wildcard` requires **Linux**,
+Docker and OpenSSL, and uses host networking with temporary loopback backends;
+Docker Desktop host networking does not provide the same loopback access. Set
+`FDM_TEST_HAPROXY_IMAGE` to test another HAProxy version. Tests use no live Flux
+or Cloudflare services and remove their containers and temporary certificates.
+
 ## Operator alerts
 
 FDM posts to a Discord webhook when it keeps the current haproxy config instead of publishing a new one:
@@ -43,7 +72,7 @@ Each condition sends one message when it starts and one when it clears. Set `ale
 ## Application Overview
 
 Prerequisites: 
-- Nodejs 14+
+- Nodejs 16.20.1+
 - haproxy
 - mongodb 4+
 - certbot

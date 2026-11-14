@@ -19,7 +19,7 @@ function sortIPAddresses(addresses) {
 
       // Check if IPv6 (contains colons and possibly brackets)
       if (addr.includes('[') && addr.includes(']:')) {
-        // IPv6 with port: [2001:41d0:d00:b800::46]:9159
+        // IPv6 with port: [2001:db8::46]:9159
         const match = addr.match(/\[(.*?)\]:(\d+)/);
         if (match) {
           [, ip, port] = match;

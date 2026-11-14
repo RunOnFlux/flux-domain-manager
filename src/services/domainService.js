@@ -1318,38 +1318,6 @@ async function generateAndReplaceMainApplicationHaproxyConfig() {
         }
       }
 
-      if (app.name === 'blockbookbitcoin') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::20]:9130' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::21]:9130' });
-      }
-      if (app.name === 'blockbooklitecoin') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::24]:9134' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::25]:9134' });
-      }
-      if (app.name === 'blockbookdogecoin') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::36]:9138' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::37]:9138' });
-      }
-      if (app.name === 'blockbookravencoin') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::46]:9159' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::47]:9159' });
-      }
-      if (app.name === 'blockbookbitcointestnet') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::42]:19129' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::43]:19129' });
-      }
-      if (app.name === 'blockbookbitcoinsignet') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::97]:19120' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::98]:19120' });
-      }
-      if (app.name === 'blockbookzcash') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::26]:9132' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::27]:9132' });
-      }
-      if (app.name === 'blockbookbitcoincash') {
-        appLocations.push({ ip: '[2001:41d0:d00:b800::91]:9131' });
-        appLocations.push({ ip: '[2001:41d0:d00:b800::92]:9131' });
-      }
       if (appLocations.length > 0) {
         let appIps = [];
         app.isRdata = false;

@@ -1039,6 +1039,18 @@ async function checkAppHeld(url, appSpec) {
   return (await checkAppHeldState(url, appSpec)) === ProbeState.RUNNING;
 }
 
+/**
+ * The first port the app publishes. A compose app can list a component with
+ * no ports first (explorer's mongodb), so the first component is not enough.
+ */
+function firstAppPort(app) {
+  if (app.ports && app.ports.length) {
+    return app.ports[0];
+  }
+  const component = (app.compose || []).find((c) => c.ports && c.ports.length);
+  return component ? component.ports[0] : undefined;
+}
+
 function applicationWithChecks(app) {
   if (generalWebsiteApps.includes(app.name)) {
     return true;
@@ -1074,9 +1086,10 @@ function applicationWithChecks(app) {
 async function checkApplication(app, ip) {
   let isOK = true;
   if (generalWebsiteApps.includes(app.name)) {
-    isOK = await generalWebsiteCheck(ip.split(':')[0], app.port || app.ports ? app.ports[0] : app.compose[0].ports[0], undefined, app.name);
+    isOK = await generalWebsiteCheck(ip.split(':')[0], firstAppPort(app), undefined, app.name);
   } else if (app.name === 'explorer' || app.name === 'explorerb') {
-    isOK = await checkFluxExplorer(ip.split(':')[0], 39185);
+    // explorer publishes 39185 and explorerb 38200; a fixed 39185 failed every explorerb backend.
+    isOK = await checkFluxExplorer(ip.split(':')[0], firstAppPort(app));
   } else if (app.name === 'bitcoinnode' || app.name === 'bitcoinnodetestnet' || app.name === 'bitcoinnodesignet') {
     isOK = await checkBitcoinNode(ip.split(':')[0], app.compose[0].ports[0], app.name);
   } else if (app.name === 'HavenNodeMainnet') {
@@ -1126,6 +1139,7 @@ setInterval(async () => {
 }, 120 * 1000);
 
 module.exports = {
+  firstAppPort,
   checkMainFlux,
   checkKadenaApplication,
   checkRunOnFluxWebsite,

@@ -11,6 +11,9 @@ const { getPrimaryIP } = require('./rsync/config');
 const { reloadAndVerify, formatFailure } = require('./haproxyReload');
 const alerts = require('./alertService');
 const { isHaproxyTimeout } = require('./application/timeout');
+const {
+  resolveVerifiedTlsApps, verifiedServerOptions, applyVerifiedTls, reportOnce,
+} = require('./application/verifiedTls');
 
 let lastHaproxyConfig;
 let consecutivePublishFailures = 0;
@@ -278,7 +281,16 @@ backend ${domainUsed}backend
     const apiPort = ip.split(':')[1] || 16127;
     let cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split(':')[0]}:${app.port}`;
     const isCheck = app.check ? 'check ' : '';
-    if (ip.includes('[') && ip.includes(']')) { // ipv6 hardcoded
+    if (app.verifiedTls) {
+      // A verified app (application/verifiedTls): TLS it verifies, never plain
+      // and never `verify none`, on its configured port, and a server name and
+      // cookie that do not give the instance's address away.
+      const id = app.verifiedTls.ids.get(ip);
+      const target = ip.includes('[') ? `${ip.split(']')[0]}]:${app.port}` : `${ip.split(':')[0]}:${app.port}`;
+      const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
+      cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${id}`;
+      domainBackend += `\n  server ${id} ${target} ${isCheck}${app.serverConfig} ${verifiedServerOptions(app.verifiedTls)} ${h2Config}${cookieConfig}`;
+    } else if (ip.includes('[') && ip.includes(']')) { // ipv6 hardcoded
       const h2Config = app.enableH2 ? `${h2Suffix} ` : '';
       cookieConfig = app.loadBalance || mode === 'tcp' ? '' : `cookie ${ip.split('[')[1].split(']')[0]}${ip.split(']')[1]}`;
       domainBackend += `\n  server ${ip.split('[')[1].split(']')[0]} ${ip.split(']')[0]}]${ip.split(']')[1]} ${isCheck}${app.serverConfig} ssl verify none ${h2Config}${cookieConfig}`;
@@ -317,7 +329,13 @@ function generateMinecraftACLs(app) {
   ];
 }
 
-function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudUi, cloudUiPrimary) {
+// verifiedTlsApps and cloudUiName are the config values of those names; see
+// application/verifiedTls.
+function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudUi, cloudUiPrimary, verifiedTlsApps = configGlobal.verifiedTlsApps, cloudUiName = configGlobal.cloudUiName) {
+  // With the cloud UI's app a verified app, its domains are served by the app
+  // FDMs alone, over TLS they verify; this FDM would send them to every node's
+  // UI port in plain HTTP, so it does not route them at all.
+  const cloudUiVerified = resolveVerifiedTlsApps(verifiedTlsApps).has(String(cloudUiName).toLowerCase());
   const uiB = ui.split('.').join('');
   const apiB = api.split('.').join('');
 
@@ -446,12 +464,16 @@ function createMainHaproxyConfig(ui, api, fluxIPs, uiPrimary, apiPrimary, cloudU
     const apiPrimaryAcl = `  acl ${apiB} hdr(host) ${apiPrimary}\n`;
     acls += apiPrimaryAcl;
   }
-  // Cloud UI uses same backend as home UI
-  const cloudUiAcl = `  acl ${uiB} hdr(host) ${cloudUi}\n`;
-  acls += cloudUiAcl;
-  if (cloudUiPrimary) {
-    const cloudUiPrimaryAcl = `  acl ${uiB} hdr(host) ${cloudUiPrimary}\n`;
-    acls += cloudUiPrimaryAcl;
+  if (cloudUiVerified) {
+    reportOnce('info', `Not routing ${[cloudUi, cloudUiPrimary].filter(Boolean).join(' and ')}: ${cloudUiName} is a verified app (verifiedTlsApps), served by the app FDMs`);
+  } else {
+    // Cloud UI uses same backend as home UI
+    const cloudUiAcl = `  acl ${uiB} hdr(host) ${cloudUi}\n`;
+    acls += cloudUiAcl;
+    if (cloudUiPrimary) {
+      const cloudUiPrimaryAcl = `  acl ${uiB} hdr(host) ${cloudUiPrimary}\n`;
+      acls += cloudUiPrimaryAcl;
+    }
   }
 
   // Enhanced routing with roundrobin endpoints getting priority
@@ -528,8 +550,10 @@ function renderableEntries(appConfig) {
   return renderable;
 }
 
-// appConfig is an array of object of domain, port, ips
-function createAppsHaproxyConfig(appConfig) {
+// appConfig is an array of object of domain, port, ips. verifiedTlsApps is the
+// config value of that name; see application/verifiedTls.
+function createAppsHaproxyConfig(appConfig, verifiedTlsApps = configGlobal.verifiedTlsApps) {
+  const verified = resolveVerifiedTlsApps(verifiedTlsApps);
   let backends = '';
   let acls = '';
   let usebackends = '';
@@ -550,7 +574,7 @@ function createAppsHaproxyConfig(appConfig) {
   const domains = [];
   const seenApps = {};
   const tcpAppsMap = {};
-  for (const app of renderableEntries(appConfig)) {
+  for (const app of applyVerifiedTls(renderableEntries(appConfig), verified)) {
     if (domains.includes(app.domain)) {
       // eslint-disable-next-line no-continue
       continue;

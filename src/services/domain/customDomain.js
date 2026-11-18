@@ -49,6 +49,23 @@ function parseCustomDomain(entry) {
   return name;
 }
 
+// The custom domains FDM gives these apps itself, in place of whatever their
+// specs say (domain/index.js), as a spec's comma-separated `domains` value.
+const FIXED_CUSTOM_DOMAINS = new Map([
+  ['cloud', 'cloud.runonflux.io,cloud.runonflux.com'],
+  ['clouddev', 'dev.cloud.runonflux.io,dev.cloud.runonflux.com'],
+]);
+
+/**
+ * The custom domains FDM gives an app whatever its spec says, or undefined.
+ *
+ * @param {string} name the app's name
+ * @returns {string|undefined}
+ */
+function fixedCustomDomains(name) {
+  return FIXED_CUSTOM_DOMAINS.get(name);
+}
+
 const reportedRejections = new Set();
 
 /**
@@ -80,6 +97,7 @@ function parseCustomDomains(value, appName) {
 }
 
 module.exports = {
+  fixedCustomDomains,
   isHostname,
   parseCustomDomain,
   parseCustomDomains,

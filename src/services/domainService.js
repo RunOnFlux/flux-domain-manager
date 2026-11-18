@@ -15,6 +15,7 @@ const { parseCustomDomains } = require('./domain/customDomain');
 const applicationChecks = require('./application/checks');
 const { getCustomConfigs } = require('./application/custom');
 const { timeoutFromParameters } = require('./application/timeout');
+const { isVerifiedTlsApp } = require('./application/verifiedTls');
 const { getApplicationsToProcess } = require('./application/subset');
 const { DOMAIN_TYPE } = require('./constants');
 const { startCertRsync } = require('./rsync');
@@ -1151,14 +1152,26 @@ function createConfiguredApps() {
 /**
  * Adds an entry for each custom domain a port's `domains` value names, and for
  * its `www.` and `test.` variants, unless another app already has the domain.
+ * A verified app (application/verifiedTls) gets its entries whatever another
+ * app or the ownership check says: its domains are reserved for it, and the
+ * render leaves out every other app's entry for them.
  *
  * @param {ReturnType<typeof createConfiguredApps>} configuredApps
  * @param {Object} app the app specification
  * @param {unknown} field the spec's `domains` value for the port
  * @param {(domain: string) => Object} entryFor the port's entry for a domain
+ * @param {boolean} [verified] whether the app is a verified app that is on
  */
-function addCustomDomainConfigurations(configuredApps, app, field, entryFor) {
+function addCustomDomainConfigurations(configuredApps, app, field, entryFor, verified = false) {
   for (const domain of parseCustomDomains(field, app.name)) {
+    if (verified) {
+      for (const variant of [domain, `www.${domain}`, `test.${domain}`]) {
+        const own = configuredApps.list().some((entry) => entry.domain === variant && entry.name === app.name);
+        if (!own) configuredApps.push(entryFor(variant));
+      }
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     const isDomainAllowed = checkDomainOwnership(domain, app.name);
     // eslint-disable-next-line no-continue
     if (isDomainAllowed === false || configuredApps.hasDomain(domain)) continue;
@@ -1168,9 +1181,11 @@ function addCustomDomainConfigurations(configuredApps, app, field, entryFor) {
   }
 }
 
-function addConfigurations(configuredApps, app, appIps, gMode) {
+// verifiedTlsApps is the config value of that name; see application/verifiedTls.
+function addConfigurations(configuredApps, app, appIps, gMode, verifiedTlsApps = config.verifiedTlsApps) {
   const domains = getUnifiedDomains(app);
   const customConfigs = getCustomConfigs(app, gMode);
+  const verified = isVerifiedTlsApp(verifiedTlsApps, app.name);
   if (app.version <= 3) {
     const timeout = timeoutFromParameters(app.enviromentParameters, app.name);
     for (let i = 0; i < app.ports.length; i += 1) {
@@ -1185,7 +1200,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
         timeout,
       });
       configuredApps.push(entryFor(domains[i]));
-      addCustomDomainConfigurations(configuredApps, app, app.domains[i], entryFor);
+      addCustomDomainConfigurations(configuredApps, app, app.domains[i], entryFor, verified);
     }
     const mainApp = {
       name: app.name,
@@ -1215,7 +1230,7 @@ function addConfigurations(configuredApps, app, appIps, gMode) {
           timeout,
         });
         configuredApps.push(entryFor(domains[j]));
-        addCustomDomainConfigurations(configuredApps, app, component.domains[i], entryFor);
+        addCustomDomainConfigurations(configuredApps, app, component.domains[i], entryFor, verified);
         j += 1;
       }
     }

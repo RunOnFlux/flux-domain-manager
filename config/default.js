@@ -56,6 +56,19 @@ module.exports = {
     // Discord webhook for operator alerts; empty sends nothing.
     discordWebhookUrl: '',
   },
+  // Apps reached only on allowedIps, at their TLS port `port`, over TLS
+  // verified against caFile for the name verifyHost; their domains are theirs
+  // alone (README, "Verified TLS to app instances"). Off until `enabled` is
+  // true: FDM then handles the app like any other. enabled, port and
+  // allowedIps are set per host in config/local.js, never here.
+  verifiedTlsApps: {
+    cloud: {
+      enabled: false,
+      caFile: '/etc/ssl/flux-internal/ca.pem',
+      verifyHost: 'cloud.origin.runonflux.io',
+      allowedIps: [],
+    },
+  },
   appSubDomain: 'app2',
   fdmAppDomain: 'fdm-lb-2-1.runonflux.io',
   uiName: 'home',

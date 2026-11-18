@@ -8,32 +8,59 @@ on:
     types:
       - created
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: runonflux
+    # Below the agent's key lifetime (ssh-agent -t 3600, one hour): a job that
+    # hangs is cancelled while the agent still holds the key, and the last
+    # step, which runs on cancellation too, stops the agent.
+    timeout-minutes: 50
+    env:
+      # Host keys are not pinned, as before, but nothing is written to the
+      # runner's ~/.ssh any more.
+      ANSIBLE_HOST_KEY_CHECKING: 'False'
+      ANSIBLE_SSH_COMMON_ARGS: '-o UserKnownHostsFile=/dev/null'
+      # No SSH connection sharing (ansible's default ssh_args keep a master
+      # connection open for 60s after the last task): every connection ends
+      # with the job, and none outlives the agent below.
+      ANSIBLE_SSH_ARGS: '-C -o ControlMaster=no -o ControlPath=none'
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: Setup Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
         python-version: '3.x'
 
     - name: Install Ansible
       run: pip install ansible
 
-    - name: Set up SSH key
+    # The runner is persistent: the key is only ever held in memory by an
+    # ssh-agent of this job, never written to disk, and the last step stops the
+    # agent whatever the job's outcome; should that step never run, the agent
+    # drops the key after an hour (-t 3600). The step fails rather than fall
+    # back to any other agent if this one does not start.
+    - name: Load SSH key into an agent
       env:
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       run: |
-        mkdir -p ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > private_key
-        chmod 600 private_key
-        echo "Host *" >> ~/.ssh/config
-        echo "  IdentityFile $(pwd)/private_key" >> ~/.ssh/config
-        echo "  StrictHostKeyChecking no" >> ~/.ssh/config
-        echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
+        unset SSH_AUTH_SOCK SSH_AGENT_PID
+        agent_dir="$(mktemp -d "$RUNNER_TEMP/ssh.XXXXXX")"
+        chmod 700 "$agent_dir"
+        agent_env="$(ssh-agent -s -t 3600 -a "$agent_dir/s")"
+        eval "$agent_env" > /dev/null
+        {
+          echo "SSH_AUTH_SOCK=$agent_dir/s"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID"
+          echo "SSH_AGENT_DIR=$agent_dir"
+        } >> "$GITHUB_ENV"
+        printf '%s\n' "$SSH_PRIVATE_KEY" | SSH_AUTH_SOCK="$agent_dir/s" ssh-add -q -
 
     - name: Run Ansible playbook APPS
       env:
@@ -54,3 +81,13 @@ jobs:
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       run: |
         ansible-playbook -i deployment/hosts.ini deployment/fdm_main_dev_setup.yml
+
+    - name: Stop the SSH agent
+      if: always()
+      run: |
+        if [ -n "${SSH_AGENT_PID:-}" ]; then
+          ssh-agent -k > /dev/null || true
+        fi
+        case "${SSH_AGENT_DIR:-}" in
+          "$RUNNER_TEMP"/ssh.*) rm -rf -- "$SSH_AGENT_DIR" ;;
+        esac

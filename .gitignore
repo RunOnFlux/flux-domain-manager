@@ -1,4 +1,6 @@
 config/cloudflareConfig.js
+# per-host overrides (node-config local files), e.g. verifiedTlsApps for this host
+config/local*
 .DS_Store
 node_modules/
 /dist/

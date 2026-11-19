@@ -40,6 +40,38 @@ A list more than 30% smaller than the last accepted one, an empty list included,
 
 Each condition sends one message when it starts and one when it clears. Set `alerts.discordWebhookUrl` in config. The ansible playbooks render it from the `DISCORD_WEBHOOK_URL` environment variable, which the deploy workflow sets from the repository secret of the same name; `-e discord_webhook_url=...` overrides it for a manual run. It never goes in a tracked file. Empty sends nothing. Thresholds are in `config/guardsConfig.json`.
 
+## Verified TLS to app instances
+
+`verifiedTlsApps` names apps (by Flux app name, any case) whose instances FDM must reach only on known addresses and only over TLS it verifies. Each is off until its `enabled` is `true`; while off, FDM handles it like any other app and the config it writes is the same as without the setting.
+
+For an app that is on, on an app FDM:
+
+- every domain of the app (its `<name>.<appSubDomain>...` and `<name>_<port>...` names, the custom domains FDM gives it itself, such as `cloud.runonflux.io` and `cloud.runonflux.com` for `cloud`, and its spec's custom domains) is served from one backend at `port`, the app's TLS port, instead of the app's first port;
+- that backend's servers are only the instances whose address is in `allowedIps`, in their existing order, each reached with `ssl verify required ca-file <caFile> verifyhost <verifyHost> sni str(<verifyHost>) check-sni <verifyHost>`, never plain and never `verify none`; for a replicated database (`isRdata`), whose first instance is its primary, a primary that is not allowed leaves it with no servers, so that a replica is never made primary;
+- each server, and its sticky cookie, is named `allowed<n>` (n its position in `allowedIps`), never by its address, so neither `/fluxstatistics` nor a client's cookie shows where an instance runs;
+- its domains are its own: another app's entry for one of them is left out, whatever the ownership check says, also on FDMs where the app itself does not run;
+- with no allowed instance, or with settings that cannot be used (a missing or malformed `caFile`, `verifyHost` or `port`, a `port` that is not one of the app's ports, an allowed entry that is not a bare IP, a CA file that is not a readable file of PEM certificates that parse (missing, empty, DER, a directory, anything else in it) while an instance is allowed, an `enabled` that is not a boolean, settings that are not an object), it keeps its domains with no servers, so haproxy answers 503. It is never given an unverified server. Each problem is logged once.
+
+On a main FDM, when `cloudUiName` is an app that is on, the `cloud.*` names are not routed at all (they would otherwise go to every node's UI port in plain HTTP); DNS for them must point at the app FDMs.
+
+Only a `verifiedTlsApps` value that is not a map of apps is refused, and then no config is written.
+
+`config/default.js` ships `cloud` off. Turn it on per FDM host in `config/local.js` (git-ignored, loaded by node-config after `default.js`, not touched by the deploy playbooks; FDM reads it at start, so `pm2 restart FDM` after a change):
+
+```js
+module.exports = {
+  verifiedTlsApps: {
+    cloud: {
+      enabled: true,
+      port: 31443, // for example: the app's port mapped from its container's TLS port 443
+      allowedIps: ['<instance ip>', '<instance ip>'], // the same list, in the same order, on every host
+    },
+  },
+};
+```
+
+`caFile` (`/etc/ssl/flux-internal/ca.pem`) and `verifyHost` (`cloud.origin.runonflux.io`) come from `default.js`. The instances must serve TLS on `port` with a certificate for `verifyHost` that chains to the CA in `caFile`, and that CA certificate (PEM, nothing else in the file) must be on the FDM host before any address is allowed: a CA file haproxy could not load would make it refuse the whole config, so FDM leaves the app without servers instead.
+
 ## Application Overview
 
 Prerequisites: 

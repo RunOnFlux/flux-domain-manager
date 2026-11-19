@@ -4,7 +4,7 @@ const log = require('../../lib/log');
 const serviceHelper = require('../serviceHelper');
 const { executeCertificateOperations } = require('./cert');
 const { DOMAIN_TYPE } = require('../constants');
-const { parseCustomDomains } = require('./customDomain');
+const { fixedCustomDomains, parseCustomDomains } = require('./customDomain');
 
 // generates domain names for a given app specificatoin
 function getUnifiedDomains(specifications) {
@@ -86,11 +86,11 @@ async function processApplications(specifications, myFDMnameORip, myIP) {
       }
     } else if (appSpecs.name === 'cloud') { // cloud is one component and we want to have cloud available on both cloud.runonflux.com and cloud.runonflux.io
       for (const component of appSpecs.compose) {
-        component.domains = ['cloud.runonflux.io,cloud.runonflux.com'];
+        component.domains = [fixedCustomDomains('cloud')];
       }
     } else if (appSpecs.name === 'clouddev') { // clouddev is one component and we want to have cloud available on both dev.cloud.runonflux.com and dev.cloud.runonflux.io
       for (const component of appSpecs.compose) {
-        component.domains = ['dev.cloud.runonflux.io,dev.cloud.runonflux.com'];
+        component.domains = [fixedCustomDomains('clouddev')];
       }
     }
     // else if (appSpecs.name === 'eckodao') {

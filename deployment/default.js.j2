@@ -57,6 +57,19 @@ module.exports = {
     // workflow supplies it from the DISCORD_WEBHOOK_URL repository secret.
     discordWebhookUrl: '{{ discord_webhook_url | default(lookup('env', 'DISCORD_WEBHOOK_URL'), true) }}',
   },
+  // Apps reached only on allowedIps, at their TLS port `port`, over TLS
+  // verified against caFile for the name verifyHost; their domains are theirs
+  // alone (README, "Verified TLS to app instances"). Off until `enabled` is
+  // true: FDM then handles the app like any other. enabled, port and
+  // allowedIps are set per host in config/local.js, never here.
+  verifiedTlsApps: {
+    cloud: {
+      enabled: false,
+      caFile: '/etc/ssl/flux-internal/ca.pem',
+      verifyHost: 'cloud.origin.runonflux.io',
+      allowedIps: [],
+    },
+  },
   appSubDomain: '{{ appSubDomain }}',
   fdmAppDomain: '{{ fdmAppDomain }}',
   uiName: '{{ uiName }}',
